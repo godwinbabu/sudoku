@@ -3,7 +3,7 @@ import SwiftUI
 struct SudokuGridView: View {
     let cells: [SudokuCell]
     let selectedCellID: UUID?
-    let palette: ThemePalette
+    let theme: ThemeColors
     var onSelect: (SudokuCell) -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 9)
@@ -11,14 +11,14 @@ struct SudokuGridView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .stroke(palette.gridLine, lineWidth: 2)
-                .background(RoundedRectangle(cornerRadius: 12).fill(palette.tile.opacity(0.4)))
+                .stroke(theme.gridLine, lineWidth: 2)
+                .background(RoundedRectangle(cornerRadius: 12).fill(theme.gridBackground))
             LazyVGrid(columns: columns, spacing: 1) {
                 ForEach(cells) { cell in
                     Button {
                         onSelect(cell)
                     } label: {
-                        SudokuCellView(cell: cell, isSelected: cell.id == selectedCellID, palette: palette)
+                        SudokuCellView(cell: cell, isSelected: cell.id == selectedCellID, theme: theme)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
@@ -43,14 +43,14 @@ struct SudokuGridView: View {
                         path.move(to: CGPoint(x: originX + offset, y: originY))
                         path.addLine(to: CGPoint(x: originX + offset, y: originY + length))
                     }
-                    .stroke(palette.gridLine.opacity(0.6), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(0.6), lineWidth: lineWidth)
 
                     Path { path in
                         let offset = CGFloat(index) * cellSize
                         path.move(to: CGPoint(x: originX, y: originY + offset))
                         path.addLine(to: CGPoint(x: originX + length, y: originY + offset))
                     }
-                    .stroke(palette.gridLine.opacity(0.6), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(0.6), lineWidth: lineWidth)
                 }
             }
         }
@@ -61,20 +61,20 @@ struct SudokuGridView: View {
 struct SudokuCellView: View {
     let cell: SudokuCell
     let isSelected: Bool
-    let palette: ThemePalette
+    let theme: ThemeColors
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? palette.selection : palette.tile)
+                .fill(isSelected ? theme.selection : theme.cardBackground)
             if let value = cell.value {
                 Text("\(value)")
                     .font(cell.given ? .title3.bold() : .title3)
-                    .foregroundColor(cell.given ? palette.givenText : palette.entryText)
+                    .foregroundColor(cell.given ? theme.primaryText : theme.accent)
             } else if !cell.candidates.isEmpty {
                 Text(candidateString)
                     .font(.footnote)
-                    .foregroundColor(palette.candidateText)
+                    .foregroundColor(theme.secondaryText)
                     .minimumScaleFactor(0.6)
             }
         }
@@ -91,7 +91,7 @@ struct SudokuCellView: View {
     }
 
     private var borderColor: Color {
-        cell.isError ? palette.error : palette.gridLine.opacity(0.4)
+        cell.isError ? theme.error : theme.gridLine.opacity(0.4)
     }
 
     private var accessibilityText: String {

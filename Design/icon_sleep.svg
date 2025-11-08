@@ -1,0 +1,45 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sleepGrad" cx="0.3" cy="0.2" r="1">
+      <stop offset="0%" stop-color="#151821"/>
+      <stop offset="100%" stop-color="#050609"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#sleepGrad)" />
+
+  <!-- Very subtle 3x3 grid -->
+  <g stroke="#262A35" stroke-width="6" opacity="0.7">
+    <line x1="341.33" y1="224" x2="341.33" y2="800"/>
+    <line x1="682.66" y1="224" x2="682.66" y2="800"/>
+    <line x1="224" y1="341.33" x2="800" y2="341.33"/>
+    <line x1="224" y1="682.66" x2="800" y2="682.66"/>
+  </g>
+
+  <!-- Dim grid highlight -->
+  <rect x="320" y="320" width="384" height="384" rx="48"
+        fill="none" stroke="#F5B754" stroke-width="8" opacity="0.9"/>
+
+  <!-- Main moon symbol -->
+  <g transform="translate(670, 320)">
+    <circle cx="0" cy="0" r="74" fill="#F5B754" opacity="0.12"/>
+    <path d="M 26 -60
+             A 60 60 0 1 0 26 60
+             A 46 46 0 1 1 26 -60 Z"
+          fill="#F5B754" opacity="0.9"/>
+  </g>
+
+  <!-- Few small “candidate” dots like stars -->
+  <circle cx="310" cy="260" r="4" fill="#F5B754" opacity="0.8"/>
+  <circle cx="250" cy="360" r="3" fill="#F5B754" opacity="0.6"/>
+  <circle cx="380" cy="210" r="3" fill="#F5B754" opacity="0.6"/>
+  <circle cx="430" cy="280" r="2" fill="#F5B754" opacity="0.5"/>
+
+  <!-- Subtle center digit hint -->
+  <text x="512" y="544" font-family="SF Pro Display, system-ui, -apple-system" font-weight="600"
+        font-size="108" fill="#F5F1E8" opacity="0.85"
+        text-anchor="middle" dominant-baseline="middle">
+    9
+  </text>
+</svg>

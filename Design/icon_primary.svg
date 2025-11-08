@@ -1,0 +1,62 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#050609"/>
+      <stop offset="100%" stop-color="#11141B"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bgGrad)" />
+
+  <!-- Subtle outer grid (3x3) -->
+  <g stroke="#2A2E3A" stroke-width="8">
+    <!-- Vertical lines -->
+    <line x1="341.33" y1="192" x2="341.33" y2="832"/>
+    <line x1="682.66" y1="192" x2="682.66" y2="832"/>
+    <!-- Horizontal lines -->
+    <line x1="192" y1="341.33" x2="832" y2="341.33"/>
+    <line x1="192" y1="682.66" x2="832" y2="682.66"/>
+  </g>
+
+  <!-- Highlighted inner 3x3 block -->
+  <rect x="320" y="320" width="384" height="384" rx="48" fill="none" stroke="#F5B754" stroke-width="10"/>
+
+  <!-- Fine inner grid lines (within highlighted block) -->
+  <g stroke="#3A3F4C" stroke-width="4">
+    <!-- Vertical -->
+    <line x1="448" y1="320" x2="448" y2="704"/>
+    <line x1="576" y1="320" x2="576" y2="704"/>
+    <!-- Horizontal -->
+    <line x1="320" y1="448" x2="704" y2="448"/>
+    <line x1="320" y1="576" x2="704" y2="576"/>
+  </g>
+
+  <!-- Digits inside the block -->
+  <!-- 1 top-left -->
+  <text x="378" y="422" font-family="SF Pro Display, system-ui, -apple-system" font-weight="600"
+        font-size="88" fill="#F5F1E8" text-anchor="middle" dominant-baseline="middle">
+    1
+  </text>
+
+  <!-- 5 center -->
+  <text x="512" y="544" font-family="SF Pro Display, system-ui, -apple-system" font-weight="700"
+        font-size="112" fill="#F5B754" text-anchor="middle" dominant-baseline="middle">
+    5
+  </text>
+
+  <!-- 9 bottom-right -->
+  <text x="646" y="666" font-family="SF Pro Display, system-ui, -apple-system" font-weight="600"
+        font-size="88" fill="#F5F1E8" text-anchor="middle" dominant-baseline="middle">
+    9
+  </text>
+
+  <!-- Subtle moon / bedtime hint in top-right corner -->
+  <g transform="translate(704, 224)">
+    <circle cx="0" cy="0" r="52" fill="none" stroke="#F0A34B" stroke-width="6" opacity="0.85"/>
+    <path d="M 18 -40
+             A 40 40 0 1 0 18 40
+             A 32 32 0 1 1 18 -40 Z"
+          fill="#050609"/>
+  </g>
+</svg>

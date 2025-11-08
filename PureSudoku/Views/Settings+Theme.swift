@@ -12,6 +12,10 @@ extension Settings {
     var themeEffective: AppTheme {
         bedtimeMode ? .sleep : theme
     }
+
+    var themeColors: ThemeColors {
+        ThemeColors.forTheme(themeEffective)
+    }
 }
 
 extension AppController {

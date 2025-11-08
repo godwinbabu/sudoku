@@ -25,7 +25,6 @@
 		000000000000000000000055 /* MainMenuViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000020 /* MainMenuViewModel.swift */; };
 		000000000000000000000056 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000021 /* SettingsViewModel.swift */; };
 		000000000000000000000057 /* StatsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000022 /* StatsViewModel.swift */; };
-		000000000000000000000058 /* ThemePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000023 /* ThemePalette.swift */; };
 		000000000000000000000059 /* Settings+Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Settings+Theme.swift */; };
 		00000000000000000000005A /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* MainMenuView.swift */; };
 		00000000000000000000005B /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000026 /* GameView.swift */; };
@@ -33,6 +32,10 @@
 		00000000000000000000005D /* NumberPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* NumberPadView.swift */; };
 		00000000000000000000005E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SettingsView.swift */; };
 		00000000000000000000005F /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* StatsView.swift */; };
+		000000000000000000000088 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000082 /* AppColors.swift */; };
+		000000000000000000000089 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000083 /* ThemeColors.swift */; };
+		00000000000000000000008A /* SleepDimmingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000084 /* SleepDimmingOverlay.swift */; };
+		00000000000000000000008B /* BedtimeIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000085 /* BedtimeIcon.swift */; };
 		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
 		000000000000000000000061 /* Puzzles in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* Puzzles */; };
 		000000000000000000000062 /* Media in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* Media */; };
@@ -87,7 +90,6 @@
 		000000000000000000000020 /* MainMenuViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuViewModel.swift; sourceTree = "<group>"; };
 		000000000000000000000021 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		000000000000000000000022 /* StatsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsViewModel.swift; sourceTree = "<group>"; };
-		000000000000000000000023 /* ThemePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePalette.swift; sourceTree = "<group>"; };
 		000000000000000000000024 /* Settings+Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Settings+Theme.swift"; sourceTree = "<group>"; };
 		000000000000000000000025 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
 		000000000000000000000026 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
@@ -95,6 +97,10 @@
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
 		000000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		00000000000000000000002A /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		000000000000000000000082 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		000000000000000000000083 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
+		000000000000000000000084 /* SleepDimmingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepDimmingOverlay.swift; sourceTree = "<group>"; };
+		000000000000000000000085 /* BedtimeIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedtimeIcon.swift; sourceTree = "<group>"; };
 		00000000000000000000002B /* Puzzles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Puzzles; sourceTree = "<group>"; };
 		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
 		00000000000000000000002D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -156,6 +162,7 @@
 				000000000000000000000005 /* Persistence */,
 				000000000000000000000006 /* ViewModels */,
 				000000000000000000000007 /* Views */,
+				000000000000000000000086 /* Theme */,
 				000000000000000000000008 /* Resources */,
 				000000000000000000000009 /* Supporting */,
 				00000000000000000000000F /* PureSudokuApp.swift */,
@@ -212,7 +219,6 @@
 		000000000000000000000007 /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				000000000000000000000023 /* ThemePalette.swift */,
 				000000000000000000000024 /* Settings+Theme.swift */,
 				000000000000000000000025 /* MainMenuView.swift */,
 				000000000000000000000026 /* GameView.swift */,
@@ -220,8 +226,27 @@
 				000000000000000000000028 /* NumberPadView.swift */,
 				000000000000000000000029 /* SettingsView.swift */,
 				00000000000000000000002A /* StatsView.swift */,
+				000000000000000000000087 /* Icons */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		000000000000000000000086 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000082 /* AppColors.swift */,
+				000000000000000000000083 /* ThemeColors.swift */,
+				000000000000000000000084 /* SleepDimmingOverlay.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		000000000000000000000087 /* Icons */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000085 /* BedtimeIcon.swift */,
+			);
+			path = Icons;
 			sourceTree = "<group>";
 		};
 		000000000000000000000008 /* Resources */ = {
@@ -444,7 +469,6 @@
 				000000000000000000000055 /* MainMenuViewModel.swift in Sources */,
 				000000000000000000000056 /* SettingsViewModel.swift in Sources */,
 				000000000000000000000057 /* StatsViewModel.swift in Sources */,
-				000000000000000000000058 /* ThemePalette.swift in Sources */,
 				000000000000000000000059 /* Settings+Theme.swift in Sources */,
 				00000000000000000000005A /* MainMenuView.swift in Sources */,
 				00000000000000000000005B /* GameView.swift in Sources */,
@@ -452,6 +476,10 @@
 				00000000000000000000005D /* NumberPadView.swift in Sources */,
 				00000000000000000000005E /* SettingsView.swift in Sources */,
 				00000000000000000000005F /* StatsView.swift in Sources */,
+				000000000000000000000088 /* AppColors.swift in Sources */,
+				000000000000000000000089 /* ThemeColors.swift in Sources */,
+				00000000000000000000008A /* SleepDimmingOverlay.swift in Sources */,
+				00000000000000000000008B /* BedtimeIcon.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

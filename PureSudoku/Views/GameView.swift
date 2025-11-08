@@ -46,18 +46,23 @@ struct GameView: View {
     }
 
     var body: some View {
-        let palette = ThemePalette.palette(for: controller.settings)
-        VStack(spacing: 16) {
-            topBar
-            SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, palette: palette) { cell in
-                viewModel.select(cell: cell)
+        let theme = controller.settings.themeColors
+        ZStack {
+            theme.background.ignoresSafeArea()
+            if theme.isSleep {
+                Color.black.opacity(theme.dimOverlayOpacity).ignoresSafeArea()
             }
-            modeToggle
-            NumberPadView(disabledDigits: viewModel.disabledDigits, onDigit: { viewModel.setDigit($0) }, onClear: { viewModel.clearSelectedCell() })
-            actionButtons
+            VStack(spacing: 16) {
+                topBar(theme: theme)
+                SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme) { cell in
+                    viewModel.select(cell: cell)
+                }
+                modeToggle(theme: theme)
+                NumberPadView(theme: theme, disabledDigits: viewModel.disabledDigits, onDigit: { viewModel.setDigit($0) }, onClear: { viewModel.clearSelectedCell() })
+                actionButtons(theme: theme)
+            }
+            .padding()
         }
-        .padding()
-        .background(palette.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -94,14 +99,16 @@ struct GameView: View {
         .accessibilityIdentifier("gameView")
     }
 
-    private var topBar: some View {
+    private func topBar(theme: ThemeColors) -> some View {
         HStack {
             VStack(alignment: .leading) {
                 Text(difficulty.displayName)
                     .font(.headline)
+                    .foregroundColor(theme.primaryText)
                 if viewModel.showTimer {
                     Text(timeString(seconds: viewModel.state.elapsedSeconds))
                         .font(.subheadline.monospacedDigit())
+                        .foregroundColor(theme.secondaryText)
                         .accessibilityIdentifier("timerLabel")
                 }
             }
@@ -109,17 +116,18 @@ struct GameView: View {
             VStack(alignment: .trailing) {
                 Text(viewModel.inputMode == .normal ? "Normal" : "Notes")
                     .font(.footnote)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(theme.secondaryText)
                 Text(viewModel.state.isCompleted ? "Solved" : "In progress")
                     .font(.footnote.bold())
-                    .foregroundColor(viewModel.state.isCompleted ? .green : .secondary)
+                    .foregroundColor(viewModel.state.isCompleted ? theme.accent : theme.secondaryText)
             }
         }
     }
 
-    private var modeToggle: some View {
+    private func modeToggle(theme: ThemeColors) -> some View {
         HStack {
             Text("Mode")
+                .foregroundColor(theme.primaryText)
             Spacer()
             Picker("Input Mode", selection: $viewModel.inputMode) {
                 Text("Normal").tag(InputMode.normal)
@@ -128,10 +136,11 @@ struct GameView: View {
             .pickerStyle(.segmented)
             .frame(width: 220)
             .accessibilityIdentifier("modeToggle")
+            .tint(theme.accent)
         }
     }
 
-    private var actionButtons: some View {
+    private func actionButtons(theme: ThemeColors) -> some View {
         let items: [ActionItem] = [
             ActionItem(title: "Hint") { viewModel.revealCell() },
             ActionItem(title: "Check Cell") { viewModel.checkCell() },
@@ -143,7 +152,7 @@ struct GameView: View {
         let columns = [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(items) { item in
-                GameActionButton(title: item.title, style: item.style, action: item.action)
+                GameActionButton(theme: theme, title: item.title, style: item.style, action: item.action)
             }
         }
     }
@@ -187,6 +196,7 @@ struct GameActionButton: View {
         case destructive
     }
 
+    let theme: ThemeColors
     let title: String
     var style: Style = .normal
     var action: () -> Void
@@ -197,6 +207,7 @@ struct GameActionButton: View {
                 .font(.footnote.bold())
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
+                .foregroundColor(style == .destructive ? theme.error : theme.primaryText)
                 .frame(maxWidth: .infinity)
                 .background(background)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -207,8 +218,8 @@ struct GameActionButton: View {
 
     private var background: Color {
         switch style {
-        case .normal: return Color.accentColor.opacity(0.1)
-        case .destructive: return Color.red.opacity(0.2)
+        case .normal: return theme.accent.opacity(0.15)
+        case .destructive: return theme.error.opacity(0.15)
         }
     }
 }
