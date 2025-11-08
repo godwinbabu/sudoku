@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct NumberPadView: View {
+    var disabledDigits: Set<Int>
     var onDigit: (Int) -> Void
     var onClear: () -> Void
 
@@ -14,8 +15,12 @@ struct NumberPadView: View {
                         .font(.title2.bold())
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.accentColor.opacity(0.15)))
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(disabledDigits.contains(digit) ? Color.gray.opacity(0.2) : Color.accentColor.opacity(0.15))
+                        )
                 }
+                .disabled(disabledDigits.contains(digit))
                 .accessibilityIdentifier("number_\(digit)")
             }
             Button(action: onClear) {

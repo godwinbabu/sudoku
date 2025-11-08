@@ -53,7 +53,7 @@ struct GameView: View {
                 viewModel.select(cell: cell)
             }
             modeToggle
-            NumberPadView(onDigit: { viewModel.setDigit($0) }, onClear: { viewModel.clearSelectedCell() })
+            NumberPadView(disabledDigits: viewModel.disabledDigits, onDigit: { viewModel.setDigit($0) }, onClear: { viewModel.clearSelectedCell() })
             actionButtons
         }
         .padding()
@@ -132,28 +132,27 @@ struct GameView: View {
     }
 
     private var actionButtons: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                GameActionButton(title: "Hint") {
-                    viewModel.revealCell()
-                }
-                GameActionButton(title: "Check Cell") {
-                    viewModel.checkCell()
-                }
-                GameActionButton(title: "Check Puzzle") {
-                    viewModel.checkPuzzle()
-                }
-                GameActionButton(title: "Reveal Puzzle", style: .destructive) {
-                    pendingAction = .revealPuzzle
-                }
-                GameActionButton(title: "Reset", style: .destructive) {
-                    pendingAction = .reset
-                }
-                GameActionButton(title: "New Puzzle") {
-                    pendingAction = .newPuzzle
-                }
+        let items: [ActionItem] = [
+            ActionItem(title: "Hint") { viewModel.revealCell() },
+            ActionItem(title: "Check Cell") { viewModel.checkCell() },
+            ActionItem(title: "Check Puzzle") { viewModel.checkPuzzle() },
+            ActionItem(title: "Reveal Puzzle", style: .destructive) { pendingAction = .revealPuzzle },
+            ActionItem(title: "Reset", style: .destructive) { pendingAction = .reset },
+            ActionItem(title: "New Puzzle") { pendingAction = .newPuzzle }
+        ]
+        let columns = [GridItem(.flexible()), GridItem(.flexible())]
+        return LazyVGrid(columns: columns, spacing: 12) {
+            ForEach(items) { item in
+                GameActionButton(title: item.title, style: item.style, action: item.action)
             }
         }
+    }
+
+    private struct ActionItem: Identifiable {
+        let id = UUID()
+        let title: String
+        var style: GameActionButton.Style = .normal
+        let action: () -> Void
     }
 
     private func timeString(seconds: Int) -> String {
@@ -198,6 +197,7 @@ struct GameActionButton: View {
                 .font(.footnote.bold())
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
                 .background(background)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }

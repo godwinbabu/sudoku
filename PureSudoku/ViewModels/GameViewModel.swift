@@ -185,6 +185,16 @@ final class GameViewModel: ObservableObject {
         syncState()
     }
 
+    var disabledDigits: Set<Int> {
+        var counts: [Int: Int] = [:]
+        for cell in state.cells {
+            if let value = cell.value, (1...9).contains(value) {
+                counts[value, default: 0] += 1
+            }
+        }
+        return Set(counts.filter { $0.value >= 9 }.map(\.key))
+    }
+
     func load(state newState: GameState) {
         pauseTimer()
         state = newState
