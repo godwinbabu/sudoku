@@ -1,0 +1,107 @@
+import SwiftUI
+
+struct SudokuGridView: View {
+    let cells: [SudokuCell]
+    let selectedCellID: UUID?
+    let palette: ThemePalette
+    var onSelect: (SudokuCell) -> Void
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 9)
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(palette.gridLine, lineWidth: 2)
+                .background(RoundedRectangle(cornerRadius: 12).fill(palette.tile.opacity(0.4)))
+            LazyVGrid(columns: columns, spacing: 1) {
+                ForEach(cells) { cell in
+                    Button {
+                        onSelect(cell)
+                    } label: {
+                        SudokuCellView(cell: cell, isSelected: cell.id == selectedCellID, palette: palette)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
+                }
+            }
+            .padding(4)
+            gridGuides
+        }
+    }
+
+    private var gridGuides: some View {
+        GeometryReader { geometry in
+            let length = min(geometry.size.width, geometry.size.height)
+            let originX = (geometry.size.width - length) / 2
+            let originY = (geometry.size.height - length) / 2
+            let cellSize = length / 9
+            ZStack {
+                ForEach(0...9, id: \.self) { index in
+                    let lineWidth: CGFloat = index % 3 == 0 ? 2 : 1
+                    Path { path in
+                        let offset = CGFloat(index) * cellSize
+                        path.move(to: CGPoint(x: originX + offset, y: originY))
+                        path.addLine(to: CGPoint(x: originX + offset, y: originY + length))
+                    }
+                    .stroke(palette.gridLine.opacity(0.6), lineWidth: lineWidth)
+
+                    Path { path in
+                        let offset = CGFloat(index) * cellSize
+                        path.move(to: CGPoint(x: originX, y: originY + offset))
+                        path.addLine(to: CGPoint(x: originX + length, y: originY + offset))
+                    }
+                    .stroke(palette.gridLine.opacity(0.6), lineWidth: lineWidth)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct SudokuCellView: View {
+    let cell: SudokuCell
+    let isSelected: Bool
+    let palette: ThemePalette
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isSelected ? palette.selection : palette.tile)
+            if let value = cell.value {
+                Text("\(value)")
+                    .font(cell.given ? .title3.bold() : .title3)
+                    .foregroundColor(cell.given ? palette.givenText : palette.entryText)
+            } else if !cell.candidates.isEmpty {
+                Text(candidateString)
+                    .font(.footnote)
+                    .foregroundColor(palette.candidateText)
+                    .minimumScaleFactor(0.6)
+            }
+        }
+        .frame(height: 36)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(borderColor, lineWidth: cell.isError ? 2 : 1)
+        )
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var candidateString: String {
+        cell.candidates.sorted().map(String.init).joined(separator: " ")
+    }
+
+    private var borderColor: Color {
+        cell.isError ? palette.error : palette.gridLine.opacity(0.4)
+    }
+
+    private var accessibilityText: String {
+        if let value = cell.value {
+            return "Row \(cell.row + 1) column \(cell.col + 1) value \(value)"
+        } else if !cell.candidates.isEmpty {
+            let candidates = cell.candidates.sorted().map(String.init).joined(separator: ", ")
+            return "Row \(cell.row + 1) column \(cell.col + 1) candidates \(candidates)"
+        } else {
+            return "Row \(cell.row + 1) column \(cell.col + 1) empty"
+        }
+    }
+}

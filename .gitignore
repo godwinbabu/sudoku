@@ -1,0 +1,29 @@
+# Xcode derived data & user settings
+DerivedData/
+xcuserdata/
+
+# Build artifacts
+build/
+*.xcarchive
+*.ipa
+*.dSYM
+
+# Swift Package Manager
+.build/
+Packages/
+Package.resolved
+
+# CocoaPods / Carthage (not used yet, but keep ignored)
+Pods/
+Cartfile.resolved
+Carthage/Build/
+
+# SwiftPM / Xcode workspace metadata
+.swiftpm/
+PureSudoku.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Simulator / device logs
+*.xcresult
+
+# macOS metadata
+.DS_Store

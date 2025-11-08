@@ -1,0 +1,756 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		000000000000000000000046 /* PureSudokuApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000F /* PureSudokuApp.swift */; };
+		000000000000000000000047 /* Difficulty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000012 /* Difficulty.swift */; };
+		000000000000000000000048 /* InputMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000013 /* InputMode.swift */; };
+		000000000000000000000049 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000014 /* AppTheme.swift */; };
+		00000000000000000000004A /* SudokuCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000015 /* SudokuCell.swift */; };
+		00000000000000000000004B /* SudokuPuzzle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* SudokuPuzzle.swift */; };
+		00000000000000000000004C /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000017 /* GameState.swift */; };
+		00000000000000000000004D /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000018 /* Stats.swift */; };
+		00000000000000000000004E /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000019 /* Settings.swift */; };
+		00000000000000000000004F /* SudokuValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001A /* SudokuValidator.swift */; };
+		000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001B /* SudokuPuzzleRepository.swift */; };
+		000000000000000000000051 /* TimeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001C /* TimeProvider.swift */; };
+		000000000000000000000052 /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001D /* PersistenceManager.swift */; };
+		000000000000000000000053 /* AppController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001E /* AppController.swift */; };
+		000000000000000000000054 /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001F /* GameViewModel.swift */; };
+		000000000000000000000055 /* MainMenuViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000020 /* MainMenuViewModel.swift */; };
+		000000000000000000000056 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000021 /* SettingsViewModel.swift */; };
+		000000000000000000000057 /* StatsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000022 /* StatsViewModel.swift */; };
+		000000000000000000000058 /* ThemePalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000023 /* ThemePalette.swift */; };
+		000000000000000000000059 /* Settings+Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Settings+Theme.swift */; };
+		00000000000000000000005A /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* MainMenuView.swift */; };
+		00000000000000000000005B /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000026 /* GameView.swift */; };
+		00000000000000000000005C /* SudokuGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000027 /* SudokuGridView.swift */; };
+		00000000000000000000005D /* NumberPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* NumberPadView.swift */; };
+		00000000000000000000005E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SettingsView.swift */; };
+		00000000000000000000005F /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* StatsView.swift */; };
+		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
+		000000000000000000000061 /* Puzzles in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* Puzzles */; };
+		000000000000000000000062 /* Media in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* Media */; };
+		000000000000000000000063 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002D /* README.md */; };
+		000000000000000000000064 /* TestData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* TestData.swift */; };
+		000000000000000000000065 /* SudokuValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000030 /* SudokuValidatorTests.swift */; };
+		000000000000000000000066 /* SudokuPuzzleRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000031 /* SudokuPuzzleRepositoryTests.swift */; };
+		000000000000000000000067 /* GameStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000032 /* GameStateTests.swift */; };
+		000000000000000000000068 /* GameViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000033 /* GameViewModelTests.swift */; };
+		000000000000000000000069 /* StatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000034 /* StatsTests.swift */; };
+		00000000000000000000006A /* PersistenceManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000035 /* PersistenceManagerTests.swift */; };
+		00000000000000000000006B /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* Mocks.swift */; };
+		00000000000000000000006C /* Puzzles in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* Puzzles */; };
+		00000000000000000000006D /* PureSudokuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* PureSudokuUITests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		000000000000000000000071 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000081 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 00000000000000000000006E;
+			remoteInfo = PureSudoku;
+		};
+		000000000000000000000073 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000081 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 00000000000000000000006E;
+			remoteInfo = PureSudoku;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		00000000000000000000000F /* PureSudokuApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureSudokuApp.swift; sourceTree = "<group>"; };
+		000000000000000000000010 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		000000000000000000000011 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		000000000000000000000012 /* Difficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Difficulty.swift; sourceTree = "<group>"; };
+		000000000000000000000013 /* InputMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputMode.swift; sourceTree = "<group>"; };
+		000000000000000000000014 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		000000000000000000000015 /* SudokuCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuCell.swift; sourceTree = "<group>"; };
+		000000000000000000000016 /* SudokuPuzzle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuPuzzle.swift; sourceTree = "<group>"; };
+		000000000000000000000017 /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
+		000000000000000000000018 /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
+		000000000000000000000019 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
+		00000000000000000000001A /* SudokuValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuValidator.swift; sourceTree = "<group>"; };
+		00000000000000000000001B /* SudokuPuzzleRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuPuzzleRepository.swift; sourceTree = "<group>"; };
+		00000000000000000000001C /* TimeProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeProvider.swift; sourceTree = "<group>"; };
+		00000000000000000000001D /* PersistenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManager.swift; sourceTree = "<group>"; };
+		00000000000000000000001E /* AppController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppController.swift; sourceTree = "<group>"; };
+		00000000000000000000001F /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
+		000000000000000000000020 /* MainMenuViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuViewModel.swift; sourceTree = "<group>"; };
+		000000000000000000000021 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+		000000000000000000000022 /* StatsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsViewModel.swift; sourceTree = "<group>"; };
+		000000000000000000000023 /* ThemePalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePalette.swift; sourceTree = "<group>"; };
+		000000000000000000000024 /* Settings+Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Settings+Theme.swift"; sourceTree = "<group>"; };
+		000000000000000000000025 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
+		000000000000000000000026 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
+		000000000000000000000027 /* SudokuGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGridView.swift; sourceTree = "<group>"; };
+		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
+		000000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		00000000000000000000002A /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
+		00000000000000000000002B /* Puzzles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Puzzles; sourceTree = "<group>"; };
+		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
+		00000000000000000000002D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		00000000000000000000002E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		00000000000000000000002F /* TestData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestData.swift; sourceTree = "<group>"; };
+		000000000000000000000030 /* SudokuValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuValidatorTests.swift; sourceTree = "<group>"; };
+		000000000000000000000031 /* SudokuPuzzleRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuPuzzleRepositoryTests.swift; sourceTree = "<group>"; };
+		000000000000000000000032 /* GameStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStateTests.swift; sourceTree = "<group>"; };
+		000000000000000000000033 /* GameViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModelTests.swift; sourceTree = "<group>"; };
+		000000000000000000000034 /* StatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsTests.swift; sourceTree = "<group>"; };
+		000000000000000000000035 /* PersistenceManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManagerTests.swift; sourceTree = "<group>"; };
+		000000000000000000000036 /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
+		000000000000000000000037 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		000000000000000000000038 /* PureSudokuUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureSudokuUITests.swift; sourceTree = "<group>"; };
+		000000000000000000000039 /* PureSudoku.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureSudoku.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		00000000000000000000003A /* PureSudokuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PureSudokuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		00000000000000000000003B /* PureSudokuUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PureSudokuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		00000000000000000000003E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000041 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000044 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000002 /* PureSudoku */,
+				00000000000000000000000A /* Tests */,
+				00000000000000000000000E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		000000000000000000000002 /* PureSudoku */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000003 /* Models */,
+				000000000000000000000004 /* Engine */,
+				000000000000000000000005 /* Persistence */,
+				000000000000000000000006 /* ViewModels */,
+				000000000000000000000007 /* Views */,
+				000000000000000000000008 /* Resources */,
+				000000000000000000000009 /* Supporting */,
+				00000000000000000000000F /* PureSudokuApp.swift */,
+				000000000000000000000011 /* Assets.xcassets */,
+			);
+			path = PureSudoku;
+			sourceTree = "<group>";
+		};
+		000000000000000000000003 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000012 /* Difficulty.swift */,
+				000000000000000000000013 /* InputMode.swift */,
+				000000000000000000000014 /* AppTheme.swift */,
+				000000000000000000000015 /* SudokuCell.swift */,
+				000000000000000000000016 /* SudokuPuzzle.swift */,
+				000000000000000000000017 /* GameState.swift */,
+				000000000000000000000018 /* Stats.swift */,
+				000000000000000000000019 /* Settings.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		000000000000000000000004 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000001A /* SudokuValidator.swift */,
+				00000000000000000000001B /* SudokuPuzzleRepository.swift */,
+				00000000000000000000001C /* TimeProvider.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		000000000000000000000005 /* Persistence */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000001D /* PersistenceManager.swift */,
+			);
+			path = Persistence;
+			sourceTree = "<group>";
+		};
+		000000000000000000000006 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000001E /* AppController.swift */,
+				00000000000000000000001F /* GameViewModel.swift */,
+				000000000000000000000020 /* MainMenuViewModel.swift */,
+				000000000000000000000021 /* SettingsViewModel.swift */,
+				000000000000000000000022 /* StatsViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		000000000000000000000007 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000023 /* ThemePalette.swift */,
+				000000000000000000000024 /* Settings+Theme.swift */,
+				000000000000000000000025 /* MainMenuView.swift */,
+				000000000000000000000026 /* GameView.swift */,
+				000000000000000000000027 /* SudokuGridView.swift */,
+				000000000000000000000028 /* NumberPadView.swift */,
+				000000000000000000000029 /* SettingsView.swift */,
+				00000000000000000000002A /* StatsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		000000000000000000000008 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000002B /* Puzzles */,
+				00000000000000000000002C /* Media */,
+				00000000000000000000002D /* README.md */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		000000000000000000000009 /* Supporting */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000010 /* Info.plist */,
+			);
+			path = Supporting;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000A /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000000B /* PureSudokuTests */,
+				00000000000000000000000C /* PureSudokuUITests */,
+				00000000000000000000000D /* Fixtures */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000B /* PureSudokuTests */ = {
+			isa = PBXGroup;
+			children = (
+				00000000000000000000002E /* Info.plist */,
+				00000000000000000000002F /* TestData.swift */,
+				000000000000000000000030 /* SudokuValidatorTests.swift */,
+				000000000000000000000031 /* SudokuPuzzleRepositoryTests.swift */,
+				000000000000000000000032 /* GameStateTests.swift */,
+				000000000000000000000033 /* GameViewModelTests.swift */,
+				000000000000000000000034 /* StatsTests.swift */,
+				000000000000000000000035 /* PersistenceManagerTests.swift */,
+				000000000000000000000036 /* Mocks.swift */,
+			);
+			path = PureSudokuTests;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000C /* PureSudokuUITests */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000037 /* Info.plist */,
+				000000000000000000000038 /* PureSudokuUITests.swift */,
+			);
+			path = PureSudokuUITests;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000D /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		00000000000000000000000E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000039 /* PureSudoku.app */,
+				00000000000000000000003A /* PureSudokuTests.xctest */,
+				00000000000000000000003B /* PureSudokuUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		00000000000000000000006E /* PureSudoku */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000007A /* Build configuration list for PBXNativeTarget "PureSudoku" */;
+			buildPhases = (
+				00000000000000000000003C /* Sources */,
+				00000000000000000000003E /* Frameworks */,
+				00000000000000000000003D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PureSudoku;
+			productName = PureSudoku;
+			productReference = 000000000000000000000039 /* PureSudoku.app */;
+			productType = "com.apple.product-type.application";
+		};
+		00000000000000000000006F /* PureSudokuTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000007D /* Build configuration list for PBXNativeTarget "PureSudokuTests" */;
+			buildPhases = (
+				00000000000000000000003F /* Sources */,
+				000000000000000000000041 /* Frameworks */,
+				000000000000000000000040 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				000000000000000000000072 /* PBXTargetDependency */,
+			);
+			name = PureSudokuTests;
+			productName = PureSudokuTests;
+			productReference = 00000000000000000000003A /* PureSudokuTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		000000000000000000000070 /* PureSudokuUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000080 /* Build configuration list for PBXNativeTarget "PureSudokuUITests" */;
+			buildPhases = (
+				000000000000000000000042 /* Sources */,
+				000000000000000000000044 /* Frameworks */,
+				000000000000000000000043 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				000000000000000000000074 /* PBXTargetDependency */,
+			);
+			name = PureSudokuUITests;
+			productName = PureSudokuUITests;
+			productReference = 00000000000000000000003B /* PureSudokuUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000081 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					00000000000000000000006E = {
+						CreatedOnToolsVersion = 15.0;
+					};
+					00000000000000000000006F = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 00000000000000000000006E;
+					};
+					000000000000000000000070 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 00000000000000000000006E;
+					};
+				};
+			};
+			buildConfigurationList = 000000000000000000000077 /* Build configuration list for PBXProject "PureSudoku" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 000000000000000000000001;
+			productRefGroup = 00000000000000000000000E /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				00000000000000000000006E /* PureSudoku */,
+				00000000000000000000006F /* PureSudokuTests */,
+				000000000000000000000070 /* PureSudokuUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		00000000000000000000003D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000060 /* Assets.xcassets in Resources */,
+				000000000000000000000061 /* Puzzles in Resources */,
+				000000000000000000000062 /* Media in Resources */,
+				000000000000000000000063 /* README.md in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000040 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000006C /* Puzzles in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000043 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		00000000000000000000003C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000046 /* PureSudokuApp.swift in Sources */,
+				000000000000000000000047 /* Difficulty.swift in Sources */,
+				000000000000000000000048 /* InputMode.swift in Sources */,
+				000000000000000000000049 /* AppTheme.swift in Sources */,
+				00000000000000000000004A /* SudokuCell.swift in Sources */,
+				00000000000000000000004B /* SudokuPuzzle.swift in Sources */,
+				00000000000000000000004C /* GameState.swift in Sources */,
+				00000000000000000000004D /* Stats.swift in Sources */,
+				00000000000000000000004E /* Settings.swift in Sources */,
+				00000000000000000000004F /* SudokuValidator.swift in Sources */,
+				000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */,
+				000000000000000000000051 /* TimeProvider.swift in Sources */,
+				000000000000000000000052 /* PersistenceManager.swift in Sources */,
+				000000000000000000000053 /* AppController.swift in Sources */,
+				000000000000000000000054 /* GameViewModel.swift in Sources */,
+				000000000000000000000055 /* MainMenuViewModel.swift in Sources */,
+				000000000000000000000056 /* SettingsViewModel.swift in Sources */,
+				000000000000000000000057 /* StatsViewModel.swift in Sources */,
+				000000000000000000000058 /* ThemePalette.swift in Sources */,
+				000000000000000000000059 /* Settings+Theme.swift in Sources */,
+				00000000000000000000005A /* MainMenuView.swift in Sources */,
+				00000000000000000000005B /* GameView.swift in Sources */,
+				00000000000000000000005C /* SudokuGridView.swift in Sources */,
+				00000000000000000000005D /* NumberPadView.swift in Sources */,
+				00000000000000000000005E /* SettingsView.swift in Sources */,
+				00000000000000000000005F /* StatsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000003F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				000000000000000000000064 /* TestData.swift in Sources */,
+				000000000000000000000065 /* SudokuValidatorTests.swift in Sources */,
+				000000000000000000000066 /* SudokuPuzzleRepositoryTests.swift in Sources */,
+				000000000000000000000067 /* GameStateTests.swift in Sources */,
+				000000000000000000000068 /* GameViewModelTests.swift in Sources */,
+				000000000000000000000069 /* StatsTests.swift in Sources */,
+				00000000000000000000006A /* PersistenceManagerTests.swift in Sources */,
+				00000000000000000000006B /* Mocks.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000042 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				00000000000000000000006D /* PureSudokuUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		000000000000000000000072 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 00000000000000000000006E /* PureSudoku */;
+			targetProxy = 000000000000000000000071 /* PBXContainerItemProxy */;
+		};
+		000000000000000000000074 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 00000000000000000000006E /* PureSudoku */;
+			targetProxy = 000000000000000000000073 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000000000075 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		000000000000000000000076 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		000000000000000000000078 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 3WZ27HVC5C;
+				INFOPLIST_FILE = PureSudoku/Supporting/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lifeworktech.PureSudoku;
+				PRODUCT_NAME = PureSudoku;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		000000000000000000000079 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = 3WZ27HVC5C;
+				INFOPLIST_FILE = PureSudoku/Supporting/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.lifeworktech.PureSudoku;
+				PRODUCT_NAME = PureSudoku;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		00000000000000000000007B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = Tests/PureSudokuTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PureSudokuTests;
+				PRODUCT_NAME = PureSudokuTests;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PureSudoku.app/PureSudoku";
+			};
+			name = Debug;
+		};
+		00000000000000000000007C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = Tests/PureSudokuTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PureSudokuTests;
+				PRODUCT_NAME = PureSudokuTests;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PureSudoku.app/PureSudoku";
+			};
+			name = Release;
+		};
+		00000000000000000000007E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = Tests/PureSudokuUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PureSudokuUITests;
+				PRODUCT_NAME = PureSudokuUITests;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = PureSudoku;
+			};
+			name = Debug;
+		};
+		00000000000000000000007F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEAD_CODE_STRIPPING = YES;
+				DEVELOPMENT_TEAM = "";
+				INFOPLIST_FILE = Tests/PureSudokuUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.PureSudokuUITests;
+				PRODUCT_NAME = PureSudokuUITests;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = PureSudoku;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000000000077 /* Build configuration list for PBXProject "PureSudoku" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000075 /* Debug */,
+				000000000000000000000076 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		00000000000000000000007A /* Build configuration list for PBXNativeTarget "PureSudoku" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000078 /* Debug */,
+				000000000000000000000079 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		00000000000000000000007D /* Build configuration list for PBXNativeTarget "PureSudokuTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				00000000000000000000007B /* Debug */,
+				00000000000000000000007C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000080 /* Build configuration list for PBXNativeTarget "PureSudokuUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				00000000000000000000007E /* Debug */,
+				00000000000000000000007F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 000000000000000000000081 /* Project object */;
+}

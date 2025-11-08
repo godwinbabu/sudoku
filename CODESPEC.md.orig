@@ -1,0 +1,560 @@
+Sudoku iOS App – Coding AI Spec with Testing
+
+BEGIN SPEC FOR CODING AI
+
+You are an expert iOS engineer.
+Build a no-frills Sudoku iPhone app focused on speed, clarity, and great gameplay, modeled after the New York Times Sudoku experience.
+
+In addition to the app, you must also create a comprehensive test suite:
+	•	Unit tests for Sudoku logic, game state, stats, and persistence.
+	•	UI tests for core flows (starting a game, entering numbers, toggling notes, etc.).
+
+⸻
+
+0. Tech Stack & Project Setup
+	•	Target platform: iOS only, iPhone screens (later should scale to iPad, but not required now).
+	•	Language: Swift 5+
+	•	UI framework: SwiftUI (preferred).
+	•	If something is much easier in UIKit, you may use a small UIViewRepresentable bridge, but default to SwiftUI.
+	•	Minimum iOS version: iOS 16+
+	•	Architecture: MVVM with clear separation:
+	•	Sudoku engine (pure logic, testable).
+	•	View models for UI state.
+	•	SwiftUI views for rendering.
+	•	No backend / no network calls. All data must be stored locally on the device.
+
+Testing requirements for setup:
+	•	Create two test targets:
+	•	SudokuAppTests (unit tests, using XCTest).
+	•	SudokuAppUITests (UI tests, using XCTest + XCUITest).
+	•	Make sure logic modules (engine, models, view models) are in a module shared with unit tests.
+
+Deliverables:
+	•	A working Xcode project with:
+	•	SudokuEngine module (or group).
+	•	Models, ViewModels, Views.
+	•	Persistence utilities for saving/loading state and stats.
+	•	Test targets with meaningful tests, not just empty templates.
+
+⸻
+
+1. High-Level Product Requirements
+	1.	The app is a minimalist Sudoku game, modeled after NYT Sudoku:
+	•	Single main screen with three difficulty buttons: Easy, Medium, Hard.
+	•	Tapping a difficulty:
+	•	If there is an unfinished game at that difficulty, continue that game.
+	•	Otherwise, start a new puzzle at that difficulty.
+	2.	No accounts, no login, no backend, no ads (for now).
+	3.	Focus on:
+	•	Fast launch.
+	•	Instant responsiveness to taps.
+	•	Clean, readable UI.
+
+Testing requirements:
+	•	Unit test: logic for “continue existing game vs. create new game” per difficulty.
+	•	UI test: tapping each difficulty on main screen should navigate to a game and show a 9×9 grid.
+
+⸻
+
+2. Core Gameplay Requirements
+
+2.1 Sudoku Basics
+	•	Standard 9×9 Sudoku:
+	•	Each row, column, and 3×3 subgrid must contain all digits 1–9 exactly once.
+	•	Each puzzle:
+	•	Has a unique solution.
+	•	Has a preset difficulty: .easy, .medium, .hard.
+
+Testing requirements:
+	•	Unit tests:
+	•	Given a complete solutionGrid, verify that:
+	•	Each row has digits 1–9.
+	•	Each column has digits 1–9.
+	•	Each 3×3 block has digits 1–9.
+	•	For a GameState representing a solved puzzle, isCompleted should return true.
+
+2.2 Difficulty Levels
+
+Implement a Difficulty enum:
+
+enum Difficulty: String, Codable, CaseIterable {
+    case easy
+    case medium
+    case hard
+}
+
+For now, implement one of these two approaches (either is acceptable):
+	1.	Simpler for MVP (recommended):
+	•	Bundle a JSON file for each difficulty (easy.json, medium.json, hard.json) with a list of puzzles.
+	•	Each puzzle entry contains:
+	•	id: String
+	•	initialGrid: String (81-char string, 0 or . for empty cells)
+	•	solutionGrid: String (81-char string with full solution)
+	•	When starting a new puzzle, pick one at random (or sequentially) for the chosen difficulty.
+	2.	Full generator (optional):
+	•	Implement a generator + solver that:
+	•	Generates full valid grids.
+	•	Removes numbers to create puzzles.
+	•	Uses a solver to ensure uniqueness and assign a rough difficulty score.
+	•	Map difficulty score to .easy, .medium, .hard.
+
+For this first version, it’s acceptable to only implement the JSON-puzzle approach and leave the generator as a future enhancement (stubbed).
+
+Testing requirements:
+	•	Unit tests for SudokuPuzzleRepository:
+	•	Load puzzles for each difficulty; verify:
+	•	At least one puzzle exists per difficulty.
+	•	initialGrid.count == 81, solutionGrid.count == 81.
+	•	Validate that solutionGrid is a valid Sudoku with the validator.
+	•	If generator is implemented:
+	•	Generator unit tests: each generated puzzle has:
+	•	Exactly 81 cells.
+	•	A valid solution.
+	•	A unique solution (if you implement uniqueness checking).
+
+2.3 Game State Model
+
+Define core models:
+
+struct SudokuCell: Identifiable, Codable {
+    let id: UUID
+    var row: Int // 0-8
+    var col: Int // 0-8
+    var given: Bool      // true if part of initial puzzle
+    var value: Int?      // final user value or given
+    var candidates: Set<Int> // candidate notes (1-9)
+    var isError: Bool    // for check feedback
+    var isRevealed: Bool // true if revealed by hint/reveal
+}
+
+struct SudokuPuzzle: Codable {
+    var id: String
+    var difficulty: Difficulty
+    var initialGrid: String    // 81 chars
+    var solutionGrid: String   // 81 chars
+}
+
+struct GameState: Codable {
+    var puzzle: SudokuPuzzle
+    var cells: [SudokuCell] // 81 cells
+    var elapsedSeconds: Int
+    var isCompleted: Bool
+    var usedReveal: Bool // true if Reveal Cell or Reveal Puzzle used
+    var lastUpdated: Date
+}
+
+	•	Maintain one active GameState per difficulty (3 saved states):
+	•	activeEasyGame
+	•	activeMediumGame
+	•	activeHardGame
+
+Testing requirements:
+	•	Unit tests:
+	•	Construct a GameState from initialGrid and solutionGrid and verify:
+	•	Exactly 81 cells.
+	•	given and value are set correctly based on initialGrid.
+	•	Encode and decode GameState using Codable and ensure equality (round-trip test).
+
+⸻
+
+3. Screen & Navigation Structure
+
+3.1 Main Screen
+	•	SwiftUI view: MainMenuView
+	•	Layout:
+	•	App title: e.g. “Sudoku”.
+	•	Three buttons: Easy, Medium, Hard.
+	•	A small section showing:
+	•	Current streak (“Streak: N days”).
+	•	Total puzzles solved.
+	•	Optional total time spent.
+	•	A settings icon to open SettingsView (for theme, toggles, etc.).
+	•	Behavior:
+	•	Tapping a difficulty:
+	•	If an unfinished game exists for that difficulty (!isCompleted), navigate to GameView with that existing GameState.
+	•	Otherwise, create a new GameState from a puzzle of that difficulty and navigate to GameView.
+
+Testing requirements:
+	•	UI tests:
+	•	Launch app, verify that Easy, Medium, Hard buttons are visible.
+	•	Tap Easy and verify that a game view appears and shows a grid of 9×9 cells.
+
+3.2 Game Screen
+	•	SwiftUI view: GameView
+	•	Shows:
+	•	Top bar:
+	•	Back button (to main).
+	•	Difficulty label.
+	•	Timer display.
+	•	Sudoku grid (9×9), with:
+	•	Bold lines between 3×3 blocks.
+	•	Cells:
+	•	Given numbers in one style.
+	•	User-entered numbers in another.
+	•	Number pad (digits 1–9).
+	•	Mode toggle: Normal / Notes (Candidate mode).
+	•	Action buttons (can be toolbar or menu):
+	•	Hint
+	•	Check Cell
+	•	Check Puzzle
+	•	Reveal Cell
+	•	Reveal Puzzle
+	•	Reset Puzzle
+	•	New Puzzle
+	•	Interaction:
+	•	Tap a cell to select it.
+	•	Tap a number to either:
+	•	Fill value (Normal mode).
+	•	Toggle candidate (Notes mode).
+
+Testing requirements:
+	•	UI tests:
+	•	Start an Easy game, tap a cell, tap a number; verify the cell displays that number.
+	•	Toggle Notes mode, tap another cell, tap a number; verify smaller candidate text appears in that cell.
+	•	Tap Reset Puzzle and verify that user-entered values and candidates are cleared.
+
+3.3 Settings & Stats Screen
+	•	SwiftUI view: SettingsView and/or StatsView.
+	•	Settings includes:
+	•	Theme: System, Light, Dark, Sleep (low blue light).
+	•	Toggles:
+	•	Show timer on/off.
+	•	Auto remove candidates.
+	•	Auto-check mistakes.
+	•	Stats includes:
+	•	Current streak.
+	•	Best times per difficulty.
+	•	Puzzles solved per difficulty.
+	•	Total puzzles solved.
+	•	Total time spent.
+
+Testing requirements:
+	•	Unit tests:
+	•	Changing a setting (e.g. showTimer, theme) in the view model should persist and reload correctly.
+	•	UI tests:
+	•	Navigate to settings, toggle Show timer off, go back to game and verify timer visually hidden.
+
+⸻
+
+4. Timer Behavior
+
+Implement a timer that tracks only active play time:
+	•	The timer should:
+	•	Start when a puzzle begins or resumes.
+	•	Pause when app goes into background, app becomes inactive, or GameView disappears.
+	•	Resume when GameView appears again (and game is not completed).
+
+Implementation suggestion:
+	•	Store elapsedSeconds in GameState.
+	•	When GameView appears:
+	•	Record startTimestamp = Date().
+	•	Use a Timer.publish(every: 1, on: .main, in: .common) or Task with sleep to increment elapsedSeconds while active.
+	•	When GameView disappears or app moves to background:
+	•	Add Date().timeIntervalSince(startTimestamp) to elapsedSeconds.
+	•	Stop timer.
+
+Timer display:
+	•	Format as mm:ss or hh:mm:ss for longer sessions.
+	•	If Show timer setting is off:
+	•	Keep updating internals but hide the timer UI.
+
+Testing requirements:
+	•	Unit tests:
+	•	Given a GameViewModel with mocked time progression, verify that:
+	•	elapsedSeconds increments while running.
+	•	elapsedSeconds stops incrementing when pause() is called (simulating background).
+	•	UI tests (best-effort, can be shorter):
+	•	Start a game, wait a couple of seconds, assert that the timer label changes.
+
+⸻
+
+5. Input Modes: Normal vs Candidate
+
+Maintain:
+
+enum InputMode {
+    case normal
+    case candidate
+}
+
+	•	Normal mode:
+	•	Selecting a number sets cell.value = digit (if cell is not given and not isRevealed).
+	•	Clears cell.candidates.
+	•	Candidate (notes) mode:
+	•	Selecting a number toggles presence in cell.candidates.
+	•	Leaves cell.value unchanged.
+	•	Candidates appear in smaller font inside the cell:
+	•	Use a smaller Text overlay.
+
+Optional behavior (controlled by settings):
+	•	Auto-remove candidates:
+	•	When a final value is placed in a cell:
+	•	For all cells in the same row/column/block, remove that digit from candidates.
+
+Testing requirements:
+	•	Unit tests:
+	•	In GameViewModel, test:
+	•	When in normal mode, setting a value clears candidates.
+	•	When in candidate mode, tapping same number toggles it in candidates.
+	•	When autoRemoveCandidates is true, placing a value removes the candidate from related cells; when false, it doesn’t.
+
+⸻
+
+6. Check, Hint, Reveal & Puzzle Control
+
+6.1 Check Cell
+	•	When user taps Check Cell:
+	•	If a cell is selected and has value:
+	•	Compare with solutionGrid.
+	•	If correct: mark isError = false.
+	•	If incorrect: set isError = true.
+
+Testing requirements:
+	•	Unit tests:
+	•	For a known puzzle and solution, set a cell value correctly and call checkCell(); verify isError == false.
+	•	Set an incorrect value and call checkCell(); verify isError == true.
+
+6.2 Check Puzzle
+	•	When user taps Check Puzzle:
+	•	Iterate all cells with value:
+	•	Compare each value to solutionGrid.
+	•	Mark isError for incorrect cells.
+
+Testing requirements:
+	•	Unit tests:
+	•	With a partially incorrect board, call checkPuzzle() and verify:
+	•	All incorrect cells are flagged.
+	•	Correct cells are not flagged.
+
+6.3 Hint / Reveal Cell
+
+For MVP, treat Hint as “Reveal one cell”:
+	•	If a selected cell is empty (value == nil, not given, not isRevealed):
+	•	Set value to correct number from solutionGrid.
+	•	Set isRevealed = true.
+	•	Mark gameState.usedReveal = true.
+
+Testing requirements:
+	•	Unit tests:
+	•	On revealCell():
+	•	Verify that value matches solutionGrid.
+	•	isRevealed == true.
+	•	usedReveal == true.
+
+6.4 Reveal Puzzle
+	•	Confirmation dialog.
+	•	On confirm:
+	•	Fill all cells with solution values.
+	•	Mark all as isRevealed = true.
+	•	Mark usedReveal = true.
+	•	Mark isCompleted = true.
+
+Testing requirements:
+	•	Unit tests:
+	•	After revealPuzzle() on a partially filled board:
+	•	All cells.value equal solution.
+	•	All cells.isRevealed == true.
+	•	usedReveal == true, isCompleted == true.
+
+6.5 Reset Puzzle (Restart Same Puzzle)
+	•	Confirmation dialog.
+	•	On confirm:
+	•	Reset cells to initial puzzle state.
+	•	elapsedSeconds = 0.
+	•	usedReveal = false, isCompleted = false.
+
+Testing requirements:
+	•	Unit tests:
+	•	Fill some cells, set some candidates and flags, then call resetPuzzle(); verify:
+	•	Only given values exist.
+	•	Candidates cleared.
+	•	Flags reset.
+	•	Timer reset.
+
+6.6 New Puzzle (Same Difficulty)
+	•	Confirmation dialog.
+	•	On confirm:
+	•	Load a new SudokuPuzzle of the same difficulty.
+	•	Create fresh GameState.
+	•	Replace active game for that difficulty.
+
+Testing requirements:
+	•	Unit tests:
+	•	After newPuzzle(), verify:
+	•	GameState.puzzle.id is different (if multiple puzzles exist).
+	•	All cells correspond to the new puzzle’s initialGrid.
+
+⸻
+
+7. Theme & UI Modes
+
+7.1 Theme Settings
+
+Implement:
+
+enum AppTheme: String, Codable {
+    case system     // follow system light/dark
+    case light
+    case dark
+    case sleep      // low-blue-light mode
+}
+
+	•	In SettingsView, allow user to choose theme.
+	•	Apply theme globally via environment and a central theme manager.
+
+7.2 Visual Rules
+	•	Light, Dark, Sleep mode as described:
+	•	Sleep mode uses warm colors (amber/orange), no blue highlights.
+
+7.3 Grid Interaction Visuals
+	•	Selecting a cell:
+	•	Highlight its background, row, column, box.
+	•	Selecting a number:
+	•	Highlight all cells with that number.
+	•	Duplicate entry:
+	•	With autoCheckMistakes enabled:
+	•	Immediately mark conflicting cells as error (red indicator).
+
+Testing requirements:
+	•	Unit tests:
+	•	Theme selection is persisted and restored.
+	•	UI tests (basic):
+	•	Switch theme to Dark and verify at least that background or some key UI element changes (sanity check).
+	•	autoCheckMistakes: place a conflicting number and verify visual error (can be a simple existence-check for a red indicator element).
+
+⸻
+
+8. Persistence & Local Storage
+
+All persistence must be local and offline. Use:
+	•	Either UserDefaults or local JSON files via FileManager and Codable.
+
+Persist:
+	1.	Active games (per difficulty):
+	•	GameState for Easy, Medium, Hard.
+	•	Save on:
+	•	Every few seconds (debounced).
+	•	When app goes to background.
+	•	When user leaves GameView.
+	2.	Settings:
+	•	AppTheme
+	•	showTimer
+	•	autoRemoveCandidates
+	•	autoCheckMistakes
+	3.	Stats:
+
+struct Stats: Codable {
+    var totalPuzzlesSolved: Int
+    var puzzlesSolvedByDifficulty: [Difficulty: Int]
+    var bestTimeByDifficulty: [Difficulty: Int?] // seconds
+    var totalSecondsPlayed: Int
+    var currentStreakDays: Int
+    var lastSolvedDate: Date?
+}
+
+Streak rules:
+	•	Puzzle completed without usedReveal:
+	•	Update counts.
+	•	Update best time.
+	•	Add to totalSecondsPlayed.
+	•	Streak logic based on lastSolvedDate vs. today.
+
+Testing requirements:
+	•	Unit tests:
+	•	Stats streak logic:
+	•	Solve on day N (no previous): streak = 1.
+	•	Solve again on day N+1: streak = 2.
+	•	Skip day N+2, solve on N+3: streak resets to 1.
+	•	Best time logic: solving faster updates best; slower does not.
+	•	Persistence:
+	•	Save a GameState and Stats to storage and reload; verify equality.
+	•	UI tests:
+	•	Solve a very simple puzzle (you can pre-wire a nearly complete puzzle for UITest), then return to main menu and verify stats (e.g., “Total puzzles solved” increased).
+
+⸻
+
+9. Validation & Non-Functional Requirements
+	•	Performance:
+	•	App should launch quickly.
+	•	Interactions must feel instantaneous.
+	•	Offline-only:
+	•	App must work completely without network.
+	•	Testability:
+	•	Sudoku engine and view models must be unit-testable without UI.
+	•	Minimize logic in SwiftUI views; move it to view models.
+	•	Accessibility:
+	•	Support Dynamic Type where reasonable.
+	•	Ensure color contrast in all themes.
+	•	Code organization:
+	•	Keep engine / models / view models in separate groups or modules.
+
+Testing requirements:
+	•	Unit tests:
+	•	At least:
+	•	SudokuValidator tests.
+	•	GameViewModel tests (input, check, reveal, reset, completion).
+	•	Stats streak & time tests.
+	•	Persistence round-trip tests.
+	•	UI tests:
+	•	Core happy paths:
+	•	Launch → Easy → enter a few cells → back.
+	•	Launch → Hard → toggle notes mode → add candidate → reset.
+	•	Verify the app does not crash and key elements are present.
+
+⸻
+
+10. Suggested File / Type Overview
+	•	Models/
+	•	Difficulty.swift
+	•	SudokuCell.swift
+	•	SudokuPuzzle.swift
+	•	GameState.swift
+	•	Stats.swift
+	•	AppTheme.swift
+	•	Engine/
+	•	SudokuValidator.swift
+	•	SudokuPuzzleRepository.swift
+	•	(Optional) SudokuGenerator.swift
+	•	ViewModels/
+	•	GameViewModel.swift
+	•	MainMenuViewModel.swift
+	•	SettingsViewModel.swift
+	•	StatsViewModel.swift
+	•	Views/
+	•	MainMenuView.swift
+	•	GameView.swift
+	•	SudokuGridView.swift
+	•	CellView.swift
+	•	NumberPadView.swift
+	•	SettingsView.swift
+	•	StatsView.swift
+	•	Persistence/
+	•	PersistenceManager.swift (or similar).
+	•	Tests/
+	•	SudokuAppTests/:
+	•	Tests for engine, models, view models, stats, persistence.
+	•	SudokuAppUITests/:
+	•	Tests for main flows and basic visual behavior.
+
+⸻
+
+11. Implementation Order (for You, the Coding AI)
+
+Please implement in this order:
+	1.	Models & Difficulty enum (+ unit tests for basic behaviors).
+	2.	Sudoku puzzle repository (JSON-based) (+ unit tests for loading and validation).
+	3.	Sudoku validator (row/col/box checks, isCompleted) (+ unit tests with valid/invalid grids).
+	4.	GameState management & GameViewModel (+ unit tests for input, check, reveal, reset).
+	5.	Timer logic and pause behavior (+ unit tests simulating elapsed time).
+	6.	GameView with grid, number pad, normal vs candidate mode (+ UI tests for tap flows).
+	7.	Check / Reveal / Reset / New Puzzle actions (+ unit + some UI tests).
+	8.	Persistence for game state, settings, and stats (+ unit tests for save/load).
+	9.	MainMenuView with difficulty buttons and stats summary (+ UI tests).
+	10.	Theme support and settings screen (+ basic UI tests for theme toggle).
+
+Ensure:
+	•	The app builds and runs in the simulator.
+	•	At least one working puzzle per difficulty.
+	•	The test suite compiles and has a meaningful set of passing tests (not just boilerplate).
+
+END SPEC FOR CODING AI

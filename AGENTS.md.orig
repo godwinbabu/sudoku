@@ -1,0 +1,19 @@
+# Repository Guidelines
+
+## Project Structure & Module Organization
+Create the Xcode workspace `SudokuApp.xcodeproj` with top-level groups mirroring the app layers: `Models/`, `Engine/`, `ViewModels/`, `Views/`, `Persistence/`, and `Resources/` for bundled JSON puzzles. Keep reusable business logic in `SudokuEngine` so unit tests can import it directly. Place XCTest targets under `Tests/SudokuAppTests` and `Tests/SudokuAppUITests`; store shared fixtures in `Tests/Fixtures`. Assets such as puzzle JSON files or preview screenshots belong in `Resources/Puzzles` and `Resources/Media` respectively.
+
+## Build, Test, and Development Commands
+Open the project with `xed .` for day-to-day development. Use `xcodebuild -scheme SudokuApp -destination 'platform=iOS Simulator,name=iPhone 15' build` for CI-friendly builds. Run logic tests via `xcodebuild -scheme SudokuApp -destination 'platform=iOS Simulator,name=iPhone 15' test`. Smoke the UI flow locally with `xcodebuild -scheme SudokuAppUITests -destination 'platform=iOS Simulator,name=iPhone 15' test` before raising a PR. When iterating quickly, `swift test --package-path SudokuEngine` is acceptable for pure-logic modules.
+
+## Coding Style & Naming Conventions
+Follow Swift API Design Guidelines with four-space indentation and explicit access control. Favor SwiftUI over UIKit; wrap UIKit views only through `UIViewRepresentable`. Use clear MVVM naming (`GameView`, `GameViewModel`, `SudokuValidator`). Puzzles load from snake_case JSON attributes, but Swift types should stay camelCase. Prefer `struct` + `immutable let` for value types; mutability lives in view models. Run SwiftFormat/SwiftLint (if configured) before committing.
+
+## Testing Guidelines
+Use XCTest and XCUITest exclusively. Name tests `test_<Scenario>_<Expectation>()` and keep fixtures deterministic (prebaked 81-char grids). Unit tests must cover Sudoku validation, puzzle repository loading, persistence round-trips, stats streak logic, and GameViewModel commands. UITests should cover the main menu → difficulty flow, candidate mode toggling, and completing a nearly solved puzzle. Aim for >80% coverage on SudokuEngine and zero `TODO` tests.
+
+## Commit & Pull Request Guidelines
+Write imperative, present-tense commits (`Add GameViewModel candidate mode`). Group logical changes; do not mix formatting with feature work. Pull requests need: summary of behavior, testing evidence (command + result), references to tracked issues, and screenshots for UI changes (main menu, grid, stats). Flag follow-up work with `TODO(#issue)` so automation can link tasks.
+
+## Security & Configuration Tips
+No network calls are allowed; stub anything that would reach the network. Persist game state, settings, and stats via `PersistenceManager` in `Application Support/`. Keep bundled puzzles free of user data. Secrets are unnecessary—never add API keys or signing certificates to the repo.
