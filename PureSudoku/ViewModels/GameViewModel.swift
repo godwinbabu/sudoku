@@ -7,8 +7,44 @@ final class GameViewModel: ObservableObject {
     @Published var inputMode: InputMode
     @Published var showTimer: Bool
 
-    var onStateChange: ((GameState) -> Void)?
     var onCompletion: ((GameState) -> Void)?
+    var onNewGame: (() -> GameState?)?
+    var onSave: ((GameState) -> Void)?
+
+    @Published var pendingAction: PendingAction?
+
+    enum PendingAction: Identifiable {
+        case reset
+        case revealPuzzle
+        case newPuzzle
+
+        var id: Int {
+            switch self {
+            case .reset: return 0
+            case .revealPuzzle: return 1
+            case .newPuzzle: return 2
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .reset: return "Reset puzzle?"
+            case .revealPuzzle: return "Reveal entire puzzle?"
+            case .newPuzzle: return "Start a new puzzle?"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .reset:
+                return "This clears your progress and timer for this puzzle."
+            case .revealPuzzle:
+                return "Revealing marks the puzzle as completed with reveals."
+            case .newPuzzle:
+                return "Current progress will be lost."
+            }
+        }
+    }
 
     private var timer: Timer?
     private var lastTickDate: Date?
@@ -41,7 +77,7 @@ final class GameViewModel: ObservableObject {
                 }
                 return mutable
             }
-            syncState()
+            // syncState() - Removed
         } else {
             updateAutoCheckHighlights()
         }
@@ -60,6 +96,7 @@ final class GameViewModel: ObservableObject {
 
     func handleSceneDidDisappear() {
         pauseTimer()
+        onSave?(state) // Explicit save on disappear
     }
 
     func pauseTimer() {
@@ -73,7 +110,7 @@ final class GameViewModel: ObservableObject {
         lastTickDate = nil
         timer?.invalidate()
         timer = nil
-        syncState()
+        // syncState() - Removed
     }
 
     func select(cell: SudokuCell) {
@@ -92,7 +129,7 @@ final class GameViewModel: ObservableObject {
         state.cells[index].isError = false
         state.cells[index].isVerifiedCorrect = false
         updateAutoCheckHighlights()
-        syncState()
+        // syncState() - Removed
     }
 
     func setDigit(_ digit: Int) {
@@ -118,7 +155,7 @@ final class GameViewModel: ObservableObject {
             }
         }
 
-        syncState()
+        // syncState() - Removed
     }
 
     func toggleMode() {
@@ -135,7 +172,7 @@ final class GameViewModel: ObservableObject {
             state.cells[index].isError = true
             state.cells[index].isVerifiedCorrect = false
         }
-        syncState()
+        // syncState() - Removed
     }
 
     func checkPuzzle() {
@@ -150,7 +187,7 @@ final class GameViewModel: ObservableObject {
                 state.cells[idx].isVerifiedCorrect = false
             }
         }
-        syncState()
+        // syncState() - Removed
     }
 
     func revealCell() {
@@ -164,10 +201,11 @@ final class GameViewModel: ObservableObject {
             state.cells[index].isVerifiedCorrect = false
             updateAutoCheckHighlights()
             checkIfSolved()
-            syncState()
+            // syncState() - Removed
         }
     }
 
+    // Moved revealPuzzle and resetPuzzle here for better organization and to address compiler issues
     func revealPuzzle() {
         for idx in state.cells.indices {
             if let value = validator.solutionValue(row: state.cells[idx].row, col: state.cells[idx].col, solution: state.puzzle.solutionGrid) {
@@ -179,10 +217,7 @@ final class GameViewModel: ObservableObject {
             }
         }
         state.usedReveal = true
-        state.isCompleted = true
-        pauseTimer()
-        syncState()
-        onCompletion?(state)
+        _handleCompletion()
     }
 
     func resetPuzzle() {
@@ -199,7 +234,7 @@ final class GameViewModel: ObservableObject {
             mutable.isVerifiedCorrect = false
             return mutable
         }
-        syncState()
+        // syncState() - Removed
     }
 
     var disabledDigits: Set<Int> {
@@ -230,7 +265,21 @@ final class GameViewModel: ObservableObject {
             timer?.invalidate()
             timer = nil
         }
-        syncState()
+        // syncState() - Removed
+    }
+
+    func handle(pendingAction action: PendingAction) {
+        switch action {
+        case .reset:
+            self.resetPuzzle()
+        case .revealPuzzle:
+            self.revealPuzzle()
+        case .newPuzzle:
+            if let newState = onNewGame?() {
+                self.load(state: newState)
+            }
+        }
+        pendingAction = nil
     }
 
     private func removeCandidate(_ digit: Int, relatedTo cell: SudokuCell) {
@@ -257,23 +306,27 @@ final class GameViewModel: ObservableObject {
     private func checkIfSolved() {
         guard state.cells.allSatisfy({ $0.value != nil || $0.given }) else { return }
         if validator.isSolved(cells: state.cells, solution: state.puzzle.solutionGrid) {
-            state.isCompleted = true
-            pauseTimer()
-            syncState()
-            onCompletion?(state)
+            _handleCompletion()
         }
     }
 
-    private func syncState() {
-        state.lastUpdated = timeProvider.now()
-        onStateChange?(state)
+    private func _handleCompletion() {
+        state.isCompleted = true
+        pauseTimer()
+        // syncState() - Removed
+        onCompletion?(state)
     }
+
+    // private func syncState() { // Removed
+    //     state.lastUpdated = timeProvider.now()
+    //     onStateChange?(state)
+    // }
 
     private func tick() async {
         guard let start = lastTickDate else { return }
         let now = timeProvider.now()
         state.elapsedSeconds += max(1, Int(now.timeIntervalSince(start)))
         lastTickDate = now
-        syncState()
+        // syncState() - Removed
     }
 }
