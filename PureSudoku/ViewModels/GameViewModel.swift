@@ -69,15 +69,15 @@ final class GameViewModel: ObservableObject {
         settings = newValue
         showTimer = newValue.showTimer
         if !newValue.autoCheckMistakes {
-            // Clear previous auto error flags
-            state.cells = state.cells.map { cell in
+            var newState = self.state
+            newState.cells = newState.cells.map { cell in
                 var mutable = cell
                 if mutable.isError && !mutable.given {
                     mutable.isError = false
                 }
                 return mutable
             }
-            // syncState() - Removed
+            self.state = newState
         } else {
             updateAutoCheckHighlights()
         }
@@ -95,22 +95,25 @@ final class GameViewModel: ObservableObject {
     }
 
     func handleSceneDidDisappear() {
-        pauseTimer()
-        onSave?(state) // Explicit save on disappear
+        let elapsed = calculateAndStopTimer()
+        var newState = self.state
+        newState.elapsedSeconds += elapsed
+        self.state = newState
+        onSave?(self.state)
     }
 
-    func pauseTimer() {
+    private func calculateAndStopTimer() -> Int {
         guard let start = lastTickDate else {
             timer?.invalidate()
             timer = nil
-            return
+            return 0
         }
         let now = timeProvider.now()
-        state.elapsedSeconds += Int(now.timeIntervalSince(start))
+        let elapsed = Int(now.timeIntervalSince(start))
         lastTickDate = nil
         timer?.invalidate()
         timer = nil
-        // syncState() - Removed
+        return elapsed
     }
 
     func select(cell: SudokuCell) {
@@ -124,38 +127,42 @@ final class GameViewModel: ObservableObject {
     func clearSelectedCell() {
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
-        state.cells[index].value = nil
-        state.cells[index].candidates.removeAll()
-        state.cells[index].isError = false
-        state.cells[index].isVerifiedCorrect = false
+        
+        var newState = self.state
+        newState.cells[index].value = nil
+        newState.cells[index].candidates.removeAll()
+        newState.cells[index].isError = false
+        newState.cells[index].isVerifiedCorrect = false
+        self.state = newState
+        
         updateAutoCheckHighlights()
-        // syncState() - Removed
     }
 
     func setDigit(_ digit: Int) {
         guard (1...9).contains(digit), let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
 
+        var newState = self.state
         switch inputMode {
         case .normal:
-            state.cells[index].value = digit
-            state.cells[index].candidates.removeAll()
-            state.cells[index].isError = false
-            state.cells[index].isVerifiedCorrect = false
+            newState.cells[index].value = digit
+            newState.cells[index].candidates.removeAll()
+            newState.cells[index].isError = false
+            newState.cells[index].isVerifiedCorrect = false
             if settings.autoRemoveCandidates {
-                removeCandidate(digit, relatedTo: state.cells[index])
+                newState.cells = removeCandidate(digit, relatedTo: newState.cells[index], from: newState.cells)
             }
+            self.state = newState
             updateAutoCheckHighlights()
             checkIfSolved()
         case .candidate:
-            if state.cells[index].candidates.contains(digit) {
-                state.cells[index].candidates.remove(digit)
+            if newState.cells[index].candidates.contains(digit) {
+                newState.cells[index].candidates.remove(digit)
             } else {
-                state.cells[index].candidates.insert(digit)
+                newState.cells[index].candidates.insert(digit)
             }
+            self.state = newState
         }
-
-        // syncState() - Removed
     }
 
     func toggleMode() {
@@ -165,76 +172,91 @@ final class GameViewModel: ObservableObject {
     func checkCell() {
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }), let value = state.cells[index].value else { return }
         let cell = state.cells[index]
+        
+        var newState = self.state
         if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid) {
-            state.cells[index].isError = false
-            state.cells[index].isVerifiedCorrect = true
+            newState.cells[index].isError = false
+            newState.cells[index].isVerifiedCorrect = true
         } else {
-            state.cells[index].isError = true
-            state.cells[index].isVerifiedCorrect = false
+            newState.cells[index].isError = true
+            newState.cells[index].isVerifiedCorrect = false
         }
-        // syncState() - Removed
+        self.state = newState
     }
 
     func checkPuzzle() {
-        for idx in state.cells.indices {
-            guard let value = state.cells[idx].value else { continue }
-            let cell = state.cells[idx]
+        var newState = self.state
+        for idx in newState.cells.indices {
+            guard let value = newState.cells[idx].value else { continue }
+            let cell = newState.cells[idx]
             if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid) {
-                state.cells[idx].isError = false
-                state.cells[idx].isVerifiedCorrect = true
+                newState.cells[idx].isError = false
+                newState.cells[idx].isVerifiedCorrect = true
             } else {
-                state.cells[idx].isError = true
-                state.cells[idx].isVerifiedCorrect = false
+                newState.cells[idx].isError = true
+                newState.cells[idx].isVerifiedCorrect = false
             }
         }
-        // syncState() - Removed
+        self.state = newState
     }
 
     func revealCell() {
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given else { return }
-        if let value = validator.solutionValue(row: state.cells[index].row, col: state.cells[index].col, solution: state.puzzle.solutionGrid) {
-            state.cells[index].value = value
-            state.cells[index].isRevealed = true
-            state.cells[index].candidates.removeAll()
-            state.usedReveal = true
-            state.cells[index].isVerifiedCorrect = false
+        
+        var newState = self.state
+        if let value = validator.solutionValue(row: newState.cells[index].row, col: newState.cells[index].col, solution: newState.puzzle.solutionGrid) {
+            newState.cells[index].value = value
+            newState.cells[index].isRevealed = true
+            newState.cells[index].candidates.removeAll()
+            newState.usedReveal = true
+            newState.cells[index].isVerifiedCorrect = false
+            self.state = newState
+            
             updateAutoCheckHighlights()
             checkIfSolved()
-            // syncState() - Removed
         }
     }
 
-    // Moved revealPuzzle and resetPuzzle here for better organization and to address compiler issues
     func revealPuzzle() {
-        for idx in state.cells.indices {
-            if let value = validator.solutionValue(row: state.cells[idx].row, col: state.cells[idx].col, solution: state.puzzle.solutionGrid) {
-                state.cells[idx].value = value
-                state.cells[idx].isRevealed = true
-                state.cells[idx].candidates.removeAll()
-                state.cells[idx].isError = false
-                state.cells[idx].isVerifiedCorrect = false
+        var newState = self.state
+        for idx in newState.cells.indices {
+            if let value = validator.solutionValue(row: newState.cells[idx].row, col: newState.cells[idx].col, solution: newState.puzzle.solutionGrid) {
+                newState.cells[idx].value = value
+                newState.cells[idx].isRevealed = true
+                newState.cells[idx].candidates.removeAll()
+                newState.cells[idx].isError = false
+                newState.cells[idx].isVerifiedCorrect = false
             }
         }
-        state.usedReveal = true
-        _handleCompletion()
+        newState.usedReveal = true
+        
+        // Handle completion
+        newState.isCompleted = true
+        let elapsed = calculateAndStopTimer()
+        newState.elapsedSeconds += elapsed
+        
+        self.state = newState
+        onCompletion?(self.state)
     }
 
     func resetPuzzle() {
-        state.resetToInitial(now: timeProvider.now())
-        state.elapsedSeconds = 0
-        inputMode = .normal
-        selectedCellID = nil
-        state.usedReveal = false
-        state.isCompleted = false
-        state.cells = state.cells.map { cell in
+        var newState = self.state
+        newState.resetToInitial(now: timeProvider.now())
+        newState.elapsedSeconds = 0
+        newState.usedReveal = false
+        newState.isCompleted = false
+        newState.cells = newState.cells.map { cell in
             var mutable = cell
             mutable.isError = false
             mutable.candidates.removeAll()
             mutable.isVerifiedCorrect = false
             return mutable
         }
-        // syncState() - Removed
+        
+        self.state = newState
+        self.inputMode = .normal
+        self.selectedCellID = nil
     }
 
     var disabledDigits: Set<Int> {
@@ -248,12 +270,10 @@ final class GameViewModel: ObservableObject {
     }
 
     func load(state newState: GameState) {
-        pauseTimer()
-        state = newState
-        selectedCellID = nil
-        inputMode = .normal
-        showTimer = settings.showTimer
-        state.cells = state.cells.map { cell in
+        _ = calculateAndStopTimer()
+        
+        var finalState = newState
+        finalState.cells = finalState.cells.map { cell in
             var mutable = cell
             if !mutable.given {
                 mutable.isVerifiedCorrect = false
@@ -261,72 +281,82 @@ final class GameViewModel: ObservableObject {
             }
             return mutable
         }
-        if newState.isCompleted {
+        
+        self.state = finalState
+        self.selectedCellID = nil
+        self.inputMode = .normal
+        self.showTimer = settings.showTimer
+        
+        if finalState.isCompleted {
             timer?.invalidate()
             timer = nil
         }
-        // syncState() - Removed
     }
 
-    func handle(pendingAction action: PendingAction) {
-        switch action {
-        case .reset:
-            self.resetPuzzle()
-        case .revealPuzzle:
-            self.revealPuzzle()
-        case .newPuzzle:
-            if let newState = onNewGame?() {
-                self.load(state: newState)
+    func handle(pendingAction: PendingAction) {
+        let action = pendingAction
+        self.pendingAction = nil
+
+        Task { @MainActor in
+            switch action {
+            case .newPuzzle:
+                if let newState = self.onNewGame?() {
+                    self.load(state: newState)
+                }
+            case .reset:
+                self.resetPuzzle()
+            case .revealPuzzle:
+                self.revealPuzzle()
             }
         }
-        pendingAction = nil
     }
 
-    private func removeCandidate(_ digit: Int, relatedTo cell: SudokuCell) {
-        for idx in state.cells.indices {
-            guard state.cells[idx].id != cell.id else { continue }
-            if state.cells[idx].row == cell.row || state.cells[idx].col == cell.col || (state.cells[idx].row / 3 == cell.row / 3 && state.cells[idx].col / 3 == cell.col / 3) {
-                state.cells[idx].candidates.remove(digit)
+    private func removeCandidate(_ digit: Int, relatedTo cell: SudokuCell, from cells: [SudokuCell]) -> [SudokuCell] {
+        var newCells = cells
+        for idx in newCells.indices {
+            guard newCells[idx].id != cell.id else { continue }
+            if newCells[idx].row == cell.row || newCells[idx].col == cell.col || (newCells[idx].row / 3 == cell.row / 3 && newCells[idx].col / 3 == cell.col / 3) {
+                newCells[idx].candidates.remove(digit)
             }
         }
+        return newCells
     }
 
     private func updateAutoCheckHighlights() {
-        let conflicts = validator.conflictingIndices(in: state.cells, autoCheckMistakes: settings.autoCheckMistakes)
-        for idx in state.cells.indices {
-            if conflicts.contains(state.cells[idx].id) {
-                state.cells[idx].isError = true
-                state.cells[idx].isVerifiedCorrect = false
-            } else if !state.cells[idx].given {
-                state.cells[idx].isError = false
+        var newState = self.state
+        let conflicts = validator.conflictingIndices(in: newState.cells, autoCheckMistakes: settings.autoCheckMistakes)
+        for idx in newState.cells.indices {
+            if conflicts.contains(newState.cells[idx].id) {
+                newState.cells[idx].isError = true
+                newState.cells[idx].isVerifiedCorrect = false
+            } else if !newState.cells[idx].given {
+                newState.cells[idx].isError = false
             }
         }
+        self.state = newState
     }
 
     private func checkIfSolved() {
         guard state.cells.allSatisfy({ $0.value != nil || $0.given }) else { return }
         if validator.isSolved(cells: state.cells, solution: state.puzzle.solutionGrid) {
-            _handleCompletion()
+            var newState = self.state
+            newState.isCompleted = true
+            let elapsed = calculateAndStopTimer()
+            newState.elapsedSeconds += elapsed
+            
+            self.state = newState
+            onCompletion?(self.state)
         }
     }
-
-    private func _handleCompletion() {
-        state.isCompleted = true
-        pauseTimer()
-        // syncState() - Removed
-        onCompletion?(state)
-    }
-
-    // private func syncState() { // Removed
-    //     state.lastUpdated = timeProvider.now()
-    //     onStateChange?(state)
-    // }
 
     private func tick() async {
         guard let start = lastTickDate else { return }
         let now = timeProvider.now()
-        state.elapsedSeconds += max(1, Int(now.timeIntervalSince(start)))
+        
+        var newState = self.state
+        newState.elapsedSeconds += max(1, Int(now.timeIntervalSince(start)))
+        self.state = newState
+        
         lastTickDate = now
-        // syncState() - Removed
     }
 }

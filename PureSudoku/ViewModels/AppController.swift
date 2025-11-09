@@ -46,7 +46,9 @@ final class AppController: ObservableObject {
 
     func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
         let state = activeGames[difficulty] ?? (try? createNewGameState(for: difficulty)) ?? GameState.newGame(for: fallbackPuzzle(for: difficulty))
-        activeGames[difficulty] = state
+        DispatchQueue.main.async {
+            self.activeGames[difficulty] = state
+        }
         let viewModel = GameViewModel(state: state, settings: settings, validator: validator, timeProvider: timeProvider)
         viewModel.onCompletion = { [weak self] completedState in
             self?.handleCompletion(state: completedState, difficulty: difficulty)
@@ -63,7 +65,9 @@ final class AppController: ObservableObject {
     @discardableResult
     func startNewGame(for difficulty: Difficulty) -> GameState? {
         if let newState = try? createNewGameState(for: difficulty) {
-            activeGames[difficulty] = newState
+            DispatchQueue.main.async {
+                self.activeGames[difficulty] = newState
+            }
             do {
                 try persistence.save(newState, to: File.game(difficulty).rawValue)
             } catch {
@@ -74,27 +78,33 @@ final class AppController: ObservableObject {
         return nil
     }
 
-    func updateSettings(_ block: (inout Settings) -> Void) {
-        block(&settings)
-        settings.enforceBedtimeRulesIfNeeded()
-        do {
-            try persistence.save(settings, to: File.settings.rawValue)
-        } catch {
-            self.lastPersistenceError = error
+    func updateSettings(_ block: @escaping (inout Settings) -> Void) {
+        DispatchQueue.main.async {
+            block(&self.settings)
+            self.settings.enforceBedtimeRulesIfNeeded()
+            do {
+                try self.persistence.save(self.settings, to: File.settings.rawValue)
+            } catch {
+                self.lastPersistenceError = error
+            }
         }
     }
 
-    func updateStats(_ block: (inout Stats) -> Void) {
-        block(&stats)
-        do {
-            try persistence.save(stats, to: File.stats.rawValue)
-        } catch {
-            self.lastPersistenceError = error
+    func updateStats(_ block: @escaping (inout Stats) -> Void) {
+        DispatchQueue.main.async {
+            block(&self.stats)
+            do {
+                try self.persistence.save(self.stats, to: File.stats.rawValue)
+            } catch {
+                self.lastPersistenceError = error
+            }
         }
     }
 
     private func persist(state: GameState, for difficulty: Difficulty) {
-        activeGames[difficulty] = state
+        DispatchQueue.main.async {
+            self.activeGames[difficulty] = state
+        }
         do {
             try persistence.save(state, to: File.game(difficulty).rawValue)
         } catch {
@@ -103,10 +113,12 @@ final class AppController: ObservableObject {
     }
 
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
-        updateStats { stats in
-            stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, date: timeProvider.now())
+        DispatchQueue.main.async {
+            self.updateStats { stats in
+                stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, date: self.timeProvider.now())
+            }
+            self.activeGames[difficulty] = state
         }
-        activeGames[difficulty] = state
         do {
             try persistence.save(state, to: File.game(difficulty).rawValue)
         } catch {
