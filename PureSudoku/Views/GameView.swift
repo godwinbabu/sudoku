@@ -61,19 +61,15 @@ struct GameView: View {
         .onChange(of: controller.settings) { newSettings in
             viewModel.apply(settings: newSettings)
         }
-        .confirmationDialog(viewModel.pendingAction?.title ?? "", isPresented: Binding(get: { viewModel.pendingAction != nil }, set: { if !$0 { viewModel.pendingAction = nil } }), titleVisibility: .visible) {
-            if let action = viewModel.pendingAction {
-                Button("Confirm", role: .destructive) {
-                    viewModel.handle(pendingAction: action)
-                }
-                Button("Cancel", role: .cancel) {
-                    viewModel.pendingAction = nil
-                }
+        .confirmationDialog(
+            viewModel.pendingAction?.title ?? "",
+            presenting: $viewModel.pendingAction
+        ) { action in
+            Button("Confirm", role: .destructive) {
+                viewModel.handle(pendingAction: action)
             }
-        } message: {
-            if let action = viewModel.pendingAction {
-                Text(action.message)
-            }
+        } message: { action in
+            Text(action.message)
         }
         .accessibilityIdentifier("gameView")
     }
