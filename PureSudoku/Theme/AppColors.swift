@@ -8,4 +8,5 @@ extension Color {
     static let appTextPrimary = Color(red: 245/255, green: 241/255, blue: 232/255)
     static let appTextSecondary = Color(red: 114/255, green: 117/255, blue: 127/255)
     static let appErrorRed = Color(red: 215/255, green: 90/255, blue: 90/255)
+    static let appSuccessGreen = Color(red: 96/255, green: 181/255, blue: 140/255)
 }

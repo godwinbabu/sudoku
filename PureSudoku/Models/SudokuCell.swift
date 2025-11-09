@@ -9,6 +9,7 @@ struct SudokuCell: Identifiable, Codable, Equatable {
     var candidates: Set<Int>
     var isError: Bool
     var isRevealed: Bool
+    var isVerifiedCorrect: Bool
 
     init(id: UUID = UUID(), row: Int, col: Int, given: Bool, value: Int?, candidates: Set<Int> = [], isError: Bool = false, isRevealed: Bool = false) {
         self.id = id
@@ -19,6 +20,7 @@ struct SudokuCell: Identifiable, Codable, Equatable {
         self.candidates = candidates
         self.isError = isError
         self.isRevealed = isRevealed
+        self.isVerifiedCorrect = false
     }
 
     var index: Int {

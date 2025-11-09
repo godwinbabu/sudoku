@@ -6,16 +6,17 @@ struct NumberPadView: View {
     var onDigit: (Int) -> Void
     var onClear: () -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
 
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(1...9, id: \.self) { digit in
                 Button(action: { onDigit(digit) }) {
                     Text("\(digit)")
-                        .font(.title2.bold())
+                        .font(.title3.bold())
                         .frame(maxWidth: .infinity)
-                        .padding()
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 4)
                         .foregroundColor(disabledDigits.contains(digit) ? theme.numberPadDisabledText : theme.primaryText)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
@@ -26,12 +27,12 @@ struct NumberPadView: View {
                 .accessibilityIdentifier("number_\(digit)")
             }
             Button(action: onClear) {
-                Text("Clear")
-                    .font(.title3)
+                Label("", systemImage: "delete.left")
+                    .font(.headline)
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(.vertical, 10)
                     .foregroundColor(theme.accent)
-                    .overlay(
+                    .background(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(theme.accent.opacity(0.7), lineWidth: 1)
                     )

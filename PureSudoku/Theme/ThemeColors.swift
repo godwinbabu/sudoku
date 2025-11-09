@@ -8,6 +8,7 @@ struct ThemeColors {
     let primaryText: Color
     let secondaryText: Color
     let error: Color
+    let success: Color
     let cardBackground: Color
     let gridLine: Color
     let selection: Color
@@ -19,7 +20,7 @@ struct ThemeColors {
 }
 
 extension ThemeColors {
-    static func forTheme(_ theme: AppTheme) -> ThemeColors {
+static func forTheme(_ theme: AppTheme) -> ThemeColors {
         switch theme {
         case .system:
             return ThemeColors.forTheme(.light)
@@ -29,9 +30,10 @@ extension ThemeColors {
                 background: .white,
                 gridBackground: Color(white: 0.95),
                 accent: .appAccentAmber,
-                primaryText: .black,
-                secondaryText: .gray,
+                primaryText: Color(red: 0.1, green: 0.1, blue: 0.12),
+                secondaryText: Color.gray.opacity(0.8),
                 error: .appErrorRed,
+                success: .appSuccessGreen,
                 cardBackground: .white,
                 gridLine: Color.black.opacity(0.1),
                 selection: Color.appAccentAmber.opacity(0.15),
@@ -43,9 +45,10 @@ extension ThemeColors {
                 background: .appBackgroundDark,
                 gridBackground: .appCardBackground,
                 accent: .appAccentAmber,
-                primaryText: .appTextPrimary,
-                secondaryText: .appTextSecondary,
+                primaryText: Color(red: 0.92, green: 0.9, blue: 0.86),
+                secondaryText: Color(red: 0.68, green: 0.7, blue: 0.74),
                 error: .appErrorRed,
+                success: .appSuccessGreen,
                 cardBackground: .appCardBackground,
                 gridLine: Color.white.opacity(0.1),
                 selection: Color.white.opacity(0.08),
@@ -57,9 +60,10 @@ extension ThemeColors {
                 background: .appBackgroundDark,
                 gridBackground: .appCardBackground,
                 accent: .appAccentOrange,
-                primaryText: .appTextPrimary,
-                secondaryText: .appTextSecondary,
+                primaryText: Color(red: 0.9, green: 0.85, blue: 0.78),
+                secondaryText: Color(red: 0.68, green: 0.7, blue: 0.74),
                 error: .appErrorRed,
+                success: .appSuccessGreen,
                 cardBackground: .appCardBackground,
                 gridLine: Color.white.opacity(0.08),
                 selection: Color.appAccentOrange.opacity(0.18),

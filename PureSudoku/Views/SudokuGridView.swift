@@ -66,10 +66,10 @@ struct SudokuCellView: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? theme.selection : theme.cardBackground)
+                .fill(cellFillColor)
             if let value = cell.value {
                 Text("\(value)")
-                    .font(cell.given ? .title3.bold() : .title3)
+                    .font(cell.given ? .title.bold() : .title)
                     .foregroundColor(cell.given ? theme.primaryText : theme.accent)
             } else if !cell.candidates.isEmpty {
                 Text(candidateString)
@@ -91,7 +91,19 @@ struct SudokuCellView: View {
     }
 
     private var borderColor: Color {
-        cell.isError ? theme.error : theme.gridLine.opacity(0.4)
+        if cell.isError { return theme.error }
+        if cell.isVerifiedCorrect { return theme.success }
+        return theme.gridLine.opacity(0.4)
+    }
+
+    private var cellFillColor: Color {
+        if cell.isVerifiedCorrect {
+            return theme.success.opacity(0.2)
+        } else if isSelected {
+            return theme.selection
+        } else {
+            return theme.cardBackground
+        }
     }
 
     private var accessibilityText: String {

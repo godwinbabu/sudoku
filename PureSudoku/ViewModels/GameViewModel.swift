@@ -90,6 +90,7 @@ final class GameViewModel: ObservableObject {
         state.cells[index].value = nil
         state.cells[index].candidates.removeAll()
         state.cells[index].isError = false
+        state.cells[index].isVerifiedCorrect = false
         updateAutoCheckHighlights()
         syncState()
     }
@@ -103,6 +104,7 @@ final class GameViewModel: ObservableObject {
             state.cells[index].value = digit
             state.cells[index].candidates.removeAll()
             state.cells[index].isError = false
+            state.cells[index].isVerifiedCorrect = false
             if settings.autoRemoveCandidates {
                 removeCandidate(digit, relatedTo: state.cells[index])
             }
@@ -126,7 +128,13 @@ final class GameViewModel: ObservableObject {
     func checkCell() {
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }), let value = state.cells[index].value else { return }
         let cell = state.cells[index]
-        state.cells[index].isError = !validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid)
+        if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid) {
+            state.cells[index].isError = false
+            state.cells[index].isVerifiedCorrect = true
+        } else {
+            state.cells[index].isError = true
+            state.cells[index].isVerifiedCorrect = false
+        }
         syncState()
     }
 
@@ -134,7 +142,13 @@ final class GameViewModel: ObservableObject {
         for idx in state.cells.indices {
             guard let value = state.cells[idx].value else { continue }
             let cell = state.cells[idx]
-            state.cells[idx].isError = !validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid)
+            if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid) {
+                state.cells[idx].isError = false
+                state.cells[idx].isVerifiedCorrect = true
+            } else {
+                state.cells[idx].isError = true
+                state.cells[idx].isVerifiedCorrect = false
+            }
         }
         syncState()
     }
@@ -147,6 +161,7 @@ final class GameViewModel: ObservableObject {
             state.cells[index].isRevealed = true
             state.cells[index].candidates.removeAll()
             state.usedReveal = true
+            state.cells[index].isVerifiedCorrect = false
             updateAutoCheckHighlights()
             checkIfSolved()
             syncState()
@@ -160,6 +175,7 @@ final class GameViewModel: ObservableObject {
                 state.cells[idx].isRevealed = true
                 state.cells[idx].candidates.removeAll()
                 state.cells[idx].isError = false
+                state.cells[idx].isVerifiedCorrect = false
             }
         }
         state.usedReveal = true
@@ -180,6 +196,7 @@ final class GameViewModel: ObservableObject {
             var mutable = cell
             mutable.isError = false
             mutable.candidates.removeAll()
+            mutable.isVerifiedCorrect = false
             return mutable
         }
         syncState()
@@ -201,6 +218,14 @@ final class GameViewModel: ObservableObject {
         selectedCellID = nil
         inputMode = .normal
         showTimer = settings.showTimer
+        state.cells = state.cells.map { cell in
+            var mutable = cell
+            if !mutable.given {
+                mutable.isVerifiedCorrect = false
+                mutable.isError = false
+            }
+            return mutable
+        }
         if newState.isCompleted {
             timer?.invalidate()
             timer = nil
@@ -222,6 +247,7 @@ final class GameViewModel: ObservableObject {
         for idx in state.cells.indices {
             if conflicts.contains(state.cells[idx].id) {
                 state.cells[idx].isError = true
+                state.cells[idx].isVerifiedCorrect = false
             } else if !state.cells[idx].given {
                 state.cells[idx].isError = false
             }

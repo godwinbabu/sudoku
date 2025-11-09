@@ -52,22 +52,36 @@ struct GameView: View {
             if theme.isSleep {
                 Color.black.opacity(theme.dimOverlayOpacity).ignoresSafeArea()
             }
-            VStack(spacing: 16) {
-                topBar(theme: theme)
-                SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme) { cell in
-                    viewModel.select(cell: cell)
+            ScrollView {
+                VStack(spacing: 16) {
+                    topBar(theme: theme)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme) { cell in
+                        viewModel.select(cell: cell)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .aspectRatio(1, contentMode: .fit)
+                    .padding(.vertical, 4)
+                    modeToggle(theme: theme)
+                    NumberPadView(
+                        theme: theme,
+                        disabledDigits: viewModel.disabledDigits,
+                        onDigit: { viewModel.setDigit($0) },
+                        onClear: { viewModel.clearSelectedCell() }
+                    )
+                    actionButtons(theme: theme)
                 }
-                modeToggle(theme: theme)
-                NumberPadView(theme: theme, disabledDigits: viewModel.disabledDigits, onDigit: { viewModel.setDigit($0) }, onClear: { viewModel.clearSelectedCell() })
-                actionButtons(theme: theme)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
             }
-            .padding()
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
+                        .font(.headline)
                 }
                 .accessibilityIdentifier("backButton")
             }
@@ -100,44 +114,35 @@ struct GameView: View {
     }
 
     private func topBar(theme: ThemeColors) -> some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(difficulty.displayName)
-                    .font(.headline)
-                    .foregroundColor(theme.primaryText)
-                if viewModel.showTimer {
-                    Text(timeString(seconds: viewModel.state.elapsedSeconds))
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundColor(theme.secondaryText)
-                        .accessibilityIdentifier("timerLabel")
-                }
+        let statusText = viewModel.state.isCompleted ? "Solved" : "In progress"
+        return HStack(alignment: .center, spacing: 12) {
+            Text(difficulty.displayName)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if viewModel.showTimer {
+                Text(timeString(seconds: viewModel.state.elapsedSeconds))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .accessibilityIdentifier("timerLabel")
+            } else {
+                Spacer()
             }
-            Spacer()
-            VStack(alignment: .trailing) {
-                Text(viewModel.inputMode == .normal ? "Normal" : "Notes")
-                    .font(.footnote)
-                    .foregroundColor(theme.secondaryText)
-                Text(viewModel.state.isCompleted ? "Solved" : "In progress")
-                    .font(.footnote.bold())
-                    .foregroundColor(viewModel.state.isCompleted ? theme.accent : theme.secondaryText)
-            }
+            Text(statusText)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
+        .font(.headline.bold())
+        .foregroundColor(theme.primaryText)
     }
 
     private func modeToggle(theme: ThemeColors) -> some View {
-        HStack {
-            Text("Mode")
-                .foregroundColor(theme.primaryText)
-            Spacer()
-            Picker("Input Mode", selection: $viewModel.inputMode) {
-                Text("Normal").tag(InputMode.normal)
-                Text("Notes").tag(InputMode.candidate)
+        HStack(spacing: 12) {
+            ModeChip(title: "Normal", active: viewModel.inputMode == .normal, theme: theme) {
+                viewModel.inputMode = .normal
             }
-            .pickerStyle(.segmented)
-            .frame(width: 220)
-            .accessibilityIdentifier("modeToggle")
-            .tint(theme.accent)
+            ModeChip(title: "Notes", active: viewModel.inputMode == .candidate, theme: theme) {
+                viewModel.inputMode = .candidate
+            }
+            Spacer()
         }
+        .accessibilityIdentifier("modeToggle")
     }
 
     private func actionButtons(theme: ThemeColors) -> some View {
@@ -220,6 +225,26 @@ struct GameActionButton: View {
         switch style {
         case .normal: return theme.accent.opacity(0.15)
         case .destructive: return theme.error.opacity(0.15)
+        }
+    }
+}
+
+private struct ModeChip: View {
+    let title: String
+    let active: Bool
+    let theme: ThemeColors
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.footnote.bold())
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity)
+                .background(active ? theme.accent.opacity(0.2) : theme.cardBackground)
+                .foregroundColor(active ? theme.accent : theme.secondaryText)
+                .clipShape(Capsule())
         }
     }
 }
