@@ -27,3 +27,6 @@ PureSudoku.xcodeproj/project.xcworkspace/xcuserdata/
 
 # macOS metadata
 .DS_Store
+
+# tmp
+tmp/

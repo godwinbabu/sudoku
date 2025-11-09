@@ -6,7 +6,7 @@ struct MainMenuView: View {
     @State private var activeSheet: Sheet?
     @State private var navigationPath = NavigationPath()
     private let taglineOptions = [
-        "Simple, unobtrusive. Just Sudoku.",
+        "Simple, unobtrusive, Just Sudoku!",
         "Calm focus. Just you, the grid, and a steady mind.",
         "Quiet puzzles for clear thinking and relaxed focus."
     ]
@@ -34,18 +34,21 @@ struct MainMenuView: View {
             GeometryReader { proxy in
                 ZStack {
                     theme.background.ignoresSafeArea()
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            topSection(theme: theme)
-                            difficultyButtons(theme: theme)
-                            statsSummary(theme: theme)
-                            bedtimeToggle(theme: theme)
+                    VStack(spacing: 12) {
+                        ScrollView(showsIndicators: false) {
+                            VStack(spacing: 16) {
+                                topSection(theme: theme)
+                                difficultyButtons(theme: theme)
+                                statsSummary(theme: theme)
+                            }
+                            .frame(maxWidth: 420)
+                            .padding(.top, 6)
+                            .padding(.horizontal, 18)
+                            .padding(.bottom, 12)
                         }
-                        .frame(maxWidth: 340)
-                        .padding(.vertical, 28)
-                        .padding(.horizontal, 20)
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: proxy.size.height)
+                        bedtimeToggle(theme: theme)
+                            .padding(.horizontal, 18)
+                            .padding(.bottom, max(proxy.safeAreaInsets.bottom + 8, 16))
                     }
                 }
             }
@@ -80,16 +83,16 @@ struct MainMenuView: View {
     }
 
     private func topSection(theme: ThemeColors) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             Image("LandingIcon")
                 .resizable()
                 .scaledToFit()
-                .frame(width: 72, height: 72)
-            Text("PureSudoku")
-                .font(.title.bold())
+                .frame(width: 115, height: 115)
+            Text("Pure Sudoku")
+                .font(.system(size: 40, weight: .bold, design: .serif))
                 .foregroundColor(theme.primaryText)
             Text(taglineOptions[displayedTaglineIndex])
-                .font(.footnote)
+                .font(.callout)
                 .multilineTextAlignment(.center)
                 .foregroundColor(theme.secondaryText)
         }
@@ -99,17 +102,20 @@ struct MainMenuView: View {
     private func statsSummary(theme: ThemeColors) -> some View {
         let streak = viewModel.stats.streakDays
         let total = viewModel.stats.totalPuzzlesSolved
-        return VStack(spacing: 8) {
+        return VStack(spacing: 20) {
             Text("Progress")
-                .font(.caption)
+                .font(.headline.bold())
                 .foregroundColor(theme.secondaryText)
             HStack {
                 statColumn(title: "Day Streak", value: "\(streak)", theme: theme)
-                Spacer()
+                Divider()
+                    .frame(height: 48)
+                    .background(theme.gridLine.opacity(0.3))
                 statColumn(title: "Solved Total", value: "\(total)", theme: theme)
             }
-            .padding()
-            .background(theme.cardBackground, in: RoundedRectangle(cornerRadius: 18))
+            .padding(.vertical, 18)
+            .padding(.horizontal, 26)
+            .background(theme.cardBackground, in: RoundedRectangle(cornerRadius: 22))
         }
         .frame(maxWidth: .infinity)
     }
@@ -117,16 +123,16 @@ struct MainMenuView: View {
     private func statColumn(title: String, value: String, theme: ThemeColors) -> some View {
         VStack {
             Text(value)
-                .font(.title2.bold())
+                .font(.largeTitle.bold())
                 .foregroundColor(theme.primaryText)
             Text(title)
-                .font(.footnote)
+                .font(.callout)
                 .foregroundColor(theme.secondaryText)
         }
     }
 
     private func difficultyButtons(theme: ThemeColors) -> some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             ForEach(Difficulty.allCases) { difficulty in
                 let hasActive = controller.activeGames[difficulty]?.isCompleted == false
                 DifficultyCard(
@@ -150,7 +156,7 @@ struct MainMenuView: View {
                     .frame(width: 18, height: 18)
                 Text(controller.settings.bedtimeMode ? "Bedtime Mode On" : "Enable Bedtime Mode")
                     .foregroundColor(theme.primaryText)
-                    .font(.footnote.bold())
+                    .font(.body.bold())
                 Spacer()
                 Toggle(isOn: .constant(controller.settings.bedtimeMode)) {
                     EmptyView()
@@ -182,11 +188,11 @@ private struct DifficultyCard: View {
     let newAction: () -> Void
 
     var body: some View {
-        VStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: 18) {
             Text(difficulty.displayName)
-                .font(.headline.bold())
+                .font(.title2.bold())
                 .foregroundColor(theme.primaryText)
-            HStack(spacing: 12) {
+            HStack(spacing: 14) {
                 ActionButton(
                     title: "Continue",
                     enabled: hasActive,
@@ -201,8 +207,8 @@ private struct DifficultyCard: View {
                 )
             }
         }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 18)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity)
         .background(theme.cardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }

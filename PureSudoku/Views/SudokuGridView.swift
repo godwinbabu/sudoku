@@ -6,19 +6,28 @@ struct SudokuGridView: View {
     let theme: ThemeColors
     var onSelect: (SudokuCell) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 1), count: 9)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 9)
 
     var body: some View {
+        let selectedCell = cells.first(where: { $0.id == selectedCellID })
         ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .stroke(theme.gridLine, lineWidth: 2)
-                .background(RoundedRectangle(cornerRadius: 12).fill(theme.gridBackground))
-            LazyVGrid(columns: columns, spacing: 1) {
+                .fill(theme.gridBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(theme.gridLine.opacity(0.6), lineWidth: 1.5)
+                )
+            LazyVGrid(columns: columns, spacing: 0) {
                 ForEach(cells) { cell in
+                    let isSelected = cell.id == selectedCellID
+                    let isHighlighted = {
+                        guard let target = selectedCell, target.id != cell.id else { return false }
+                        return target.row == cell.row || target.col == cell.col
+                    }()
                     Button {
                         onSelect(cell)
                     } label: {
-                        SudokuCellView(cell: cell, isSelected: cell.id == selectedCellID, theme: theme)
+                        SudokuCellView(cell: cell, isSelected: isSelected, isHighlighted: isHighlighted, theme: theme)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
@@ -43,14 +52,14 @@ struct SudokuGridView: View {
                         path.move(to: CGPoint(x: originX + offset, y: originY))
                         path.addLine(to: CGPoint(x: originX + offset, y: originY + length))
                     }
-                    .stroke(theme.gridLine.opacity(0.6), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.7 : 0.25), lineWidth: lineWidth)
 
                     Path { path in
                         let offset = CGFloat(index) * cellSize
                         path.move(to: CGPoint(x: originX, y: originY + offset))
                         path.addLine(to: CGPoint(x: originX + length, y: originY + offset))
                     }
-                    .stroke(theme.gridLine.opacity(0.6), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.7 : 0.25), lineWidth: lineWidth)
                 }
             }
         }
@@ -61,6 +70,7 @@ struct SudokuGridView: View {
 struct SudokuCellView: View {
     let cell: SudokuCell
     let isSelected: Bool
+    let isHighlighted: Bool
     let theme: ThemeColors
 
     var body: some View {
@@ -78,11 +88,8 @@ struct SudokuCellView: View {
                     .minimumScaleFactor(0.6)
             }
         }
-        .frame(height: 36)
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(borderColor, lineWidth: cell.isError ? 2 : 1)
-        )
+        .frame(height: 38)
+        .overlay(borderOverlay)
         .accessibilityLabel(accessibilityText)
     }
 
@@ -90,20 +97,30 @@ struct SudokuCellView: View {
         cell.candidates.sorted().map(String.init).joined(separator: " ")
     }
 
-    private var borderColor: Color {
-        if cell.isError { return theme.error }
-        if cell.isVerifiedCorrect { return theme.success }
-        return theme.gridLine.opacity(0.4)
-    }
-
     private var cellFillColor: Color {
         if cell.isVerifiedCorrect {
             return theme.success.opacity(0.2)
         } else if isSelected {
             return theme.selection
+        } else if isHighlighted {
+            return theme.selection.opacity(0.4)
         } else {
             return theme.cardBackground
         }
+    }
+
+    @ViewBuilder
+    private var borderOverlay: some View {
+        if cell.isError || cell.isVerifiedCorrect || isSelected {
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(borderColor, lineWidth: cell.isError ? 2 : 1.5)
+        }
+    }
+
+    private var borderColor: Color {
+        if cell.isError { return theme.error }
+        if cell.isVerifiedCorrect { return theme.success }
+        return theme.selection
     }
 
     private var accessibilityText: String {
