@@ -5,41 +5,6 @@ struct GameView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: GameViewModel
     private let difficulty: Difficulty
-    @State private var pendingAction: PendingAction?
-
-    private enum PendingAction: Identifiable {
-        case reset
-        case revealPuzzle
-        case newPuzzle
-
-        var id: Int {
-            switch self {
-            case .reset: return 0
-            case .revealPuzzle: return 1
-            case .newPuzzle: return 2
-            }
-        }
-
-        var title: String {
-            switch self {
-            case .reset: return "Reset puzzle?"
-            case .revealPuzzle: return "Reveal entire puzzle?"
-            case .newPuzzle: return "Start a new puzzle?"
-            }
-        }
-
-        var message: String {
-            switch self {
-            case .reset:
-                return "This clears your progress and timer for this puzzle."
-            case .revealPuzzle:
-                return "Revealing marks the puzzle as completed with reveals."
-            case .newPuzzle:
-                return "Current progress will be lost."
-            }
-        }
-    }
-
     init(viewModel: GameViewModel, difficulty: Difficulty) {
         _viewModel = StateObject(wrappedValue: viewModel)
         self.difficulty = difficulty
@@ -96,17 +61,32 @@ struct GameView: View {
         .onChange(of: controller.settings) { newSettings in
             viewModel.apply(settings: newSettings)
         }
-        .confirmationDialog(pendingAction?.title ?? "", isPresented: Binding(get: { pendingAction != nil }, set: { if !$0 { pendingAction = nil } }), titleVisibility: .visible) {
-            if let action = pendingAction {
+        .confirmationDialog(
+            viewModel.pendingAction?.title ?? "",
+            isPresented: Binding(
+                get: { viewModel.pendingAction != nil },
+                set: { newValue in
+                    if !newValue {
+                        Task { @MainActor in
+                            viewModel.pendingAction = nil
+                        }
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let action = viewModel.pendingAction {
                 Button("Confirm", role: .destructive) {
-                    handle(action: action)
+                    viewModel.handle(pendingAction: action)
                 }
                 Button("Cancel", role: .cancel) {
-                    pendingAction = nil
+                    Task { @MainActor in
+                        viewModel.pendingAction = nil
+                    }
                 }
             }
         } message: {
-            if let action = pendingAction {
+            if let action = viewModel.pendingAction {
                 Text(action.message)
             }
         }
@@ -150,9 +130,9 @@ struct GameView: View {
             ActionItem(title: "Hint") { viewModel.revealCell() },
             ActionItem(title: "Check Cell") { viewModel.checkCell() },
             ActionItem(title: "Check Puzzle") { viewModel.checkPuzzle() },
-            ActionItem(title: "Reveal Puzzle", style: .destructive) { pendingAction = .revealPuzzle },
-            ActionItem(title: "Reset", style: .destructive) { pendingAction = .reset },
-            ActionItem(title: "New Puzzle") { pendingAction = .newPuzzle }
+            ActionItem(title: "Reveal Puzzle", style: .destructive) { viewModel.pendingAction = .revealPuzzle },
+            ActionItem(title: "Reset", style: .destructive) { viewModel.pendingAction = .reset },
+            ActionItem(title: "New Puzzle") { viewModel.pendingAction = .newPuzzle }
         ]
         let columns = [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
@@ -178,20 +158,6 @@ struct GameView: View {
         } else {
             return String(format: "%02d:%02d", minutes, secs)
         }
-    }
-
-    private func handle(action: PendingAction) {
-        switch action {
-        case .reset:
-            viewModel.resetPuzzle()
-        case .revealPuzzle:
-            viewModel.revealPuzzle()
-        case .newPuzzle:
-            if let newState = controller.startNewGame(for: difficulty) {
-                viewModel.load(state: newState)
-            }
-        }
-        pendingAction = nil
     }
 }
 
