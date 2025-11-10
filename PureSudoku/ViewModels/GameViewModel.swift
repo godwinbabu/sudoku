@@ -99,7 +99,10 @@ final class GameViewModel: ObservableObject {
         var newState = self.state
         newState.elapsedSeconds += elapsed
         self.state = newState
-        onSave?(self.state)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.onSave?(self.state)
+        }
     }
 
     private func calculateAndStopTimer() -> Int {
@@ -237,7 +240,10 @@ final class GameViewModel: ObservableObject {
         newState.elapsedSeconds += elapsed
         
         self.state = newState
-        onCompletion?(self.state)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.onCompletion?(self.state)
+        }
     }
 
     func resetPuzzle() {
@@ -345,7 +351,10 @@ final class GameViewModel: ObservableObject {
             newState.elapsedSeconds += elapsed
             
             self.state = newState
-            onCompletion?(self.state)
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.onCompletion?(self.state)
+            }
         }
     }
 

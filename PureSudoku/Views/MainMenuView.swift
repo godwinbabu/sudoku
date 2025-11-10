@@ -5,6 +5,7 @@ struct MainMenuView: View {
     @StateObject private var viewModel: MainMenuViewModel
     @State private var activeSheet: Sheet?
     @State private var navigationPath = NavigationPath()
+    @State private var routeViewModels: [UUID: GameViewModel] = [:]
     private let taglineOptions = [
         "Simple, unobtrusive, Just Sudoku!",
         "Calm focus. Just you, the grid, and a steady mind.",
@@ -68,8 +69,12 @@ struct MainMenuView: View {
                     .accessibilityIdentifier("statsButton")
                 }
             }
-            .navigationDestination(for: Difficulty.self) { difficulty in
-                GameView(viewModel: controller.makeGameViewModel(for: difficulty), difficulty: difficulty)
+            .navigationDestination(for: GameRoute.self) { route in
+                let viewModel = routeViewModels[route.id] ?? controller.makeGameViewModel(for: route.difficulty)
+                GameView(viewModel: viewModel, difficulty: route.difficulty)
+                    .onDisappear {
+                        routeViewModels.removeValue(forKey: route.id)
+                    }
             }
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
@@ -176,7 +181,10 @@ struct MainMenuView: View {
         if preferNew || controller.activeGames[difficulty]?.isCompleted != false {
             controller.startNewGame(for: difficulty)
         }
-        navigationPath.append(difficulty)
+        let viewModel = controller.makeGameViewModel(for: difficulty)
+        let route = GameRoute(difficulty: difficulty)
+        routeViewModels[route.id] = viewModel
+        navigationPath.append(route)
     }
 }
 
@@ -234,4 +242,9 @@ private struct DifficultyCard: View {
             .disabled(!enabled)
         }
     }
+}
+
+private struct GameRoute: Hashable, Identifiable {
+    let id = UUID()
+    let difficulty: Difficulty
 }
