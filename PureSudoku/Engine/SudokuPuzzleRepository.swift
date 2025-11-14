@@ -48,18 +48,18 @@ final class SudokuPuzzleRepository {
         let data = try Data(contentsOf: url)
         struct StoredPuzzle: Decodable {
             let id: String
-            let initialGrid: String
-            let solutionGrid: String
+            let puzzle: String  // formerly initialGrid
+            let solution: String // formerly solutionGrid
         }
         let stored = try decoder.decode([StoredPuzzle].self, from: data)
         let puzzles = try stored.map { item -> SudokuPuzzle in
-            guard item.initialGrid.count == 81, item.solutionGrid.count == 81 else {
+            guard item.puzzle.count == 81, item.solution.count == 81 else {
                 throw PuzzleRepositoryError.decodeFailure
             }
-            guard validator.isValid(solution: item.solutionGrid) else {
+            guard validator.isValid(solution: item.solution) else {
                 throw PuzzleRepositoryError.invalidSolution(item.id)
             }
-            return SudokuPuzzle(id: item.id, difficulty: difficulty, initialGrid: item.initialGrid, solutionGrid: item.solutionGrid)
+            return SudokuPuzzle(id: item.id, difficulty: difficulty, initialGrid: item.puzzle, solutionGrid: item.solution)
         }
         cache[difficulty] = puzzles
         return puzzles

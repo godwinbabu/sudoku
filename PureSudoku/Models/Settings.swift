@@ -24,7 +24,12 @@ struct Settings: Codable, Equatable {
 
     mutating func toggleBedtimeMode(_ enabled: Bool) {
         bedtimeMode = enabled
-        enforceBedtimeRulesIfNeeded()
+        if bedtimeMode {
+            enforceBedtimeRulesIfNeeded()
+        } else {
+            // When turning Bedtime Mode off, revert to System theme per UI request
+            theme = .system
+        }
     }
 
     mutating func updateTheme(_ newValue: AppTheme) {

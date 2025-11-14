@@ -163,11 +163,7 @@ struct MainMenuView: View {
                     .foregroundColor(theme.primaryText)
                     .font(.body.bold())
                 Spacer()
-                Toggle(isOn: .constant(controller.settings.bedtimeMode)) {
-                    EmptyView()
-                }
-                .labelsHidden()
-                .disabled(true)
+                BedtimeSwitch(isOn: controller.settings.bedtimeMode, theme: theme)
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 16)
@@ -247,4 +243,30 @@ private struct DifficultyCard: View {
 private struct GameRoute: Hashable, Identifiable {
     let id = UUID()
     let difficulty: Difficulty
+}
+
+// A non-interactive, high-contrast switch indicator for Bedtime Mode state
+private struct BedtimeSwitch: View {
+    let isOn: Bool
+    let theme: ThemeColors
+
+    var body: some View {
+        let trackColor = theme.cardBackground
+        let knobColor = isOn ? theme.accent : theme.secondaryText
+        ZStack(alignment: isOn ? .trailing : .leading) {
+            Capsule()
+                .fill(trackColor)
+                .overlay(
+                    Capsule()
+                        .stroke(theme.gridLine.opacity(0.6), lineWidth: 1)
+                )
+            Circle()
+                .fill(knobColor)
+                .frame(width: 22, height: 22)
+                .padding(.horizontal, 3)
+        }
+        .frame(width: 50, height: 28)
+        .accessibilityLabel(isOn ? "Bedtime Mode On" : "Bedtime Mode Off")
+        .accessibilityAddTraits(.isStaticText)
+    }
 }

@@ -173,11 +173,21 @@ final class GameViewModel: ObservableObject {
     }
 
     func checkCell() {
-        guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }), let value = state.cells[index].value else { return }
-        let cell = state.cells[index]
-        
+        guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
+        // Ignore givens and empty cells
+        guard !state.cells[index].given, let value = state.cells[index].value else { return }
+
         var newState = self.state
-        if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid) {
+        // Toggle off if already highlighted
+        if newState.cells[index].isError || newState.cells[index].isVerifiedCorrect {
+            newState.cells[index].isError = false
+            newState.cells[index].isVerifiedCorrect = false
+            self.state = newState
+            return
+        }
+
+        let cell = newState.cells[index]
+        if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: newState.puzzle.solutionGrid) {
             newState.cells[index].isError = false
             newState.cells[index].isVerifiedCorrect = true
         } else {
@@ -189,10 +199,22 @@ final class GameViewModel: ObservableObject {
 
     func checkPuzzle() {
         var newState = self.state
+        // If any non-given cell is currently highlighted from a previous check, toggle (clear) all highlights
+        let hasAnyHighlight = newState.cells.contains { !$0.given && ($0.isError || $0.isVerifiedCorrect) }
+        if hasAnyHighlight {
+            for idx in newState.cells.indices where !newState.cells[idx].given {
+                newState.cells[idx].isError = false
+                newState.cells[idx].isVerifiedCorrect = false
+            }
+            self.state = newState
+            return
+        }
+
+        // Otherwise, perform check across all non-given cells with values
         for idx in newState.cells.indices {
-            guard let value = newState.cells[idx].value else { continue }
+            guard !newState.cells[idx].given, let value = newState.cells[idx].value else { continue }
             let cell = newState.cells[idx]
-            if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid) {
+            if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: newState.puzzle.solutionGrid) {
                 newState.cells[idx].isError = false
                 newState.cells[idx].isVerifiedCorrect = true
             } else {

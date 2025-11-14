@@ -17,6 +17,19 @@ struct ThemeColors {
     var isSleep: Bool { theme == .sleep }
     var numberPadDisabledBackground: Color { secondaryText.opacity(0.25) }
     var numberPadDisabledText: Color { secondaryText.opacity(0.8) }
+    var sameNumberHighlight: Color {
+        switch theme {
+        case .light:
+            return accent.opacity(0.18)
+        case .dark:
+            return accent.opacity(0.24)
+        case .sleep:
+            return accent.opacity(0.28)
+        case .system:
+            // system maps to light in our palette
+            return ThemeColors.forTheme(.light).accent.opacity(0.18)
+        }
+    }
 }
 
 extension ThemeColors {
