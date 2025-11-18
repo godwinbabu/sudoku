@@ -4,10 +4,24 @@ struct GameView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: GameViewModel
+    @State private var activeSheet: Sheet?
+    @State private var showCelebration: Bool = false
     private let difficulty: Difficulty
     init(viewModel: GameViewModel, difficulty: Difficulty) {
         _viewModel = StateObject(wrappedValue: viewModel)
         self.difficulty = difficulty
+    }
+
+    private enum Sheet: Identifiable {
+        case settings
+        case stats
+
+        var id: Int {
+            switch self {
+            case .settings: return 0
+            case .stats: return 1
+            }
+        }
     }
 
     var body: some View {
@@ -27,17 +41,25 @@ struct GameView: View {
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
                     .padding(.vertical, 4)
+                    .allowsHitTesting(!viewModel.state.isCompleted)
                     modeToggle(theme: theme)
+                        .disabled(viewModel.state.isCompleted)
                     NumberPadView(
                         theme: theme,
                         disabledDigits: viewModel.disabledDigits,
                         onDigit: { viewModel.setDigit($0) },
                         onClear: { viewModel.clearSelectedCell() }
                     )
+                    .disabled(viewModel.state.isCompleted)
                     actionButtons(theme: theme)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
+            }
+            // Subtle solved overlay celebration
+            if showCelebration {
+                celebrationOverlay(theme: theme)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -50,6 +72,20 @@ struct GameView: View {
                 }
                 .accessibilityIdentifier("backButton")
             }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { activeSheet = .stats }) {
+                    Image(systemName: "chart.bar.doc.horizontal")
+                }
+                .foregroundColor(theme.accent)
+                .accessibilityIdentifier("statsButton")
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { activeSheet = .settings }) {
+                    Image(systemName: "gearshape")
+                }
+                .foregroundColor(theme.accent)
+                .accessibilityIdentifier("settingsButton")
+            }
         }
         .onAppear {
             viewModel.apply(settings: controller.settings)
@@ -60,6 +96,14 @@ struct GameView: View {
         }
         .onChange(of: controller.settings) { newSettings in
             viewModel.apply(settings: newSettings)
+        }
+        .onChange(of: viewModel.state.isCompleted) { isCompleted in
+            guard isCompleted else { return }
+            withAnimation(.easeInOut(duration: 0.25)) { showCelebration = true }
+            // Auto-hide after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                withAnimation(.easeInOut(duration: 0.25)) { showCelebration = false }
+            }
         }
         .confirmationDialog(
             viewModel.pendingAction?.title ?? "",
@@ -88,6 +132,14 @@ struct GameView: View {
         } message: {
             if let action = viewModel.pendingAction {
                 Text(action.message)
+            }
+        }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .settings:
+                SettingsView(viewModel: SettingsViewModel(controller: controller))
+            case .stats:
+                StatsView(viewModel: StatsViewModel(controller: controller))
             }
         }
         .accessibilityIdentifier("gameView")
@@ -137,7 +189,9 @@ struct GameView: View {
         let columns = [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(items) { item in
+                let shouldDisable = viewModel.state.isCompleted && ["Hint", "Check Cell", "Check Puzzle", "Reveal Puzzle"].contains(item.title)
                 GameActionButton(theme: theme, title: item.title, style: item.style, action: item.action)
+                    .disabled(shouldDisable)
             }
         }
     }
@@ -158,6 +212,30 @@ struct GameView: View {
         } else {
             return String(format: "%02d:%02d", minutes, secs)
         }
+    }
+
+    @ViewBuilder
+    private func celebrationOverlay(theme: ThemeColors) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 56, weight: .bold))
+                .foregroundColor(theme.success)
+            Text("Solved")
+                .font(.title2.bold())
+                .foregroundColor(theme.primaryText)
+            Text(timeString(seconds: viewModel.state.elapsedSeconds))
+                .font(.headline)
+                .foregroundColor(theme.secondaryText)
+        }
+        .padding(.vertical, 18)
+        .padding(.horizontal, 24)
+        .background(theme.cardBackground.opacity(0.95))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(theme.success.opacity(0.55), lineWidth: 1.5)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: Color.black.opacity(theme.isSleep ? 0.18 : 0.22), radius: 10, x: 0, y: 3)
     }
 }
 

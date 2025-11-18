@@ -10,56 +10,72 @@ struct SudokuGridView: View {
 
     var body: some View {
         let selectedCell = cells.first(where: { $0.id == selectedCellID })
+        let selectedValue = selectedCell?.value
         ZStack {
             RoundedRectangle(cornerRadius: 12)
                 .fill(theme.gridBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(theme.gridLine.opacity(0.6), lineWidth: 1.5)
+                        .stroke(theme.gridLine.opacity(0.6), lineWidth: 2)
                 )
-            LazyVGrid(columns: columns, spacing: 0) {
-                ForEach(cells) { cell in
-                    let isSelected = cell.id == selectedCellID
-                    let isHighlighted = {
-                        guard let target = selectedCell, target.id != cell.id else { return false }
-                        return target.row == cell.row || target.col == cell.col
-                    }()
-                    Button {
-                        onSelect(cell)
-                    } label: {
-                        SudokuCellView(cell: cell, isSelected: isSelected, isHighlighted: isHighlighted, theme: theme)
+            GeometryReader { geometry in
+                let rawLength = min(geometry.size.width, geometry.size.height)
+                let scale = UIScreen.main.scale
+                let length = floor(rawLength * scale) / scale
+                let cellSide = floor((length / 9) * scale) / scale
+                LazyVGrid(columns: columns, spacing: 0) {
+                    ForEach(cells) { cell in
+                        let isSelected = cell.id == selectedCellID
+                        let isHighlighted = {
+                            guard let target = selectedCell, target.id != cell.id else { return false }
+                            return target.row == cell.row || target.col == cell.col
+                        }()
+                        let isNumberMatch: Bool = {
+                            guard let value = selectedValue, !isSelected else { return false }
+                            return cell.value == value
+                        }()
+                        Button {
+                            onSelect(cell)
+                        } label: {
+                            SudokuCellView(cell: cell, isSelected: isSelected, isHighlighted: isHighlighted, isNumberMatch: isNumberMatch, theme: theme, cellSize: cellSide)
+                                .frame(height: cellSide)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
                 }
+                .frame(width: cellSide * 9, height: cellSide * 9)
+                .padding(4)
             }
-            .padding(4)
             gridGuides
         }
     }
 
     private var gridGuides: some View {
         GeometryReader { geometry in
-            let length = min(geometry.size.width, geometry.size.height)
-            let originX = (geometry.size.width - length) / 2
-            let originY = (geometry.size.height - length) / 2
-            let cellSize = length / 9
+            let rawLength = min(geometry.size.width, geometry.size.height)
+            let scale = UIScreen.main.scale
+            let length = floor(rawLength * scale) / scale
+            let cellSize = floor((length / 9) * scale) / scale
+            let gridLength = cellSize * 9
+            let originX = (geometry.size.width - gridLength) / 2
+            let originY = (geometry.size.height - gridLength) / 2
             ZStack {
                 ForEach(0...9, id: \.self) { index in
-                    let lineWidth: CGFloat = index % 3 == 0 ? 2 : 1
+                    let lineWidth: CGFloat = index % 3 == 0 ? 3 : 1
                     Path { path in
                         let offset = CGFloat(index) * cellSize
                         path.move(to: CGPoint(x: originX + offset, y: originY))
                         path.addLine(to: CGPoint(x: originX + offset, y: originY + length))
                     }
-                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.7 : 0.25), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.8 : 0.28), lineWidth: lineWidth)
 
                     Path { path in
                         let offset = CGFloat(index) * cellSize
                         path.move(to: CGPoint(x: originX, y: originY + offset))
                         path.addLine(to: CGPoint(x: originX + length, y: originY + offset))
                     }
-                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.7 : 0.25), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.8 : 0.28), lineWidth: lineWidth)
                 }
             }
         }
@@ -71,7 +87,9 @@ struct SudokuCellView: View {
     let cell: SudokuCell
     let isSelected: Bool
     let isHighlighted: Bool
+    let isNumberMatch: Bool
     let theme: ThemeColors
+    let cellSize: CGFloat
 
     var body: some View {
         ZStack {
@@ -88,7 +106,7 @@ struct SudokuCellView: View {
                     .minimumScaleFactor(0.6)
             }
         }
-        .frame(height: 38)
+        .frame(height: cellSize)
         .overlay(borderOverlay)
         .accessibilityLabel(accessibilityText)
     }
@@ -102,6 +120,8 @@ struct SudokuCellView: View {
             return theme.success.opacity(0.2)
         } else if isSelected {
             return theme.selection
+        } else if isNumberMatch {
+            return theme.sameNumberHighlight
         } else if isHighlighted {
             return theme.selection.opacity(0.4)
         } else {

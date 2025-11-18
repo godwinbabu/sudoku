@@ -45,8 +45,7 @@ final class AppController: ObservableObject {
     }
 
     func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
-        let state = activeGames[difficulty] ?? (try? createNewGameState(for: difficulty)) ?? GameState.newGame(for: fallbackPuzzle(for: difficulty))
-        activeGames[difficulty] = state
+        let state = activeGames[difficulty]! // This will now be safely set by startNewGame
         let viewModel = GameViewModel(state: state, settings: settings, validator: validator, timeProvider: timeProvider)
         viewModel.onCompletion = { [weak self] completedState in
             self?.handleCompletion(state: completedState, difficulty: difficulty)
@@ -61,17 +60,15 @@ final class AppController: ObservableObject {
     }
 
     @discardableResult
-    func startNewGame(for difficulty: Difficulty) -> GameState? {
-        if let newState = try? createNewGameState(for: difficulty) {
-            activeGames[difficulty] = newState
-            do {
-                try persistence.save(newState, to: File.game(difficulty).rawValue)
-            } catch {
-                self.lastPersistenceError = error
-            }
-            return newState
+    func startNewGame(for difficulty: Difficulty) -> GameState {
+        let newState = (try? createNewGameState(for: difficulty)) ?? GameState.newGame(for: fallbackPuzzle(for: difficulty))
+        activeGames[difficulty] = newState
+        do {
+            try persistence.save(newState, to: File.game(difficulty).rawValue)
+        } catch {
+            self.lastPersistenceError = error
         }
-        return nil
+        return newState
     }
 
     func updateSettings(_ block: @escaping (inout Settings) -> Void) {

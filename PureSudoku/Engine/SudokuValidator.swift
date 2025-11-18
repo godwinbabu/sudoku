@@ -64,15 +64,34 @@ struct SudokuValidator {
         let boxGroups = Dictionary(grouping: cells, by: { (($0.row / 3) * 3) + ($0.col / 3) }).values.map(Array.init)
         let allGroups = rowGroups + colGroups + boxGroups
 
+        // We want to flag duplicates against givens and between non-given cells,
+        // but we never flag a given cell itself.
         for group in allGroups {
-            var seen: [Int: UUID] = [:]
+            // Track first occurrence: either a given (true) or a non-given with its UUID (false)
+            enum FirstSeen { case given, placed(UUID) }
+            var seen: [Int: FirstSeen] = [:]
+
             for cell in group {
-                guard let value = cell.value, !cell.given else { continue }
-                if let other = seen[value] {
-                    conflicts.insert(cell.id)
-                    conflicts.insert(other)
+                guard let value = cell.value else { continue }
+                if let first = seen[value] {
+                    switch (first, cell.given) {
+                    case (.given, true):
+                        // Two givens with same value should not happen in valid puzzles; ignore highlighting givens
+                        break
+                    case (.given, false):
+                        // Duplicate with a given: flag this non-given cell only
+                        conflicts.insert(cell.id)
+                    case let (.placed(otherID), false):
+                        // Duplicate between two non-given cells: flag both
+                        conflicts.insert(cell.id)
+                        conflicts.insert(otherID)
+                    case (.placed, true):
+                        // Current is given and previous was non-given: only flag the non-given one
+                        if case let .placed(otherID) = first { conflicts.insert(otherID) }
+                    }
                 } else {
-                    seen[value] = cell.id
+                    // First time seeing this value in the group
+                    seen[value] = cell.given ? .given : .placed(cell.id)
                 }
             }
         }
