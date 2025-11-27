@@ -78,4 +78,58 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.state.usedReveal)
         XCTAssertEqual(viewModel.state.elapsedSeconds, 0)
     }
+
+    func testRequestHintFillsValueAndSetsMessage() {
+        var state = TestData.newGameState()
+        let solution = Array(TestData.puzzle.solutionGrid)
+        guard let targetIndex = state.cells.firstIndex(where: { !$0.given }) else { return XCTFail("Missing editable cell") }
+
+        // Fill other editable cells with correct values to create a naked/hidden single at target.
+        for idx in state.cells.indices where idx != targetIndex && !state.cells[idx].given {
+            let valueChar = solution[state.cells[idx].row * 9 + state.cells[idx].col]
+            state.cells[idx].value = Int(String(valueChar))
+        }
+
+        let viewModel = GameViewModel(state: state, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider(), hintService: SudokuGeneratorService())
+        viewModel.requestHint()
+
+        let updated = viewModel.state.cells[targetIndex]
+        XCTAssertNotNil(updated.value)
+        XCTAssertTrue(viewModel.state.usedReveal)
+        XCTAssertNotNil(viewModel.hintMessage)
+    }
+
+    func testUndoRevertsSequentialChanges() {
+        let viewModel = makeViewModel()
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+
+        viewModel.select(cell: cell)
+        viewModel.setDigit(1)
+        viewModel.setDigit(2)
+        XCTAssertEqual(viewModel.state.cells.first(where: { $0.id == cell.id })?.value, 2)
+        XCTAssertTrue(viewModel.canUndo)
+
+        viewModel.undo()
+        XCTAssertEqual(viewModel.state.cells.first(where: { $0.id == cell.id })?.value, 1)
+        XCTAssertTrue(viewModel.canUndo)
+
+        viewModel.undo()
+        XCTAssertNil(viewModel.state.cells.first(where: { $0.id == cell.id })?.value)
+        XCTAssertFalse(viewModel.canUndo)
+    }
+
+    func testUndoRestoresCandidateNotes() {
+        let viewModel = makeViewModel()
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+
+        viewModel.select(cell: cell)
+        viewModel.toggleMode()
+        viewModel.setDigit(4)
+        XCTAssertTrue(viewModel.state.cells.first(where: { $0.id == cell.id })?.candidates.contains(4) ?? false)
+        XCTAssertTrue(viewModel.canUndo)
+
+        viewModel.undo()
+        XCTAssertFalse(viewModel.state.cells.first(where: { $0.id == cell.id })?.candidates.contains(4) ?? true)
+        XCTAssertFalse(viewModel.canUndo)
+    }
 }

@@ -1,67 +1,97 @@
 import Foundation
 
 enum PuzzleRepositoryError: Error, LocalizedError {
-    case missingResource(String)
-    case decodeFailure
-    case invalidSolution(String)
+    case generationFailed
 
     var errorDescription: String? {
         switch self {
-        case let .missingResource(name):
-            return "Missing puzzle resource: \(name)"
-        case .decodeFailure:
-            return "Unable to decode puzzle file"
-        case let .invalidSolution(id):
-            return "Puzzle \(id) has invalid solution grid"
+        case .generationFailed:
+            return "Unable to generate a Sudoku puzzle."
         }
     }
 }
 
-final class SudokuPuzzleRepository {
-    private let bundle: Bundle
-    private let validator: SudokuValidator
-    private var cache: [Difficulty: [SudokuPuzzle]] = [:]
-    private let decoder = JSONDecoder()
+enum GenerationMode {
+    case random
+    case seeded(UInt64)
+    case daily(Date)
+}
 
-    init(bundle: Bundle = .main, validator: SudokuValidator = SudokuValidator()) {
-        self.bundle = bundle
+final class SudokuPuzzleRepository {
+    private let generator: SudokuGeneratorService
+    private let validator: SudokuValidator
+    private let persistence: PersistenceManager?
+    private var telemetry: GeneratorTelemetry
+
+    init(
+        generator: SudokuGeneratorService = SudokuGeneratorService(),
+        validator: SudokuValidator = SudokuValidator(),
+        persistence: PersistenceManager? = nil
+    ) {
+        self.generator = generator
         self.validator = validator
+        self.persistence = persistence
+        if let persistence, let stored: GeneratorTelemetry = try? persistence.load(GeneratorTelemetry.self, from: File.telemetry.rawValue) {
+            self.telemetry = stored
+        } else {
+            self.telemetry = GeneratorTelemetry()
+        }
     }
 
     func randomPuzzle(for difficulty: Difficulty) throws -> SudokuPuzzle {
-        let puzzles = try loadPuzzles(for: difficulty)
-        guard let puzzle = puzzles.randomElement() else {
-            throw PuzzleRepositoryError.missingResource(difficulty.rawValue)
-        }
-        return puzzle
+        let result = generate(for: difficulty, mode: .random)
+        return result.puzzle
     }
 
-    func loadPuzzles(for difficulty: Difficulty) throws -> [SudokuPuzzle] {
-        if let cached = cache[difficulty] {
-            return cached
+    @discardableResult
+    func generate(for difficulty: Difficulty, mode: GenerationMode) -> GeneratedPuzzleResult {
+        let resolvedSeed: UInt64?
+        switch mode {
+        case .random:
+            resolvedSeed = nil
+        case let .seeded(value):
+            resolvedSeed = value
+        case let .daily(date):
+            resolvedSeed = self.seed(for: date, difficulty: difficulty)
         }
 
-        guard let url = bundle.url(forResource: difficulty.rawValue, withExtension: "json", subdirectory: "Puzzles") else {
-            throw PuzzleRepositoryError.missingResource("Puzzles/\(difficulty.rawValue).json")
-        }
-
-        let data = try Data(contentsOf: url)
-        struct StoredPuzzle: Decodable {
-            let id: String
-            let puzzle: String  // formerly initialGrid
-            let solution: String // formerly solutionGrid
-        }
-        let stored = try decoder.decode([StoredPuzzle].self, from: data)
-        let puzzles = try stored.map { item -> SudokuPuzzle in
-            guard item.puzzle.count == 81, item.solution.count == 81 else {
-                throw PuzzleRepositoryError.decodeFailure
-            }
-            guard validator.isValid(solution: item.solution) else {
-                throw PuzzleRepositoryError.invalidSolution(item.id)
-            }
-            return SudokuPuzzle(id: item.id, difficulty: difficulty, initialGrid: item.puzzle, solutionGrid: item.solution)
-        }
-        cache[difficulty] = puzzles
-        return puzzles
+        let result = generator.generatePuzzle(for: difficulty, seed: resolvedSeed)
+        // Validate and log even if rating is negative to keep behavior deterministic.
+        _ = validator.isValid(solution: result.puzzle.solutionGrid)
+        recordTelemetry(for: difficulty, rating: result.rating)
+        return result
     }
+
+    func dailyPuzzle(for difficulty: Difficulty, date: Date = Date()) -> SudokuPuzzle {
+        generate(for: difficulty, mode: .daily(date)).puzzle
+    }
+
+    func telemetryAverage(for difficulty: Difficulty) -> Double? {
+        telemetry.average(for: difficulty)
+    }
+
+    // MARK: - Private helpers
+
+    private func recordTelemetry(for difficulty: Difficulty, rating: Double) {
+        guard let persistence else { return }
+        var updated = telemetry
+        updated.record(rating: rating, for: difficulty)
+        telemetry = updated
+        try? persistence.save(updated, to: File.telemetry.rawValue)
+    }
+
+    private func seed(for date: Date, difficulty: Difficulty) -> UInt64 {
+        let day = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        var hasher = Hasher()
+        hasher.combine(day.year)
+        hasher.combine(day.month)
+        hasher.combine(day.day)
+        hasher.combine(difficulty.rawValue)
+        let hashed = hasher.finalize()
+        return UInt64(bitPattern: Int64(hashed))
+    }
+}
+
+private enum File: String {
+    case telemetry = "generator_telemetry.json"
 }

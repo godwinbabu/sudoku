@@ -8,13 +8,21 @@ final class AppController: ObservableObject {
     @Published var lastPersistenceError: (any Error)?
 
     private let persistence: PersistenceManager
+    private let generatorService: SudokuGeneratorService
     private let puzzleRepository: SudokuPuzzleRepository
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
 
-    init(persistence: PersistenceManager = PersistenceManager(), puzzleRepository: SudokuPuzzleRepository = SudokuPuzzleRepository(), validator: SudokuValidator = SudokuValidator(), timeProvider: TimeProvider = SystemTimeProvider()) {
+    init(
+        persistence: PersistenceManager = PersistenceManager(),
+        puzzleRepository: SudokuPuzzleRepository? = nil,
+        validator: SudokuValidator = SudokuValidator(),
+        timeProvider: TimeProvider = SystemTimeProvider(),
+        generatorService: SudokuGeneratorService = SudokuGeneratorService()
+    ) {
         self.persistence = persistence
-        self.puzzleRepository = puzzleRepository
+        self.generatorService = generatorService
+        self.puzzleRepository = puzzleRepository ?? SudokuPuzzleRepository(generator: generatorService, validator: validator, persistence: persistence)
         self.validator = validator
         self.timeProvider = timeProvider
 
@@ -46,7 +54,7 @@ final class AppController: ObservableObject {
 
     func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
         let state = activeGames[difficulty]! // This will now be safely set by startNewGame
-        let viewModel = GameViewModel(state: state, settings: settings, validator: validator, timeProvider: timeProvider)
+        let viewModel = GameViewModel(state: state, settings: settings, validator: validator, timeProvider: timeProvider, hintService: generatorService)
         viewModel.onCompletion = { [weak self] completedState in
             self?.handleCompletion(state: completedState, difficulty: difficulty)
         }
@@ -60,8 +68,8 @@ final class AppController: ObservableObject {
     }
 
     @discardableResult
-    func startNewGame(for difficulty: Difficulty) -> GameState {
-        let newState = (try? createNewGameState(for: difficulty)) ?? GameState.newGame(for: fallbackPuzzle(for: difficulty))
+    func startNewGame(for difficulty: Difficulty, mode: GenerationMode = .random) -> GameState {
+        let newState = createNewGameState(for: difficulty, mode: mode)
         activeGames[difficulty] = newState
         do {
             try persistence.save(newState, to: File.game(difficulty).rawValue)
@@ -69,6 +77,11 @@ final class AppController: ObservableObject {
             self.lastPersistenceError = error
         }
         return newState
+    }
+
+    @discardableResult
+    func startDailyGame(for difficulty: Difficulty, date: Date = Date()) -> GameState {
+        startNewGame(for: difficulty, mode: .daily(date))
     }
 
     func updateSettings(_ block: @escaping (inout Settings) -> Void) {
@@ -115,8 +128,8 @@ final class AppController: ObservableObject {
         }
     }
 
-    private func createNewGameState(for difficulty: Difficulty) throws -> GameState {
-        let puzzle = try puzzleRepository.randomPuzzle(for: difficulty)
+    private func createNewGameState(for difficulty: Difficulty, mode: GenerationMode) -> GameState {
+        let puzzle = puzzleRepository.generate(for: difficulty, mode: mode).puzzle
         return GameState.newGame(for: puzzle, now: timeProvider.now())
     }
 

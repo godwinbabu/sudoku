@@ -374,6 +374,17 @@ Testing requirements:
 	•	GameState.puzzle.id is different (if multiple puzzles exist).
 	•	All cells correspond to the new puzzle’s initialGrid.
 
+6.7 Undo
+	•	Provide an Undo action in GameView.
+	•	Each user-facing edit pushes a snapshot onto an undo stack (value set/clear, candidate toggle, hint/reveal cell, reveal puzzle, reset).
+	•	Tapping Undo restores the previous state; repeated taps walk back to the first change.
+	•	Disable Undo when there is no history or the game is completed.
+
+Testing requirements:
+	•	Unit tests:
+	•	After two sequential value edits, Undo restores the previous value, then clears it on the next Undo.
+	•	Candidate toggles are reverted by Undo.
+
 ⸻
 
 7. Theme & UI Modes
@@ -699,4 +710,3 @@ Testing requirements:
 	•	Enable Bedtime Mode via settings and assert that:
 	•	Sleep theme is active.
 	•	UI re-renders with dark warm palette and dim overlay.
-

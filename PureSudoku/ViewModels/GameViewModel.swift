@@ -6,12 +6,14 @@ final class GameViewModel: ObservableObject {
     @Published var selectedCellID: UUID?
     @Published var inputMode: InputMode
     @Published var showTimer: Bool
+    @Published var hintMessage: String?
 
     var onCompletion: ((GameState) -> Void)?
     var onNewGame: (() -> GameState?)?
     var onSave: ((GameState) -> Void)?
 
     @Published var pendingAction: PendingAction?
+    @Published private(set) var canUndo: Bool = false
 
     enum PendingAction: Identifiable {
         case reset
@@ -51,12 +53,15 @@ final class GameViewModel: ObservableObject {
     private var settings: Settings
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
+    private let hintService: SudokuGeneratorService
+    private var undoStack: [GameState] = []
 
-    init(state: GameState, settings: Settings, validator: SudokuValidator, timeProvider: TimeProvider) {
+    init(state: GameState, settings: Settings, validator: SudokuValidator, timeProvider: TimeProvider, hintService: SudokuGeneratorService = SudokuGeneratorService()) {
         self.state = state
         self.settings = settings
         self.validator = validator
         self.timeProvider = timeProvider
+        self.hintService = hintService
         self.inputMode = .normal
         self.showTimer = settings.showTimer
     }
@@ -98,6 +103,7 @@ final class GameViewModel: ObservableObject {
         let elapsed = calculateAndStopTimer()
         var newState = self.state
         newState.elapsedSeconds += elapsed
+        updateContradictionFlag(on: &newState)
         self.state = newState
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -130,6 +136,7 @@ final class GameViewModel: ObservableObject {
     func clearSelectedCell() {
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
+        recordUndoPoint()
         
         var newState = self.state
         newState.cells[index].value = nil
@@ -137,6 +144,7 @@ final class GameViewModel: ObservableObject {
         newState.cells[index].isError = false
         newState.cells[index].isVerifiedCorrect = false
         self.state = newState
+        self.hintMessage = nil
         
         updateAutoCheckHighlights()
     }
@@ -144,6 +152,7 @@ final class GameViewModel: ObservableObject {
     func setDigit(_ digit: Int) {
         guard (1...9).contains(digit), let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
+        recordUndoPoint()
 
         var newState = self.state
         switch inputMode {
@@ -156,8 +165,10 @@ final class GameViewModel: ObservableObject {
                 newState.cells = removeCandidate(digit, relatedTo: newState.cells[index], from: newState.cells)
             }
             self.state = newState
+            self.hintMessage = nil
             updateAutoCheckHighlights()
             checkIfSolved()
+            updateCanUndo()
         case .candidate:
             if newState.cells[index].candidates.contains(digit) {
                 newState.cells[index].candidates.remove(digit)
@@ -165,6 +176,9 @@ final class GameViewModel: ObservableObject {
                 newState.cells[index].candidates.insert(digit)
             }
             self.state = newState
+            self.hintMessage = nil
+            updateAutoCheckHighlights()
+            updateCanUndo()
         }
     }
 
@@ -194,6 +208,7 @@ final class GameViewModel: ObservableObject {
             newState.cells[index].isError = true
             newState.cells[index].isVerifiedCorrect = false
         }
+        updateContradictionFlag(on: &newState)
         self.state = newState
     }
 
@@ -222,28 +237,56 @@ final class GameViewModel: ObservableObject {
                 newState.cells[idx].isVerifiedCorrect = false
             }
         }
+        updateContradictionFlag(on: &newState)
         self.state = newState
+    }
+
+    func requestHint() {
+        let hint = hintService.hint(for: state.cells)
+        hintMessage = hint?.message
+
+        guard let hint else { return }
+        if hint.technique == .invalid {
+            markContradictionDetected()
+            return
+        }
+        guard let position = hint.positions.first else { return }
+        let row = position / 9
+        let col = position % 9
+        guard let index = state.cells.firstIndex(where: { $0.row == row && $0.col == col }) else { return }
+        selectedCellID = state.cells[index].id
+        revealCell(at: index, markUsedReveal: true, force: true)
     }
 
     func revealCell() {
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
-        guard !state.cells[index].given else { return }
-        
+        revealCell(at: index, markUsedReveal: true)
+    }
+
+    private func revealCell(at index: Int, markUsedReveal: Bool, force: Bool = false) {
+        guard index < state.cells.count else { return }
+        guard force || (!state.cells[index].given && !state.cells[index].isRevealed) else { return }
+        recordUndoPoint()
+
         var newState = self.state
         if let value = validator.solutionValue(row: newState.cells[index].row, col: newState.cells[index].col, solution: newState.puzzle.solutionGrid) {
             newState.cells[index].value = value
             newState.cells[index].isRevealed = true
             newState.cells[index].candidates.removeAll()
-            newState.usedReveal = true
+            if markUsedReveal {
+                newState.usedReveal = true
+            }
             newState.cells[index].isVerifiedCorrect = false
             self.state = newState
             
             updateAutoCheckHighlights()
             checkIfSolved()
+            updateCanUndo()
         }
     }
 
     func revealPuzzle() {
+        recordUndoPoint()
         var newState = self.state
         for idx in newState.cells.indices {
             if let value = validator.solutionValue(row: newState.cells[idx].row, col: newState.cells[idx].col, solution: newState.puzzle.solutionGrid) {
@@ -255,6 +298,7 @@ final class GameViewModel: ObservableObject {
             }
         }
         newState.usedReveal = true
+        newState.hasContradiction = false
         
         // Handle completion
         newState.isCompleted = true
@@ -262,6 +306,7 @@ final class GameViewModel: ObservableObject {
         newState.elapsedSeconds += elapsed
         
         self.state = newState
+        updateCanUndo()
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.onCompletion?(self.state)
@@ -274,6 +319,7 @@ final class GameViewModel: ObservableObject {
         newState.elapsedSeconds = 0
         newState.usedReveal = false
         newState.isCompleted = false
+        newState.hasContradiction = false
         newState.cells = newState.cells.map { cell in
             var mutable = cell
             mutable.isError = false
@@ -285,6 +331,9 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         self.inputMode = .normal
         self.selectedCellID = nil
+        self.hintMessage = nil
+        undoStack.removeAll()
+        updateCanUndo()
     }
 
     var disabledDigits: Set<Int> {
@@ -314,6 +363,10 @@ final class GameViewModel: ObservableObject {
         self.selectedCellID = nil
         self.inputMode = .normal
         self.showTimer = settings.showTimer
+        self.hintMessage = nil
+        undoStack.removeAll()
+        updateCanUndo()
+        updateAutoCheckHighlights()
         
         if finalState.isCompleted {
             timer?.invalidate()
@@ -331,12 +384,36 @@ final class GameViewModel: ObservableObject {
                 if let newState = self.onNewGame?() {
                     self.load(state: newState)
                 }
+                self.hintMessage = nil
             case .reset:
                 self.resetPuzzle()
             case .revealPuzzle:
                 self.revealPuzzle()
             }
         }
+    }
+
+    func undo() {
+        guard canUndo else { return }
+        let previous = undoStack.removeLast()
+        state = previous
+        selectedCellID = nil
+        hintMessage = nil
+        pendingAction = nil
+        updateAutoCheckHighlights()
+        updateCanUndo()
+    }
+
+    // MARK: - Undo tracking
+
+    private func recordUndoPoint() {
+        guard !state.isCompleted else { return }
+        undoStack.append(state)
+        updateCanUndo()
+    }
+
+    private func updateCanUndo() {
+        canUndo = !undoStack.isEmpty && !state.isCompleted
     }
 
     private func removeCandidate(_ digit: Int, relatedTo cell: SudokuCell, from cells: [SudokuCell]) -> [SudokuCell] {
@@ -361,7 +438,9 @@ final class GameViewModel: ObservableObject {
                 newState.cells[idx].isError = false
             }
         }
+        updateContradictionFlag(on: &newState)
         self.state = newState
+        updateCanUndo()
     }
 
     private func checkIfSolved() {
@@ -373,11 +452,30 @@ final class GameViewModel: ObservableObject {
             newState.elapsedSeconds += elapsed
             
             self.state = newState
+            updateCanUndo()
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.onCompletion?(self.state)
             }
         }
+    }
+
+    private func updateContradictionFlag(on state: inout GameState) {
+        let board = generatorBoard(from: state.cells)
+        state.hasContradiction = PureSudoku.hasContradiction(board)
+    }
+
+    private func generatorBoard(from cells: [SudokuCell]) -> GeneratorBoard {
+        cells.map { cell in
+            guard let value = cell.value, value > 0 else { return nil }
+            return value - 1
+        }
+    }
+
+    private func markContradictionDetected() {
+        var newState = state
+        newState.hasContradiction = true
+        state = newState
     }
 
     private func tick() async {
