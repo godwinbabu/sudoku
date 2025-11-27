@@ -52,6 +52,7 @@ struct GameView: View {
                     )
                     .disabled(viewModel.state.isCompleted)
                     actionButtons(theme: theme)
+                    hintBanner(theme: theme)
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
@@ -179,7 +180,7 @@ struct GameView: View {
 
     private func actionButtons(theme: ThemeColors) -> some View {
         let items: [ActionItem] = [
-            ActionItem(title: "Hint") { viewModel.revealCell() },
+            ActionItem(title: "Hint") { viewModel.requestHint() },
             ActionItem(title: "Check Cell") { viewModel.checkCell() },
             ActionItem(title: "Check Puzzle") { viewModel.checkPuzzle() },
             ActionItem(title: "Reveal Puzzle", style: .destructive) { viewModel.pendingAction = .revealPuzzle },
@@ -201,6 +202,26 @@ struct GameView: View {
         let title: String
         var style: GameActionButton.Style = .normal
         let action: () -> Void
+    }
+
+    @ViewBuilder
+    private func hintBanner(theme: ThemeColors) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if viewModel.state.hasContradiction {
+                Text("Board has a contradiction. Check duplicates or reset.")
+                    .font(.footnote)
+                    .foregroundColor(theme.error)
+                    .accessibilityIdentifier("contradictionWarning")
+            }
+            if let hint = viewModel.hintMessage {
+                Text(hint)
+                    .font(.footnote)
+                    .foregroundColor(theme.secondaryText)
+                    .accessibilityIdentifier("hintMessage")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 4)
     }
 
     private func timeString(seconds: Int) -> String {

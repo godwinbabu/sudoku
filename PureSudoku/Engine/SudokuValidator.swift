@@ -97,4 +97,23 @@ struct SudokuValidator {
         }
         return conflicts
     }
+
+    func removeCandidates(_ digit: Int, relatedTo cell: SudokuCell, from cells: [SudokuCell]) -> [SudokuCell] {
+        var newCells = cells
+        for idx in newCells.indices {
+            guard newCells[idx].id != cell.id else { continue }
+            if newCells[idx].row == cell.row || newCells[idx].col == cell.col || (newCells[idx].row / 3 == cell.row / 3 && newCells[idx].col / 3 == cell.col / 3) {
+                newCells[idx].candidates.remove(digit)
+            }
+        }
+        return newCells
+    }
+
+    func hasContradiction(in cells: [SudokuCell]) -> Bool {
+        let board: GeneratorBoard = cells.map { cell in
+            guard let value = cell.value, value > 0 else { return nil }
+            return value - 1
+        }
+        return PureSudoku.hasContradiction(board)
+    }
 }

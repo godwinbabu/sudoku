@@ -32,10 +32,6 @@
 		00000000000000000000005D /* NumberPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* NumberPadView.swift */; };
 		00000000000000000000005E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SettingsView.swift */; };
 		00000000000000000000005F /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* StatsView.swift */; };
-		000000000000000000000088 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000082 /* AppColors.swift */; };
-		000000000000000000000089 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000083 /* ThemeColors.swift */; };
-		00000000000000000000008A /* SleepDimmingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000084 /* SleepDimmingOverlay.swift */; };
-		00000000000000000000008B /* BedtimeIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000085 /* BedtimeIcon.swift */; };
 		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
 		000000000000000000000061 /* Puzzles in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* Puzzles */; };
 		000000000000000000000062 /* Media in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* Media */; };
@@ -50,6 +46,14 @@
 		00000000000000000000006B /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* Mocks.swift */; };
 		00000000000000000000006C /* Puzzles in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* Puzzles */; };
 		00000000000000000000006D /* PureSudokuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* PureSudokuUITests.swift */; };
+		000000000000000000000088 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000082 /* AppColors.swift */; };
+		000000000000000000000089 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000083 /* ThemeColors.swift */; };
+		00000000000000000000008A /* SleepDimmingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000084 /* SleepDimmingOverlay.swift */; };
+		00000000000000000000008B /* BedtimeIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000085 /* BedtimeIcon.swift */; };
+		000000000000000000000094 /* SudokuGeneratorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008C /* SudokuGeneratorCore.swift */; };
+		000000000000000000000095 /* SudokuHintEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008D /* SudokuHintEngine.swift */; };
+		000000000000000000000096 /* SudokuGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008E /* SudokuGeneratorService.swift */; };
+		000000000000000000000097 /* GeneratorTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008F /* GeneratorTelemetry.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -97,10 +101,6 @@
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
 		000000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		00000000000000000000002A /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
-		000000000000000000000082 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
-		000000000000000000000083 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
-		000000000000000000000084 /* SleepDimmingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepDimmingOverlay.swift; sourceTree = "<group>"; };
-		000000000000000000000085 /* BedtimeIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedtimeIcon.swift; sourceTree = "<group>"; };
 		00000000000000000000002B /* Puzzles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Puzzles; sourceTree = "<group>"; };
 		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
 		00000000000000000000002D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -118,6 +118,14 @@
 		000000000000000000000039 /* PureSudoku.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureSudoku.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		00000000000000000000003A /* PureSudokuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PureSudokuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00000000000000000000003B /* PureSudokuUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PureSudokuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000082 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
+		000000000000000000000083 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
+		000000000000000000000084 /* SleepDimmingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepDimmingOverlay.swift; sourceTree = "<group>"; };
+		000000000000000000000085 /* BedtimeIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedtimeIcon.swift; sourceTree = "<group>"; };
+		00000000000000000000008C /* SudokuGeneratorCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGeneratorCore.swift; sourceTree = "<group>"; };
+		00000000000000000000008D /* SudokuHintEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuHintEngine.swift; sourceTree = "<group>"; };
+		00000000000000000000008E /* SudokuGeneratorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGeneratorService.swift; sourceTree = "<group>"; };
+		00000000000000000000008F /* GeneratorTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorTelemetry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -189,6 +197,10 @@
 		000000000000000000000004 /* Engine */ = {
 			isa = PBXGroup;
 			children = (
+				00000000000000000000008C /* SudokuGeneratorCore.swift */,
+				00000000000000000000008D /* SudokuHintEngine.swift */,
+				00000000000000000000008E /* SudokuGeneratorService.swift */,
+				00000000000000000000008F /* GeneratorTelemetry.swift */,
 				00000000000000000000001A /* SudokuValidator.swift */,
 				00000000000000000000001B /* SudokuPuzzleRepository.swift */,
 				00000000000000000000001C /* TimeProvider.swift */,
@@ -229,24 +241,6 @@
 				000000000000000000000087 /* Icons */,
 			);
 			path = Views;
-			sourceTree = "<group>";
-		};
-		000000000000000000000086 /* Theme */ = {
-			isa = PBXGroup;
-			children = (
-				000000000000000000000082 /* AppColors.swift */,
-				000000000000000000000083 /* ThemeColors.swift */,
-				000000000000000000000084 /* SleepDimmingOverlay.swift */,
-			);
-			path = Theme;
-			sourceTree = "<group>";
-		};
-		000000000000000000000087 /* Icons */ = {
-			isa = PBXGroup;
-			children = (
-				000000000000000000000085 /* BedtimeIcon.swift */,
-			);
-			path = Icons;
 			sourceTree = "<group>";
 		};
 		000000000000000000000008 /* Resources */ = {
@@ -317,6 +311,24 @@
 				00000000000000000000003B /* PureSudokuUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		000000000000000000000086 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000082 /* AppColors.swift */,
+				000000000000000000000083 /* ThemeColors.swift */,
+				000000000000000000000084 /* SleepDimmingOverlay.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		000000000000000000000087 /* Icons */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000085 /* BedtimeIcon.swift */,
+			);
+			path = Icons;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -463,6 +475,10 @@
 				00000000000000000000004F /* SudokuValidator.swift in Sources */,
 				000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */,
 				000000000000000000000051 /* TimeProvider.swift in Sources */,
+				000000000000000000000094 /* SudokuGeneratorCore.swift in Sources */,
+				000000000000000000000095 /* SudokuHintEngine.swift in Sources */,
+				000000000000000000000096 /* SudokuGeneratorService.swift in Sources */,
+				000000000000000000000097 /* GeneratorTelemetry.swift in Sources */,
 				000000000000000000000052 /* PersistenceManager.swift in Sources */,
 				000000000000000000000053 /* AppController.swift in Sources */,
 				000000000000000000000054 /* GameViewModel.swift in Sources */,
@@ -613,6 +629,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 3WZ27HVC5C;
 				INFOPLIST_FILE = PureSudoku/Supporting/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -637,6 +654,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 3WZ27HVC5C;
 				INFOPLIST_FILE = PureSudoku/Supporting/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
