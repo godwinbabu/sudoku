@@ -180,6 +180,7 @@ struct GameView: View {
 
     private func actionButtons(theme: ThemeColors) -> some View {
         let items: [ActionItem] = [
+            ActionItem(title: "Undo", isEnabled: viewModel.canUndo) { viewModel.undo() },
             ActionItem(title: "Hint") { viewModel.requestHint() },
             ActionItem(title: "Check Cell") { viewModel.checkCell() },
             ActionItem(title: "Check Puzzle") { viewModel.checkPuzzle() },
@@ -192,7 +193,7 @@ struct GameView: View {
             ForEach(items) { item in
                 let shouldDisable = viewModel.state.isCompleted && ["Hint", "Check Cell", "Check Puzzle", "Reveal Puzzle"].contains(item.title)
                 GameActionButton(theme: theme, title: item.title, style: item.style, action: item.action)
-                    .disabled(shouldDisable)
+                    .disabled(shouldDisable || !item.isEnabled)
             }
         }
     }
@@ -201,6 +202,7 @@ struct GameView: View {
         let id = UUID()
         let title: String
         var style: GameActionButton.Style = .normal
+        var isEnabled: Bool = true
         let action: () -> Void
     }
 

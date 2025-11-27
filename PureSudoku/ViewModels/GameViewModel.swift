@@ -13,6 +13,7 @@ final class GameViewModel: ObservableObject {
     var onSave: ((GameState) -> Void)?
 
     @Published var pendingAction: PendingAction?
+    @Published private(set) var canUndo: Bool = false
 
     enum PendingAction: Identifiable {
         case reset
@@ -53,6 +54,7 @@ final class GameViewModel: ObservableObject {
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
     private let hintService: SudokuGeneratorService
+    private var undoStack: [GameState] = []
 
     init(state: GameState, settings: Settings, validator: SudokuValidator, timeProvider: TimeProvider, hintService: SudokuGeneratorService = SudokuGeneratorService()) {
         self.state = state
@@ -134,6 +136,7 @@ final class GameViewModel: ObservableObject {
     func clearSelectedCell() {
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
+        recordUndoPoint()
         
         var newState = self.state
         newState.cells[index].value = nil
@@ -149,6 +152,7 @@ final class GameViewModel: ObservableObject {
     func setDigit(_ digit: Int) {
         guard (1...9).contains(digit), let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
+        recordUndoPoint()
 
         var newState = self.state
         switch inputMode {
@@ -164,6 +168,7 @@ final class GameViewModel: ObservableObject {
             self.hintMessage = nil
             updateAutoCheckHighlights()
             checkIfSolved()
+            updateCanUndo()
         case .candidate:
             if newState.cells[index].candidates.contains(digit) {
                 newState.cells[index].candidates.remove(digit)
@@ -173,6 +178,7 @@ final class GameViewModel: ObservableObject {
             self.state = newState
             self.hintMessage = nil
             updateAutoCheckHighlights()
+            updateCanUndo()
         }
     }
 
@@ -260,6 +266,7 @@ final class GameViewModel: ObservableObject {
     private func revealCell(at index: Int, markUsedReveal: Bool, force: Bool = false) {
         guard index < state.cells.count else { return }
         guard force || (!state.cells[index].given && !state.cells[index].isRevealed) else { return }
+        recordUndoPoint()
 
         var newState = self.state
         if let value = validator.solutionValue(row: newState.cells[index].row, col: newState.cells[index].col, solution: newState.puzzle.solutionGrid) {
@@ -274,10 +281,12 @@ final class GameViewModel: ObservableObject {
             
             updateAutoCheckHighlights()
             checkIfSolved()
+            updateCanUndo()
         }
     }
 
     func revealPuzzle() {
+        recordUndoPoint()
         var newState = self.state
         for idx in newState.cells.indices {
             if let value = validator.solutionValue(row: newState.cells[idx].row, col: newState.cells[idx].col, solution: newState.puzzle.solutionGrid) {
@@ -297,6 +306,7 @@ final class GameViewModel: ObservableObject {
         newState.elapsedSeconds += elapsed
         
         self.state = newState
+        updateCanUndo()
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.onCompletion?(self.state)
@@ -322,6 +332,8 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.selectedCellID = nil
         self.hintMessage = nil
+        undoStack.removeAll()
+        updateCanUndo()
     }
 
     var disabledDigits: Set<Int> {
@@ -352,6 +364,8 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.showTimer = settings.showTimer
         self.hintMessage = nil
+        undoStack.removeAll()
+        updateCanUndo()
         updateAutoCheckHighlights()
         
         if finalState.isCompleted {
@@ -379,6 +393,29 @@ final class GameViewModel: ObservableObject {
         }
     }
 
+    func undo() {
+        guard canUndo else { return }
+        let previous = undoStack.removeLast()
+        state = previous
+        selectedCellID = nil
+        hintMessage = nil
+        pendingAction = nil
+        updateAutoCheckHighlights()
+        updateCanUndo()
+    }
+
+    // MARK: - Undo tracking
+
+    private func recordUndoPoint() {
+        guard !state.isCompleted else { return }
+        undoStack.append(state)
+        updateCanUndo()
+    }
+
+    private func updateCanUndo() {
+        canUndo = !undoStack.isEmpty && !state.isCompleted
+    }
+
     private func removeCandidate(_ digit: Int, relatedTo cell: SudokuCell, from cells: [SudokuCell]) -> [SudokuCell] {
         var newCells = cells
         for idx in newCells.indices {
@@ -403,6 +440,7 @@ final class GameViewModel: ObservableObject {
         }
         updateContradictionFlag(on: &newState)
         self.state = newState
+        updateCanUndo()
     }
 
     private func checkIfSolved() {
@@ -414,6 +452,7 @@ final class GameViewModel: ObservableObject {
             newState.elapsedSeconds += elapsed
             
             self.state = newState
+            updateCanUndo()
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.onCompletion?(self.state)

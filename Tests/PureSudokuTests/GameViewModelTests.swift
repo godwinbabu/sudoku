@@ -98,4 +98,38 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.usedReveal)
         XCTAssertNotNil(viewModel.hintMessage)
     }
+
+    func testUndoRevertsSequentialChanges() {
+        let viewModel = makeViewModel()
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+
+        viewModel.select(cell: cell)
+        viewModel.setDigit(1)
+        viewModel.setDigit(2)
+        XCTAssertEqual(viewModel.state.cells.first(where: { $0.id == cell.id })?.value, 2)
+        XCTAssertTrue(viewModel.canUndo)
+
+        viewModel.undo()
+        XCTAssertEqual(viewModel.state.cells.first(where: { $0.id == cell.id })?.value, 1)
+        XCTAssertTrue(viewModel.canUndo)
+
+        viewModel.undo()
+        XCTAssertNil(viewModel.state.cells.first(where: { $0.id == cell.id })?.value)
+        XCTAssertFalse(viewModel.canUndo)
+    }
+
+    func testUndoRestoresCandidateNotes() {
+        let viewModel = makeViewModel()
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+
+        viewModel.select(cell: cell)
+        viewModel.toggleMode()
+        viewModel.setDigit(4)
+        XCTAssertTrue(viewModel.state.cells.first(where: { $0.id == cell.id })?.candidates.contains(4) ?? false)
+        XCTAssertTrue(viewModel.canUndo)
+
+        viewModel.undo()
+        XCTAssertFalse(viewModel.state.cells.first(where: { $0.id == cell.id })?.candidates.contains(4) ?? true)
+        XCTAssertFalse(viewModel.canUndo)
+    }
 }
