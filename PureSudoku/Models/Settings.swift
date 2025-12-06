@@ -25,25 +25,21 @@ struct Settings: Codable, Equatable {
     mutating func toggleBedtimeMode(_ enabled: Bool) {
         bedtimeMode = enabled
         if bedtimeMode {
-            enforceBedtimeRulesIfNeeded()
+            soundsEnabled = false
+            hapticsEnabled = false
         } else {
-            // When turning Bedtime Mode off, revert to System theme per UI request
-            theme = .system
+            // retain previously selected theme when exiting Bedtime Mode
         }
     }
 
     mutating func updateTheme(_ newValue: AppTheme) {
-        theme = bedtimeMode ? .sleep : newValue
+        theme = newValue
     }
 
     mutating func enforceBedtimeRulesIfNeeded() {
         if bedtimeMode {
-            theme = .sleep
             soundsEnabled = false
             hapticsEnabled = false
-            if sleepBrightness != .extraDim {
-                sleepBrightness = .extraDim
-            }
         }
     }
 

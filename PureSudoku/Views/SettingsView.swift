@@ -7,12 +7,17 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("Theme") {
-                    Picker("Theme", selection: Binding(get: { viewModel.settings.theme }, set: { viewModel.setTheme($0) })) {
-                        ForEach(AppTheme.allCases) { theme in
-                            Text(theme.displayName).tag(theme)
+                    if !viewModel.settings.bedtimeMode {
+                        Picker("Theme", selection: Binding(get: { viewModel.settings.theme }, set: { viewModel.setTheme($0) })) {
+                            ForEach(AppTheme.allCases) { theme in
+                                Text(theme.displayName).tag(theme)
+                            }
                         }
+                    } else {
+                        Label("Bedtime theme locked while Bedtime Mode is on.", systemImage: "moon")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     }
-                    .disabled(viewModel.settings.bedtimeMode)
                 }
                 Section("Gameplay") {
                     Toggle("Show timer", isOn: Binding(get: { viewModel.settings.showTimer }, set: { viewModel.setShowTimer($0) }))
@@ -21,13 +26,13 @@ struct SettingsView: View {
                 }
                 Section("Bedtime") {
                     Toggle("Bedtime Mode", isOn: Binding(get: { viewModel.settings.bedtimeMode }, set: { viewModel.setBedtimeMode($0) }))
-                    Picker("Sleep brightness", selection: Binding(get: { viewModel.settings.sleepBrightness }, set: { viewModel.setSleepBrightness($0) })) {
+                    Picker("Bedtime brightness", selection: Binding(get: { viewModel.settings.sleepBrightness }, set: { viewModel.setSleepBrightness($0) })) {
                         ForEach(SleepBrightness.allCases) { level in
                             Text(level.displayName).tag(level)
                         }
                     }
                     .disabled(!viewModel.settings.bedtimeMode && viewModel.settings.theme != .sleep)
-                    Text("Bedtime Mode forces Sleep theme, mutes sound/haptics, and adds an extra dimming overlay.")
+                    Text("Bedtime Mode forces the Bedtime theme, mutes sound/haptics, and adds an extra dimming overlay.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }

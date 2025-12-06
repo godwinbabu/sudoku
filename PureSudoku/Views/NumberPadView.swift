@@ -3,6 +3,7 @@ import SwiftUI
 struct NumberPadView: View {
     let theme: ThemeColors
     var disabledDigits: Set<Int>
+    var isCandidateMode: Bool
     var onDigit: (Int) -> Void
     var onClear: () -> Void
 
@@ -11,19 +12,25 @@ struct NumberPadView: View {
     var body: some View {
         LazyVGrid(columns: columns, spacing: 8) {
             ForEach(1...9, id: \.self) { digit in
+                let isDisabled = disabledDigits.contains(digit)
                 Button(action: { onDigit(digit) }) {
                     Text("\(digit)")
-                        .font(.title3.bold())
+                        .font(isCandidateMode ? .body.weight(.semibold) : .title3.bold())
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, isCandidateMode ? 8 : 10)
                         .padding(.horizontal, 4)
-                        .foregroundColor(disabledDigits.contains(digit) ? theme.numberPadDisabledText : theme.primaryText)
+                        .frame(minHeight: 44)
+                        .foregroundColor(isDisabled ? theme.numberPadDisabledText : theme.primaryText)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(disabledDigits.contains(digit) ? theme.numberPadDisabledBackground : theme.accent.opacity(0.18))
+                                .fill(isDisabled ? theme.numberPadDisabledBackground : buttonBackground)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(isCandidateMode ? theme.accent.opacity(0.6) : .clear, lineWidth: isCandidateMode ? 1 : 0)
+                                )
                         )
                 }
-                .disabled(disabledDigits.contains(digit))
+                .disabled(isDisabled)
                 .accessibilityIdentifier("number_\(digit)")
             }
             Button(action: onClear) {
@@ -39,5 +46,9 @@ struct NumberPadView: View {
             }
             .accessibilityIdentifier("number_clear")
         }
+    }
+
+    private var buttonBackground: Color {
+        isCandidateMode ? theme.cardBackground : theme.accent.opacity(0.18)
     }
 }

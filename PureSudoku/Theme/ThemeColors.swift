@@ -48,7 +48,7 @@ static func forTheme(_ theme: AppTheme) -> ThemeColors {
                 error: .appErrorRed,
                 success: .appSuccessGreen,
                 cardBackground: .white,
-                gridLine: Color.black.opacity(0.1),
+                gridLine: .black,
                 selection: Color.appAccentAmber.opacity(0.15),
                 dimOverlayOpacity: 0
             )
@@ -63,8 +63,8 @@ static func forTheme(_ theme: AppTheme) -> ThemeColors {
                 error: .appErrorRed,
                 success: .appSuccessGreen,
                 cardBackground: .appCardBackground,
-                gridLine: Color.white.opacity(0.1),
-                selection: Color.white.opacity(0.08),
+                gridLine: .white,
+                selection: Color.white.opacity(0.1),
                 dimOverlayOpacity: 0
             )
         case .sleep:
@@ -78,8 +78,8 @@ static func forTheme(_ theme: AppTheme) -> ThemeColors {
                 error: .appErrorRed,
                 success: .appSuccessGreen,
                 cardBackground: .appCardBackground,
-                gridLine: Color.white.opacity(0.08),
-                selection: Color.appAccentOrange.opacity(0.18),
+                gridLine: Color.appAccentOrange.opacity(0.55),
+                selection: Color.appAccentOrange.opacity(0.22),
                 dimOverlayOpacity: 0.35
             )
         }

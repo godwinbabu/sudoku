@@ -3,6 +3,7 @@ import SwiftUI
 struct GameView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel: GameViewModel
     @State private var activeSheet: Sheet?
     @State private var showCelebration: Bool = false
@@ -28,30 +29,29 @@ struct GameView: View {
         let theme = controller.settings.themeColors
         ZStack {
             theme.background.ignoresSafeArea()
-            if theme.isSleep {
-                Color.black.opacity(theme.dimOverlayOpacity).ignoresSafeArea()
-            }
             ScrollView {
                 VStack(spacing: 16) {
                     topBar(theme: theme)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme) { cell in
+                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme, candidateOverlay: viewModel.candidateOverlay) { cell in
                         viewModel.select(cell: cell)
                     }
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
                     .padding(.vertical, 4)
-                    .allowsHitTesting(!viewModel.state.isCompleted)
+                    .allowsHitTesting(!viewModel.state.isCompleted && !viewModel.isPaused)
                     modeToggle(theme: theme)
-                        .disabled(viewModel.state.isCompleted)
+                        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
                     NumberPadView(
                         theme: theme,
                         disabledDigits: viewModel.disabledDigits,
+                        isCandidateMode: viewModel.inputMode == .candidate,
                         onDigit: { viewModel.setDigit($0) },
                         onClear: { viewModel.clearSelectedCell() }
                     )
-                    .disabled(viewModel.state.isCompleted)
+                    .disabled(viewModel.state.isCompleted || viewModel.isPaused)
                     actionButtons(theme: theme)
+                        .disabled(viewModel.isPaused)
                     hintBanner(theme: theme)
                 }
                 .padding(.horizontal, 20)
@@ -61,6 +61,10 @@ struct GameView: View {
             if showCelebration {
                 celebrationOverlay(theme: theme)
                     .transition(.scale.combined(with: .opacity))
+            }
+            if viewModel.isPaused {
+                pauseOverlay(theme: theme)
+                    .transition(.opacity)
             }
         }
         .navigationBarTitleDisplayMode(.inline)
@@ -72,6 +76,23 @@ struct GameView: View {
                         .font(.headline)
                 }
                 .accessibilityIdentifier("backButton")
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button("Reveal Puzzle", role: .destructive) {
+                        viewModel.pendingAction = .revealPuzzle
+                    }
+                    Button("Reset Puzzle", role: .destructive) {
+                        viewModel.pendingAction = .reset
+                    }
+                    Button("New Puzzle") {
+                        viewModel.pendingAction = .newPuzzle
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal")
+                }
+                .foregroundColor(theme.accent)
+                .accessibilityIdentifier("gameMenuButton")
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: { activeSheet = .stats }) {
@@ -97,6 +118,11 @@ struct GameView: View {
         }
         .onChange(of: controller.settings) { newSettings in
             viewModel.apply(settings: newSettings)
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase != .active {
+                viewModel.pauseForBackground()
+            }
         }
         .onChange(of: viewModel.state.isCompleted) { isCompleted in
             guard isCompleted else { return }
@@ -147,14 +173,22 @@ struct GameView: View {
     }
 
     private func topBar(theme: ThemeColors) -> some View {
-        let statusText = viewModel.state.isCompleted ? "Solved" : "In progress"
+        let statusText = viewModel.state.isCompleted ? "Solved" : (viewModel.isPaused ? "Paused" : "In progress")
         return HStack(alignment: .center, spacing: 12) {
             Text(difficulty.displayName)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if viewModel.showTimer {
-                Text(timeString(seconds: viewModel.state.elapsedSeconds))
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .accessibilityIdentifier("timerLabel")
+                HStack(spacing: 8) {
+                    Button(action: toggleTimer) {
+                        Image(systemName: viewModel.isTimerRunning ? "pause.circle.fill" : "play.circle.fill")
+                            .font(.title3)
+                            .foregroundColor(theme.accent)
+                    }
+                    .accessibilityIdentifier("timerToggle")
+                    Text(timeString(seconds: viewModel.state.elapsedSeconds))
+                        .accessibilityIdentifier("timerLabel")
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
             } else {
                 Spacer()
             }
@@ -165,33 +199,50 @@ struct GameView: View {
         .foregroundColor(theme.primaryText)
     }
 
+    private func toggleTimer() {
+        if viewModel.isTimerRunning {
+            viewModel.pauseTimer()
+        } else {
+            viewModel.resumeTimer()
+        }
+    }
+
     private func modeToggle(theme: ThemeColors) -> some View {
         HStack(spacing: 12) {
             ModeChip(title: "Normal", active: viewModel.inputMode == .normal, theme: theme) {
                 viewModel.inputMode = .normal
             }
-            ModeChip(title: "Notes", active: viewModel.inputMode == .candidate, theme: theme) {
+            ModeChip(title: "Candidate", active: viewModel.inputMode == .candidate, theme: theme) {
                 viewModel.inputMode = .candidate
             }
             Spacer()
+            Button(action: { viewModel.undo() }) {
+                Label("Undo", systemImage: "arrow.uturn.backward")
+                    .labelStyle(.titleAndIcon)
+                    .font(.footnote.bold())
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(theme.cardBackground)
+                    .foregroundColor(viewModel.canUndo ? theme.primaryText : theme.secondaryText)
+                    .clipShape(Capsule())
+            }
+            .disabled(!viewModel.canUndo || viewModel.isPaused || viewModel.state.isCompleted)
+            .accessibilityIdentifier("mode_undo")
         }
         .accessibilityIdentifier("modeToggle")
     }
 
     private func actionButtons(theme: ThemeColors) -> some View {
         let items: [ActionItem] = [
-            ActionItem(title: "Undo", isEnabled: viewModel.canUndo) { viewModel.undo() },
+            ActionItem(title: viewModel.showAllCandidates ? "Hide Candidates" : "Show Candidates") { viewModel.toggleAllCandidates() },
             ActionItem(title: "Hint") { viewModel.requestHint() },
             ActionItem(title: "Check Cell") { viewModel.checkCell() },
-            ActionItem(title: "Check Puzzle") { viewModel.checkPuzzle() },
-            ActionItem(title: "Reveal Puzzle", style: .destructive) { viewModel.pendingAction = .revealPuzzle },
-            ActionItem(title: "Reset", style: .destructive) { viewModel.pendingAction = .reset },
-            ActionItem(title: "New Puzzle") { viewModel.pendingAction = .newPuzzle }
+            ActionItem(title: "Check Puzzle") { viewModel.checkPuzzle() }
         ]
         let columns = [GridItem(.flexible()), GridItem(.flexible())]
         return LazyVGrid(columns: columns, spacing: 12) {
             ForEach(items) { item in
-                let shouldDisable = viewModel.state.isCompleted && ["Hint", "Check Cell", "Check Puzzle", "Reveal Puzzle"].contains(item.title)
+                let shouldDisable = viewModel.state.isCompleted && ["Hint", "Check Cell", "Check Puzzle"].contains(item.title)
                 GameActionButton(theme: theme, title: item.title, style: item.style, action: item.action)
                     .disabled(shouldDisable || !item.isEnabled)
             }
@@ -239,26 +290,76 @@ struct GameView: View {
 
     @ViewBuilder
     private func celebrationOverlay(theme: ThemeColors) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 56, weight: .bold))
-                .foregroundColor(theme.success)
-            Text("Solved")
-                .font(.title2.bold())
-                .foregroundColor(theme.primaryText)
-            Text(timeString(seconds: viewModel.state.elapsedSeconds))
-                .font(.headline)
-                .foregroundColor(theme.secondaryText)
+        VStack(spacing: 20) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundColor(theme.accent)
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 90, weight: .bold))
+                    .foregroundColor(theme.success)
+                Image(systemName: "sparkles")
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundColor(theme.accent)
+            }
+            VStack(spacing: 6) {
+                Text("Puzzle Solved!")
+                    .font(.system(size: 34, weight: .black, design: .rounded))
+                    .foregroundColor(theme.primaryText)
+                Text("Amazing focus. Enjoy that win!")
+                    .font(.headline)
+                    .foregroundColor(theme.secondaryText)
+                Text(timeString(seconds: viewModel.state.elapsedSeconds))
+                    .font(.title2.bold())
+                    .foregroundColor(theme.primaryText)
+            }
         }
-        .padding(.vertical, 18)
-        .padding(.horizontal, 24)
-        .background(theme.cardBackground.opacity(0.95))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(theme.success.opacity(0.55), lineWidth: 1.5)
+        .padding(.vertical, 32)
+        .padding(.horizontal, 38)
+        .frame(minWidth: 320)
+        .background(
+            LinearGradient(
+                colors: [theme.cardBackground.opacity(0.98), theme.accent.opacity(0.18)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
         )
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .shadow(color: Color.black.opacity(theme.isSleep ? 0.18 : 0.22), radius: 10, x: 0, y: 3)
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(theme.success.opacity(0.6), lineWidth: 2.2)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .shadow(color: Color.black.opacity(theme.isSleep ? 0.2 : 0.26), radius: 14, x: 0, y: 4)
+    }
+
+    @ViewBuilder
+    private func pauseOverlay(theme: ThemeColors) -> some View {
+        ZStack {
+            Color.black.opacity(theme.isSleep ? 0.55 : 0.35)
+                .ignoresSafeArea()
+            VStack(spacing: 16) {
+                Text("Game is paused")
+                    .font(.title2.bold())
+                    .foregroundColor(theme.primaryText)
+                Button {
+                    viewModel.resumeTimer()
+                } label: {
+                    Text("Resume")
+                        .font(.headline.bold())
+                        .padding(.horizontal, 28)
+                        .padding(.vertical, 12)
+                        .background(theme.accent.opacity(0.25))
+                        .foregroundColor(theme.accent)
+                        .clipShape(Capsule())
+                }
+            }
+            .padding(24)
+            .frame(maxWidth: 320)
+            .background(theme.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(radius: 12)
+            .accessibilityIdentifier("pauseOverlay")
+        }
     }
 }
 
@@ -313,5 +414,6 @@ private struct ModeChip: View {
                 .foregroundColor(active ? theme.accent : theme.secondaryText)
                 .clipShape(Capsule())
         }
+        .accessibilityIdentifier("mode_\(title.lowercased())")
     }
 }

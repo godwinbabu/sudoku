@@ -13,7 +13,7 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable {
         case .system: return "System"
         case .light: return "Light"
         case .dark: return "Dark"
-        case .sleep: return "Sleep"
+        case .sleep: return "Bedtime"
         }
     }
 }

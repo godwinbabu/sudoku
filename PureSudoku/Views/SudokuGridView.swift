@@ -4,6 +4,7 @@ struct SudokuGridView: View {
     let cells: [SudokuCell]
     let selectedCellID: UUID?
     let theme: ThemeColors
+    var candidateOverlay: [UUID: Set<Int>] = [:]
     var onSelect: (SudokuCell) -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 9)
@@ -34,10 +35,19 @@ struct SudokuGridView: View {
                             guard let value = selectedValue, !isSelected else { return false }
                             return cell.value == value
                         }()
+                        let displayCandidates = displayCandidates(for: cell)
                         Button {
                             onSelect(cell)
                         } label: {
-                            SudokuCellView(cell: cell, isSelected: isSelected, isHighlighted: isHighlighted, isNumberMatch: isNumberMatch, theme: theme, cellSize: cellSide)
+                            SudokuCellView(
+                                cell: cell,
+                                displayCandidates: displayCandidates,
+                                isSelected: isSelected,
+                                isHighlighted: isHighlighted,
+                                isNumberMatch: isNumberMatch,
+                                theme: theme,
+                                cellSize: cellSide
+                            )
                                 .frame(height: cellSide)
                         }
                         .buttonStyle(.plain)
@@ -62,29 +72,37 @@ struct SudokuGridView: View {
             let originY = (geometry.size.height - gridLength) / 2
             ZStack {
                 ForEach(0...9, id: \.self) { index in
-                    let lineWidth: CGFloat = index % 3 == 0 ? 3 : 1
+                    let lineWidth: CGFloat = index % 3 == 0 ? 3.2 : 1.2
                     Path { path in
                         let offset = CGFloat(index) * cellSize
                         path.move(to: CGPoint(x: originX + offset, y: originY))
                         path.addLine(to: CGPoint(x: originX + offset, y: originY + length))
                     }
-                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.8 : 0.28), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
 
                     Path { path in
                         let offset = CGFloat(index) * cellSize
                         path.move(to: CGPoint(x: originX, y: originY + offset))
                         path.addLine(to: CGPoint(x: originX + length, y: originY + offset))
                     }
-                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.8 : 0.28), lineWidth: lineWidth)
+                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
                 }
             }
         }
         .allowsHitTesting(false)
     }
+
+    private func displayCandidates(for cell: SudokuCell) -> Set<Int> {
+        guard let overlay = candidateOverlay[cell.id] else {
+            return cell.candidates
+        }
+        return cell.candidates.union(overlay)
+    }
 }
 
 struct SudokuCellView: View {
     let cell: SudokuCell
+    let displayCandidates: Set<Int>
     let isSelected: Bool
     let isHighlighted: Bool
     let isNumberMatch: Bool
@@ -99,20 +117,13 @@ struct SudokuCellView: View {
                 Text("\(value)")
                     .font(cell.given ? .title.bold() : .title)
                     .foregroundColor(cell.given ? theme.primaryText : theme.accent)
-            } else if !cell.candidates.isEmpty {
-                Text(candidateString)
-                    .font(.footnote)
-                    .foregroundColor(theme.secondaryText)
-                    .minimumScaleFactor(0.6)
+            } else if !displayCandidates.isEmpty {
+                candidateGrid
             }
         }
         .frame(height: cellSize)
         .overlay(borderOverlay)
         .accessibilityLabel(accessibilityText)
-    }
-
-    private var candidateString: String {
-        cell.candidates.sorted().map(String.init).joined(separator: " ")
     }
 
     private var cellFillColor: Color {
@@ -127,6 +138,37 @@ struct SudokuCellView: View {
         } else {
             return theme.cardBackground
         }
+    }
+
+    @ViewBuilder
+    private var candidateGrid: some View {
+        GeometryReader { geometry in
+            let size = geometry.size
+            ForEach(displayCandidates.sorted(), id: \.self) { number in
+                let position = candidatePosition(for: number, in: size)
+                Text("\(number)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(theme.secondaryText)
+                    .position(position)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func candidatePosition(for number: Int, in size: CGSize) -> CGPoint {
+        let safeNumber = min(max(number, 1), 9)
+        let row = CGFloat((safeNumber - 1) / 3)
+        let col = CGFloat((safeNumber - 1) % 3)
+        let inset = min(size.width, size.height) * 0.08
+        let availableWidth = size.width - inset * 2
+        let availableHeight = size.height - inset * 2
+        let cellWidth = availableWidth / 3
+        let cellHeight = availableHeight / 3
+        let bias = min(size.width, size.height) * 0.01
+        return CGPoint(
+            x: inset + col * cellWidth + cellWidth / 2 - bias,
+            y: inset + row * cellHeight + cellHeight / 2 - bias
+        )
     }
 
     @ViewBuilder
@@ -146,8 +188,8 @@ struct SudokuCellView: View {
     private var accessibilityText: String {
         if let value = cell.value {
             return "Row \(cell.row + 1) column \(cell.col + 1) value \(value)"
-        } else if !cell.candidates.isEmpty {
-            let candidates = cell.candidates.sorted().map(String.init).joined(separator: ", ")
+        } else if !displayCandidates.isEmpty {
+            let candidates = displayCandidates.sorted().map(String.init).joined(separator: ", ")
             return "Row \(cell.row + 1) column \(cell.col + 1) candidates \(candidates)"
         } else {
             return "Row \(cell.row + 1) column \(cell.col + 1) empty"

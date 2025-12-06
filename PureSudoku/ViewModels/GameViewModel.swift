@@ -14,6 +14,10 @@ final class GameViewModel: ObservableObject {
 
     @Published var pendingAction: PendingAction?
     @Published private(set) var canUndo: Bool = false
+    @Published private(set) var isTimerRunning: Bool = false
+    @Published private(set) var isPaused: Bool = false
+    @Published private(set) var showAllCandidates: Bool = false
+    @Published private(set) var candidateOverlay: [UUID: Set<Int>] = [:]
 
     enum PendingAction: Identifiable {
         case reset
@@ -50,6 +54,7 @@ final class GameViewModel: ObservableObject {
 
     private var timer: Timer?
     private var lastTickDate: Date?
+    private var isManuallyPaused = false
     private var settings: Settings
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
@@ -89,14 +94,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func handleSceneDidAppear() {
-        guard !state.isCompleted else { return }
-        guard timer == nil else { return }
-        lastTickDate = timeProvider.now()
-        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            Task { await self?.tick() }
-        }
-        self.timer = timer
-        RunLoop.main.add(timer, forMode: .common)
+        startTimerIfNeeded()
     }
 
     func handleSceneDidDisappear() {
@@ -111,10 +109,51 @@ final class GameViewModel: ObservableObject {
         }
     }
 
+    func pauseTimer() {
+        isManuallyPaused = true
+        isPaused = true
+        let elapsed = calculateAndStopTimer()
+        if elapsed > 0 {
+            var newState = self.state
+            newState.elapsedSeconds += elapsed
+            updateContradictionFlag(on: &newState)
+            self.state = newState
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.onSave?(self.state)
+        }
+    }
+
+    func resumeTimer() {
+        isManuallyPaused = false
+        isPaused = false
+        startTimerIfNeeded()
+    }
+
+    func pauseForBackground() {
+        guard !isPaused else { return }
+        pauseTimer()
+    }
+
+    private func startTimerIfNeeded() {
+        guard !state.isCompleted, timer == nil, !isManuallyPaused else { return }
+        lastTickDate = timeProvider.now()
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            Task { await self?.tick() }
+        }
+        self.timer = timer
+        isTimerRunning = true
+        isPaused = false
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
     private func calculateAndStopTimer() -> Int {
         guard let start = lastTickDate else {
             timer?.invalidate()
             timer = nil
+            isTimerRunning = false
+            lastTickDate = nil
             return 0
         }
         let now = timeProvider.now()
@@ -122,7 +161,13 @@ final class GameViewModel: ObservableObject {
         lastTickDate = nil
         timer?.invalidate()
         timer = nil
+        isTimerRunning = false
         return elapsed
+    }
+
+    func toggleAllCandidates() {
+        showAllCandidates.toggle()
+        candidateOverlay = showAllCandidates ? computeCandidateOverlay() : [:]
     }
 
     func select(cell: SudokuCell) {
@@ -147,6 +192,7 @@ final class GameViewModel: ObservableObject {
         self.hintMessage = nil
         
         updateAutoCheckHighlights()
+        refreshCandidateOverlayIfNeeded()
     }
 
     func setDigit(_ digit: Int) {
@@ -169,6 +215,7 @@ final class GameViewModel: ObservableObject {
             updateAutoCheckHighlights()
             checkIfSolved()
             updateCanUndo()
+            refreshCandidateOverlayIfNeeded()
         case .candidate:
             if newState.cells[index].candidates.contains(digit) {
                 newState.cells[index].candidates.remove(digit)
@@ -179,6 +226,7 @@ final class GameViewModel: ObservableObject {
             self.hintMessage = nil
             updateAutoCheckHighlights()
             updateCanUndo()
+            refreshCandidateOverlayIfNeeded()
         }
     }
 
@@ -282,6 +330,7 @@ final class GameViewModel: ObservableObject {
             updateAutoCheckHighlights()
             checkIfSolved()
             updateCanUndo()
+            refreshCandidateOverlayIfNeeded()
         }
     }
 
@@ -307,6 +356,8 @@ final class GameViewModel: ObservableObject {
         
         self.state = newState
         updateCanUndo()
+        candidateOverlay = [:]
+        showAllCandidates = false
         Task { @MainActor [weak self] in
             guard let self else { return }
             self.onCompletion?(self.state)
@@ -334,6 +385,8 @@ final class GameViewModel: ObservableObject {
         self.hintMessage = nil
         undoStack.removeAll()
         updateCanUndo()
+        candidateOverlay = [:]
+        showAllCandidates = false
     }
 
     var disabledDigits: Set<Int> {
@@ -365,8 +418,13 @@ final class GameViewModel: ObservableObject {
         self.showTimer = settings.showTimer
         self.hintMessage = nil
         undoStack.removeAll()
+        isTimerRunning = false
+        isManuallyPaused = false
+        isPaused = false
         updateCanUndo()
         updateAutoCheckHighlights()
+        candidateOverlay = [:]
+        showAllCandidates = false
         
         if finalState.isCompleted {
             timer?.invalidate()
@@ -402,6 +460,7 @@ final class GameViewModel: ObservableObject {
         pendingAction = nil
         updateAutoCheckHighlights()
         updateCanUndo()
+        refreshCandidateOverlayIfNeeded()
     }
 
     // MARK: - Undo tracking
@@ -441,23 +500,26 @@ final class GameViewModel: ObservableObject {
         updateContradictionFlag(on: &newState)
         self.state = newState
         updateCanUndo()
+        refreshCandidateOverlayIfNeeded()
     }
 
     private func checkIfSolved() {
         guard state.cells.allSatisfy({ $0.value != nil || $0.given }) else { return }
         if validator.isSolved(cells: state.cells, solution: state.puzzle.solutionGrid) {
-            var newState = self.state
-            newState.isCompleted = true
-            let elapsed = calculateAndStopTimer()
-            newState.elapsedSeconds += elapsed
-            
-            self.state = newState
-            updateCanUndo()
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.onCompletion?(self.state)
-            }
+        var newState = self.state
+        newState.isCompleted = true
+        let elapsed = calculateAndStopTimer()
+        newState.elapsedSeconds += elapsed
+        
+        self.state = newState
+        updateCanUndo()
+        candidateOverlay = [:]
+        showAllCandidates = false
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.onCompletion?(self.state)
         }
+    }
     }
 
     private func updateContradictionFlag(on state: inout GameState) {
@@ -487,5 +549,25 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         
         lastTickDate = now
+        refreshCandidateOverlayIfNeeded()
+    }
+
+    private func refreshCandidateOverlayIfNeeded() {
+        guard showAllCandidates else { return }
+        candidateOverlay = computeCandidateOverlay()
+    }
+
+    private func computeCandidateOverlay() -> [UUID: Set<Int>] {
+        var overlay: [UUID: Set<Int>] = [:]
+        for cell in state.cells where cell.value == nil {
+            let rowValues = Set(state.cells.filter { $0.row == cell.row }.compactMap(\.value))
+            let colValues = Set(state.cells.filter { $0.col == cell.col }.compactMap(\.value))
+            let boxValues = Set(state.cells.filter { $0.row / 3 == cell.row / 3 && $0.col / 3 == cell.col / 3 }.compactMap(\.value))
+            let existing = cell.candidates
+            let possible = Set(1...9).subtracting(rowValues).subtracting(colValues).subtracting(boxValues)
+            let merged = existing.union(possible)
+            overlay[cell.id] = merged
+        }
+        return overlay
     }
 }
