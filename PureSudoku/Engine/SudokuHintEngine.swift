@@ -2,9 +2,17 @@ import Foundation
 
 enum HintTechnique: String, Codable {
     case nakedSingle = "Naked Single"
+    case nakedTriple = "Naked Triple"
+    case nakedQuad = "Naked Quad"
     case hiddenSingleRow = "Hidden Single (Row)"
     case hiddenSingleCol = "Hidden Single (Column)"
     case hiddenSingleBox = "Hidden Single (Box)"
+    case hiddenTripleRow = "Hidden Triple (Row)"
+    case hiddenTripleCol = "Hidden Triple (Column)"
+    case hiddenTripleBox = "Hidden Triple (Box)"
+    case hiddenQuadRow = "Hidden Quad (Row)"
+    case hiddenQuadCol = "Hidden Quad (Column)"
+    case hiddenQuadBox = "Hidden Quad (Box)"
     case invalid = "Invalid"
 }
 
@@ -68,6 +76,22 @@ func nextHint(for board: GeneratorBoard) -> GeneratorHint? {
         }
     }
 
+    // Naked triples/quads
+    if let nakedTriple = findNakedSet(of: 3, info: info, board: board) {
+        return nakedTriple
+    }
+    if let nakedQuad = findNakedSet(of: 4, info: info, board: board) {
+        return nakedQuad
+    }
+
+    // Hidden triples/quads
+    if let hiddenTriple = findHiddenSet(of: 3, info: info, board: board) {
+        return hiddenTriple
+    }
+    if let hiddenQuad = findHiddenSet(of: 4, info: info, board: board) {
+        return hiddenQuad
+    }
+
     return nil
 }
 
@@ -105,4 +129,112 @@ private func axisName(_ axis: Int) -> String {
     case 1: return "column"
     default: return "box"
     }
+}
+
+private func findNakedSet(of size: Int, info: (allowed: [Int], needed: [Int]), board: GeneratorBoard) -> GeneratorHint? {
+    for axis in 0..<3 {
+        for x in 0..<9 {
+            // Collect empty positions in the unit
+            let positions: [Int] = (0..<9).compactMap { y in
+                let pos = posFor(x: x, y: y, axis: axis)
+                return board[pos] == nil ? pos : nil
+            }
+            guard positions.count >= size else { continue }
+            for combo in combinations(of: positions, taking: size) {
+                let masks = combo.map { info.allowed[$0] }
+                let union = masks.reduce(0, |)
+                let unionDigits = listBits(union)
+                // Naked set must exactly cover `size` digits and each member's candidates are subset of union with small size.
+                guard unionDigits.count == size,
+                      masks.allSatisfy({ bitCount($0) <= size && ($0 & ~union) == 0 }) else { continue }
+                // Ensure there's something to eliminate elsewhere in the unit (an overlapping candidate).
+                let others = positions.filter { !combo.contains($0) }
+                let hasOverlap = others.contains { info.allowed[$0] & union != 0 }
+                guard hasOverlap else { continue }
+
+                let sortedPositions = combo.sorted()
+                let digitsString = unionDigits.map { "\($0 + 1)" }.joined(separator: ", ")
+                let label = axisName(axis)
+                let technique: HintTechnique = size == 3 ? .nakedTriple : .nakedQuad
+                return GeneratorHint(
+                    technique: technique,
+                    positions: sortedPositions,
+                    digit: nil,
+                    message: "Naked \(size) in \(label) \(x + 1): digits \(digitsString) are confined to these cells."
+                )
+            }
+        }
+    }
+    return nil
+}
+
+private func findHiddenSet(of size: Int, info: (allowed: [Int], needed: [Int]), board: GeneratorBoard) -> GeneratorHint? {
+    for axis in 0..<3 {
+        for x in 0..<9 {
+            let neededBits = info.needed[axis * 9 + x]
+            let missingDigits = listBits(neededBits)
+            guard missingDigits.count >= size else { continue }
+            for digitCombo in combinations(of: missingDigits, taking: size) {
+                var positionSet = Set<Int>()
+                var valid = true
+                for digit in digitCombo {
+                    var positionsForDigit: [Int] = []
+                    for y in 0..<9 {
+                        let pos = posFor(x: x, y: y, axis: axis)
+                        guard board[pos] == nil else { continue }
+                        if info.allowed[pos] & (1 << digit) != 0 {
+                            positionsForDigit.append(pos)
+                        }
+                    }
+                    if positionsForDigit.isEmpty {
+                        valid = false
+                        break
+                    }
+                    positionSet.formUnion(positionsForDigit)
+                }
+                guard valid, positionSet.count == size else { continue }
+
+                let sortedPositions = positionSet.sorted()
+                let digitsString = digitCombo.sorted().map { "\($0 + 1)" }.joined(separator: ", ")
+                let label = axisName(axis)
+                let technique: HintTechnique
+                switch size {
+                case 3:
+                    technique = axis == 0 ? .hiddenTripleRow : axis == 1 ? .hiddenTripleCol : .hiddenTripleBox
+                default:
+                    technique = axis == 0 ? .hiddenQuadRow : axis == 1 ? .hiddenQuadCol : .hiddenQuadBox
+                }
+                return GeneratorHint(
+                    technique: technique,
+                    positions: sortedPositions,
+                    digit: nil,
+                    message: "Hidden \(size) in \(label) \(x + 1): digits \(digitsString) appear only in these cells."
+                )
+            }
+        }
+    }
+    return nil
+}
+
+private func combinations<T>(of array: [T], taking k: Int) -> [[T]] {
+    guard k > 0 else { return [[]] }
+    guard array.count >= k else { return [] }
+    if k == 1 { return array.map { [$0] } }
+
+    var result: [[T]] = []
+    func helper(start: Int, current: [T]) {
+        if current.count == k {
+            result.append(current)
+            return
+        }
+        for i in start..<array.count {
+            helper(start: i + 1, current: current + [array[i]])
+        }
+    }
+    helper(start: 0, current: [])
+    return result
+}
+
+private func bitCount(_ value: Int) -> Int {
+    value.nonzeroBitCount
 }

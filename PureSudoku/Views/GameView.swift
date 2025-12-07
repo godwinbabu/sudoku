@@ -127,10 +127,6 @@ struct GameView: View {
         .onChange(of: viewModel.state.isCompleted) { isCompleted in
             guard isCompleted else { return }
             withAnimation(.easeInOut(duration: 0.25)) { showCelebration = true }
-            // Auto-hide after a short delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                withAnimation(.easeInOut(duration: 0.25)) { showCelebration = false }
-            }
         }
         .confirmationDialog(
             viewModel.pendingAction?.title ?? "",
@@ -290,46 +286,66 @@ struct GameView: View {
 
     @ViewBuilder
     private func celebrationOverlay(theme: ThemeColors) -> some View {
-        VStack(spacing: 20) {
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundColor(theme.accent)
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 90, weight: .bold))
-                    .foregroundColor(theme.success)
-                Image(systemName: "sparkles")
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundColor(theme.accent)
+        ZStack {
+            Color.black.opacity(theme.isSleep ? 0.55 : 0.35)
+                .ignoresSafeArea()
+            VStack(spacing: 20) {
+                HStack(spacing: 10) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundColor(theme.accent)
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 90, weight: .bold))
+                        .foregroundColor(theme.success)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundColor(theme.accent)
+                }
+                VStack(spacing: 6) {
+                    Text("Puzzle Solved!")
+                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .foregroundColor(theme.primaryText)
+                    Text("Amazing focus. Enjoy that win!")
+                        .font(.headline)
+                        .foregroundColor(theme.secondaryText)
+                    Text(timeString(seconds: viewModel.state.elapsedSeconds))
+                        .font(.title2.bold())
+                        .foregroundColor(theme.primaryText)
+                }
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showCelebration = false
+                    }
+                } label: {
+                    Text("Continue")
+                        .font(.headline.bold())
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 18)
+                        .frame(maxWidth: .infinity)
+                        .background(theme.accent.opacity(0.15))
+                        .foregroundColor(theme.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .accessibilityIdentifier("celebrationContinue")
             }
-            VStack(spacing: 6) {
-                Text("Puzzle Solved!")
-                    .font(.system(size: 34, weight: .black, design: .rounded))
-                    .foregroundColor(theme.primaryText)
-                Text("Amazing focus. Enjoy that win!")
-                    .font(.headline)
-                    .foregroundColor(theme.secondaryText)
-                Text(timeString(seconds: viewModel.state.elapsedSeconds))
-                    .font(.title2.bold())
-                    .foregroundColor(theme.primaryText)
-            }
-        }
-        .padding(.vertical, 32)
-        .padding(.horizontal, 38)
-        .frame(minWidth: 320)
-        .background(
-            LinearGradient(
-                colors: [theme.cardBackground.opacity(0.98), theme.accent.opacity(0.18)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+            .padding(.vertical, 32)
+            .padding(.horizontal, 28)
+            .frame(minWidth: 320)
+            .background(
+                LinearGradient(
+                    colors: [theme.cardBackground.opacity(0.98), theme.accent.opacity(0.18)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(theme.success.opacity(0.6), lineWidth: 2.2)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .shadow(color: Color.black.opacity(theme.isSleep ? 0.2 : 0.26), radius: 14, x: 0, y: 4)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(theme.success.opacity(0.6), lineWidth: 2.2)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .shadow(color: Color.black.opacity(theme.isSleep ? 0.2 : 0.26), radius: 14, x: 0, y: 4)
+            .padding(.horizontal, 20)
+        }
     }
 
     @ViewBuilder

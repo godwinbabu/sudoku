@@ -5,16 +5,18 @@ struct Settings: Codable, Equatable {
     var showTimer: Bool
     var autoRemoveCandidates: Bool
     var autoCheckMistakes: Bool
+    var autoFillHints: Bool
     var bedtimeMode: Bool
     var soundsEnabled: Bool
     var hapticsEnabled: Bool
     var sleepBrightness: SleepBrightness
 
-    init(theme: AppTheme = .system, showTimer: Bool = true, autoRemoveCandidates: Bool = true, autoCheckMistakes: Bool = true, bedtimeMode: Bool = false, soundsEnabled: Bool = false, hapticsEnabled: Bool = false, sleepBrightness: SleepBrightness = .extraDim) {
+    init(theme: AppTheme = .system, showTimer: Bool = true, autoRemoveCandidates: Bool = true, autoCheckMistakes: Bool = true, autoFillHints: Bool = true, bedtimeMode: Bool = false, soundsEnabled: Bool = false, hapticsEnabled: Bool = false, sleepBrightness: SleepBrightness = .extraDim) {
         self.theme = theme
         self.showTimer = showTimer
         self.autoRemoveCandidates = autoRemoveCandidates
         self.autoCheckMistakes = autoCheckMistakes
+        self.autoFillHints = autoFillHints
         self.bedtimeMode = bedtimeMode
         self.soundsEnabled = soundsEnabled
         self.hapticsEnabled = hapticsEnabled

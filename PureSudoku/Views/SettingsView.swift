@@ -23,6 +23,7 @@ struct SettingsView: View {
                     Toggle("Show timer", isOn: Binding(get: { viewModel.settings.showTimer }, set: { viewModel.setShowTimer($0) }))
                     Toggle("Auto remove candidates", isOn: Binding(get: { viewModel.settings.autoRemoveCandidates }, set: { viewModel.setAutoRemoveCandidates($0) }))
                     Toggle("Auto-check mistakes", isOn: Binding(get: { viewModel.settings.autoCheckMistakes }, set: { viewModel.setAutoCheckMistakes($0) }))
+                    Toggle("Auto-fill hints", isOn: Binding(get: { viewModel.settings.autoFillHints }, set: { viewModel.setAutoFillHints($0) }))
                 }
                 Section("Bedtime") {
                     Toggle("Bedtime Mode", isOn: Binding(get: { viewModel.settings.bedtimeMode }, set: { viewModel.setBedtimeMode($0) }))

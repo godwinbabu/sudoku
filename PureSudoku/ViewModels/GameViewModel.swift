@@ -303,7 +303,9 @@ final class GameViewModel: ObservableObject {
         let col = position % 9
         guard let index = state.cells.firstIndex(where: { $0.row == row && $0.col == col }) else { return }
         selectedCellID = state.cells[index].id
-        revealCell(at: index, markUsedReveal: true, force: true)
+        if settings.autoFillHints {
+            revealCell(at: index, markUsedReveal: true, force: true)
+        }
     }
 
     func revealCell() {
