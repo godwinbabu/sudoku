@@ -110,6 +110,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func pauseTimer() {
+        guard !state.isCompleted else { return }
         isManuallyPaused = true
         isPaused = true
         let elapsed = calculateAndStopTimer()
@@ -132,6 +133,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func pauseForBackground() {
+        guard !state.isCompleted else { return }
         guard !isPaused else { return }
         pauseTimer()
     }
@@ -512,6 +514,9 @@ final class GameViewModel: ObservableObject {
         newState.isCompleted = true
         let elapsed = calculateAndStopTimer()
         newState.elapsedSeconds += elapsed
+
+        isPaused = false
+        isManuallyPaused = false
         
         self.state = newState
         updateCanUndo()

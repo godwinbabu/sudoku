@@ -122,6 +122,14 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.hintMessage)
     }
 
+    func testPauseIgnoredAfterCompletion() {
+        let viewModel = makeViewModel()
+        viewModel.revealPuzzle() // marks puzzle as completed
+        viewModel.pauseForBackground()
+        XCTAssertTrue(viewModel.state.isCompleted)
+        XCTAssertFalse(viewModel.isPaused)
+    }
+
     func testUndoRevertsSequentialChanges() {
         let viewModel = makeViewModel()
         guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }

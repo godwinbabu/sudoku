@@ -37,20 +37,20 @@ struct MainMenuView: View {
                     theme.background.ignoresSafeArea()
                     VStack(spacing: 12) {
                         ScrollView(showsIndicators: false) {
-                            VStack(spacing: 24) {
-                                topSection(theme: theme)
-                                difficultyButtons(theme: theme)
-                                statsSummary(theme: theme)
-                            }
-                            .frame(maxWidth: 420)
-                            .padding(.top, 24)
-                            .padding(.horizontal, 18)
-                            .padding(.bottom, 24)
-                        }
-                        bedtimeToggle(theme: theme)
-                            .padding(.horizontal, 18)
-                            .padding(.bottom, max(proxy.safeAreaInsets.bottom + 8, 16))
+                    VStack(spacing: 24) {
+                        topSection(theme: theme)
+                        difficultyButtons(theme: theme)
+                        statsSummary(theme: theme)
                     }
+                    .frame(maxWidth: 420)
+                    .padding(.top, 24)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 48)
+                }
+                bedtimeToggle(theme: theme)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, max(proxy.safeAreaInsets.bottom + 8, 16))
+            }
                 }
             }
             .toolbar {
@@ -108,9 +108,6 @@ struct MainMenuView: View {
         let streak = viewModel.stats.streakDays
         let total = viewModel.stats.totalPuzzlesSolved
         return VStack(spacing: 20) {
-            Text("Progress")
-                .font(.headline.bold())
-                .foregroundColor(theme.secondaryText)
             HStack {
                 statColumn(title: "Day Streak", value: "\(streak)", theme: theme)
                 Divider()
@@ -137,34 +134,39 @@ struct MainMenuView: View {
     }
 
     private func difficultyButtons(theme: ThemeColors) -> some View {
-        VStack(spacing: 14) {
+        let fillColor: Color = {
+            switch theme.theme {
+            case .light, .system:
+                return Color.black.opacity(0.92)
+            case .dark, .sleep:
+                return theme.accent.opacity(0.9)
+            }
+        }()
+        let textColor: Color = {
+            switch theme.theme {
+            case .light, .system:
+                return .white
+            case .dark, .sleep:
+                return .black
+            }
+        }()
+        return VStack(spacing: 12) {
             ForEach(Difficulty.allCases) { difficulty in
-                let hasActive = controller.activeGames[difficulty]?.isCompleted == false
                 Button {
                     openGame(difficulty)
                 } label: {
-                    VStack(spacing: 6) {
-                        Text(difficulty.displayName)
-                            .font(.title2.bold())
-                            .foregroundColor(theme.primaryText)
-                        if hasActive {
-                            Text("Continue your game")
-                                .font(.caption)
-                                .foregroundColor(theme.secondaryText)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .padding(.horizontal, 20)
-                    .background(theme.cardBackground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18)
-                            .stroke(theme.accent.opacity(0.3), lineWidth: 1)
-                    )
+                    Text(difficulty.displayName)
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(textColor)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(fillColor)
+                        )
                 }
                 .buttonStyle(.plain)
-                .frame(maxWidth: 280)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: 240)
                 .accessibilityIdentifier("difficulty_\(difficulty.rawValue)")
             }
         }

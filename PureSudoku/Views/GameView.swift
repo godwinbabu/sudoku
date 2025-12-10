@@ -62,7 +62,7 @@ struct GameView: View {
                 celebrationOverlay(theme: theme)
                     .transition(.scale.combined(with: .opacity))
             }
-            if viewModel.isPaused {
+            if viewModel.isPaused && !viewModel.state.isCompleted {
                 pauseOverlay(theme: theme)
                     .transition(.opacity)
             }
