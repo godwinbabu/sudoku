@@ -79,6 +79,10 @@ struct GameView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
+                    Button("Reveal Cell") {
+                        viewModel.revealCell()
+                    }
+                    .disabled(viewModel.selectedCellID == nil || viewModel.state.isCompleted || viewModel.isPaused)
                     Button("Reveal Puzzle", role: .destructive) {
                         viewModel.pendingAction = .revealPuzzle
                     }
