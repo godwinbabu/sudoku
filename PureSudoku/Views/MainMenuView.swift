@@ -139,7 +139,7 @@ struct MainMenuView: View {
             case .light, .system:
                 return Color.black.opacity(0.92)
             case .dark, .sleep:
-                return theme.accent.opacity(0.9)
+                return theme.cardBackground.opacity(0.9)
             }
         }()
         let textColor: Color = {
@@ -147,26 +147,35 @@ struct MainMenuView: View {
             case .light, .system:
                 return .white
             case .dark, .sleep:
-                return .black
+                return theme.primaryText
             }
         }()
-        return VStack(spacing: 12) {
+        return VStack(spacing: 16) {
             ForEach(Difficulty.allCases) { difficulty in
+                let hasActive = controller.activeGames[difficulty]?.isCompleted == false
                 Button {
                     openGame(difficulty)
                 } label: {
-                    Text(difficulty.displayName)
-                        .font(.headline.weight(.semibold))
-                        .foregroundColor(textColor)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(fillColor)
-                        )
+                    ZStack(alignment: .topTrailing) {
+                        Text(difficulty.displayName)
+                            .font(.headline.weight(.semibold))
+                            .foregroundColor(textColor)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(fillColor)
+                            )
+                        if hasActive {
+                            Circle()
+                                .fill(theme.accent)
+                                .frame(width: 10, height: 10)
+                                .padding(6)
+                        }
+                    }
                 }
                 .buttonStyle(.plain)
-                .frame(maxWidth: 240)
+                .frame(maxWidth: 200)
                 .accessibilityIdentifier("difficulty_\(difficulty.rawValue)")
             }
         }

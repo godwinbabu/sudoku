@@ -7,16 +7,10 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("Theme") {
-                    if !viewModel.settings.bedtimeMode {
-                        Picker("Theme", selection: Binding(get: { viewModel.settings.theme }, set: { viewModel.setTheme($0) })) {
-                            ForEach(AppTheme.allCases) { theme in
-                                Text(theme.displayName).tag(theme)
-                            }
+                    Picker("Theme", selection: Binding(get: { viewModel.settings.theme }, set: { viewModel.setTheme($0) })) {
+                        ForEach(AppTheme.allCases.filter { $0 != .sleep }) { theme in
+                            Text(theme.displayName).tag(theme)
                         }
-                    } else {
-                        Label("Bedtime theme locked while Bedtime Mode is on.", systemImage: "moon")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
                     }
                 }
                 Section("Gameplay") {

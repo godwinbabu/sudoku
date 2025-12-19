@@ -15,9 +15,9 @@ struct NumberPadView: View {
                 let isDisabled = disabledDigits.contains(digit)
                 Button(action: { onDigit(digit) }) {
                     Text("\(digit)")
-                        .font(isCandidateMode ? .body.weight(.semibold) : .title3.bold())
+                        .font(isCandidateMode ? .subheadline.weight(.semibold) : .title3.bold())
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, isCandidateMode ? 8 : 10)
+                        .padding(.vertical, isCandidateMode ? 7 : 10)
                         .padding(.horizontal, 4)
                         .frame(minHeight: 44)
                         .foregroundColor(isDisabled ? theme.numberPadDisabledText : theme.primaryText)
