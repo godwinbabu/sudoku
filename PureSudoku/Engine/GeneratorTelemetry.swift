@@ -2,14 +2,14 @@ import Foundation
 
 struct GeneratorTelemetry: Codable, Equatable {
     private(set) var ratings: [Difficulty: [Double]] = [:]
-    private let maxSamplesPerDifficulty = 50
+    private static let maxSamplesPerDifficulty = 50
 
     mutating func record(rating: Double, for difficulty: Difficulty) {
         guard rating >= 0 else { return }
         var bucket = ratings[difficulty, default: []]
         bucket.append(rating)
-        if bucket.count > maxSamplesPerDifficulty {
-            bucket.removeFirst(bucket.count - maxSamplesPerDifficulty)
+        if bucket.count > Self.maxSamplesPerDifficulty {
+            bucket.removeFirst(bucket.count - Self.maxSamplesPerDifficulty)
         }
         ratings[difficulty] = bucket
     }

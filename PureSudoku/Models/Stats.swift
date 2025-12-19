@@ -22,11 +22,6 @@ struct Stats: Codable, Equatable {
         totalTimeSeconds += time
         puzzlesSolved[difficulty, default: 0] += 1
 
-        guard !usedReveal else {
-            // reveal-assisted completions do not affect streaks or best times
-            return
-        }
-
         if let best = bestTimes[difficulty] {
             bestTimes[difficulty] = min(best, time)
         } else {

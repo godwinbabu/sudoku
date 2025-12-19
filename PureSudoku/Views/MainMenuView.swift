@@ -37,20 +37,20 @@ struct MainMenuView: View {
                     theme.background.ignoresSafeArea()
                     VStack(spacing: 12) {
                         ScrollView(showsIndicators: false) {
-                            VStack(spacing: 16) {
-                                topSection(theme: theme)
-                                difficultyButtons(theme: theme)
-                                statsSummary(theme: theme)
-                            }
-                            .frame(maxWidth: 420)
-                            .padding(.top, 6)
-                            .padding(.horizontal, 18)
-                            .padding(.bottom, 12)
-                        }
-                        bedtimeToggle(theme: theme)
-                            .padding(.horizontal, 18)
-                            .padding(.bottom, max(proxy.safeAreaInsets.bottom + 8, 16))
+                    VStack(spacing: 24) {
+                        topSection(theme: theme)
+                        difficultyButtons(theme: theme)
+                        statsSummary(theme: theme)
                     }
+                    .frame(maxWidth: 420)
+                    .padding(.top, 24)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 48)
+                }
+                bedtimeToggle(theme: theme)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, max(proxy.safeAreaInsets.bottom + 8, 16))
+            }
                 }
             }
             .toolbar {
@@ -108,9 +108,6 @@ struct MainMenuView: View {
         let streak = viewModel.stats.streakDays
         let total = viewModel.stats.totalPuzzlesSolved
         return VStack(spacing: 20) {
-            Text("Progress")
-                .font(.headline.bold())
-                .foregroundColor(theme.secondaryText)
             HStack {
                 statColumn(title: "Day Streak", value: "\(streak)", theme: theme)
                 Divider()
@@ -137,19 +134,52 @@ struct MainMenuView: View {
     }
 
     private func difficultyButtons(theme: ThemeColors) -> some View {
-        VStack(spacing: 8) {
+        let fillColor: Color = {
+            switch theme.theme {
+            case .light, .system:
+                return Color.black.opacity(0.92)
+            case .dark, .sleep:
+                return theme.cardBackground.opacity(0.9)
+            }
+        }()
+        let textColor: Color = {
+            switch theme.theme {
+            case .light, .system:
+                return .white
+            case .dark, .sleep:
+                return theme.primaryText
+            }
+        }()
+        return VStack(spacing: 16) {
             ForEach(Difficulty.allCases) { difficulty in
                 let hasActive = controller.activeGames[difficulty]?.isCompleted == false
-                DifficultyCard(
-                    theme: theme,
-                    difficulty: difficulty,
-                    hasActive: hasActive,
-                    continueAction: { openGame(difficulty, preferNew: false) },
-                    newAction: { openGame(difficulty, preferNew: true) }
-                )
+                Button {
+                    openGame(difficulty)
+                } label: {
+                    ZStack(alignment: .topTrailing) {
+                        Text(difficulty.displayName)
+                            .font(.headline.weight(.semibold))
+                            .foregroundColor(textColor)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .fill(fillColor)
+                            )
+                        if hasActive {
+                            Circle()
+                                .fill(theme.accent)
+                                .frame(width: 10, height: 10)
+                                .padding(6)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .frame(maxWidth: 200)
                 .accessibilityIdentifier("difficulty_\(difficulty.rawValue)")
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private func bedtimeToggle(theme: ThemeColors) -> some View {
@@ -173,70 +203,11 @@ struct MainMenuView: View {
         .accessibilityIdentifier("bedtimeToggle")
     }
 
-    private func openGame(_ difficulty: Difficulty, preferNew: Bool) {
-        if preferNew || controller.activeGames[difficulty]?.isCompleted != false {
-            controller.startNewGame(for: difficulty)
-        }
-        let viewModel = controller.makeGameViewModel(for: difficulty)
+    private func openGame(_ difficulty: Difficulty) {
+        let gameViewModel = viewModel.continueOrStartGame(for: difficulty)
         let route = GameRoute(difficulty: difficulty)
-        routeViewModels[route.id] = viewModel
+        routeViewModels[route.id] = gameViewModel
         navigationPath.append(route)
-    }
-}
-
-private struct DifficultyCard: View {
-    let theme: ThemeColors
-    let difficulty: Difficulty
-    let hasActive: Bool
-    let continueAction: () -> Void
-    let newAction: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text(difficulty.displayName)
-                .font(.title2.bold())
-                .foregroundColor(theme.primaryText)
-            HStack(spacing: 14) {
-                ActionButton(
-                    title: "Continue",
-                    enabled: hasActive,
-                    theme: theme,
-                    action: continueAction
-                )
-                ActionButton(
-                    title: "New",
-                    enabled: true,
-                    theme: theme,
-                    action: newAction
-                )
-            }
-        }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity)
-        .background(theme.cardBackground, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-
-    private struct ActionButton: View {
-        let title: String
-        let enabled: Bool
-        let theme: ThemeColors
-        let action: () -> Void
-
-        var body: some View {
-            Button(action: action) {
-                Text(title)
-                    .font(.footnote.bold())
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .foregroundColor(enabled ? theme.accent : theme.numberPadDisabledText)
-                    .background(
-                        Capsule()
-                            .fill(enabled ? theme.accent.opacity(0.15) : theme.numberPadDisabledBackground)
-                    )
-            }
-            .disabled(!enabled)
-        }
     }
 }
 

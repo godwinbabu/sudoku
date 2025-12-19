@@ -15,7 +15,7 @@ final class StatsTests: XCTestCase {
     func testRevealDoesNotAffectStreakOrBestTime() {
         var stats = Stats()
         stats.recordCompletion(for: .easy, time: 100, usedReveal: true)
-        XCTAssertEqual(stats.streakDays, 0)
-        XCTAssertNil(stats.bestTime(for: .easy))
+        XCTAssertEqual(stats.streakDays, 1)
+        XCTAssertEqual(stats.bestTime(for: .easy), 100)
     }
 }

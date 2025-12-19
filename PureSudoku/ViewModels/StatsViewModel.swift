@@ -4,6 +4,7 @@ import Combine
 @MainActor
 final class StatsViewModel: ObservableObject {
     @Published private(set) var stats: Stats
+    @Published private(set) var activeGames: [Difficulty: GameState]
 
     private let controller: AppController
     private var cancellables: Set<AnyCancellable> = []
@@ -11,11 +12,19 @@ final class StatsViewModel: ObservableObject {
     init(controller: AppController) {
         self.controller = controller
         self.stats = controller.stats
+        self.activeGames = controller.activeGames
 
         controller.$stats
             .receive(on: RunLoop.main)
             .sink { [weak self] stats in
                 self?.stats = stats
+            }
+            .store(in: &cancellables)
+
+        controller.$activeGames
+            .receive(on: RunLoop.main)
+            .sink { [weak self] games in
+                self?.activeGames = games
             }
             .store(in: &cancellables)
     }
@@ -30,7 +39,8 @@ final class StatsViewModel: ObservableObject {
     }
 
     func totalTimeString() -> String {
-        Self.format(seconds: stats.totalTimeSeconds)
+        let active = activeGames.values.filter { !$0.isCompleted }.reduce(0) { $0 + $1.elapsedSeconds }
+        return Self.format(seconds: stats.totalTimeSeconds + active)
     }
 
     private static func format(seconds: Int) -> String {

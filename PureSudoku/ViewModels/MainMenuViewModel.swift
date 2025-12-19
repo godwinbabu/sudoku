@@ -34,7 +34,7 @@ final class MainMenuViewModel: ObservableObject {
     }
 
     func continueOrStartGame(for difficulty: Difficulty) -> GameViewModel {
-        if controller.activeGames[difficulty] == nil {
+        if controller.activeGames[difficulty]?.isCompleted != false {
             controller.startNewGame(for: difficulty)
         }
         return controller.makeGameViewModel(for: difficulty)
