@@ -107,7 +107,7 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertNil(solver.nextStep(SolverBoard(values: solution)))
         var broken = solution
         broken[0] = 0
-        broken[9] = solution[0] // duplicate in column 1 (cell 9 is r2c1)
+        broken[9] = solution[0] // r2c1 repeats a digit already in row 2
         XCTAssertNil(solver.nextStep(SolverBoard(values: broken)))
     }
 
@@ -164,6 +164,33 @@ final class LogicalSolverTests: XCTestCase {
         let step = SubsetDetector.locked(board([0: [1, 2], 1: [1, 2]]), size: 2).first
         XCTAssertEqual(step?.technique, .lockedPair)
         XCTAssertEqual(step?.eliminations, expected([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20], [1, 2]))
+    }
+
+    func testLockedTripleRemovesFromBoxAndLine() {
+        let step = SubsetDetector.locked(board([0: [1, 2, 3], 1: [1, 2, 3], 2: [1, 2, 3]]), size: 3).first
+        XCTAssertEqual(step?.technique, .lockedTriple)
+        XCTAssertEqual(step?.eliminations, expected([3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20], [1, 2, 3]))
+    }
+
+    func testNakedPairRemovesFromTheRestOfTheHouse() {
+        // r1c1 and r1c5 (different boxes) hold only {1, 2}.
+        let step = SubsetDetector.naked(board([0: [1, 2], 4: [1, 2]]), size: 2).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.technique, .nakedPair)
+        XCTAssertEqual(step?.eliminations, expected([1, 2, 3, 5, 6, 7, 8], [1, 2]))
+    }
+
+    func testNakedQuadRemovesFromTheRestOfTheHouse() {
+        let masks = Dictionary(uniqueKeysWithValues: [0, 2, 4, 6].map { ($0, [1, 2, 3, 4]) })
+        let step = SubsetDetector.naked(board(masks), size: 4).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.technique, .nakedQuad)
+        XCTAssertEqual(step?.eliminations, expected([1, 3, 5, 7, 8], [1, 2, 3, 4]))
+    }
+
+    func testListJoinsWithCommasAndFinalAnd() {
+        XCTAssertEqual(TechniqueStep.list([]), "")
+        XCTAssertEqual(TechniqueStep.list(["a"]), "a")
+        XCTAssertEqual(TechniqueStep.list(["a", "b"]), "a and b")
+        XCTAssertEqual(TechniqueStep.list(["a", "b", "c"]), "a, b and c")
     }
 
     func testXWingRemovesFromBothCoverColumns() {

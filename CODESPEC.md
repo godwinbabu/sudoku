@@ -954,7 +954,7 @@ Each phase ships on its own and keeps the app working.
 
 Testing requirements:
 	•	Unit tests (phase 2):
-	•	Hand-made boards for the elimination techniques: the detector returns exactly the expected eliminations (catches a detector that finds too few).
+	•	Hand-made boards for the elimination techniques (phase 2: Pointing, Claiming, Locked Pair/Triple, Naked Pair/Quad, Hidden Quad, X-Wing, Swordfish, XY-Wing): the detector returns exactly the expected eliminations (catches a detector that finds too few). Hidden Pair/Triple and Naked Triple rely on the corpus oracle.
 	•	Correctness oracle: over a seeded corpus of generated puzzles (400 in phase 2; bundled pre-graded puzzles from phase 4), every step agrees with the known solution and its pattern is re-checked against the board.
 	•	Same board, same step, every run.
 	•	A board needing two techniques in a row (e.g. pointing, then a naked pair) yields both steps in order.
