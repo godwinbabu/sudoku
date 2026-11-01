@@ -32,7 +32,7 @@ PureSudoku is a no-frills, offline iPhone Sudoku app modeled after the NYT exper
 ## Testing
 - Unit tests: `PureSudokuTests` cover engine, game state, stats, persistence, and settings.
 - UI tests: `PureSudokuUITests` cover launching, starting a game, input modes, resets, and bedtime/sleep visuals.
-- CLI: `xcodebuild -scheme PureSudoku -destination 'platform=iOS Simulator,name=iPhone 15' test`
+- CLI: `xcodebuild -project PureSudoku.xcodeproj -scheme PureSudoku -destination 'platform=iOS Simulator,name=<iPhone>' test` (pick a name from `xcrun simctl list devices available`)
 
 ## Development Notes
 - `CODESPEC.md` is the source of truth; keep behavior in sync with it.
