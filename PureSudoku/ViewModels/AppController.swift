@@ -26,7 +26,7 @@ final class AppController: ObservableObject {
     ) {
         self.persistence = persistence
         self.generatorService = generatorService
-        self.puzzleRepository = puzzleRepository ?? SudokuPuzzleRepository(generator: generatorService, validator: validator, persistence: persistence)
+        self.puzzleRepository = puzzleRepository ?? SudokuPuzzleRepository(generator: generatorService, validator: validator)
         self.validator = validator
         self.timeProvider = timeProvider
         self.imageStore = imageStore
@@ -102,11 +102,6 @@ final class AppController: ObservableObject {
             self.lastPersistenceError = error
         }
         return newState
-    }
-
-    @discardableResult
-    func startDailyGame(for difficulty: Difficulty, date: Date = Date()) -> GameState {
-        startNewGame(for: difficulty, mode: .daily(date))
     }
 
     @discardableResult
@@ -226,10 +221,6 @@ final class AppController: ObservableObject {
     private func createNewGameState(for difficulty: Difficulty, mode: GenerationMode) -> GameState {
         let puzzle = puzzleRepository.generate(for: difficulty, mode: mode).puzzle
         return GameState.newGame(for: puzzle, now: timeProvider.now())
-    }
-
-    private func fallbackPuzzle(for difficulty: Difficulty) -> SudokuPuzzle {
-        SudokuPuzzle(id: "fallback-\(difficulty.rawValue)", difficulty: difficulty, initialGrid: String(repeating: "0", count: 81), solutionGrid: String(repeating: "0", count: 81))
     }
 }
 

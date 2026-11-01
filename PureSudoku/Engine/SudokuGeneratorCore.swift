@@ -11,11 +11,6 @@ func makePuzzle(using rng: inout some RandomNumberGenerator) -> GeneratorBoard {
     return makePuzzle(from: solved, using: &rng)
 }
 
-func makePuzzle() -> GeneratorBoard {
-    var rng = SystemRandomNumberGenerator()
-    return makePuzzle(using: &rng)
-}
-
 func solvePuzzle(_ board: GeneratorBoard, using rng: inout some RandomNumberGenerator) -> GeneratorBoard? {
     solveBoard(board, using: &rng).answer
 }

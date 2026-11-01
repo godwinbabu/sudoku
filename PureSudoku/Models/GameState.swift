@@ -35,11 +35,6 @@ struct GameState: Codable, Equatable {
         return GameState(puzzle: puzzle, cells: cells, elapsedSeconds: 0, isCompleted: false, usedReveal: false, lastUpdated: now, hasContradiction: false)
     }
 
-    mutating func replace(cell updated: SudokuCell) {
-        guard let idx = cells.firstIndex(where: { $0.id == updated.id }) else { return }
-        cells[idx] = updated
-    }
-
     mutating func resetToInitial(now: Date = Date()) {
         self = GameState.newGame(for: puzzle, now: now)
     }

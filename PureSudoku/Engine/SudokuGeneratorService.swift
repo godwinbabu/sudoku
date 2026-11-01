@@ -12,15 +12,12 @@ struct RatingThresholds {
     var easyMax: Double = 20
     var mediumMax: Double = 60
     var hardMax: Double = 120
-    var veryHardMin: Double = 120
 }
 
 struct SudokuGeneratorConfiguration {
     var ratingSamples: Int = 4
     var maxAttempts: Int = 25
     var thresholds: RatingThresholds = .init()
-    /// If true, allow buckets above hard when requesting `.hard` (useful for an optional expert mode).
-    var allowVeryHard: Bool = false
 }
 
 struct GeneratedPuzzleResult {
@@ -33,7 +30,7 @@ struct GeneratedPuzzleResult {
     let seed: UInt64?
 }
 
-/// Adapter around the vendored solver/generator with deterministic seeding, difficulty bucketing, and telemetry.
+/// Adapter around the vendored solver/generator with deterministic seeding and difficulty bucketing.
 struct SudokuGeneratorService {
     private let config: SudokuGeneratorConfiguration
 
@@ -151,10 +148,7 @@ struct SudokuGeneratorService {
         switch requested {
         case .easy: return bucket == .easy
         case .medium: return bucket == .medium
-        case .hard:
-            if bucket == .hard { return true }
-            if bucket == .veryHard { return config.allowVeryHard }
-            return false
+        case .hard: return bucket == .hard
         }
     }
 
@@ -165,7 +159,7 @@ struct SudokuGeneratorService {
         case .medium:
             return config.thresholds.easyMax...config.thresholds.mediumMax
         case .hard:
-            return config.thresholds.mediumMax...max(config.thresholds.hardMax, config.thresholds.veryHardMin)
+            return config.thresholds.mediumMax...config.thresholds.hardMax
         }
     }
 

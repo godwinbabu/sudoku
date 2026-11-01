@@ -52,7 +52,6 @@
 		000000000000000000000094 /* SudokuGeneratorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008C /* SudokuGeneratorCore.swift */; };
 		000000000000000000000095 /* SudokuHintEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008D /* SudokuHintEngine.swift */; };
 		000000000000000000000096 /* SudokuGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008E /* SudokuGeneratorService.swift */; };
-		000000000000000000000097 /* GeneratorTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008F /* GeneratorTelemetry.swift */; };
 		000000000000000000000098 /* GameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A1 /* GameSource.swift */; };
 		000000000000000000000099 /* ImportedGame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A2 /* ImportedGame.swift */; };
 		00000000000000000000009A /* ImportedImageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A3 /* ImportedImageStore.swift */; };
@@ -134,7 +133,6 @@
 		00000000000000000000008C /* SudokuGeneratorCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGeneratorCore.swift; sourceTree = "<group>"; };
 		00000000000000000000008D /* SudokuHintEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuHintEngine.swift; sourceTree = "<group>"; };
 		00000000000000000000008E /* SudokuGeneratorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGeneratorService.swift; sourceTree = "<group>"; };
-		00000000000000000000008F /* GeneratorTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorTelemetry.swift; sourceTree = "<group>"; };
 		0000000000000000000000A1 /* GameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameSource.swift; sourceTree = "<group>"; };
 		0000000000000000000000A2 /* ImportedGame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedGame.swift; sourceTree = "<group>"; };
 		0000000000000000000000A3 /* ImportedImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedImageStore.swift; sourceTree = "<group>"; };
@@ -221,7 +219,6 @@
 				00000000000000000000008C /* SudokuGeneratorCore.swift */,
 				00000000000000000000008D /* SudokuHintEngine.swift */,
 				00000000000000000000008E /* SudokuGeneratorService.swift */,
-				00000000000000000000008F /* GeneratorTelemetry.swift */,
 				0000000000000000000000AB /* SudokuImageDetector.swift */,
 				00000000000000000000001A /* SudokuValidator.swift */,
 				00000000000000000000001B /* SudokuPuzzleRepository.swift */,
@@ -507,7 +504,6 @@
 				000000000000000000000094 /* SudokuGeneratorCore.swift in Sources */,
 				000000000000000000000095 /* SudokuHintEngine.swift in Sources */,
 				000000000000000000000096 /* SudokuGeneratorService.swift in Sources */,
-				000000000000000000000097 /* GeneratorTelemetry.swift in Sources */,
 				0000000000000000000000AA /* SudokuImageDetector.swift in Sources */,
 				000000000000000000000052 /* PersistenceManager.swift in Sources */,
 				00000000000000000000009A /* ImportedImageStore.swift in Sources */,
