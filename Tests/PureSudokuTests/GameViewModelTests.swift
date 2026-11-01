@@ -80,49 +80,6 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state.elapsedSeconds, 0)
     }
 
-    func testRequestHintFillsValueAndSetsMessage() {
-        var state = TestData.newGameState()
-        let solution = Array(TestData.puzzle.solutionGrid)
-        guard let targetIndex = state.cells.firstIndex(where: { !$0.given }) else { return XCTFail("Missing editable cell") }
-
-        // Fill other editable cells with correct values to create a naked/hidden single at target.
-        for idx in state.cells.indices where idx != targetIndex && !state.cells[idx].given {
-            let valueChar = solution[state.cells[idx].row * 9 + state.cells[idx].col]
-            state.cells[idx].value = Int(String(valueChar))
-        }
-
-        let viewModel = GameViewModel(state: state, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider(), hintService: SudokuGeneratorService())
-        viewModel.requestHint()
-
-        let updated = viewModel.state.cells[targetIndex]
-        XCTAssertNotNil(updated.value)
-        XCTAssertTrue(viewModel.state.usedReveal)
-        XCTAssertNotNil(viewModel.hintMessage)
-    }
-
-    func testRequestHintRespectsManualModeWhenAutoFillDisabled() {
-        var state = TestData.newGameState()
-        let solution = Array(TestData.puzzle.solutionGrid)
-        guard let targetIndex = state.cells.firstIndex(where: { !$0.given }) else { return XCTFail("Missing editable cell") }
-
-        for idx in state.cells.indices where idx != targetIndex && !state.cells[idx].given {
-            let valueChar = solution[state.cells[idx].row * 9 + state.cells[idx].col]
-            state.cells[idx].value = Int(String(valueChar))
-        }
-
-        var settings = Settings()
-        settings.autoFillHints = false
-
-        let viewModel = GameViewModel(state: state, settings: settings, validator: SudokuValidator(), timeProvider: MockTimeProvider(), hintService: SudokuGeneratorService())
-        viewModel.requestHint()
-
-        let updated = viewModel.state.cells[targetIndex]
-        XCTAssertNil(updated.value)
-        XCTAssertFalse(viewModel.state.usedReveal)
-        XCTAssertEqual(viewModel.selectedCellID, updated.id)
-        XCTAssertNotNil(viewModel.hintMessage)
-    }
-
     func testRevealPuzzleTwiceReportsCompletionOnce() async {
         let viewModel = makeViewModel()
         let completed = expectation(description: "completion reported")
@@ -266,20 +223,6 @@ final class GameViewModelTests: XCTestCase {
         viewModel.select(cell: cell)
         viewModel.setDigit(1)
         await fulfillment(of: [saved], timeout: 1)
-    }
-
-    func testHintPointsAtWrongEntryInGeneratedPuzzle() {
-        let viewModel = makeViewModel()
-        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
-        let answer = Int(String(Array(TestData.puzzle.solutionGrid)[cell.index]))!
-        let other = viewModel.state.cells.first(where: { !$0.given && $0.id != cell.id })!
-        viewModel.select(cell: cell)
-        viewModel.setDigit(answer == 9 ? 1 : answer + 1)
-        viewModel.select(cell: other)
-        viewModel.requestHint()
-        XCTAssertEqual(viewModel.selectedCellID, cell.id)
-        XCTAssertFalse(viewModel.state.usedReveal)
-        XCTAssertNotNil(viewModel.hintMessage)
     }
 
     func testImportedPuzzleAcceptsAnyValidSolution() async {

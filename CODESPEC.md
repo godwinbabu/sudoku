@@ -391,6 +391,7 @@ Until phase 3 ships, the current behavior stays: Hint finds a placement and, wit
 	•	The board never changes until the player taps Apply.
 	•	Rungs:
 	•	Rung 0 – Check (automatic, always first):
+	•	Narrowing uses the cell’s box: “Look at box 5”, then the cell.
 	•	If the board has a wrong digit, or a cell that has notes leaves out its correct digit: “There’s a mistake on the board.”
 	•	Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored, not reported.
 	•	Next narrows it: first the house (row, column or box), then the cell.
@@ -403,7 +404,8 @@ Until phase 3 ships, the current behavior stays: Hint finds a placement and, wit
 	•	Rung 4 – Result: eliminated candidates are struck through, or the placed digit appears as a ghost.
 	•	A Before / After toggle stays until the player taps Apply or Done.
 	•	If “Try it yourself first?” is on, ask once before showing this rung.
-	•	Apply makes the change as one undoable edit (Section 6.7).
+	•	Apply makes the change as one undoable edit (Section 6.7). An elimination in a cell without notes first writes that cell’s candidates as notes, then removes the digit, so the deduction is kept and the next hint moves on.
+	•	For singles (placement steps), the target cell is outlined only at rung 4: at rung 3 it would give the answer away.
 	•	Done closes the panel without changing the board.
 	•	Hint content:
 	•	The hint comes from the logical solver (Section 13.3): the simplest step available on the player’s current board.

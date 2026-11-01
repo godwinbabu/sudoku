@@ -99,12 +99,8 @@ struct SudokuGeneratorService {
     func solve(initialGrid: String) -> String? {
         guard initialGrid.count == 81 else { return nil }
         let board = Board.from(grid: initialGrid)
-        guard !hasContradiction(board), let solved = solve(board: board) else { return nil }
+        guard !Board.hasContradiction(board), let solved = solve(board: board) else { return nil }
         return stringify(board: solved, blanksAsZero: false)
-    }
-
-    func hint(for cells: [SudokuCell]) -> GeneratorHint? {
-        nextHint(for: Board.from(cells: cells))
     }
 
     // MARK: - Private helpers

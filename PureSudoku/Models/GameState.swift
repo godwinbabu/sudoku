@@ -8,6 +8,10 @@ struct GameState: Codable, Equatable {
     var usedReveal: Bool
     var lastUpdated: Date
     var hasContradiction: Bool
+    /// True once a hint's result (rung 4) was shown; the solve then skips best time (CODESPEC 6.3.1).
+    var usedHint: Bool = false
+    /// One entry per hint session (CODESPEC 2.3).
+    var hintLog: [HintLogEntry] = []
 
     init(puzzle: SudokuPuzzle, cells: [SudokuCell], elapsedSeconds: Int = 0, isCompleted: Bool = false, usedReveal: Bool = false, lastUpdated: Date = Date(), hasContradiction: Bool = false) {
         self.puzzle = puzzle
@@ -42,7 +46,7 @@ struct GameState: Codable, Equatable {
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
-        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction
+        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, usedHint, hintLog
     }
 
     init(from decoder: Decoder) throws {
@@ -54,6 +58,8 @@ struct GameState: Codable, Equatable {
         usedReveal = try container.decode(Bool.self, forKey: .usedReveal)
         lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
         hasContradiction = try container.decodeIfPresent(Bool.self, forKey: .hasContradiction) ?? false
+        usedHint = try container.decodeIfPresent(Bool.self, forKey: .usedHint) ?? false
+        hintLog = try container.decodeIfPresent([HintLogEntry].self, forKey: .hintLog) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -65,5 +71,16 @@ struct GameState: Codable, Equatable {
         try container.encode(usedReveal, forKey: .usedReveal)
         try container.encode(lastUpdated, forKey: .lastUpdated)
         try container.encode(hasContradiction, forKey: .hasContradiction)
+        try container.encode(usedHint, forKey: .usedHint)
+        try container.encode(hintLog, forKey: .hintLog)
     }
+}
+
+/// What happened in one hint session.
+struct HintLogEntry: Codable, Equatable {
+    /// `Technique.rawValue`, or "mistake" / "noStep".
+    let technique: String
+    /// Deepest rung shown (0-4).
+    let deepestRung: Int
+    let applied: Bool
 }

@@ -205,7 +205,7 @@ final class AppController: ObservableObject {
 
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
         updateStats { stats in
-            stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, source: state.puzzle.source, date: self.timeProvider.now())
+            stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, usedHint: state.usedHint, source: state.puzzle.source, date: self.timeProvider.now())
         }
         activeGames[difficulty] = state
         do {
@@ -224,7 +224,7 @@ final class AppController: ObservableObject {
 
     private func handleImportedCompletion(state: GameState, id: String) {
         updateStats { stats in
-            stats.recordCompletion(for: state.puzzle.difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, source: state.puzzle.source, date: self.timeProvider.now())
+            stats.recordCompletion(for: state.puzzle.difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, usedHint: state.usedHint, source: state.puzzle.source, date: self.timeProvider.now())
         }
         persistImported(state: state, id: id)
     }

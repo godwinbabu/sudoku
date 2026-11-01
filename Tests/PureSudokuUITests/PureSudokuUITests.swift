@@ -76,4 +76,41 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["timerToggle"].tap()
         XCTAssertTrue(element("pauseOverlay", in: app).waitForExistence(timeout: 2))
     }
+
+    /// Hint ladder end to end: name → where → why → ask → result → Apply → Undo (CODESPEC 6.3.1).
+    func testHintLadderAppliesAndUndoes() {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons["difficulty_easy"].tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        let filled = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' value '"))
+        let filledBefore = filled.count
+
+        app.buttons["action_Hint"].tap()
+        XCTAssertTrue(element("hintPanel", in: app).waitForExistence(timeout: 2))
+        snapshot(app, "1-name")
+        app.buttons["hint_next"].tap()
+        snapshot(app, "2-where")
+        app.buttons["hint_next"].tap()
+        snapshot(app, "3-why")
+        app.buttons["hint_next"].tap()
+        XCTAssertTrue(app.buttons["hint_showResult"].waitForExistence(timeout: 2))
+        app.buttons["hint_showResult"].tap()
+        XCTAssertTrue(app.buttons["hint_apply"].waitForExistence(timeout: 2))
+        snapshot(app, "4-result")
+        XCTAssertEqual(filled.count, filledBefore, "nothing changes before Apply")
+        app.buttons["hint_apply"].tap()
+
+        XCTAssertFalse(element("hintPanel", in: app).exists)
+        XCTAssertGreaterThan(filled.count, filledBefore, "Apply placed the hinted digit")
+        app.buttons["mode_undo"].tap()
+        XCTAssertEqual(filled.count, filledBefore, "one Undo reverts the hint")
+    }
+
+    private func snapshot(_ app: XCUIApplication, _ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "hint-" + name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }

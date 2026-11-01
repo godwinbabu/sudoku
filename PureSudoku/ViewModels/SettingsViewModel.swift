@@ -38,8 +38,12 @@ final class SettingsViewModel: ObservableObject {
         controller.updateSettings { $0.autoCheckMistakes = value }
     }
 
-    func setAutoFillHints(_ value: Bool) {
-        controller.updateSettings { $0.autoFillHints = value }
+    func setAskBeforeHintResult(_ value: Bool) {
+        controller.updateSettings { $0.askBeforeHintResult = value }
+    }
+
+    func setShortCellNames(_ value: Bool) {
+        controller.updateSettings { $0.cellNameStyle = value ? .short : .long }
     }
 
     func setBedtimeMode(_ value: Bool) {

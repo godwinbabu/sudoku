@@ -33,25 +33,42 @@ struct GameView: View {
                 VStack(spacing: 16) {
                     topBar(theme: theme)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme, candidateOverlay: viewModel.candidateOverlay) { cell in
+                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme, candidateOverlay: viewModel.candidateOverlay, highlight: viewModel.hintHighlight) { cell in
                         viewModel.select(cell: cell)
                     }
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
                     .padding(.vertical, 4)
                     .allowsHitTesting(!viewModel.state.isCompleted && !viewModel.isPaused)
-                    modeToggle(theme: theme)
-                        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
-                    NumberPadView(
-                        theme: theme,
-                        disabledDigits: viewModel.disabledDigits,
-                        isCandidateMode: viewModel.inputMode == .candidate,
-                        onDigit: { viewModel.setDigit($0) },
-                        onClear: { viewModel.clearSelectedCell() }
-                    )
-                    .disabled(viewModel.state.isCompleted || viewModel.isPaused)
-                    actionButtons(theme: theme)
+                    if let session = viewModel.hint {
+                        HintPanelView(
+                            session: session,
+                            names: controller.settings.cellNameStyle,
+                            theme: theme,
+                            onBack: viewModel.hintBack,
+                            onNext: viewModel.hintNext,
+                            onShowResult: viewModel.hintShowResult,
+                            onApply: viewModel.applyHint,
+                            onToggleAfter: viewModel.hintToggleAfter,
+                            onReveal: viewModel.hintRevealCell,
+                            onDone: { viewModel.endHint() }
+                        )
                         .disabled(viewModel.isPaused)
+                        .transition(.opacity)
+                    } else {
+                        modeToggle(theme: theme)
+                            .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+                        NumberPadView(
+                            theme: theme,
+                            disabledDigits: viewModel.disabledDigits,
+                            isCandidateMode: viewModel.inputMode == .candidate,
+                            onDigit: { viewModel.setDigit($0) },
+                            onClear: { viewModel.clearSelectedCell() }
+                        )
+                        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+                        actionButtons(theme: theme)
+                            .disabled(viewModel.isPaused)
+                    }
                     hintBanner(theme: theme)
                 }
                 .padding(.horizontal, 20)
@@ -275,12 +292,6 @@ struct GameView: View {
                     .font(.footnote)
                     .foregroundColor(theme.error)
                     .accessibilityIdentifier("contradictionWarning")
-            }
-            if let hint = viewModel.hintMessage {
-                Text(hint)
-                    .font(.footnote)
-                    .foregroundColor(theme.secondaryText)
-                    .accessibilityIdentifier("hintMessage")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

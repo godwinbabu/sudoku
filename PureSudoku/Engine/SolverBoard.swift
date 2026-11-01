@@ -144,8 +144,13 @@ struct SolverBoard: Equatable {
     static func column(of cell: Int) -> Int { cell % 9 }
     static func box(of cell: Int) -> Int { (cell / 27) * 3 + (cell % 9) / 3 }
 
-    /// "r3c5" (1-based).
-    static func name(of cell: Int) -> String { "r\(row(of: cell) + 1)c\(column(of: cell) + 1)" }
+    /// "r3c5", or "row 3, column 5" (1-based).
+    static func name(of cell: Int, _ style: CellNameStyle = .short) -> String {
+        switch style {
+        case .short: return "r\(row(of: cell) + 1)c\(column(of: cell) + 1)"
+        case .long: return "row \(row(of: cell) + 1), column \(column(of: cell) + 1)"
+        }
+    }
 
     static func sees(_ a: Int, _ b: Int) -> Bool { a != b && peerSets[a].contains(b) }
 
