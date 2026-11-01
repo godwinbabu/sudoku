@@ -42,6 +42,16 @@ struct SudokuPuzzle: Codable, Equatable, Identifiable {
         self.importImageID = importImageID
     }
 
+    /// Same puzzle with a different answer (used when an imported puzzle has several solutions).
+    func withSolution(_ grid: String) -> SudokuPuzzle {
+        SudokuPuzzle(
+            id: id, difficulty: difficulty, initialGrid: initialGrid, solutionGrid: grid,
+            rating: rating, generatorSeed: generatorSeed, generatorBucket: generatorBucket,
+            generationAttempts: generationAttempts, generatedAt: generatedAt,
+            source: source, importedAt: importedAt, importImageID: importImageID
+        )
+    }
+
     private enum CodingKeys: String, CodingKey {
         case id
         case difficulty

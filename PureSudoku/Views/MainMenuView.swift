@@ -6,6 +6,7 @@ struct MainMenuView: View {
     @State private var activeSheet: Sheet?
     @State private var navigationPath = NavigationPath()
     @State private var routeViewModels: [UUID: GameViewModel] = [:]
+    @State private var isOpeningGame = false
     private let taglineOptions = [
         "Simple, unobtrusive, Just Sudoku!",
         "Calm focus. Just you, the grid, and a steady mind.",
@@ -41,6 +42,7 @@ struct MainMenuView: View {
                         topSection(theme: theme)
                         difficultyButtons(theme: theme)
                         importButton(theme: theme)
+                        savedImports(theme: theme)
                         statsSummary(theme: theme)
                     }
                     .frame(maxWidth: 420)
@@ -89,8 +91,10 @@ struct MainMenuView: View {
                 switch sheet {
                 case .settings:
                     SettingsView(viewModel: SettingsViewModel(controller: controller))
+                    .sheetTheme(controller)
                 case .stats:
                     StatsView(viewModel: StatsViewModel(controller: controller))
+                    .sheetTheme(controller)
                 }
             }
         }
@@ -213,10 +217,15 @@ struct MainMenuView: View {
     }
 
     private func openGame(_ difficulty: Difficulty) {
-        let gameViewModel = viewModel.continueOrStartGame(for: difficulty)
-        let route = GameRoute(kind: .difficulty(difficulty))
-        routeViewModels[route.id] = gameViewModel
-        navigationPath.append(route)
+        guard !isOpeningGame else { return }
+        isOpeningGame = true
+        Task {
+            let gameViewModel = await viewModel.continueOrStartGame(for: difficulty)
+            let route = GameRoute(kind: .difficulty(difficulty))
+            routeViewModels[route.id] = gameViewModel
+            navigationPath.append(route)
+            isOpeningGame = false
+        }
     }
 
     private func openImportedGame(_ imported: ImportedGame) {
@@ -233,6 +242,54 @@ struct MainMenuView: View {
             return controller.makeGameViewModel(for: difficulty)
         case let .imported(id, _):
             return controller.makeImportedGameViewModel(id: id) ?? controller.makeGameViewModel(for: .easy)
+        }
+    }
+
+    /// Unfinished imported puzzles, so the player can return to them (BYOS: "return to them later").
+    @ViewBuilder
+    private func savedImports(theme: ThemeColors) -> some View {
+        let saved = controller.savedImports
+        if !saved.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Saved imports")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(theme.secondaryText)
+                ForEach(saved) { imported in
+                    Button {
+                        openImportedGame(imported)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(imported.gameState.puzzle.difficulty.displayName)
+                                    .font(.body.weight(.semibold))
+                                    .foregroundColor(theme.primaryText)
+                                Text(imported.createdAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.footnote)
+                                    .foregroundColor(theme.secondaryText)
+                            }
+                            Spacer()
+                            Text("\(imported.gameState.cells.filter { $0.value != nil }.count)/81")
+                                .font(.footnote.monospacedDigit())
+                                .foregroundColor(theme.secondaryText)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(theme.cardBackground)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
+                            controller.deleteImportedGame(id: imported.id)
+                        }
+                    }
+                    .accessibilityIdentifier("savedImport_\(imported.id)")
+                }
+            }
+            .frame(maxWidth: 320)
         }
     }
 

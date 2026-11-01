@@ -33,15 +33,11 @@ final class MainMenuViewModel: ObservableObject {
         controller.makeGameViewModel(for: difficulty)
     }
 
-    func continueOrStartGame(for difficulty: Difficulty) -> GameViewModel {
+    func continueOrStartGame(for difficulty: Difficulty) async -> GameViewModel {
         if controller.activeGames[difficulty]?.isCompleted != false {
-            controller.startNewGame(for: difficulty)
+            await controller.startNewGame(for: difficulty)
         }
         return controller.makeGameViewModel(for: difficulty)
-    }
-
-    func startNewGame(for difficulty: Difficulty) {
-        controller.startNewGame(for: difficulty)
     }
 
     func toggleBedtimeMode() {

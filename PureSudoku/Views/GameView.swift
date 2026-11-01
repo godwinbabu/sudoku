@@ -86,11 +86,15 @@ struct GameView: View {
                     Button("Reveal Puzzle", role: .destructive) {
                         viewModel.pendingAction = .revealPuzzle
                     }
+                    .disabled(viewModel.state.isCompleted)
                     Button("Reset Puzzle", role: .destructive) {
                         viewModel.pendingAction = .reset
                     }
-                    Button("New Puzzle") {
-                        viewModel.pendingAction = .newPuzzle
+                    if viewModel.state.puzzle.source != .imported {
+                        Button("New Puzzle") {
+                            viewModel.pendingAction = .newPuzzle
+                        }
+                        .disabled(viewModel.isPreparingNewPuzzle)
                     }
                 } label: {
                     Image(systemName: "line.3.horizontal")
@@ -124,7 +128,9 @@ struct GameView: View {
             viewModel.apply(settings: newSettings)
         }
         .onChange(of: scenePhase) { phase in
-            if phase != .active {
+            if phase == .active {
+                viewModel.resumeFromBackground()
+            } else {
                 viewModel.pauseForBackground()
             }
         }
@@ -165,8 +171,10 @@ struct GameView: View {
             switch sheet {
             case .settings:
                 SettingsView(viewModel: SettingsViewModel(controller: controller))
+                    .sheetTheme(controller)
             case .stats:
                 StatsView(viewModel: StatsViewModel(controller: controller))
+                    .sheetTheme(controller)
             }
         }
         .accessibilityElement(children: .contain)

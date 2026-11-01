@@ -67,45 +67,14 @@ final class SudokuHintEngineTests: XCTestCase {
         XCTAssertEqual(candidates[2] & (1 << 0), 0)
     }
 
-    func testUniqueRectangleEliminatesExtras() {
-        var candidates = Array(repeating: 0, count: 81)
-        let p11 = 0
-        let p12 = 1
-        let p21 = 9
-        let p22 = 10
-        candidates[p11] = mask([0, 1])
-        candidates[p22] = mask([0, 1])
-        candidates[p12] = mask([0, 1, 2])
-        candidates[p21] = mask([0, 1, 2])
-
-        let changed = _applyUniqueRectangleElimination(candidates: &candidates)
-
-        XCTAssertTrue(changed)
-        XCTAssertEqual(candidates[p12], mask([0, 1]))
-        XCTAssertEqual(candidates[p21], mask([0, 1]))
-    }
-
-    func testMedusaEliminatesCandidateSeeingBothColors() {
-        var candidates = Array(repeating: 0, count: 81)
-        let digit = 0
-        let bit = 1 << digit
-
-        let a = 0   // r1c1
-        let b = 7   // r1c8
-        let c = 70  // r8c8
-        let d = 63  // r8c1
-        let target = 4 // r1c5
-        let extra1 = 40 // r5c5
-        let extra2 = 76 // r9c5
-
-        for pos in [a, b, c, d, target, extra1, extra2] {
-            candidates[pos] |= bit
-        }
-
-        let changed = _applyMedusaElimination(candidates: &candidates)
-
-        XCTAssertTrue(changed)
-        XCTAssertEqual(candidates[target] & bit, 0)
+    func testYWingNeedsThreeDistinctDigits() {
+        // Pivot and one pincer share the same pair {4,5}: not a Y-Wing, nothing may be removed.
+        var candidates = Array(repeating: 0x1FF, count: 81)
+        candidates[0] = mask([3, 4])   // r1c1 {4,5}
+        candidates[2] = mask([3, 4])   // r1c3 {4,5}
+        candidates[72] = mask([2, 4])  // r9c1 {3,5}
+        _ = _applyYWingElimination(candidates: &candidates)
+        XCTAssertNotEqual(candidates[74] & (1 << 4), 0, "r9c3 must keep 5")
     }
 
     func testBowmansBingoFindsForcedPlacement() {

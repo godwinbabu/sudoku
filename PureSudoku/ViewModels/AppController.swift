@@ -15,6 +15,11 @@ final class AppController: ObservableObject {
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
     private let imageStore: ImportedImageStore
+    /// Images saved for an import screen that has not created its game yet; never treated as orphans.
+    private var pendingImageIDs: Set<String> = []
+    /// True when imported_games.json could not be loaded. Its photos may still belong to the backup
+    /// copy, so orphan cleanup is skipped for this session.
+    private var importedGamesLoadFailed = false
 
     init(
         persistence: PersistenceManager = PersistenceManager(),
@@ -26,7 +31,7 @@ final class AppController: ObservableObject {
     ) {
         self.persistence = persistence
         self.generatorService = generatorService
-        self.puzzleRepository = puzzleRepository ?? SudokuPuzzleRepository(generator: generatorService, validator: validator, persistence: persistence)
+        self.puzzleRepository = puzzleRepository ?? SudokuPuzzleRepository(generator: generatorService, validator: validator)
         self.validator = validator
         self.timeProvider = timeProvider
         self.imageStore = imageStore
@@ -60,6 +65,7 @@ final class AppController: ObservableObject {
             self.importedGames = try persistence.load([ImportedGame].self, from: File.importedGames.rawValue) ?? []
         } catch {
             self.importedGames = []
+            self.importedGamesLoadFailed = true
             self.lastPersistenceError = error
         }
     }
@@ -71,7 +77,7 @@ final class AppController: ObservableObject {
             self?.handleCompletion(state: completedState, difficulty: difficulty)
         }
         viewModel.onNewGame = { [weak self] in
-            self?.startNewGame(for: difficulty)
+            await self?.startNewGame(for: difficulty)
         }
         viewModel.onSave = { [weak self] updatedState in
             self?.persist(state: updatedState, for: difficulty)
@@ -92,9 +98,14 @@ final class AppController: ObservableObject {
         return viewModel
     }
 
+    /// Generates off the main thread (it can take a few hundred ms on older phones), then stores it.
     @discardableResult
-    func startNewGame(for difficulty: Difficulty, mode: GenerationMode = .random) -> GameState {
-        let newState = createNewGameState(for: difficulty, mode: mode)
+    func startNewGame(for difficulty: Difficulty, mode: GenerationMode = .random) async -> GameState {
+        let repository = puzzleRepository
+        let puzzle = await Task.detached(priority: .userInitiated) {
+            repository.generate(for: difficulty, mode: mode).puzzle
+        }.value
+        let newState = GameState.newGame(for: puzzle, now: timeProvider.now())
         activeGames[difficulty] = newState
         do {
             try persistence.save(newState, to: File.game(difficulty).rawValue)
@@ -105,19 +116,10 @@ final class AppController: ObservableObject {
     }
 
     @discardableResult
-    func startDailyGame(for difficulty: Difficulty, date: Date = Date()) -> GameState {
-        startNewGame(for: difficulty, mode: .daily(date))
-    }
-
-    @discardableResult
     func createImportedGame(initialGrid: String, imageID: String? = nil, date: Date = Date()) -> ImportedGame? {
         guard initialGrid.count == 81 else { return nil }
         guard let solution = generatorService.solve(initialGrid: initialGrid) else { return nil }
-        let board = GeneratorBoard(initialGrid.map { char -> Int? in
-            guard let intVal = Int(String(char)), intVal > 0 else { return nil }
-            return intVal - 1
-        })
-        let rating = ratePuzzle(board, samples: 2)
+        let rating = ratePuzzle(Board.from(grid: initialGrid), samples: 2)
         let difficulty = generatorService.difficulty(for: rating)
         let puzzle = SudokuPuzzle(
             id: UUID().uuidString,
@@ -136,31 +138,41 @@ final class AppController: ObservableObject {
         let gameState = GameState.newGame(for: puzzle, now: timeProvider.now())
         let imported = ImportedGame(gameState: gameState, createdAt: date, lastOpened: date)
         importedGames.append(imported)
+        if let imageID { pendingImageIDs.remove(imageID) }
         persistImportedGames()
         return imported
     }
 
-    func updateSettings(_ block: @escaping (inout Settings) -> Void) {
-        DispatchQueue.main.async {
-            block(&self.settings)
-            self.settings.enforceBedtimeRulesIfNeeded()
-            do {
-                try self.persistence.save(self.settings, to: File.settings.rawValue)
-            } catch {
-                self.lastPersistenceError = error
-            }
+    func updateSettings(_ block: (inout Settings) -> Void) {
+        block(&settings)
+        settings.enforceBedtimeRulesIfNeeded()
+        do {
+            try persistence.save(settings, to: File.settings.rawValue)
+        } catch {
+            lastPersistenceError = error
         }
     }
 
     func saveImportedImage(_ image: UIImage) -> String? {
-        guard settings.keepImportImages else { return nil }
-        let id = imageStore.save(image: image)
-        cleanupImportImages()
+        guard settings.keepImportImages, let id = imageStore.save(image: image) else { return nil }
+        pendingImageIDs.insert(id)
         return id
     }
 
     func removeImportedImage(id: String) {
+        pendingImageIDs.remove(id)
         imageStore.delete(id: id)
+    }
+
+    func deleteImportedGame(id: String) {
+        guard let index = importedGames.firstIndex(where: { $0.id == id }) else { return }
+        importedGames.remove(at: index)
+        persistImportedGames()
+    }
+
+    /// Unfinished imported games, most recently played first.
+    var savedImports: [ImportedGame] {
+        importedGames.filter { !$0.gameState.isCompleted }.sorted { $0.lastOpened > $1.lastOpened }
     }
 
     func clearImportedImages() {
@@ -168,18 +180,17 @@ final class AppController: ObservableObject {
     }
 
     private func cleanupImportImages() {
+        guard !importedGamesLoadFailed else { return }
         let ids = Set(importedGames.compactMap { $0.gameState.puzzle.importImageID })
-        imageStore.cleanup(keeping: ids)
+        imageStore.removeOrphans(keeping: ids.union(pendingImageIDs))
     }
 
-    func updateStats(_ block: @escaping (inout Stats) -> Void) {
-        DispatchQueue.main.async {
-            block(&self.stats)
-            do {
-                try self.persistence.save(self.stats, to: File.stats.rawValue)
-            } catch {
-                self.lastPersistenceError = error
-            }
+    func updateStats(_ block: (inout Stats) -> Void) {
+        block(&stats)
+        do {
+            try persistence.save(stats, to: File.stats.rawValue)
+        } catch {
+            lastPersistenceError = error
         }
     }
 
@@ -218,22 +229,15 @@ final class AppController: ObservableObject {
         persistImported(state: state, id: id)
     }
 
+    /// Saves the imported list, then removes images no game uses (only after a successful save).
     private func persistImportedGames() {
         do {
             try persistence.save(importedGames, to: File.importedGames.rawValue)
         } catch {
             self.lastPersistenceError = error
+            return
         }
         cleanupImportImages()
-    }
-
-    private func createNewGameState(for difficulty: Difficulty, mode: GenerationMode) -> GameState {
-        let puzzle = puzzleRepository.generate(for: difficulty, mode: mode).puzzle
-        return GameState.newGame(for: puzzle, now: timeProvider.now())
-    }
-
-    private func fallbackPuzzle(for difficulty: Difficulty) -> SudokuPuzzle {
-        SudokuPuzzle(id: "fallback-\(difficulty.rawValue)", difficulty: difficulty, initialGrid: String(repeating: "0", count: 81), solutionGrid: String(repeating: "0", count: 81))
     }
 }
 

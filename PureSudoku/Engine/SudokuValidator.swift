@@ -47,9 +47,10 @@ struct SudokuValidator {
     }
 
     func isSolved(cells: [SudokuCell], solution: String) -> Bool {
-        guard cells.count == 81 else { return false }
+        guard cells.count == 81, solution.count == 81 else { return false }
+        let answer = solution.map { Int(String($0)) }
         for cell in cells where !cell.given {
-            guard let value = cell.value, isCorrect(value: value, row: cell.row, col: cell.col, solution: solution) else {
+            guard let value = cell.value, answer[cell.row * 9 + cell.col] == value else {
                 return false
             }
         }
@@ -96,24 +97,5 @@ struct SudokuValidator {
             }
         }
         return conflicts
-    }
-
-    func removeCandidates(_ digit: Int, relatedTo cell: SudokuCell, from cells: [SudokuCell]) -> [SudokuCell] {
-        var newCells = cells
-        for idx in newCells.indices {
-            guard newCells[idx].id != cell.id else { continue }
-            if newCells[idx].row == cell.row || newCells[idx].col == cell.col || (newCells[idx].row / 3 == cell.row / 3 && newCells[idx].col / 3 == cell.col / 3) {
-                newCells[idx].candidates.remove(digit)
-            }
-        }
-        return newCells
-    }
-
-    func hasContradiction(in cells: [SudokuCell]) -> Bool {
-        let board: GeneratorBoard = cells.map { cell in
-            guard let value = cell.value, value > 0 else { return nil }
-            return value - 1
-        }
-        return PureSudoku.hasContradiction(board)
     }
 }

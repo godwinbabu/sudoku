@@ -13,12 +13,14 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .sleepRowBackground()
                 Section("Gameplay") {
                     Toggle("Show timer", isOn: Binding(get: { viewModel.settings.showTimer }, set: { viewModel.setShowTimer($0) }))
                     Toggle("Auto remove candidates", isOn: Binding(get: { viewModel.settings.autoRemoveCandidates }, set: { viewModel.setAutoRemoveCandidates($0) }))
                     Toggle("Auto-check mistakes", isOn: Binding(get: { viewModel.settings.autoCheckMistakes }, set: { viewModel.setAutoCheckMistakes($0) }))
                     Toggle("Auto-fill hints", isOn: Binding(get: { viewModel.settings.autoFillHints }, set: { viewModel.setAutoFillHints($0) }))
                 }
+                .sleepRowBackground()
                 Section("Bedtime") {
                     Toggle("Bedtime Mode", isOn: Binding(get: { viewModel.settings.bedtimeMode }, set: { viewModel.setBedtimeMode($0) }))
                     Picker("Bedtime brightness", selection: Binding(get: { viewModel.settings.sleepBrightness }, set: { viewModel.setSleepBrightness($0) })) {
@@ -31,12 +33,14 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
+                .sleepRowBackground()
                 Section("Imports") {
                     Toggle("Keep import images", isOn: Binding(get: { viewModel.settings.keepImportImages }, set: { viewModel.setKeepImportImages($0) }))
                     Button("Clear imported images", role: .destructive) {
                         viewModel.clearImportedImages()
                     }
                 }
+                .sleepRowBackground()
             }
             .navigationTitle("Settings")
         }

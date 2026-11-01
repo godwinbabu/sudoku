@@ -11,7 +11,8 @@ struct SudokuImageDetector {
     }
 
     func detectGrid(from image: UIImage) async throws -> [Int?] {
-        guard let cgImage = image.cgImage else {
+        // Camera photos are stored sideways with a rotation flag that `cgImage` ignores.
+        guard let cgImage = Self.upright(image).cgImage else {
             throw DetectionError.invalidImage
         }
 
@@ -19,6 +20,16 @@ struct SudokuImageDetector {
         let warped = try warpGrid(from: cgImage, observation: gridObservation)
         let cellImages = splitIntoCells(image: warped)
         return try await recognizeDigits(in: cellImages)
+    }
+
+    /// Redraws the image so its pixels are upright (orientation `.up`, mirroring applied).
+    static func upright(_ image: UIImage) -> UIImage {
+        guard image.imageOrientation != .up else { return image }
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = image.scale
+        return UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: image.size))
+        }
     }
 
     private func detectGridObservation(in cgImage: CGImage) async throws -> VNRectangleObservation {

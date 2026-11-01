@@ -3,7 +3,11 @@ import Foundation
 final class PersistenceManager {
     enum PersistenceError: Error {
         case failedToResolveDirectory
+        case fileProtected(String)
     }
+
+    /// Files that failed to read this session; saving over them is refused.
+    private var protectedFiles: Set<String> = []
 
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
@@ -39,16 +43,47 @@ final class PersistenceManager {
     }
 
     func save<T: Codable>(_ value: T, to fileName: String) throws {
+        guard !protectedFiles.contains(fileName) else { throw PersistenceError.fileProtected(fileName) }
         let data = try encoder.encode(value)
         let url = try baseURL().appendingPathComponent(fileName)
         try data.write(to: url, options: .atomic)
     }
 
+    /// Loads a file. A file that cannot be read is protected from being overwritten this session.
+    /// A file that reads but cannot be decoded is moved aside as `name.corrupt-<time>.json`, so the
+    /// app can start fresh without destroying the old data.
     func load<T: Codable>(_ type: T.Type, from fileName: String) throws -> T? {
         let url = try baseURL().appendingPathComponent(fileName)
         guard fileManager.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url)
-        return try decoder.decode(type, from: data)
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            protectedFiles.insert(fileName)
+            throw error
+        }
+        do {
+            return try decoder.decode(type, from: data)
+        } catch {
+            quarantine(url, fileName: fileName)
+            throw error
+        }
+    }
+
+    private func quarantine(_ url: URL, fileName: String) {
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let base = url.deletingPathExtension().lastPathComponent
+        var backup = url.deletingLastPathComponent().appendingPathComponent("\(base).corrupt-\(stamp).json")
+        var suffix = 1
+        while fileManager.fileExists(atPath: backup.path) {
+            backup = url.deletingLastPathComponent().appendingPathComponent("\(base).corrupt-\(stamp)-\(suffix).json")
+            suffix += 1
+        }
+        do {
+            try fileManager.moveItem(at: url, to: backup)
+        } catch {
+            protectedFiles.insert(fileName)
+        }
     }
 
     func delete(_ fileName: String) {
