@@ -175,13 +175,20 @@ final class HintLadderTests: XCTestCase {
     }
 
     func testShowAfterHidesEliminatedDigitsEvenInCellsWithNotes() throws {
-        let state = try XCTUnwrap(Self.stateNeedingAnElimination())
+        var state = try XCTUnwrap(Self.stateNeedingAnElimination())
+        // Every empty cell carries the player's own notes (the full candidate list).
+        let board = SolverBoard(cells: state.cells)
+        for index in state.cells.indices where state.cells[index].value == nil {
+            state.cells[index].candidates = Set(SolverBoard.digits(in: board.candidates[state.cells[index].index]))
+        }
         let viewModel = makeViewModel(state: state, askFirst: false)
         for _ in 0..<120 {
             viewModel.requestHint()
             guard let step = viewModel.hint?.step else { return XCTFail("solver stopped before an elimination") }
             for _ in 0..<3 { viewModel.hintNext() }
             guard let elimination = step.eliminations.first, step.placements.isEmpty else { viewModel.applyHint(); continue }
+            let notes = viewModel.state.cells.first { $0.index == elimination.cell }!.candidates
+            XCTAssertTrue(notes.contains(elimination.digit), "the eliminated cell has player notes")
             XCTAssertEqual(viewModel.hintHighlight.struckDigits[elimination.cell]?.contains(elimination.digit), true)
             viewModel.hintToggleAfter()
             XCTAssertEqual(viewModel.hintHighlight.hiddenDigits[elimination.cell]?.contains(elimination.digit), true)
@@ -207,6 +214,7 @@ final class HintLadderTests: XCTestCase {
         viewModel.toggleMode()
         viewModel.setDigit(other)
         viewModel.requestHint()
+        XCTAssertNotNil(viewModel.hint)
         if case .mistake = viewModel.hint?.content { XCTFail("a note that fits another solution is not a mistake") }
     }
 

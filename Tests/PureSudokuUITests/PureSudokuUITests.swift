@@ -107,6 +107,31 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertEqual(filled.count, filledBefore, "one Undo reverts the hint")
     }
 
+    /// A digit that repeats in the row is always wrong; the hint must report it and offer Undo.
+    func testMistakePanelOffersUndo() {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons["difficulty_easy"].tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        let cell = firstEmptyCell(in: app)
+        let row = cell.identifier.split(separator: "_")[1]
+        let rowValue = (0..<9).lazy.compactMap { col -> String? in
+            let label = app.buttons["cell_\(row)_\(col)"].label
+            guard let range = label.range(of: " value ") else { return nil }
+            return String(label[range.upperBound...])
+        }.first
+        guard let digit = rowValue else { return XCTFail("row has no filled cell") }
+        cell.tap()
+        app.buttons["number_\(digit)"].tap()
+        XCTAssertTrue(waitForLabel(of: cell, endingWith: "value \(digit)", in: app))
+
+        app.buttons["action_Hint"].tap()
+        XCTAssertTrue(app.buttons["hint_undo"].waitForExistence(timeout: 2))
+        app.buttons["hint_undo"].tap()
+        XCTAssertFalse(element("hintPanel", in: app).exists)
+        XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
+    }
+
     private func snapshot(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "hint-" + name
