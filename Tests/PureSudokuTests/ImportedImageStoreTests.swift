@@ -80,3 +80,20 @@ final class ImportImageLifecycleTests: XCTestCase {
         XCTAssertEqual(viewModel.gridValues[0], 5)
     }
 }
+
+final class ImageOrientationTests: XCTestCase {
+    func testSidewaysPhotoIsRedrawnUpright() throws {
+        // A 40x20 bitmap flagged "rotate right", like an iPhone portrait photo.
+        let raw = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 20)).image { context in
+            UIColor.red.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 40, height: 20))
+        }
+        let sideways = UIImage(cgImage: try XCTUnwrap(raw.cgImage), scale: raw.scale, orientation: .right)
+        XCTAssertEqual(sideways.size, CGSize(width: 20, height: 40))
+
+        let upright = SudokuImageDetector.upright(sideways)
+        let cg = try XCTUnwrap(upright.cgImage)
+        XCTAssertEqual(upright.imageOrientation, .up)
+        XCTAssertLessThan(cg.width, cg.height, "pixels must now be portrait")
+    }
+}
