@@ -127,7 +127,9 @@ struct GameView: View {
             viewModel.apply(settings: newSettings)
         }
         .onChange(of: scenePhase) { phase in
-            if phase != .active {
+            if phase == .active {
+                viewModel.resumeFromBackground()
+            } else {
                 viewModel.pauseForBackground()
             }
         }

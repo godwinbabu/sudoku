@@ -67,6 +67,16 @@ final class SudokuHintEngineTests: XCTestCase {
         XCTAssertEqual(candidates[2] & (1 << 0), 0)
     }
 
+    func testYWingNeedsThreeDistinctDigits() {
+        // Pivot and one pincer share the same pair {4,5}: not a Y-Wing, nothing may be removed.
+        var candidates = Array(repeating: 0x1FF, count: 81)
+        candidates[0] = mask([3, 4])   // r1c1 {4,5}
+        candidates[2] = mask([3, 4])   // r1c3 {4,5}
+        candidates[72] = mask([2, 4])  // r9c1 {3,5}
+        _ = _applyYWingElimination(candidates: &candidates)
+        XCTAssertNotEqual(candidates[74] & (1 << 4), 0, "r9c3 must keep 5")
+    }
+
     func testBowmansBingoFindsForcedPlacement() {
         let solution = TestData.puzzle.solutionGrid
         var chars = Array(solution)

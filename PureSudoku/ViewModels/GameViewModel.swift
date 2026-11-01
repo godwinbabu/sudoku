@@ -55,6 +55,11 @@ final class GameViewModel: ObservableObject {
     private var timer: Timer?
     private var lastTickDate: Date?
     private var isManuallyPaused = false
+    private var isBackgroundPaused = false
+    private var saveTask: Task<Void, Never>?
+    /// Delay before an edit is saved (CODESPEC 8: autosave every few seconds, debounced).
+    var autosaveDelayNanoseconds: UInt64 = 2_000_000_000
+    private let autosaveIntervalSeconds = 10
     private var settings: Settings
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
@@ -132,14 +137,26 @@ final class GameViewModel: ObservableObject {
         startTimerIfNeeded()
     }
 
+    /// Pauses quietly when the app leaves the foreground. Unlike a manual pause, no overlay is shown
+    /// and the timer resumes on its own when the app is active again (CODESPEC 4, 12).
     func pauseForBackground() {
-        guard !state.isCompleted else { return }
-        guard !isPaused else { return }
-        pauseTimer()
+        guard !state.isCompleted, !isPaused, !isBackgroundPaused else { return }
+        isBackgroundPaused = true
+        let elapsed = calculateAndStopTimer()
+        var newState = self.state
+        newState.elapsedSeconds += elapsed
+        self.state = newState
+        saveNow()
+    }
+
+    func resumeFromBackground() {
+        guard isBackgroundPaused else { return }
+        isBackgroundPaused = false
+        startTimerIfNeeded()
     }
 
     private func startTimerIfNeeded() {
-        guard !state.isCompleted, timer == nil, !isManuallyPaused else { return }
+        guard !state.isCompleted, timer == nil, !isManuallyPaused, !isBackgroundPaused else { return }
         lastTickDate = timeProvider.now()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { await self?.tick() }
@@ -195,6 +212,7 @@ final class GameViewModel: ObservableObject {
         
         updateAutoCheckHighlights()
         refreshCandidateOverlayIfNeeded()
+        scheduleSave()
     }
 
     func setDigit(_ digit: Int) {
@@ -218,6 +236,7 @@ final class GameViewModel: ObservableObject {
             checkIfSolved()
             updateCanUndo()
             refreshCandidateOverlayIfNeeded()
+            scheduleSave()
         case .candidate:
             if newState.cells[index].candidates.contains(digit) {
                 newState.cells[index].candidates.remove(digit)
@@ -229,6 +248,7 @@ final class GameViewModel: ObservableObject {
             updateAutoCheckHighlights()
             updateCanUndo()
             refreshCandidateOverlayIfNeeded()
+            scheduleSave()
         }
     }
 
@@ -242,13 +262,13 @@ final class GameViewModel: ObservableObject {
         guard !state.cells[index].given, let value = state.cells[index].value else { return }
 
         var newState = self.state
-        // Toggle off if already highlighted
-        if newState.cells[index].isError || newState.cells[index].isVerifiedCorrect {
-            newState.cells[index].isError = false
+        // Toggle off a green "correct" mark. A wrong value is never un-flagged by Check (CODESPEC 6.1).
+        if newState.cells[index].isVerifiedCorrect {
             newState.cells[index].isVerifiedCorrect = false
             self.state = newState
             return
         }
+        alignImportedSolution(&newState)
 
         let cell = newState.cells[index]
         if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: newState.puzzle.solutionGrid) {
@@ -264,16 +284,15 @@ final class GameViewModel: ObservableObject {
 
     func checkPuzzle() {
         var newState = self.state
-        // If any non-given cell is currently highlighted from a previous check, toggle (clear) all highlights
-        let hasAnyHighlight = newState.cells.contains { !$0.given && ($0.isError || $0.isVerifiedCorrect) }
-        if hasAnyHighlight {
-            for idx in newState.cells.indices where !newState.cells[idx].given {
-                newState.cells[idx].isError = false
+        // Toggle off green "correct" marks from a previous check. Wrong values stay flagged (CODESPEC 6.2).
+        if newState.cells.contains(where: { $0.isVerifiedCorrect }) {
+            for idx in newState.cells.indices {
                 newState.cells[idx].isVerifiedCorrect = false
             }
             self.state = newState
             return
         }
+        alignImportedSolution(&newState)
 
         // Otherwise, perform check across all non-given cells with values
         for idx in newState.cells.indices {
@@ -292,6 +311,21 @@ final class GameViewModel: ObservableObject {
     }
 
     func requestHint() {
+        var aligned = state
+        let entriesFit = alignImportedSolution(&aligned)
+        state = aligned
+        if state.puzzle.source == .imported {
+            guard entriesFit else {
+                hintMessage = "Some of your entries don't fit together. Try undoing recent moves."
+                return
+            }
+        } else if let wrong = state.cells.first(where: { cell in
+            !cell.given && cell.value != nil && !validator.isCorrect(value: cell.value!, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid)
+        }) {
+            selectedCellID = wrong.id
+            hintMessage = "r\(wrong.row + 1)c\(wrong.col + 1) is not right. Fix it first."
+            return
+        }
         let hint = hintService.hint(for: state.cells)
         hintMessage = hint?.message
 
@@ -321,6 +355,7 @@ final class GameViewModel: ObservableObject {
         recordUndoPoint()
 
         var newState = self.state
+        alignImportedSolution(&newState)
         if let value = validator.solutionValue(row: newState.cells[index].row, col: newState.cells[index].col, solution: newState.puzzle.solutionGrid) {
             newState.cells[index].value = value
             newState.cells[index].isRevealed = true
@@ -335,6 +370,7 @@ final class GameViewModel: ObservableObject {
             checkIfSolved()
             updateCanUndo()
             refreshCandidateOverlayIfNeeded()
+            scheduleSave()
         }
     }
 
@@ -342,6 +378,7 @@ final class GameViewModel: ObservableObject {
         guard !state.isCompleted else { return }
         recordUndoPoint()
         var newState = self.state
+        alignImportedSolution(&newState)
         for idx in newState.cells.indices {
             if let value = validator.solutionValue(row: newState.cells[idx].row, col: newState.cells[idx].col, solution: newState.puzzle.solutionGrid) {
                 newState.cells[idx].value = value
@@ -363,13 +400,11 @@ final class GameViewModel: ObservableObject {
         updateCanUndo()
         candidateOverlay = [:]
         showAllCandidates = false
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            self.onCompletion?(self.state)
-        }
+        reportCompletion(newState)
     }
 
     func resetPuzzle() {
+        _ = calculateAndStopTimer()
         var newState = self.state
         newState.resetToInitial(now: timeProvider.now())
         newState.elapsedSeconds = 0
@@ -392,6 +427,8 @@ final class GameViewModel: ObservableObject {
         updateCanUndo()
         candidateOverlay = [:]
         showAllCandidates = false
+        startTimerIfNeeded()
+        saveNow()
     }
 
     var disabledDigits: Set<Int> {
@@ -425,15 +462,15 @@ final class GameViewModel: ObservableObject {
         undoStack.removeAll()
         isTimerRunning = false
         isManuallyPaused = false
+        isBackgroundPaused = false
         isPaused = false
         updateCanUndo()
         updateAutoCheckHighlights()
         candidateOverlay = [:]
         showAllCandidates = false
         
-        if finalState.isCompleted {
-            timer?.invalidate()
-            timer = nil
+        if !finalState.isCompleted {
+            startTimerIfNeeded()
         }
     }
 
@@ -469,6 +506,7 @@ final class GameViewModel: ObservableObject {
         updateAutoCheckHighlights()
         updateCanUndo()
         refreshCandidateOverlayIfNeeded()
+        scheduleSave()
     }
 
     // MARK: - Undo tracking
@@ -513,8 +551,9 @@ final class GameViewModel: ObservableObject {
 
     private func checkIfSolved() {
         guard state.cells.allSatisfy({ $0.value != nil || $0.given }) else { return }
-        if validator.isSolved(cells: state.cells, solution: state.puzzle.solutionGrid) {
         var newState = self.state
+        alignImportedSolution(&newState)
+        if validator.isSolved(cells: newState.cells, solution: newState.puzzle.solutionGrid) {
         newState.isCompleted = true
         let elapsed = calculateAndStopTimer()
         newState.elapsedSeconds += elapsed
@@ -526,11 +565,50 @@ final class GameViewModel: ObservableObject {
         updateCanUndo()
         candidateOverlay = [:]
         showAllCandidates = false
+        reportCompletion(newState)
+    }
+    }
+
+    /// Reports the finished state captured at completion time, so a later reset cannot change it.
+    private func reportCompletion(_ completed: GameState) {
+        saveTask?.cancel()
         Task { @MainActor [weak self] in
-            guard let self else { return }
-            self.onCompletion?(self.state)
+            self?.onCompletion?(completed)
         }
     }
+
+    /// Imported puzzles may have several solutions (BYOS.md). If the player's entries differ from the
+    /// stored answer but still lead to a solution, adopt that solution. Returns false if they cannot.
+    @discardableResult
+    private func alignImportedSolution(_ state: inout GameState) -> Bool {
+        guard state.puzzle.source == .imported else { return true }
+        let answer = Array(state.puzzle.solutionGrid)
+        let differs = state.cells.contains { cell in
+            guard let value = cell.value, !cell.given else { return false }
+            return answer.count == 81 && Int(String(answer[cell.row * 9 + cell.col])) != value
+        }
+        guard differs else { return true }
+        let grid = state.cells.map { String($0.value ?? 0) }.joined()
+        guard let solution = hintService.solve(initialGrid: grid) else { return false }
+        state.puzzle = state.puzzle.withSolution(solution)
+        return true
+    }
+
+    // MARK: - Autosave
+
+    private func scheduleSave() {
+        saveTask?.cancel()
+        let delay = autosaveDelayNanoseconds
+        saveTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: delay)
+            guard !Task.isCancelled else { return }
+            self?.saveNow()
+        }
+    }
+
+    private func saveNow() {
+        saveTask?.cancel()
+        onSave?(state)
     }
 
     private func updateContradictionFlag(on state: inout GameState) {
@@ -560,6 +638,9 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         
         lastTickDate = now
+        if newState.elapsedSeconds % autosaveIntervalSeconds == 0 {
+            onSave?(state)
+        }
     }
 
     private func refreshCandidateOverlayIfNeeded() {

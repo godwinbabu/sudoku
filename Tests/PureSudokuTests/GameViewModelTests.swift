@@ -125,13 +125,128 @@ final class GameViewModelTests: XCTestCase {
 
     func testRevealPuzzleTwiceReportsCompletionOnce() async {
         let viewModel = makeViewModel()
-        var completions = 0
-        viewModel.onCompletion = { _ in completions += 1 }
+        let completed = expectation(description: "completion reported")
+        completed.assertForOverFulfill = true
+        viewModel.onCompletion = { state in
+            XCTAssertTrue(state.isCompleted)
+            completed.fulfill()
+        }
         viewModel.revealPuzzle()
         viewModel.revealPuzzle()
-        await Task.yield()
-        await Task.yield()
-        XCTAssertEqual(completions, 1)
+        await fulfillment(of: [completed], timeout: 1)
+        let extra = expectation(description: "no second completion")
+        extra.isInverted = true
+        viewModel.onCompletion = { _ in extra.fulfill() }
+        await fulfillment(of: [extra], timeout: 0.3)
+    }
+
+    func testCompletionReportsStateCapturedAtCompletion() async {
+        let viewModel = makeViewModel()
+        let completed = expectation(description: "completion reported")
+        viewModel.onCompletion = { state in
+            XCTAssertTrue(state.isCompleted)
+            XCTAssertTrue(state.usedReveal)
+            completed.fulfill()
+        }
+        viewModel.revealPuzzle()
+        viewModel.resetPuzzle()
+        await fulfillment(of: [completed], timeout: 1)
+    }
+
+    func testCheckCellNeverClearsAWrongValue() {
+        var settings = Settings()
+        settings.autoCheckMistakes = false
+        let viewModel = makeViewModel(settings: settings)
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+        let answer = Int(String(Array(TestData.puzzle.solutionGrid)[cell.index]))!
+        viewModel.select(cell: cell)
+        viewModel.setDigit(answer == 9 ? 1 : answer + 1)
+        viewModel.checkCell()
+        XCTAssertTrue(viewModel.state.cells[cell.index].isError)
+        viewModel.checkCell()
+        XCTAssertTrue(viewModel.state.cells[cell.index].isError)
+        viewModel.checkPuzzle()
+        viewModel.checkPuzzle()
+        XCTAssertTrue(viewModel.state.cells[cell.index].isError)
+    }
+
+    func testBackgroundPauseResumesWithoutOverlay() {
+        let clock = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)
+        viewModel.handleSceneDidAppear()
+        clock.advance(5)
+        viewModel.pauseForBackground()
+        XCTAssertFalse(viewModel.isPaused)
+        XCTAssertFalse(viewModel.isTimerRunning)
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 5)
+        clock.advance(100) // time in background does not count
+        viewModel.resumeFromBackground()
+        XCTAssertTrue(viewModel.isTimerRunning)
+        clock.advance(3)
+        viewModel.pauseTimer()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 8)
+    }
+
+    func testResetRestartsTimerFromZero() {
+        let clock = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)
+        viewModel.handleSceneDidAppear()
+        clock.advance(30)
+        viewModel.resetPuzzle()
+        XCTAssertTrue(viewModel.isTimerRunning)
+        clock.advance(2)
+        viewModel.pauseTimer()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 2)
+    }
+
+    func testEditIsAutosavedAfterDelay() async {
+        let viewModel = makeViewModel()
+        viewModel.autosaveDelayNanoseconds = 10_000_000
+        let saved = expectation(description: "autosave")
+        viewModel.onSave = { _ in saved.fulfill() }
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+        viewModel.select(cell: cell)
+        viewModel.setDigit(1)
+        await fulfillment(of: [saved], timeout: 1)
+    }
+
+    func testHintPointsAtWrongEntryInGeneratedPuzzle() {
+        let viewModel = makeViewModel()
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+        let answer = Int(String(Array(TestData.puzzle.solutionGrid)[cell.index]))!
+        let other = viewModel.state.cells.first(where: { !$0.given && $0.id != cell.id })!
+        viewModel.select(cell: cell)
+        viewModel.setDigit(answer == 9 ? 1 : answer + 1)
+        viewModel.select(cell: other)
+        viewModel.requestHint()
+        XCTAssertEqual(viewModel.selectedCellID, cell.id)
+        XCTAssertFalse(viewModel.state.usedReveal)
+        XCTAssertNotNil(viewModel.hintMessage)
+    }
+
+    func testImportedPuzzleAcceptsAnyValidSolution() async {
+        // An empty-ish imported grid has many solutions; solve it one way, store a different answer.
+        let service = SudokuGeneratorService()
+        let givens = String(TestData.puzzle.solutionGrid.prefix(9)) + String(repeating: "0", count: 72)
+        let answerA = service.solve(initialGrid: givens)!
+        var other: String?
+        for _ in 0..<20 {
+            let candidate = service.solve(initialGrid: givens)!
+            if candidate != answerA { other = candidate; break }
+        }
+        guard let answerB = other else { return XCTFail("Solver returned the same solution 20 times") }
+        let puzzle = SudokuPuzzle(id: "imp", difficulty: .easy, initialGrid: givens, solutionGrid: answerA, source: .imported)
+        let viewModel = GameViewModel(state: GameState.newGame(for: puzzle), settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        let completed = expectation(description: "completed")
+        viewModel.onCompletion = { _ in completed.fulfill() }
+        let digitsB = Array(answerB)
+        for cell in viewModel.state.cells where !cell.given {
+            viewModel.select(cell: cell)
+            viewModel.setDigit(Int(String(digitsB[cell.index]))!)
+        }
+        await fulfillment(of: [completed], timeout: 1)
+        XCTAssertTrue(viewModel.state.isCompleted)
+        XCTAssertFalse(viewModel.state.cells.contains { $0.isError })
     }
 
     func testUndoKeepsElapsedTime() {

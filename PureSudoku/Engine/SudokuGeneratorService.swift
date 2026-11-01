@@ -104,7 +104,7 @@ struct SudokuGeneratorService {
             guard let intVal = Int(String(char)), intVal > 0 else { return nil }
             return intVal - 1
         })
-        guard let solved = solve(board: board) else { return nil }
+        guard !hasContradiction(board), let solved = solve(board: board) else { return nil }
         return stringify(board: solved, blanksAsZero: false)
     }
 

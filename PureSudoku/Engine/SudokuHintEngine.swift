@@ -390,11 +390,10 @@ private func applyYWingElimination(candidates: inout [Int]) -> Bool {
         for p1 in pincerA {
             let digits1 = listBits(candidates[p1])
             guard digits1.contains(a) else { continue }
-            let c = digits1.first { $0 != a }
-            guard let c else { continue }
+            // Pivot {a,b}, pincers exactly {a,c} and {b,c}, with three distinct digits.
+            guard let c = digits1.first(where: { $0 != a }), c != b else { continue }
             for p2 in pincerB where p2 != p1 {
-                let digits2 = listBits(candidates[p2])
-                guard digits2.contains(b), digits2.contains(c) else { continue }
+                guard candidates[p2] == (1 << b) | (1 << c) else { continue }
                 for target in peers[p1].intersection(peers[p2]) where target != pivot {
                     let bit = 1 << c
                     if candidates[target] & bit != 0 {
@@ -551,6 +550,10 @@ private func bowmansBingoHint(board: GeneratorBoard, candidates: [Int]) -> Gener
 }
 
 #if DEBUG
+func _applyYWingElimination(candidates: inout [Int]) -> Bool {
+    applyYWingElimination(candidates: &candidates)
+}
+
 func _applyXYChainElimination(candidates: inout [Int]) -> Bool {
     applyXYChainElimination(candidates: &candidates)
 }
