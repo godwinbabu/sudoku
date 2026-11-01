@@ -285,6 +285,12 @@ enum UniquenessDetector {
     /// that appears three times in its row, column and box, or the puzzle would have two solutions.
     static func bugPlusOne(_ board: SolverBoard) -> [TechniqueStep] {
         let empty = (0..<81).filter { board.values[$0] == 0 }
+        // The BUG argument needs every unplaced digit to have at least two places in every house
+        // (no hidden single waiting); don't rely on singles having run first.
+        for house in House.all {
+            let placed = Set(house.cells.map { board.values[$0] })
+            if (1...9).contains(where: { !placed.contains($0) && board.cells(for: $0, in: house).count < 2 }) { return [] }
+        }
         let triple = empty.filter { board.candidates[$0].nonzeroBitCount == 3 }
         guard triple.count == 1, let cell = triple.first,
               empty.allSatisfy({ $0 == cell || board.candidates[$0].nonzeroBitCount == 2 }) else { return [] }

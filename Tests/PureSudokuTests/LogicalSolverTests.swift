@@ -300,6 +300,35 @@ final class LogicalSolverTests: XCTestCase {
         }
     }
 
+    func testUniqueRectangleType2RemovesTheSharedExtra() {
+        // Floor r1c1, r1c4 = {4,6}; roof r2c1, r2c4 = {4,6,8}: 8 leaves the rest of row 2.
+        let steps = UniquenessDetector.uniqueRectangles(board([0: [4, 6], 3: [4, 6], 9: [4, 6, 8], 12: [4, 6, 8]]), type: 2)
+        XCTAssertTrue(steps.contains { $0.eliminations == expected([10, 11, 13, 14, 15, 16, 17], [8]) })
+    }
+
+    func testUniqueRectangleType4RemovesTheOtherDigitFromTheRoof() {
+        // Floor {4,6}; roof r2c1 {4,6,7}, r2c4 {4,6,9}; in row 2, 4 fits only in the roof: 6 leaves it.
+        let row2 = (9..<18).filter { ![9, 12].contains($0) }
+        let masks = without(4, row2, plus: [0: [4, 6], 3: [4, 6], 9: [4, 6, 7], 12: [4, 6, 9]])
+        let steps = UniquenessDetector.uniqueRectangles(board(masks), type: 4)
+        XCTAssertTrue(steps.contains { $0.eliminations == [CellDigit(cell: 9, digit: 6), CellDigit(cell: 12, digit: 6)] })
+    }
+
+    func testSimpleColoringTrapRemovesFromCellsSeeingBothColors() {
+        // 5's strong links: row 1 (c1, c5), column 5 (r1, r6), row 6 (c5, c1). r1c1 and r6c1 get
+        // opposite colors, so the rest of column 1 can't be 5.
+        let masks = without(5, (1..<9).filter { $0 != 4 } + stride(from: 13, to: 81, by: 9).filter { $0 != 49 } + (46..<54).filter { $0 != 49 })
+        let steps = ColoringDetector.simpleColoring(board(masks)).filter { $0.digits == [5] }
+        XCTAssertTrue(steps.contains { $0.eliminations == expected([9, 18, 27, 36, 54, 63, 72], [5]) })
+    }
+
+    func testBugPlusOneWaitsWhileAHiddenSingleExists() {
+        // Every cell {1,2} except r1c1 {1,2,3}: 3 has one place in row 1, so BUG+1 must not fire.
+        var masks = Dictionary(uniqueKeysWithValues: (0..<81).map { ($0, [1, 2]) })
+        masks[0] = [1, 2, 3]
+        XCTAssertTrue(UniquenessDetector.bugPlusOne(board(masks)).isEmpty)
+    }
+
     func testXYWingNeedsThreeDistinctDigits() {
         // Pivot r1c1 {1,2}, pincers r1c5 {1,3} and r5c1 {2,3}: r5c5 sees both pincers and loses 3.
         let wing = WingDetector.xyWings(board([0: [1, 2], 4: [1, 3], 36: [2, 3]]))
