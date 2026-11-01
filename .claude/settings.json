@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.swift) ;; *) exit 0;; esac; n=$(basename \"$f\"); grep -qF \"/* $n in Sources */\" \"$CLAUDE_PROJECT_DIR/PureSudoku.xcodeproj/project.pbxproj\" || jq -n --arg n \"$n\" '{systemMessage: (\"pbxproj check: \" + $n + \" is not in a Sources build phase\"), hookSpecificOutput: {hookEventName: \"PostToolUse\", additionalContext: ($n + \" is not compiled: it has no \\\"in Sources\\\" entry in PureSudoku.xcodeproj/project.pbxproj. Add PBXFileReference, PBXBuildFile, group child, and PBXSourcesBuildPhase entries (see CLAUDE.md).\")}}'",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
