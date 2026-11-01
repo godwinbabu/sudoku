@@ -17,4 +17,14 @@ final class AppControllerTests: XCTestCase {
         controller.updateSettings { $0.showTimer = false }
         XCTAssertFalse(controller.settings.showTimer)
     }
+
+    func testCompletionThenResetKeepsTheResetGame() {
+        let (controller, _) = makeTestController()
+        controller.startNewGame(for: .easy, mode: .seeded(7))
+        let viewModel = controller.makeGameViewModel(for: .easy)
+        viewModel.revealPuzzle()
+        viewModel.resetPuzzle()
+        XCTAssertEqual(controller.activeGames[.easy]?.isCompleted, false)
+        XCTAssertEqual(controller.stats, Stats(), "revealed games do not count")
+    }
 }

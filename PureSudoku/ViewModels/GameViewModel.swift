@@ -56,6 +56,9 @@ final class GameViewModel: ObservableObject {
     private var lastTickDate: Date?
     private var isManuallyPaused = false
     private var isBackgroundPaused = false
+    /// Cells that Check Cell / Check Puzzle found wrong. Kept apart from duplicate (auto-check) errors
+    /// so later moves do not erase them; cleared when the cell is edited.
+    private var checkedWrongIDs: Set<UUID> = []
     private var saveTask: Task<Void, Never>?
     /// Delay before an edit is saved (CODESPEC 8: autosave every few seconds, debounced).
     var autosaveDelayNanoseconds: UInt64 = 2_000_000_000
@@ -87,8 +90,8 @@ final class GameViewModel: ObservableObject {
             var newState = self.state
             newState.cells = newState.cells.map { cell in
                 var mutable = cell
-                if mutable.isError && !mutable.given {
-                    mutable.isError = false
+                if !mutable.given {
+                    mutable.isError = checkedWrongIDs.contains(cell.id) && cell.value != nil
                 }
                 return mutable
             }
@@ -206,6 +209,7 @@ final class GameViewModel: ObservableObject {
         newState.cells[index].value = nil
         newState.cells[index].candidates.removeAll()
         newState.cells[index].isError = false
+        checkedWrongIDs.remove(cellID)
         newState.cells[index].isVerifiedCorrect = false
         self.state = newState
         self.hintMessage = nil
@@ -226,6 +230,7 @@ final class GameViewModel: ObservableObject {
             newState.cells[index].value = digit
             newState.cells[index].candidates.removeAll()
             newState.cells[index].isError = false
+            checkedWrongIDs.remove(cellID)
             newState.cells[index].isVerifiedCorrect = false
             if settings.autoRemoveCandidates {
                 newState.cells = removeCandidate(digit, relatedTo: newState.cells[index], from: newState.cells)
@@ -274,9 +279,11 @@ final class GameViewModel: ObservableObject {
         if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: newState.puzzle.solutionGrid) {
             newState.cells[index].isError = false
             newState.cells[index].isVerifiedCorrect = true
+            checkedWrongIDs.remove(cell.id)
         } else {
             newState.cells[index].isError = true
             newState.cells[index].isVerifiedCorrect = false
+            checkedWrongIDs.insert(cell.id)
         }
         updateContradictionFlag(on: &newState)
         self.state = newState
@@ -301,9 +308,11 @@ final class GameViewModel: ObservableObject {
             if validator.isCorrect(value: value, row: cell.row, col: cell.col, solution: newState.puzzle.solutionGrid) {
                 newState.cells[idx].isError = false
                 newState.cells[idx].isVerifiedCorrect = true
+                checkedWrongIDs.remove(cell.id)
             } else {
                 newState.cells[idx].isError = true
                 newState.cells[idx].isVerifiedCorrect = false
+                checkedWrongIDs.insert(cell.id)
             }
         }
         updateContradictionFlag(on: &newState)
@@ -359,6 +368,7 @@ final class GameViewModel: ObservableObject {
         if let value = validator.solutionValue(row: newState.cells[index].row, col: newState.cells[index].col, solution: newState.puzzle.solutionGrid) {
             newState.cells[index].value = value
             newState.cells[index].isRevealed = true
+            checkedWrongIDs.remove(newState.cells[index].id)
             newState.cells[index].candidates.removeAll()
             if markUsedReveal {
                 newState.usedReveal = true
@@ -405,6 +415,7 @@ final class GameViewModel: ObservableObject {
 
     func resetPuzzle() {
         _ = calculateAndStopTimer()
+        checkedWrongIDs.removeAll()
         var newState = self.state
         newState.resetToInitial(now: timeProvider.now())
         newState.elapsedSeconds = 0
@@ -443,7 +454,8 @@ final class GameViewModel: ObservableObject {
 
     func load(state newState: GameState) {
         _ = calculateAndStopTimer()
-        
+        checkedWrongIDs.removeAll()
+
         var finalState = newState
         finalState.cells = finalState.cells.map { cell in
             var mutable = cell
@@ -540,7 +552,8 @@ final class GameViewModel: ObservableObject {
                 newState.cells[idx].isError = true
                 newState.cells[idx].isVerifiedCorrect = false
             } else if !newState.cells[idx].given {
-                newState.cells[idx].isError = false
+                let cell = newState.cells[idx]
+                newState.cells[idx].isError = checkedWrongIDs.contains(cell.id) && cell.value != nil
             }
         }
         updateContradictionFlag(on: &newState)
@@ -569,12 +582,11 @@ final class GameViewModel: ObservableObject {
     }
     }
 
-    /// Reports the finished state captured at completion time, so a later reset cannot change it.
+    /// Reports completion right away, so stats get this exact state and a later reset or new game
+    /// is saved after it (a delayed report could overwrite newer progress).
     private func reportCompletion(_ completed: GameState) {
         saveTask?.cancel()
-        Task { @MainActor [weak self] in
-            self?.onCompletion?(completed)
-        }
+        onCompletion?(completed)
     }
 
     /// Imported puzzles may have several solutions (BYOS.md). If the player's entries differ from the

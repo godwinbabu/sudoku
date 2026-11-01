@@ -168,6 +168,12 @@ final class GameViewModelTests: XCTestCase {
         viewModel.checkPuzzle()
         viewModel.checkPuzzle()
         XCTAssertTrue(viewModel.state.cells[cell.index].isError)
+        // A later, unrelated move must not erase the check result.
+        let other = viewModel.state.cells.first(where: { !$0.given && $0.id != cell.id })!
+        viewModel.select(cell: other)
+        viewModel.toggleMode()
+        viewModel.setDigit(3)
+        XCTAssertTrue(viewModel.state.cells[cell.index].isError)
     }
 
     func testBackgroundPauseResumesWithoutOverlay() {
