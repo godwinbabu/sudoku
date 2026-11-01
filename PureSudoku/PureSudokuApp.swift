@@ -21,6 +21,7 @@ struct RootView: View {
         MainMenuView(viewModel: MainMenuViewModel(controller: controller))
             .environmentObject(controller)
             .preferredColorScheme(controller.settings.preferredColorScheme)
+            .environment(\.sleepTitleColor, controller.settings.themeEffective == .sleep ? controller.settings.themeColors.primaryText : nil)
             .onChange(of: scenePhase) { _ in updateDisplay() }
             .onChange(of: controller.settings) { _ in updateDisplay() }
             .onAppear(perform: updateDisplay)

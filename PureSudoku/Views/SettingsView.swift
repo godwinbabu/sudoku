@@ -47,7 +47,9 @@ struct SettingsView: View {
                 }
                 .sleepRowBackground()
             }
-            .navigationTitle("Settings")
+            .themedTitle("Settings")
+            // Rebuild on theme change so UIKit switches pick up the new knob color.
+            .id(viewModel.settings.themeEffective)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }

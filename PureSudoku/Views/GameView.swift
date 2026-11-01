@@ -94,7 +94,7 @@ struct GameView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.headline)
-                        .foregroundColor(theme.accent)
+                        .foregroundColor(theme.isSleep ? theme.accent : nil)
                 }
                 .accessibilityIdentifier("backButton")
             }

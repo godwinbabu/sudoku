@@ -61,15 +61,25 @@ struct SleepPalette: Equatable {
         let gridLine: RGB
         let accent: RGB
         let card: RGB
+        /// Slider and switch knobs: clearly brighter than the accent-colored "on" track and the dark
+        /// "off" track, so a switch's state stays visible (but far from white at dim settings).
+        let knob: RGB
     }
 
     var rendered: Rendered {
-        Rendered(
+        let accentLevel = levels.digit * 0.85
+        let accent = color(luminance: accentLevel, hue: hue.mix(RGB(r: 1, g: 0.6, b: 0.2), 0.5))
+        // A brighter knob when the hue allows it; on bright profiles, where the track is already
+        // bright, a darker knob instead.
+        let brighter = color(luminance: max(levels.digit * 3, 0.1))
+        let knob = (brighter.luminance + 0.05) / (accent.luminance + 0.05) >= 1.6 ? brighter : color(luminance: accentLevel * 0.3)
+        return Rendered(
             digit: color(luminance: levels.digit),
             candidate: color(luminance: levels.candidate),
             gridLine: color(luminance: levels.gridLine),
-            accent: color(luminance: levels.digit * 0.85, hue: hue.mix(RGB(r: 1, g: 0.6, b: 0.2), 0.5)),
-            card: color(luminance: max(levels.digit * 0.03, 0.0008))
+            accent: accent,
+            card: color(luminance: max(levels.digit * 0.03, 0.0008)),
+            knob: knob
         )
     }
 

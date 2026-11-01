@@ -6,9 +6,10 @@ import UIKit
 enum SystemAppearance {
     @MainActor
     static func apply(_ palette: SleepPalette?) {
+        let knob = palette?.rendered.knob.uiColor
         let tint = palette?.rendered.digit.uiColor
-        UISlider.appearance().thumbTintColor = tint
-        UISwitch.appearance().thumbTintColor = tint
+        UISlider.appearance().thumbTintColor = knob
+        UISwitch.appearance().thumbTintColor = knob
         let bar = UINavigationBar.appearance()
         bar.titleTextAttributes = tint.map { [.foregroundColor: $0] }
         bar.largeTitleTextAttributes = tint.map { [.foregroundColor: $0] }

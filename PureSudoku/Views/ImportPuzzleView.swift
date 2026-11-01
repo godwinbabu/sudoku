@@ -29,7 +29,7 @@ struct ImportPuzzleView: View {
             .padding(.vertical, 16)
         }
         .background(theme.background.ignoresSafeArea())
-        .navigationTitle("Import Puzzle")
+        .themedTitle("Import Puzzle")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
