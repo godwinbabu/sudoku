@@ -766,13 +766,15 @@ extension GameViewModel {
         // No credit for a technique hinted in this puzzle, or while the board has a mistake (a wrong
         // digit can make a "single" that only looks found).
         let hinted = hintedTechniques
-        guard let onTechniqueFound, firstMistake() == nil else { return }
+        guard let onTechniqueFound else { return }
         let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
         guard solution.count == 81 else { return }
+        // Cheap check first: the move itself must be right.
         switch move {
         case let .placed(cell, digit): guard solution[cell] == digit else { return }
         case let .removedCandidate(cell, digit): guard solution[cell] != digit else { return }
         }
+        guard firstMistake() == nil else { return }
         let unique = state.puzzle.isUnique
         let puzzleID = state.puzzle.id
         Task.detached(priority: .utility) {
