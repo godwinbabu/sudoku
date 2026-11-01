@@ -69,6 +69,18 @@ final class ImportImageLifecycleTests: XCTestCase {
         XCTAssertFalse(imageExists(id, in: dir))
     }
 
+    func testDamagedImportListKeepsOldPhotos() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let imagesDir = dir.appendingPathComponent("ImportedImages", isDirectory: true)
+        let store = ImportedImageStore(directory: imagesDir)
+        let oldID = try XCTUnwrap(store.save(image: image()))
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("imported_games.json"))
+        let controller = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: store)
+        let newID = try XCTUnwrap(controller.saveImportedImage(image()))
+        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: newID))
+        XCTAssertTrue(imageExists(oldID, in: dir), "photo of the backed-up list must survive")
+    }
+
     func testStalePhotoIsIgnoredAfterManualEdit() {
         let (controller, _) = makeTestController()
         let viewModel = ImportPuzzleViewModel(controller: controller)

@@ -171,6 +171,7 @@ final class ImportPuzzleViewModel: ObservableObject {
         requestToken += 1
         detectionTask?.cancel()
         detectionTask = nil
+        if isDetecting { detectionMessage = nil }
         isDetecting = false
     }
 

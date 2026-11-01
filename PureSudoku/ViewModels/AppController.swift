@@ -17,6 +17,9 @@ final class AppController: ObservableObject {
     private let imageStore: ImportedImageStore
     /// Images saved for an import screen that has not created its game yet; never treated as orphans.
     private var pendingImageIDs: Set<String> = []
+    /// True when imported_games.json could not be loaded. Its photos may still belong to the backup
+    /// copy, so orphan cleanup is skipped for this session.
+    private var importedGamesLoadFailed = false
 
     init(
         persistence: PersistenceManager = PersistenceManager(),
@@ -62,6 +65,7 @@ final class AppController: ObservableObject {
             self.importedGames = try persistence.load([ImportedGame].self, from: File.importedGames.rawValue) ?? []
         } catch {
             self.importedGames = []
+            self.importedGamesLoadFailed = true
             self.lastPersistenceError = error
         }
     }
@@ -176,6 +180,7 @@ final class AppController: ObservableObject {
     }
 
     private func cleanupImportImages() {
+        guard !importedGamesLoadFailed else { return }
         let ids = Set(importedGames.compactMap { $0.gameState.puzzle.importImageID })
         imageStore.removeOrphans(keeping: ids.union(pendingImageIDs))
     }
