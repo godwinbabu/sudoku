@@ -5,6 +5,18 @@ final class PureSudokuUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// Finds a screen or overlay by identifier regardless of its element type.
+    private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    /// Returns a stable query for the first empty cell (puzzles are random).
+    private func firstEmptyCell(in app: XCUIApplication) -> XCUIElement {
+        let empty = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label ENDSWITH ' empty'")).firstMatch
+        XCTAssertTrue(empty.waitForExistence(timeout: 2))
+        return app.buttons[empty.identifier]
+    }
+
     func testLaunchShowsDifficultyButtons() {
         let app = XCUIApplication()
         app.launch()
@@ -13,43 +25,49 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.buttons["difficulty_hard"].exists)
     }
 
+    func testImportButtonOpensImportScreen() {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons["importPuzzleButton"].tap()
+        XCTAssertTrue(element("importPuzzleView", in: app).waitForExistence(timeout: 2))
+    }
+
     func testStartingGameShowsGridAndAllowsEntry() {
         let app = XCUIApplication()
         app.launch()
         app.buttons["difficulty_easy"].tap()
-        XCTAssertTrue(app.otherElements["gameView"].waitForExistence(timeout: 2))
-        let cell = app.buttons["cell_0_0"].firstMatch
-        XCTAssertTrue(cell.exists)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        let cell = firstEmptyCell(in: app)
         cell.tap()
         app.buttons["number_1"].tap()
-        XCTAssertTrue(cell.label.contains("1"))
+        XCTAssertTrue(cell.label.hasSuffix("value 1"), cell.label)
     }
 
     func testCandidateModeAndReset() {
         let app = XCUIApplication()
         app.launch()
         app.buttons["difficulty_easy"].tap()
-        let cell = app.buttons["cell_0_1"].firstMatch
-        XCTAssertTrue(cell.waitForExistence(timeout: 2))
+        let cell = firstEmptyCell(in: app)
         cell.tap()
         app.buttons["mode_candidate"].tap()
         app.buttons["number_2"].tap()
+        XCTAssertTrue(cell.label.hasSuffix("candidates 2"), cell.label)
         app.buttons["gameMenuButton"].tap()
         app.buttons["Reset Puzzle"].tap()
         app.buttons["Confirm"].tap()
-        XCTAssertFalse(cell.label.contains("2"))
+        XCTAssertTrue(cell.label.hasSuffix(" empty"), cell.label)
     }
 
     func testPauseAndResumeShowsOverlay() {
         let app = XCUIApplication()
         app.launch()
         app.buttons["difficulty_easy"].tap()
-        XCTAssertTrue(app.otherElements["gameView"].waitForExistence(timeout: 2))
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         app.buttons["timerToggle"].tap()
-        XCTAssertTrue(app.otherElements["pauseOverlay"].waitForExistence(timeout: 2))
+        XCTAssertTrue(element("pauseOverlay", in: app).waitForExistence(timeout: 2))
         app.buttons["Resume"].tap()
-        XCTAssertFalse(app.otherElements["pauseOverlay"].exists)
+        XCTAssertFalse(element("pauseOverlay", in: app).exists)
         app.buttons["timerToggle"].tap()
-        XCTAssertTrue(app.otherElements["pauseOverlay"].waitForExistence(timeout: 2))
+        XCTAssertTrue(element("pauseOverlay", in: app).waitForExistence(timeout: 2))
     }
 }

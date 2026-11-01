@@ -169,6 +169,7 @@ struct GameView: View {
                 StatsView(viewModel: StatsViewModel(controller: controller))
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("gameView")
     }
 
@@ -229,6 +230,7 @@ struct GameView: View {
             .disabled(!viewModel.canUndo || viewModel.isPaused || viewModel.state.isCompleted)
             .accessibilityIdentifier("mode_undo")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("modeToggle")
     }
 
@@ -378,6 +380,7 @@ struct GameView: View {
             .background(theme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(radius: 12)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("pauseOverlay")
         }
     }
