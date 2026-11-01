@@ -132,7 +132,7 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
     - `AppTheme.sleep`
     - `soundsEnabled == false`
     - `hapticsEnabled == false`
-    - Dimming overlay applied (where implemented)
+    - Dimming applied: the overlay until CODESPEC phase 3, then the bedtime display profile (CODESPEC 12.3)
 
 ---
 
@@ -245,7 +245,7 @@ For each change:
 - Bedtime Mode must:
   - Force Sleep theme
   - Disable sound and haptics
-  - Apply maximum dimming overlay (where specified)
+  - Apply maximum dimming (the overlay until CODESPEC phase 3, then the player's bedtime display profile, CODESPEC 12.3)
 - Any new feature must be evaluated for bedtime friendliness:
   - Does it create bright flashes?
   - Does it introduce noise/haptics?

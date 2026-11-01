@@ -8,6 +8,7 @@
 ## Decisions (Confirmed)
 - Imported puzzles **do** contribute to stats/streaks.
 - Validation requires **solvable** (not necessarily unique).
+- A puzzle with more than one solution is allowed, but hints that assume a unique solution are turned off for it (CODESPEC 2.1).
 - Keep images locally but prevent storage bloat.
 - Imported games should be labeled in Stats UI.
 - Unsolved imported puzzles are persisted separately (not just as active games).
@@ -42,7 +43,7 @@
 5) **Game Start**
 - Creates `GameState` and enters GameView.
 - Grid becomes non-editable.
-- Hints work as normal.
+- Hints work as normal, with one exception: if the puzzle has more than one solution, the uniqueness techniques (Unique Rectangle, BUG+1, Hidden/Avoidable Rectangle) are not used (CODESPEC 2.1, HINT_STRATEGIES.md).
 
 ---
 
@@ -72,6 +73,7 @@ If detection is partial or uncertain, still present the grid for manual correcti
 ## Validation Rules
 - **Conflict check**: row/column/box duplicates.
 - **Solvable check**: reuse existing solver to ensure at least one solution.
+- **Solution count** (CODESPEC 13.6, phase 4): on Start, count solutions, stopping at 2. Store `hasUniqueSolution` on the puzzle (true only if the count is exactly 1). This does not block Start.
 - Block “Start Puzzle” if invalid or unsolvable; allow edits until valid.
 
 ---
