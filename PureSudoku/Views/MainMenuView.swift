@@ -6,6 +6,7 @@ struct MainMenuView: View {
     @State private var activeSheet: Sheet?
     @State private var navigationPath = NavigationPath()
     @State private var routeViewModels: [UUID: GameViewModel] = [:]
+    @State private var isOpeningGame = false
     private let taglineOptions = [
         "Simple, unobtrusive, Just Sudoku!",
         "Calm focus. Just you, the grid, and a steady mind.",
@@ -216,10 +217,15 @@ struct MainMenuView: View {
     }
 
     private func openGame(_ difficulty: Difficulty) {
-        let gameViewModel = viewModel.continueOrStartGame(for: difficulty)
-        let route = GameRoute(kind: .difficulty(difficulty))
-        routeViewModels[route.id] = gameViewModel
-        navigationPath.append(route)
+        guard !isOpeningGame else { return }
+        isOpeningGame = true
+        Task {
+            let gameViewModel = await viewModel.continueOrStartGame(for: difficulty)
+            let route = GameRoute(kind: .difficulty(difficulty))
+            routeViewModels[route.id] = gameViewModel
+            navigationPath.append(route)
+            isOpeningGame = false
+        }
     }
 
     private func openImportedGame(_ imported: ImportedGame) {

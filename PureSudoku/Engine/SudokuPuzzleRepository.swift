@@ -5,7 +5,8 @@ enum GenerationMode {
     case seeded(UInt64)
 }
 
-final class SudokuPuzzleRepository {
+/// Immutable after init, so it is safe to use from a background task.
+final class SudokuPuzzleRepository: @unchecked Sendable {
     private let generator: SudokuGeneratorService
     private let validator: SudokuValidator
     private let maxValidationRetries = 3

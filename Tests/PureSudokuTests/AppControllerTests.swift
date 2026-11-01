@@ -18,9 +18,9 @@ final class AppControllerTests: XCTestCase {
         XCTAssertFalse(controller.settings.showTimer)
     }
 
-    func testCompletionThenResetKeepsTheResetGame() {
+    func testCompletionThenResetKeepsTheResetGame() async {
         let (controller, _) = makeTestController()
-        controller.startNewGame(for: .easy, mode: .seeded(7))
+        await controller.startNewGame(for: .easy, mode: .seeded(7))
         let viewModel = controller.makeGameViewModel(for: .easy)
         viewModel.revealPuzzle()
         viewModel.resetPuzzle()

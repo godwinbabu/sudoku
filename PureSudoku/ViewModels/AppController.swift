@@ -73,7 +73,7 @@ final class AppController: ObservableObject {
             self?.handleCompletion(state: completedState, difficulty: difficulty)
         }
         viewModel.onNewGame = { [weak self] in
-            self?.startNewGame(for: difficulty)
+            await self?.startNewGame(for: difficulty)
         }
         viewModel.onSave = { [weak self] updatedState in
             self?.persist(state: updatedState, for: difficulty)
@@ -94,9 +94,14 @@ final class AppController: ObservableObject {
         return viewModel
     }
 
+    /// Generates off the main thread (it can take a few hundred ms on older phones), then stores it.
     @discardableResult
-    func startNewGame(for difficulty: Difficulty, mode: GenerationMode = .random) -> GameState {
-        let newState = createNewGameState(for: difficulty, mode: mode)
+    func startNewGame(for difficulty: Difficulty, mode: GenerationMode = .random) async -> GameState {
+        let repository = puzzleRepository
+        let puzzle = await Task.detached(priority: .userInitiated) {
+            repository.generate(for: difficulty, mode: mode).puzzle
+        }.value
+        let newState = GameState.newGame(for: puzzle, now: timeProvider.now())
         activeGames[difficulty] = newState
         do {
             try persistence.save(newState, to: File.game(difficulty).rawValue)
@@ -232,11 +237,6 @@ final class AppController: ObservableObject {
             return
         }
         cleanupImportImages()
-    }
-
-    private func createNewGameState(for difficulty: Difficulty, mode: GenerationMode) -> GameState {
-        let puzzle = puzzleRepository.generate(for: difficulty, mode: mode).puzzle
-        return GameState.newGame(for: puzzle, now: timeProvider.now())
     }
 }
 

@@ -9,7 +9,7 @@ final class GameViewModel: ObservableObject {
     @Published var hintMessage: String?
 
     var onCompletion: ((GameState) -> Void)?
-    var onNewGame: (() -> GameState?)?
+    var onNewGame: (() async -> GameState?)?
     var onSave: ((GameState) -> Void)?
 
     @Published var pendingAction: PendingAction?
@@ -496,7 +496,7 @@ final class GameViewModel: ObservableObject {
         Task { @MainActor in
             switch action {
             case .newPuzzle:
-                if let newState = self.onNewGame?() {
+                if let newState = await self.onNewGame?() {
                     self.load(state: newState)
                 }
                 self.hintMessage = nil
