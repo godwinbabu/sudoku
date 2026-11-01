@@ -12,6 +12,8 @@ struct HintPanelView: View {
     let onApply: () -> Void
     let onToggleAfter: () -> Void
     let onReveal: () -> Void
+    /// Undo from the mistake check (CODESPEC 6.3.1); nil hides the button.
+    let onUndo: (() -> Void)?
     let onDone: () -> Void
 
     var body: some View {
@@ -66,6 +68,9 @@ struct HintPanelView: View {
                 panelButton("I'll try", id: "hint_tryMyself", action: onDone)
                 panelButton("Show answer", id: "hint_showResult", prominent: true, action: onShowResult)
             } else {
+                if case .mistake = session.content, let onUndo {
+                    panelButton("Undo", id: "hint_undo", action: onUndo)
+                }
                 if case .noStep(let cell) = session.content, cell != nil {
                     panelButton("Reveal cell", id: "hint_reveal", prominent: true, action: onReveal)
                 }

@@ -183,7 +183,7 @@ Additions for teaching (added in the phase that first needs them, Section 13.6):
 	•	grade: PuzzleGrade? (hardestTier, score, techniques; Section 2.2). Nil for puzzles saved before grading existed.
 	•	GameState:
 	•	hintLog: [HintLogEntry] — one entry per hint: technique, deepest rung shown (0–4), whether it was applied.
-	•	usedHint: Bool — true once any hint step is applied (Section 6.3).
+	•	usedHint: Bool — true once a hint’s result (rung 4) has been shown (Section 6.3.1).
 	•	TechniqueProgress (new model, one per technique):
 	•	foundUnaidedCount: Int, foundUnaidedDays: Set<day>, lastSeen: Date?, strength: Double (0–1, decays over time).
 	•	All new fields decode with defaults (decodeIfPresent), so older save files still load. This applies to every persisted model: SudokuPuzzle, GameState, Settings, Stats, TechniqueProgress and display profiles. A strict decode of a new field would make the old file fail to load and be moved aside, losing the player’s settings.

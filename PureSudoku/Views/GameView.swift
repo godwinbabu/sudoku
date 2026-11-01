@@ -51,6 +51,7 @@ struct GameView: View {
                             onApply: viewModel.applyHint,
                             onToggleAfter: viewModel.hintToggleAfter,
                             onReveal: viewModel.hintRevealCell,
+                            onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
                             onDone: { viewModel.endHint() }
                         )
                         .disabled(viewModel.isPaused)

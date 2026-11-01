@@ -656,6 +656,7 @@ extension GameViewModel {
         let entriesFit = alignImportedSolution(&aligned)
         state = aligned
         if !entriesFit {
+            // TODO(phase 4): with hasUniqueSolution, a unique import can point at the wrong digit like a generated puzzle.
             hint = HintSession(content: .mistake(cell: nil, kind: .entriesConflict))
         } else if let mistake = firstMistake() {
             hint = HintSession(content: .mistake(cell: mistake.cell, kind: mistake.kind))
@@ -760,10 +761,18 @@ extension GameViewModel {
         if let wrong = cells.first(where: { !$0.given && $0.value != nil && $0.value != solution[$0.index] }) {
             return (wrong.index, .wrongDigit)
         }
-        if let missing = cells.first(where: { $0.value == nil && !$0.candidates.isEmpty && !$0.candidates.contains(solution[$0.index]) }) {
-            return (missing.index, .missingNote)
+        let suspects = cells.filter { $0.value == nil && !$0.candidates.isEmpty && !$0.candidates.contains(solution[$0.index]) }
+        // An import may have several solutions: a note is only wrong if none of its digits can work.
+        let missing = state.puzzle.source == .imported ? suspects.first { !anyNoteCanWork(in: $0) } : suspects.first
+        return missing.map { ($0.index, .missingNote) }
+    }
+
+    private func anyNoteCanWork(in cell: SudokuCell) -> Bool {
+        var grid = state.cells.sorted { $0.index < $1.index }.map { $0.value ?? 0 }
+        return cell.candidates.contains { digit in
+            grid[cell.index] = digit
+            return hintService.solve(initialGrid: grid.map(String.init).joined()) != nil
         }
-        return nil
     }
 
     /// The cell Reveal would fill: the selected empty cell, else the first empty cell.

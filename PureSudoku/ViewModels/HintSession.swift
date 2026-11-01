@@ -168,7 +168,7 @@ struct HintSession: Equatable {
                 }
                 for placement in step.placements { result.ghostDigits[placement.cell] = placement.digit }
                 if showsAfter {
-                    for (cell, struck) in result.struckDigits { result.shownCandidates[cell]?.subtract(struck) }
+                    result.hiddenDigits = result.struckDigits
                     result.struckDigits = [:]
                 }
             }
@@ -191,6 +191,8 @@ struct HintHighlight: Equatable {
     var ringedDigits: [Int: Set<Int>] = [:]
     /// Candidates the step removes (struck through).
     var struckDigits: [Int: Set<Int>] = [:]
+    /// Candidates to hide, whatever their source ("Show after" view of eliminations).
+    var hiddenDigits: [Int: Set<Int>] = [:]
     /// Digits the step places (shown faint).
     var ghostDigits: [Int: Int] = [:]
 

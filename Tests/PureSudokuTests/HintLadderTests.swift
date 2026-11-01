@@ -174,6 +174,55 @@ final class HintLadderTests: XCTestCase {
         XCTAssertTrue(viewModel.state.usedReveal)
     }
 
+    func testShowAfterHidesEliminatedDigitsEvenInCellsWithNotes() throws {
+        let state = try XCTUnwrap(Self.stateNeedingAnElimination())
+        let viewModel = makeViewModel(state: state, askFirst: false)
+        for _ in 0..<120 {
+            viewModel.requestHint()
+            guard let step = viewModel.hint?.step else { return XCTFail("solver stopped before an elimination") }
+            for _ in 0..<3 { viewModel.hintNext() }
+            guard let elimination = step.eliminations.first, step.placements.isEmpty else { viewModel.applyHint(); continue }
+            XCTAssertEqual(viewModel.hintHighlight.struckDigits[elimination.cell]?.contains(elimination.digit), true)
+            viewModel.hintToggleAfter()
+            XCTAssertEqual(viewModel.hintHighlight.hiddenDigits[elimination.cell]?.contains(elimination.digit), true)
+            XCTAssertNil(viewModel.hintHighlight.struckDigits[elimination.cell])
+            return
+        }
+        XCTFail("no elimination step within 120 hints")
+    }
+
+    func testImportedPuzzleAcceptsANoteFromAnotherValidSolution() throws {
+        // Only the first row is given, so the puzzle has many solutions.
+        let givens = String(TestData.puzzle.solutionGrid.prefix(9)) + String(repeating: "0", count: 72)
+        let service = SudokuGeneratorService()
+        let stored = Array(try XCTUnwrap(service.solve(initialGrid: givens))).map { Int(String($0))! }
+        let puzzle = SudokuPuzzle(id: "import", difficulty: .hard, initialGrid: givens, solutionGrid: stored.map(String.init).joined(), source: .imported)
+        let viewModel = makeViewModel(state: GameState.newGame(for: puzzle))
+        // r2c1 can hold another digit in a different valid solution.
+        let cell = 9
+        let other = try XCTUnwrap((1...9).first { digit in
+            digit != stored[cell] && service.solve(initialGrid: String(givens.prefix(cell)) + String(digit) + String(givens.dropFirst(cell + 1))) != nil
+        })
+        viewModel.select(cell: viewModel.state.cells.first { $0.index == cell }!)
+        viewModel.toggleMode()
+        viewModel.setDigit(other)
+        viewModel.requestHint()
+        if case .mistake = viewModel.hint?.content { XCTFail("a note that fits another solution is not a mistake") }
+    }
+
+    func testEditingTheBoardClosesTheHint() {
+        let viewModel = makeViewModel(askFirst: false)
+        viewModel.requestHint()
+        for _ in 0..<3 { viewModel.hintNext() }
+        let cell = viewModel.state.cells.first { $0.value == nil && !(viewModel.hint?.step?.placements.map(\.cell).contains($0.index) ?? false) }!
+        viewModel.select(cell: cell)
+        viewModel.setDigit(solution[cell.index])
+        XCTAssertNil(viewModel.hint)
+        let after = values(viewModel)
+        viewModel.applyHint()
+        XCTAssertEqual(values(viewModel), after, "a closed hint cannot be applied")
+    }
+
     // MARK: - Stats and saved data
 
     func testHintedSolveCountsButSkipsBestTime() {

@@ -101,7 +101,7 @@ struct SudokuGridView: View {
         if let overlay = candidateOverlay[cell.id] { shown.formUnion(overlay) }
         // A hint shows the candidates it reasons about in cells without notes.
         if shown.isEmpty, let hinted = highlight.shownCandidates[cell.index] { shown = hinted }
-        return shown
+        return shown.subtracting(highlight.hiddenDigits[cell.index] ?? [])
     }
 }
 
