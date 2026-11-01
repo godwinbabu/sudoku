@@ -48,6 +48,7 @@
 		000000000000000000000088 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000082 /* AppColors.swift */; };
 		000000000000000000000089 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000083 /* ThemeColors.swift */; };
 		00000000000000000000008A /* SleepDimmingOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000084 /* SleepDimmingOverlay.swift */; };
+		0000000000000000000000AF /* SheetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AE /* SheetTheme.swift */; };
 		00000000000000000000008B /* BedtimeIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000085 /* BedtimeIcon.swift */; };
 		000000000000000000000094 /* SudokuGeneratorCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008C /* SudokuGeneratorCore.swift */; };
 		000000000000000000000095 /* SudokuHintEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008D /* SudokuHintEngine.swift */; };
@@ -129,6 +130,7 @@
 		000000000000000000000082 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		000000000000000000000083 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
 		000000000000000000000084 /* SleepDimmingOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepDimmingOverlay.swift; sourceTree = "<group>"; };
+		0000000000000000000000AE /* SheetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetTheme.swift; sourceTree = "<group>"; };
 		000000000000000000000085 /* BedtimeIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedtimeIcon.swift; sourceTree = "<group>"; };
 		00000000000000000000008C /* SudokuGeneratorCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGeneratorCore.swift; sourceTree = "<group>"; };
 		00000000000000000000008D /* SudokuHintEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuHintEngine.swift; sourceTree = "<group>"; };
@@ -345,6 +347,7 @@
 				000000000000000000000082 /* AppColors.swift */,
 				000000000000000000000083 /* ThemeColors.swift */,
 				000000000000000000000084 /* SleepDimmingOverlay.swift */,
+				0000000000000000000000AE /* SheetTheme.swift */,
 			);
 			path = Theme;
 			sourceTree = "<group>";
@@ -525,6 +528,7 @@
 				000000000000000000000088 /* AppColors.swift in Sources */,
 				000000000000000000000089 /* ThemeColors.swift in Sources */,
 				00000000000000000000008A /* SleepDimmingOverlay.swift in Sources */,
+				0000000000000000000000AF /* SheetTheme.swift in Sources */,
 				00000000000000000000008B /* BedtimeIcon.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

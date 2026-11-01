@@ -170,8 +170,10 @@ struct GameView: View {
             switch sheet {
             case .settings:
                 SettingsView(viewModel: SettingsViewModel(controller: controller))
+                    .sheetTheme(controller)
             case .stats:
                 StatsView(viewModel: StatsViewModel(controller: controller))
+                    .sheetTheme(controller)
             }
         }
         .accessibilityElement(children: .contain)
