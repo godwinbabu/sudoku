@@ -27,6 +27,11 @@ struct StatsView: View {
                         }
                     }
                     HStack {
+                        Text("Imported")
+                        Spacer()
+                        Text("\(viewModel.stats.importedPuzzlesSolved)")
+                    }
+                    HStack {
                         Text("Total")
                         Spacer()
                         Text("\(viewModel.stats.totalPuzzlesSolved)")

@@ -40,6 +40,7 @@ struct MainMenuView: View {
                     VStack(spacing: 24) {
                         topSection(theme: theme)
                         difficultyButtons(theme: theme)
+                        importButton(theme: theme)
                         statsSummary(theme: theme)
                     }
                     .frame(maxWidth: 420)
@@ -70,11 +71,19 @@ struct MainMenuView: View {
                 }
             }
             .navigationDestination(for: GameRoute.self) { route in
-                let viewModel = routeViewModels[route.id] ?? controller.makeGameViewModel(for: route.difficulty)
+                let viewModel = routeViewModels[route.id] ?? makeViewModel(for: route)
                 GameView(viewModel: viewModel, difficulty: route.difficulty)
                     .onDisappear {
                         routeViewModels.removeValue(forKey: route.id)
                     }
+            }
+            .navigationDestination(for: ImportRoute.self) { _ in
+                ImportPuzzleView(viewModel: ImportPuzzleViewModel(controller: controller)) { imported in
+                    if !navigationPath.isEmpty {
+                        navigationPath.removeLast()
+                    }
+                    openImportedGame(imported)
+                }
             }
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
@@ -205,15 +214,76 @@ struct MainMenuView: View {
 
     private func openGame(_ difficulty: Difficulty) {
         let gameViewModel = viewModel.continueOrStartGame(for: difficulty)
-        let route = GameRoute(difficulty: difficulty)
+        let route = GameRoute(kind: .difficulty(difficulty))
         routeViewModels[route.id] = gameViewModel
         navigationPath.append(route)
+    }
+
+    private func openImportedGame(_ imported: ImportedGame) {
+        let route = GameRoute(kind: .imported(id: imported.id, difficulty: imported.gameState.puzzle.difficulty))
+        if let gameViewModel = controller.makeImportedGameViewModel(id: imported.id) {
+            routeViewModels[route.id] = gameViewModel
+        }
+        navigationPath.append(route)
+    }
+
+    private func makeViewModel(for route: GameRoute) -> GameViewModel {
+        switch route.kind {
+        case let .difficulty(difficulty):
+            return controller.makeGameViewModel(for: difficulty)
+        case let .imported(id, _):
+            return controller.makeImportedGameViewModel(id: id) ?? controller.makeGameViewModel(for: .easy)
+        }
+    }
+
+    private func importButton(theme: ThemeColors) -> some View {
+        Button {
+            navigationPath.append(ImportRoute())
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "camera.viewfinder")
+                    .font(.headline)
+                Text("Import Puzzle")
+                    .font(.headline.weight(.semibold))
+            }
+            .foregroundColor(theme.primaryText)
+            .padding(.vertical, 12)
+            .frame(maxWidth: 220)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(theme.cardBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(theme.gridLine.opacity(0.4), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("importPuzzleButton")
     }
 }
 
 private struct GameRoute: Hashable, Identifiable {
     let id = UUID()
-    let difficulty: Difficulty
+    let kind: Kind
+
+    enum Kind: Hashable {
+        case difficulty(Difficulty)
+        case imported(id: String, difficulty: Difficulty)
+    }
+
+    var difficulty: Difficulty {
+        switch kind {
+        case let .difficulty(value):
+            return value
+        case let .imported(_, value):
+            return value
+        }
+    }
+}
+
+private struct ImportRoute: Hashable, Identifiable {
+    let id = UUID()
 }
 
 // A non-interactive, high-contrast switch indicator for Bedtime Mode state

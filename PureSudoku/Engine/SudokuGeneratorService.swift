@@ -83,6 +83,19 @@ struct SudokuGeneratorService {
         return makeResult(from: fallback, difficulty: difficulty)
     }
 
+    func difficulty(for rating: Double) -> Difficulty {
+        if rating < 0 {
+            return .medium
+        }
+        if rating < config.thresholds.easyMax {
+            return .easy
+        }
+        if rating < config.thresholds.mediumMax {
+            return .medium
+        }
+        return .hard
+    }
+
     func solve(board: GeneratorBoard) -> GeneratorBoard? {
         var rng = SystemRandomNumberGenerator()
         return solvePuzzle(board, using: &rng)
