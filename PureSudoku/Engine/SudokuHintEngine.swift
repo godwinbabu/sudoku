@@ -15,10 +15,6 @@ enum HintTechnique: String, Codable {
     case yWing = "Y-Wing"
     case swordfish = "Swordfish"
     case xyChain = "XY-Chain"
-    case uniqueRectangle = "Unique Rectangle"
-    case medusa = "Medusa"
-    case exocet = "Exocet"
-    case sueDeCoq = "Sue de Coq"
     case bowmansBingo = "Bowman's Bingo"
     case invalid = "Invalid"
 }
@@ -45,147 +41,22 @@ func nextHint(for board: GeneratorBoard) -> GeneratorHint? {
     if let hint = nakedSingleHint(candidates: candidates) { return hint }
     if let hint = hiddenSingleHint(candidates: candidates) { return hint }
 
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .lockedCandidatesPointing,
-        messagePrefix: "Locked Candidates (Pointing)",
-        apply: { masks in
-            applyLockedCandidatesPointing(candidates: &masks)
+    // Each technique starts from the original candidate masks.
+    let eliminations: [(HintTechnique, (inout [Int]) -> Bool)] = [
+        (.lockedCandidatesPointing, { applyLockedCandidatesPointing(candidates: &$0) }),
+        (.lockedCandidatesClaiming, { applyLockedCandidatesClaiming(candidates: &$0) }),
+        (.nakedPair, { applyNakedSetElimination(size: 2, board: board, candidates: &$0) }),
+        (.nakedTriple, { applyNakedSetElimination(size: 3, board: board, candidates: &$0) }),
+        (.nakedQuad, { applyNakedSetElimination(size: 4, board: board, candidates: &$0) }),
+        (.xWing, { applyXWingElimination(candidates: &$0) }),
+        (.yWing, { applyYWingElimination(candidates: &$0) }),
+        (.swordfish, { applySwordfishElimination(candidates: &$0) }),
+        (.xyChain, { applyXYChainElimination(candidates: &$0) }),
+    ]
+    for (technique, apply) in eliminations {
+        if let hint = hintAfterElimination(candidates: candidates, technique: technique, messagePrefix: technique.rawValue, apply: apply) {
+            return hint
         }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .lockedCandidatesClaiming,
-        messagePrefix: "Locked Candidates (Claiming)",
-        apply: { masks in
-            applyLockedCandidatesClaiming(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .nakedPair,
-        messagePrefix: "Naked Pair",
-        apply: { masks in
-            applyNakedSetElimination(size: 2, board: board, candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .nakedTriple,
-        messagePrefix: "Naked Triple",
-        apply: { masks in
-            applyNakedSetElimination(size: 3, board: board, candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .nakedQuad,
-        messagePrefix: "Naked Quad",
-        apply: { masks in
-            applyNakedSetElimination(size: 4, board: board, candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .xWing,
-        messagePrefix: "X-Wing",
-        apply: { masks in
-            applyXWingElimination(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .yWing,
-        messagePrefix: "Y-Wing",
-        apply: { masks in
-            applyYWingElimination(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .swordfish,
-        messagePrefix: "Swordfish",
-        apply: { masks in
-            applySwordfishElimination(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .xyChain,
-        messagePrefix: "XY-Chain",
-        apply: { masks in
-            applyXYChainElimination(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .uniqueRectangle,
-        messagePrefix: "Unique Rectangle",
-        apply: { masks in
-            applyUniqueRectangleElimination(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .medusa,
-        messagePrefix: "Medusa",
-        apply: { masks in
-            applyMedusaElimination(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .exocet,
-        messagePrefix: "Exocet",
-        apply: { masks in
-            applyExocetElimination(candidates: &masks)
-        }
-    ) {
-        return hint
-    }
-
-    if let hint = hintAfterElimination(
-        candidates: candidates,
-        technique: .sueDeCoq,
-        messagePrefix: "Sue de Coq",
-        apply: { masks in
-            applySueDeCoqElimination(candidates: &masks)
-        }
-    ) {
-        return hint
     }
 
     if let hint = bowmansBingoHint(board: board, candidates: candidates) {
@@ -630,116 +501,6 @@ private func applyXYChainElimination(candidates: inout [Int]) -> Bool {
     return changed
 }
 
-private func applyUniqueRectangleElimination(candidates: inout [Int]) -> Bool {
-    var changed = false
-    for r1 in 0..<8 {
-        for r2 in (r1 + 1)..<9 {
-            for c1 in 0..<8 {
-                for c2 in (c1 + 1)..<9 {
-                    let p11 = r1 * 9 + c1
-                    let p12 = r1 * 9 + c2
-                    let p21 = r2 * 9 + c1
-                    let p22 = r2 * 9 + c2
-                    let rect = [p11, p12, p21, p22]
-                    let masks = rect.map { candidates[$0] }
-                    let bivalueIndices = rect.indices.filter { bitCount(masks[$0]) == 2 }
-                    guard bivalueIndices.count == 2 else { continue }
-                    let pairMask = masks[bivalueIndices[0]]
-                    guard masks[bivalueIndices[1]] == pairMask else { continue }
-                    for idx in rect.indices where !bivalueIndices.contains(idx) {
-                        let pos = rect[idx]
-                        if candidates[pos] & pairMask == pairMask {
-                            let before = candidates[pos]
-                            let after = before & pairMask
-                            if after != before {
-                                candidates[pos] = after
-                                changed = true
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    return changed
-}
-
-private func applyMedusaElimination(candidates: inout [Int]) -> Bool {
-    let peers = peerMap()
-    var changed = false
-    for digit in 0..<9 {
-        let bit = 1 << digit
-        var strongLinks: [Int: Set<Int>] = [:]
-        for axis in 0..<3 {
-            for x in 0..<9 {
-                let positions = (0..<9).map { y -> Int in posFor(x: x, y: y, axis: axis) }
-                let candidatesInUnit = positions.filter { candidates[$0] & bit != 0 }
-                if candidatesInUnit.count == 2 {
-                    strongLinks[candidatesInUnit[0], default: []].insert(candidatesInUnit[1])
-                    strongLinks[candidatesInUnit[1], default: []].insert(candidatesInUnit[0])
-                }
-            }
-        }
-
-        var color: [Int: Int] = [:]
-        for start in strongLinks.keys where color[start] == nil {
-            var queue: [Int] = [start]
-            color[start] = 0
-            while let current = queue.popLast() {
-                for next in strongLinks[current] ?? [] {
-                    if color[next] == nil {
-                        color[next] = 1 - (color[current] ?? 0)
-                        queue.append(next)
-                    }
-                }
-            }
-        }
-
-        // Rule 1: same color in a unit -> remove all of that color for the digit
-        for axis in 0..<3 {
-            for x in 0..<9 {
-                let positions = (0..<9).map { y -> Int in posFor(x: x, y: y, axis: axis) }
-                for colorValue in [0, 1] {
-                    let colored = positions.filter { color[$0] == colorValue }
-                    if colored.count >= 2 {
-                        for pos in color.keys where color[pos] == colorValue {
-                            if candidates[pos] & bit != 0 {
-                                candidates[pos] &= ~bit
-                                changed = true
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Rule 2: any cell that sees both colors cannot contain the digit
-        let coloredByColor: [[Int]] = [
-            color.compactMap { $0.value == 0 ? $0.key : nil },
-            color.compactMap { $0.value == 1 ? $0.key : nil }
-        ]
-        for pos in 0..<81 where candidates[pos] & bit != 0 && color[pos] == nil {
-            let seesColor0 = coloredByColor[0].contains { peers[pos].contains($0) }
-            let seesColor1 = coloredByColor[1].contains { peers[pos].contains($0) }
-            if seesColor0 && seesColor1 {
-                candidates[pos] &= ~bit
-                changed = true
-            }
-        }
-    }
-    return changed
-}
-
-private func applyExocetElimination(candidates: inout [Int]) -> Bool {
-    // Placeholder for full Exocet detection; currently no-op.
-    return false
-}
-
-private func applySueDeCoqElimination(candidates: inout [Int]) -> Bool {
-    // Placeholder for full Sue de Coq detection; currently no-op.
-    return false
-}
-
 private func peerMap() -> [Set<Int>] {
     var peers: [Set<Int>] = Array(repeating: Set<Int>(), count: 81)
     for pos in 0..<81 {
@@ -792,14 +553,6 @@ private func bowmansBingoHint(board: GeneratorBoard, candidates: [Int]) -> Gener
 #if DEBUG
 func _applyXYChainElimination(candidates: inout [Int]) -> Bool {
     applyXYChainElimination(candidates: &candidates)
-}
-
-func _applyUniqueRectangleElimination(candidates: inout [Int]) -> Bool {
-    applyUniqueRectangleElimination(candidates: &candidates)
-}
-
-func _applyMedusaElimination(candidates: inout [Int]) -> Bool {
-    applyMedusaElimination(candidates: &candidates)
 }
 
 func _bowmansBingoHint(board: GeneratorBoard, candidates: [Int]) -> GeneratorHint? {
