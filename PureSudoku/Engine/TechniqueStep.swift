@@ -123,10 +123,10 @@ struct TechniqueStep: Equatable, Codable {
 
     /// Plain-language explanation of the step (rung 3 text).
     var explanation: String {
-        let cellNames = cells.map { SolverBoard.name(of: $0.cell) }.joined(separator: ", ")
-        let baseNames = houses.filter { $0.role == .base }.map(\.house.name).joined(separator: " and ")
-        let coverNames = houses.filter { $0.role == .cover }.map(\.house.name).joined(separator: " and ")
-        let digitList = digits.map(String.init).joined(separator: " and ")
+        let cellNames = Self.list(cells.map { SolverBoard.name(of: $0.cell) })
+        let baseNames = Self.list(houses.filter { $0.role == .base }.map(\.house.name))
+        let coverNames = Self.list(houses.filter { $0.role == .cover }.map(\.house.name))
+        let digitList = Self.list(digits.map(String.init))
         let removed = eliminations.map { SolverBoard.name(of: $0.cell) }.joined(separator: ", ")
         switch technique {
         case .fullHouse:
@@ -151,6 +151,14 @@ struct TechniqueStep: Equatable, Codable {
             return "Whatever \(pivot) turns out to be, one of \(pincers) must be \(z). "
                 + "So any cell that sees both can't be \(z): \(removed)."
         }
+    }
+}
+
+extension TechniqueStep {
+    /// "a", "a and b", "a, b and c".
+    static func list(_ items: [String]) -> String {
+        guard items.count > 1, let last = items.last else { return items.first ?? "" }
+        return items.dropLast().joined(separator: ", ") + " and " + last
     }
 }
 

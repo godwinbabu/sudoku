@@ -107,7 +107,7 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertNil(solver.nextStep(SolverBoard(values: solution)))
         var broken = solution
         broken[0] = 0
-        broken[1] = solution[0] // duplicate in row 1
+        broken[9] = solution[0] // duplicate in column 1 (cell 9 is r2c1)
         XCTAssertNil(solver.nextStep(SolverBoard(values: broken)))
     }
 
@@ -131,12 +131,72 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertEqual(SolverBoard(cells: state.cells), SolverBoard(grid: TestData.puzzle.initialGrid))
     }
 
+    // MARK: - Hand-made boards: exact eliminations per technique (CODESPEC 13.6)
+
+    /// Empty board: every cell allows 1...9 except the listed cells, which allow only their digits.
+    private func board(_ masks: [Int: [Int]]) -> SolverBoard {
+        var candidates = Array(repeating: SolverBoard.allDigits, count: 81)
+        for (cell, digits) in masks { candidates[cell] = SolverBoard.mask(of: digits) }
+        return SolverBoard(values: Array(repeating: 0, count: 81), candidates: candidates)
+    }
+
+    private func allBut(_ digit: Int) -> [Int] { (1...9).filter { $0 != digit } }
+
+    private func expected(_ cells: [Int], _ digits: [Int]) -> [CellDigit] {
+        cells.flatMap { cell in digits.map { CellDigit(cell: cell, digit: $0) } }.sorted()
+    }
+
+    func testPointingRemovesFromTheRestOfTheLine() {
+        // In box 1, 5 sits only in r1c1 and r1c2: it leaves the rest of row 1.
+        let masks = Dictionary(uniqueKeysWithValues: [2, 9, 10, 11, 18, 19, 20].map { ($0, allBut(5)) })
+        let step = IntersectionDetector.pointing(board(masks)).first { $0.houses.first?.house == House(kind: .box, index: 0) }
+        XCTAssertEqual(step?.eliminations, expected(Array(3...8), [5]))
+    }
+
+    func testClaimingRemovesFromTheRestOfTheBox() {
+        // In row 1, 5 sits only in r1c1 and r1c2 (box 1): it leaves the rest of box 1.
+        let masks = Dictionary(uniqueKeysWithValues: (2...8).map { ($0, allBut(5)) })
+        let step = IntersectionDetector.claiming(board(masks)).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.eliminations, expected([9, 10, 11, 18, 19, 20], [5]))
+    }
+
+    func testLockedPairRemovesFromBoxAndLine() {
+        let step = SubsetDetector.locked(board([0: [1, 2], 1: [1, 2]]), size: 2).first
+        XCTAssertEqual(step?.technique, .lockedPair)
+        XCTAssertEqual(step?.eliminations, expected([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20], [1, 2]))
+    }
+
+    func testXWingRemovesFromBothCoverColumns() {
+        // 5 sits only in columns 1 and 5 of rows 1 and 4.
+        var masks: [Int: [Int]] = [:]
+        for row in [0, 3] { for col in 0..<9 where ![0, 4].contains(col) { masks[row * 9 + col] = allBut(5) } }
+        let steps = FishDetector.fish(board(masks), size: 2).filter { $0.digits == [5] }
+        XCTAssertEqual(steps.count, 1)
+        let removed = [1, 2, 4, 5, 6, 7, 8].flatMap { [$0 * 9, $0 * 9 + 4] }
+        XCTAssertEqual(steps.first?.eliminations, expected(removed, [5]))
+    }
+
+    func testSwordfishRemovesFromAllThreeCoverColumns() {
+        // 7 sits in rows 1, 5, 9 only within columns 1, 4, 7.
+        let spots: [Int: [Int]] = [0: [0, 3], 4: [3, 6], 8: [0, 6]]
+        var masks: [Int: [Int]] = [:]
+        for (row, cols) in spots { for col in 0..<9 where !cols.contains(col) { masks[row * 9 + col] = allBut(7) } }
+        let steps = FishDetector.fish(board(masks), size: 3).filter { $0.digits == [7] }
+        XCTAssertEqual(steps.count, 1)
+        let removed = [1, 2, 3, 5, 6, 7].flatMap { row in [0, 3, 6].map { row * 9 + $0 } }
+        XCTAssertEqual(steps.first?.eliminations, expected(removed, [7]))
+    }
+
+    func testHiddenQuadClearsOtherCandidates() {
+        // In row 1, digits 1-4 fit only in r1c1-r1c4.
+        let masks = Dictionary(uniqueKeysWithValues: (4...8).map { ($0, Array(5...9)) })
+        let step = SubsetDetector.hidden(board(masks), size: 4).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.technique, .hiddenQuad)
+        XCTAssertEqual(step?.digits, [1, 2, 3, 4])
+        XCTAssertEqual(step?.eliminations, expected([0, 1, 2, 3], Array(5...9)))
+    }
+
     func testXYWingNeedsThreeDistinctDigits() {
-        func board(_ masks: [Int: [Int]]) -> SolverBoard {
-            var candidates = Array(repeating: SolverBoard.allDigits, count: 81)
-            for (cell, digits) in masks { candidates[cell] = SolverBoard.mask(of: digits) }
-            return SolverBoard(values: Array(repeating: 0, count: 81), candidates: candidates)
-        }
         // Pivot r1c1 {1,2}, pincers r1c5 {1,3} and r5c1 {2,3}: r5c5 sees both pincers and loses 3.
         let wing = WingDetector.xyWings(board([0: [1, 2], 4: [1, 3], 36: [2, 3]]))
         XCTAssertEqual(wing.count, 1)

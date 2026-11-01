@@ -652,7 +652,7 @@ Testing requirements:
 	•	GameViewModel tests (input, check, reveal, reset, completion).
 	•	Stats streak & time tests.
 	•	Persistence round-trip tests.
-	•	Solver correctness oracle (phase 2 onward): run the logical solver step by step over a few thousand bundled puzzles. Every elimination and placement is checked against the known solution. Zero failures allowed.
+	•	Solver correctness oracle (phase 2 onward): run the logical solver step by step over a seeded corpus of puzzles (400 generated in phase 2; bundled pre-graded puzzles from phase 4). Every elimination and placement is checked against the known solution. Zero failures allowed.
 	•	Hint latency: an XCTest measure benchmark for one hint on a hard board, with a simulator baseline that fails the test on a large regression. Each release also gets a manual on-device check on the oldest supported iPhone (iPhone 8 for iOS 16).
 	•	UI tests:
 	•	Core happy paths:
@@ -916,8 +916,8 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	houses, each with a role (base or cover).
 	•	pattern cells, each with a role (defining, fin, pivot, pincer).
 	•	links (from, to, strong or weak) for chains.
-	•	an explanation key and its arguments. Text comes from one template per technique, so it can be tested and translated.
-	•	Board: candidate bitmasks per cell, per-digit cell sets, static peer and house tables.
+	•	explanation text, generated from the step’s own data by one template per technique (the technique is the template key; the step’s digits, houses and cells are its arguments). Testable, and translatable later.
+	•	Board: a 9-bit candidate mask per cell, static peer and house tables. (Per-digit cell sets can be added if a later technique needs the speed.)
 	•	Deterministic: within a technique, prefer the instance with fewest pattern cells, then most eliminations, then lowest cell index. Never depend on Set or Dictionary order.
 	•	Steps stack: after each step, the next search starts from the updated candidates.
 	•	Uniqueness techniques run only when hasUniqueSolution is true (Section 2.1).
@@ -954,8 +954,8 @@ Each phase ships on its own and keeps the app working.
 
 Testing requirements:
 	•	Unit tests (phase 2):
-	•	One known board per technique: nextStep returns that technique with the expected placements, eliminations and pattern cells.
-	•	Correctness oracle: over a few thousand bundled puzzles, every step agrees with the known solution.
+	•	Hand-made boards for the elimination techniques: the detector returns exactly the expected eliminations (catches a detector that finds too few).
+	•	Correctness oracle: over a seeded corpus of generated puzzles (400 in phase 2; bundled pre-graded puzzles from phase 4), every step agrees with the known solution and its pattern is re-checked against the board.
 	•	Same board, same step, every run.
 	•	A board needing two techniques in a row (e.g. pointing, then a naked pair) yields both steps in order.
 	•	Unit tests (phase 5): mastery rule (3 puzzles, 3 days), strength decay, fading opens a mastered technique at rung 1.
