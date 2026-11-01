@@ -94,6 +94,7 @@ struct GameView: View {
                         Button("New Puzzle") {
                             viewModel.pendingAction = .newPuzzle
                         }
+                        .disabled(viewModel.isPreparingNewPuzzle)
                     }
                 } label: {
                     Image(systemName: "line.3.horizontal")

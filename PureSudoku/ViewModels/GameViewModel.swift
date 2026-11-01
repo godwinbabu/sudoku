@@ -17,6 +17,8 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var isTimerRunning: Bool = false
     @Published private(set) var isPaused: Bool = false
     @Published private(set) var showAllCandidates: Bool = false
+    /// True while a new puzzle is being generated; further New Puzzle requests are ignored.
+    @Published private(set) var isPreparingNewPuzzle = false
     @Published private(set) var candidateOverlay: [UUID: Set<Int>] = [:]
 
     enum PendingAction: Identifiable {
@@ -493,6 +495,10 @@ final class GameViewModel: ObservableObject {
         let action = pendingAction
         self.pendingAction = nil
 
+        if case .newPuzzle = action {
+            guard !isPreparingNewPuzzle else { return }
+            isPreparingNewPuzzle = true
+        }
         Task { @MainActor in
             switch action {
             case .newPuzzle:
@@ -500,6 +506,7 @@ final class GameViewModel: ObservableObject {
                     self.load(state: newState)
                 }
                 self.hintMessage = nil
+                self.isPreparingNewPuzzle = false
             case .reset:
                 self.resetPuzzle()
             case .revealPuzzle:

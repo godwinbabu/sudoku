@@ -176,6 +176,26 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.cells[cell.index].isError)
     }
 
+    func testOverlappingNewPuzzleRequestsRunOnce() async {
+        let viewModel = makeViewModel()
+        var calls = 0
+        let loaded = expectation(description: "new game loaded")
+        viewModel.onNewGame = {
+            calls += 1
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            return TestData.newGameState()
+        }
+        viewModel.handle(pendingAction: .newPuzzle)
+        viewModel.handle(pendingAction: .newPuzzle)
+        XCTAssertTrue(viewModel.isPreparingNewPuzzle)
+        Task { @MainActor in
+            while viewModel.isPreparingNewPuzzle { try? await Task.sleep(nanoseconds: 10_000_000) }
+            loaded.fulfill()
+        }
+        await fulfillment(of: [loaded], timeout: 2)
+        XCTAssertEqual(calls, 1)
+    }
+
     func testUndoRestoresCheckResult() {
         var settings = Settings()
         settings.autoCheckMistakes = false
