@@ -63,6 +63,7 @@
 		000000000000000000000088 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000082 /* AppColors.swift */; };
 		000000000000000000000089 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000083 /* ThemeColors.swift */; };
 		0000000000000000000000AF /* SheetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AE /* SheetTheme.swift */; };
+		0000000000000000000000D5 /* SystemAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D4 /* SystemAppearance.swift */; };
 		0000000000000000000000CF /* ScreenBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CE /* ScreenBrightnessController.swift */; };
 		0000000000000000000000CD /* SleepPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CC /* SleepPalette.swift */; };
 		00000000000000000000008B /* BedtimeIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000085 /* BedtimeIcon.swift */; };
@@ -160,6 +161,7 @@
 		000000000000000000000082 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		000000000000000000000083 /* ThemeColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeColors.swift; sourceTree = "<group>"; };
 		0000000000000000000000AE /* SheetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetTheme.swift; sourceTree = "<group>"; };
+		0000000000000000000000D4 /* SystemAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAppearance.swift; sourceTree = "<group>"; };
 		0000000000000000000000CE /* ScreenBrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenBrightnessController.swift; sourceTree = "<group>"; };
 		0000000000000000000000CC /* SleepPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepPalette.swift; sourceTree = "<group>"; };
 		000000000000000000000085 /* BedtimeIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedtimeIcon.swift; sourceTree = "<group>"; };
@@ -391,6 +393,7 @@
 				000000000000000000000082 /* AppColors.swift */,
 				000000000000000000000083 /* ThemeColors.swift */,
 				0000000000000000000000AE /* SheetTheme.swift */,
+				0000000000000000000000D4 /* SystemAppearance.swift */,
 				0000000000000000000000CE /* ScreenBrightnessController.swift */,
 				0000000000000000000000CC /* SleepPalette.swift */,
 			);
@@ -583,6 +586,7 @@
 				000000000000000000000088 /* AppColors.swift in Sources */,
 				000000000000000000000089 /* ThemeColors.swift in Sources */,
 				0000000000000000000000AF /* SheetTheme.swift in Sources */,
+				0000000000000000000000D5 /* SystemAppearance.swift in Sources */,
 				0000000000000000000000CF /* ScreenBrightnessController.swift in Sources */,
 				0000000000000000000000CD /* SleepPalette.swift in Sources */,
 				00000000000000000000008B /* BedtimeIcon.swift in Sources */,

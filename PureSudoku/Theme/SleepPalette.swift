@@ -54,23 +54,39 @@ struct SleepPalette: Equatable {
         (hue ?? self.hue).scaled(toLuminance: luminance)
     }
 
+    /// The exact colors the theme draws (tested against the floors).
+    struct Rendered: Equatable {
+        let digit: RGB
+        let candidate: RGB
+        let gridLine: RGB
+        let accent: RGB
+        let card: RGB
+    }
+
+    var rendered: Rendered {
+        Rendered(
+            digit: color(luminance: levels.digit),
+            candidate: color(luminance: levels.candidate),
+            gridLine: color(luminance: levels.gridLine),
+            accent: color(luminance: levels.digit * 0.85, hue: hue.mix(RGB(r: 1, g: 0.6, b: 0.2), 0.5)),
+            card: color(luminance: max(levels.digit * 0.03, 0.0008))
+        )
+    }
+
     var themeColors: ThemeColors {
-        let digit = color(luminance: levels.digit)
-        let accent = color(luminance: levels.digit * 0.85, hue: hue.mix(RGB(r: 1, g: 0.6, b: 0.2), 0.5))
-        let card = color(luminance: max(levels.digit * 0.03, 0.0008))
+        let colors = rendered
         return ThemeColors(
             theme: .sleep,
             background: .black,
-            gridBackground: card.color,
-            accent: accent.color,
-            primaryText: digit.color,
-            secondaryText: color(luminance: levels.candidate).color,
-            error: accent.color, // errors show by shape (CODESPEC 7.2), so color only needs to be visible
-            success: color(luminance: levels.candidate).color,
-            cardBackground: card.color,
-            gridLine: color(luminance: levels.gridLine).color,
-            selection: accent.color.opacity(0.25),
-            dimOverlayOpacity: 0
+            gridBackground: colors.card.color,
+            accent: colors.accent.color,
+            primaryText: colors.digit.color,
+            secondaryText: colors.candidate.color,
+            error: colors.accent.color, // errors show by shape (CODESPEC 7.2), so color only needs to be visible
+            success: colors.candidate.color,
+            cardBackground: colors.card.color,
+            gridLine: colors.gridLine.color,
+            selection: colors.accent.color.opacity(0.25)
         )
     }
 
@@ -106,6 +122,7 @@ struct RGB: Equatable {
     }
 
     var color: Color { Color(.sRGB, red: r, green: g, blue: b, opacity: 1) }
+    var uiColor: UIColor { UIColor(red: r, green: g, blue: b, alpha: 1) }
 
     static func linear(_ c: Double) -> Double { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
     static func srgb(_ c: Double) -> Double { c <= 0.0031308 ? c * 12.92 : 1.055 * pow(c, 1 / 2.4) - 0.055 }

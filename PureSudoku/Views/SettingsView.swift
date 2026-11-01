@@ -27,7 +27,11 @@ struct SettingsView: View {
                 }
                 .sleepRowBackground()
                 Section("Bedtime") {
-                    Toggle("Bedtime Mode", isOn: Binding(get: { viewModel.settings.bedtimeMode }, set: { viewModel.setBedtimeMode($0) }))
+                    Toggle("Bedtime Mode", isOn: Binding(get: { viewModel.settings.bedtimeMode }, set: { on in
+                        viewModel.setBedtimeMode(on)
+                        // First time in Bedtime Mode: offer the display calibration (CODESPEC 12.3).
+                        if on && !viewModel.settings.hasCalibratedDisplay { calibrating = viewModel.settings.currentDisplayProfile }
+                    }))
                     Text("Bedtime Mode forces the Bedtime theme, mutes sound and haptics, and uses your bedtime display.")
                         .font(.footnote)
                         .foregroundColor(.secondary)
@@ -55,7 +59,10 @@ struct SettingsView: View {
                     DisplayCalibrationView(profile: profile, onSave: { saved in
                         viewModel.saveDisplayProfile(saved)
                         calibrating = nil
-                    }, onCancel: { calibrating = nil })
+                    }, onCancel: {
+                        viewModel.markDisplayCalibrationOffered()
+                        calibrating = nil
+                    })
                 }
             }
         }

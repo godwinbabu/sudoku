@@ -68,6 +68,10 @@ final class SettingsViewModel: ObservableObject {
         controller.updateSettings { $0.deleteDisplayProfile(id: id) }
     }
 
+    func markDisplayCalibrationOffered() {
+        controller.updateSettings { $0.hasCalibratedDisplay = true }
+    }
+
     var canAddDisplayProfile: Bool { controller.settings.displayProfiles.count < DisplayProfile.maxProfiles }
 
     func setKeepImportImages(_ value: Bool) {

@@ -794,8 +794,8 @@ Testing requirements:
 	•	No pure white elements dominate the screen.
 	•	Accent colors are warm (not blue).
 	•	Manual test:
-	•	With system brightness at ~25%, enable Sleep theme and in-app “Extra Dim”.
-	•	Subjectively confirm the grid is still readable but significantly dim.
+	•	With system brightness at ~25%, enable Bedtime Mode and calibrate to the dimmest readable profile.
+	•	Subjectively confirm the grid is still readable but significantly dim, and nothing on screen is pure white except the iOS status bar.
 	•	Calibration (phase 3):
 	•	Unit tests: a profile round-trips through persistence; old sleepBrightness values migrate to a profile; the computed palette keeps candidates and grid lines above their floor.
 	•	Manual test in a dark room with two testers, one near 30 and one near 60: each calibrates, then plays for 5 minutes. Both can read candidates without strain.

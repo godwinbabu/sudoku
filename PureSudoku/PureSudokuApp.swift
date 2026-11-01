@@ -21,14 +21,21 @@ struct RootView: View {
         MainMenuView(viewModel: MainMenuViewModel(controller: controller))
             .environmentObject(controller)
             .preferredColorScheme(controller.settings.preferredColorScheme)
-            .onChange(of: scenePhase) { _ in updateBrightness() }
-            .onChange(of: controller.settings) { _ in updateBrightness() }
-            .onAppear(perform: updateBrightness)
+            .onChange(of: scenePhase) { _ in updateDisplay() }
+            .onChange(of: controller.settings) { _ in updateDisplay() }
+            .onAppear(perform: updateDisplay)
+            .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.darkerSystemColorsStatusDidChangeNotification)) { _ in
+                controller.objectWillChange.send() // Increase Contrast changes the Sleep floors (CODESPEC 9)
+                updateDisplay()
+            }
     }
 
-    /// Lowers the screen only while the app is active in the Sleep theme and the profile asks for it.
-    private func updateBrightness() {
+    private func updateDisplay() {
         let settings = controller.settings
-        brightness.update(lower: scenePhase == .active && settings.themeEffective == .sleep && settings.currentDisplayProfile.lowersScreenBrightness)
+        brightness.update(lower: ScreenBrightnessController.shouldLower(phase: scenePhase, settings: settings))
+        let palette = settings.themeEffective == .sleep
+            ? SleepPalette(profile: settings.currentDisplayProfile, increaseContrast: UIAccessibility.isDarkerSystemColorsEnabled)
+            : nil
+        SystemAppearance.apply(palette)
     }
 }

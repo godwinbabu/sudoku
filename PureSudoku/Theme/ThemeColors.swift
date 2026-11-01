@@ -12,7 +12,6 @@ struct ThemeColors {
     let cardBackground: Color
     let gridLine: Color
     let selection: Color
-    let dimOverlayOpacity: Double
 
     var isSleep: Bool { theme == .sleep }
     var numberPadDisabledBackground: Color { secondaryText.opacity(0.25) }
@@ -49,8 +48,7 @@ static func forTheme(_ theme: AppTheme) -> ThemeColors {
                 success: .appSuccessGreen,
                 cardBackground: .white,
                 gridLine: .black,
-                selection: Color.appAccentAmber.opacity(0.15),
-                dimOverlayOpacity: 0
+                selection: Color.appAccentAmber.opacity(0.15)
             )
         case .dark:
             return ThemeColors(
@@ -64,8 +62,7 @@ static func forTheme(_ theme: AppTheme) -> ThemeColors {
                 success: .appSuccessGreen,
                 cardBackground: .appCardBackground,
                 gridLine: .white,
-                selection: Color.white.opacity(0.1),
-                dimOverlayOpacity: 0
+                selection: Color.white.opacity(0.1)
             )
         case .sleep:
             return ThemeColors(
@@ -79,8 +76,7 @@ static func forTheme(_ theme: AppTheme) -> ThemeColors {
                 success: .appSuccessGreen,
                 cardBackground: .appCardBackground,
                 gridLine: Color.appAccentOrange.opacity(0.55),
-                selection: Color.appAccentOrange.opacity(0.22),
-                dimOverlayOpacity: 0.35
+                selection: Color.appAccentOrange.opacity(0.22)
             )
         }
     }

@@ -4,6 +4,7 @@ import SwiftUI
 /// The preview grid uses the palette being edited, so the player sees the real result.
 struct DisplayCalibrationView: View {
     @State private var profile: DisplayProfile
+    @Environment(\.dynamicTypeSize) private var systemTypeSize
     let onSave: (DisplayProfile) -> Void
     let onCancel: () -> Void
 
@@ -20,7 +21,7 @@ struct DisplayCalibrationView: View {
                 Text("Do this in the dark, where you play.")
                     .font(.subheadline)
                     .foregroundColor(palette.color(luminance: palette.levels.candidate).color)
-                CalibrationPreview(palette: palette, typeSize: SleepPalette.typeSize(profile.textSize))
+                CalibrationPreview(palette: palette, typeSize: max(systemTypeSize, SleepPalette.typeSize(profile.textSize)))
                     .frame(maxWidth: 260)
                     .frame(maxWidth: .infinity)
                     .accessibilityHidden(true)
@@ -41,9 +42,13 @@ struct DisplayCalibrationView: View {
         }
         .background(Color.black.ignoresSafeArea())
         .foregroundColor(palette.color(luminance: palette.levels.digit).color)
-        .navigationTitle("Calibrate display")
         .navigationBarTitleDisplayMode(.inline)
+        .interactiveDismissDisabled() // Cancel always runs, so the first-time offer is recorded
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Calibrate display").font(.headline)
+                    .foregroundColor(palette.color(luminance: max(palette.levels.digit, 0.08)).color)
+            }
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel", action: onCancel)
             }

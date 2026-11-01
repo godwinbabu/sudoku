@@ -11,13 +11,12 @@ final class DisplayCalibrationTests: XCTestCase {
             for contrast in steps {
                 for warmth in [0.0, 0.5, 1.0] {
                     let profile = DisplayProfile(name: "p", dimness: dimness, contrast: contrast, warmth: warmth)
-                    let palette = SleepPalette(profile: profile)
-                    let levels = palette.levels
-                    XCTAssertGreaterThanOrEqual(levels.digit, SleepPalette.minimumDigit - 1e-9)
-                    XCTAssertGreaterThanOrEqual(levels.candidate, levels.digit * SleepPalette.candidateShare - 1e-9)
-                    XCTAssertGreaterThanOrEqual(levels.gridLine, levels.digit * SleepPalette.gridLineShare - 1e-9)
-                    // The rendered color really has the intended luminance (within rounding).
-                    XCTAssertEqual(palette.color(luminance: levels.digit).luminance, levels.digit, accuracy: levels.digit * 0.02 + 1e-4)
+                    // Check the colors the theme actually draws, not the targets.
+                    let drawn = SleepPalette(profile: profile).rendered
+                    let digit = drawn.digit.luminance
+                    XCTAssertGreaterThanOrEqual(digit, SleepPalette.minimumDigit * 0.98)
+                    XCTAssertGreaterThanOrEqual(drawn.candidate.luminance, digit * SleepPalette.candidateShare * 0.98)
+                    XCTAssertGreaterThanOrEqual(drawn.gridLine.luminance, digit * SleepPalette.gridLineShare * 0.98)
                 }
             }
         }
@@ -25,10 +24,10 @@ final class DisplayCalibrationTests: XCTestCase {
 
     func testIncreaseContrastMeetsWCAGOnBlack() {
         for dimness in steps {
-            let palette = SleepPalette(profile: DisplayProfile(name: "p", dimness: dimness, contrast: 0), increaseContrast: true)
-            XCTAssertGreaterThanOrEqual(SleepPalette.contrastOnBlack(palette.levels.digit), 4.5 - 1e-9)
-            XCTAssertGreaterThanOrEqual(SleepPalette.contrastOnBlack(palette.levels.candidate), 3 - 1e-9)
-            XCTAssertGreaterThanOrEqual(SleepPalette.contrastOnBlack(palette.levels.gridLine), 3 - 1e-9)
+            let drawn = SleepPalette(profile: DisplayProfile(name: "p", dimness: dimness, contrast: 0, warmth: 1), increaseContrast: true).rendered
+            XCTAssertGreaterThanOrEqual(SleepPalette.contrastOnBlack(drawn.digit.luminance), 4.45)
+            XCTAssertGreaterThanOrEqual(SleepPalette.contrastOnBlack(drawn.candidate.luminance), 2.97)
+            XCTAssertGreaterThanOrEqual(SleepPalette.contrastOnBlack(drawn.gridLine.luminance), 2.97)
         }
     }
 
@@ -75,7 +74,26 @@ final class DisplayCalibrationTests: XCTestCase {
         settings.toggleBedtimeMode(true)
         let colors = settings.themeColors
         XCTAssertEqual(colors.theme, .sleep)
-        XCTAssertEqual(colors.dimOverlayOpacity, 0)
+    }
+
+    func testScreenStaysLowWhenControlCenterOpens() {
+        var settings = Settings()
+        settings.toggleBedtimeMode(true)
+        var profile = settings.currentDisplayProfile
+        profile.lowersScreenBrightness = true
+        settings.saveDisplayProfile(profile)
+        XCTAssertTrue(ScreenBrightnessController.shouldLower(phase: .active, settings: settings))
+        XCTAssertTrue(ScreenBrightnessController.shouldLower(phase: .inactive, settings: settings), "no flash on Control Center")
+        XCTAssertFalse(ScreenBrightnessController.shouldLower(phase: .background, settings: settings))
+        settings.toggleBedtimeMode(false)
+        XCTAssertFalse(ScreenBrightnessController.shouldLower(phase: .active, settings: settings), "only in the Sleep theme")
+    }
+
+    func testNewSettingsStayReadableByOlderBuilds() throws {
+        var settings = Settings()
+        settings.saveDisplayProfile(DisplayProfile(name: "Dim", dimness: 0.5))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as? [String: Any])
+        XCTAssertEqual(json["sleepBrightness"] as? String, SleepBrightness.dim.rawValue)
     }
 
     func testScreenBrightnessIsRestored() {

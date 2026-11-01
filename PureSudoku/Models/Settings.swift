@@ -159,6 +159,9 @@ struct Settings: Codable, Equatable {
         try container.encode(bedtimeMode, forKey: .bedtimeMode)
         try container.encode(soundsEnabled, forKey: .soundsEnabled)
         try container.encode(hapticsEnabled, forKey: .hapticsEnabled)
+        // Older builds require this key; without it they would reset every setting.
+        let dimness = currentDisplayProfile.dimness
+        try container.encode(dimness < 0.35 ? SleepBrightness.normal : dimness < 0.62 ? .dim : .extraDim, forKey: .sleepBrightness)
         try container.encode(displayProfiles, forKey: .displayProfiles)
         try container.encode(activeDisplayProfileID, forKey: .activeDisplayProfileID)
         try container.encodeIfPresent(bedtimeDisplayProfileID, forKey: .bedtimeDisplayProfileID)
