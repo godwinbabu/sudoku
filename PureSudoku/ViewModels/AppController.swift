@@ -7,6 +7,8 @@ final class AppController: ObservableObject {
     @Published private(set) var stats: Stats
     @Published private(set) var activeGames: [Difficulty: GameState]
     @Published private(set) var importedGames: [ImportedGame]
+    /// Per-technique learning progress (CODESPEC 13.4), keyed by `Technique.rawValue`.
+    @Published private(set) var techniqueProgress: [String: TechniqueProgress]
     @Published var lastPersistenceError: (any Error)?
 
     private let persistence: PersistenceManager
@@ -68,6 +70,12 @@ final class AppController: ObservableObject {
             self.importedGamesLoadFailed = true
             self.lastPersistenceError = error
         }
+        do {
+            self.techniqueProgress = try persistence.load([String: TechniqueProgress].self, from: File.techniqueProgress.rawValue) ?? [:]
+        } catch {
+            self.techniqueProgress = [:]
+            self.lastPersistenceError = error
+        }
         countSolutionsOfOldImports()
     }
 
@@ -101,7 +109,46 @@ final class AppController: ObservableObject {
         viewModel.onSave = { [weak self] updatedState in
             self?.persist(state: updatedState, for: difficulty)
         }
+        connectLearning(viewModel)
         return viewModel
+    }
+
+    /// A practice game from a lesson: not saved and not counted in stats, but it does count
+    /// toward learning (CODESPEC 13.5).
+    func makePracticeGameViewModel(_ entry: BundledPuzzles.Entry, number: Int) -> GameViewModel {
+        let puzzle = SudokuPuzzle(
+            id: "practice-\(entry.initialGrid.prefix(12))", difficulty: entry.difficulty,
+            initialGrid: entry.initialGrid, solutionGrid: entry.solutionGrid, hasUniqueSolution: true
+        )
+        let viewModel = GameViewModel(state: GameState.newGame(for: puzzle, now: timeProvider.now()), settings: settings,
+                                      validator: validator, timeProvider: timeProvider, hintService: generatorService)
+        connectLearning(viewModel)
+        return viewModel
+    }
+
+    func progress(for technique: Technique) -> TechniqueProgress {
+        techniqueProgress[technique.rawValue] ?? TechniqueProgress()
+    }
+
+    private func connectLearning(_ viewModel: GameViewModel) {
+        viewModel.learningLevel = { [weak self] technique in self?.progress(for: technique).level ?? .new }
+        viewModel.onTechniqueFound = { [weak self] technique, puzzleID in
+            self?.updateProgress(technique) { $0.recordFound(puzzleID: puzzleID, at: self?.timeProvider.now() ?? Date()) }
+        }
+        viewModel.onHintShown = { [weak self] technique in
+            self?.updateProgress(technique) { $0.recordHint(at: self?.timeProvider.now() ?? Date()) }
+        }
+    }
+
+    private func updateProgress(_ technique: Technique, _ change: (inout TechniqueProgress) -> Void) {
+        var progress = progress(for: technique)
+        change(&progress)
+        techniqueProgress[technique.rawValue] = progress
+        do {
+            try persistence.save(techniqueProgress, to: File.techniqueProgress.rawValue)
+        } catch {
+            lastPersistenceError = error
+        }
     }
 
     func makeImportedGameViewModel(id: String) -> GameViewModel? {
@@ -114,6 +161,7 @@ final class AppController: ObservableObject {
         viewModel.onSave = { [weak self] updatedState in
             self?.persistImported(state: updatedState, id: id)
         }
+        connectLearning(viewModel)
         return viewModel
     }
 
@@ -274,6 +322,7 @@ private enum File: RawRepresentable {
     case stats
     case game(Difficulty)
     case importedGames
+    case techniqueProgress
 
     var rawValue: String {
         switch self {
@@ -281,6 +330,7 @@ private enum File: RawRepresentable {
         case .stats: return "stats.json"
         case let .game(difficulty): return "game_\(difficulty.rawValue).json"
         case .importedGames: return "imported_games.json"
+        case .techniqueProgress: return "technique_progress.json"
         }
     }
 

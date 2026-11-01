@@ -15,6 +15,7 @@
 		00000000000000000000004B /* SudokuPuzzle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000016 /* SudokuPuzzle.swift */; };
 		00000000000000000000004C /* GameState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000017 /* GameState.swift */; };
 		00000000000000000000004D /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000018 /* Stats.swift */; };
+		0000000000000000000000DF /* TechniqueProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DE /* TechniqueProgress.swift */; };
 		00000000000000000000004E /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000019 /* Settings.swift */; };
 		0000000000000000000000CB /* DisplayProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CA /* DisplayProfile.swift */; };
 		00000000000000000000004F /* SudokuValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001A /* SudokuValidator.swift */; };
@@ -34,6 +35,7 @@
 		000000000000000000000053 /* AppController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001E /* AppController.swift */; };
 		000000000000000000000054 /* GameViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001F /* GameViewModel.swift */; };
 		0000000000000000000000C5 /* HintSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C4 /* HintSession.swift */; };
+		0000000000000000000000E1 /* Lesson.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E0 /* Lesson.swift */; };
 		000000000000000000000055 /* MainMenuViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000020 /* MainMenuViewModel.swift */; };
 		000000000000000000000056 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000021 /* SettingsViewModel.swift */; };
 		000000000000000000000057 /* StatsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000022 /* StatsViewModel.swift */; };
@@ -41,6 +43,7 @@
 		00000000000000000000005A /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* MainMenuView.swift */; };
 		00000000000000000000005B /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000026 /* GameView.swift */; };
 		0000000000000000000000C7 /* HintPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C6 /* HintPanelView.swift */; };
+		0000000000000000000000E3 /* LearnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E2 /* LearnView.swift */; };
 		00000000000000000000005C /* SudokuGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000027 /* SudokuGridView.swift */; };
 		00000000000000000000005D /* NumberPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* NumberPadView.swift */; };
 		00000000000000000000005E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SettingsView.swift */; };
@@ -55,6 +58,7 @@
 		000000000000000000000067 /* GameStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000032 /* GameStateTests.swift */; };
 		000000000000000000000068 /* GameViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000033 /* GameViewModelTests.swift */; };
 		000000000000000000000069 /* StatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000034 /* StatsTests.swift */; };
+		0000000000000000000000E5 /* LearningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E4 /* LearningTests.swift */; };
 		0000000000000000000000DB /* PuzzleGraderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DA /* PuzzleGraderTests.swift */; };
 		0000000000000000000000D3 /* DisplayCalibrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D2 /* DisplayCalibrationTests.swift */; };
 		0000000000000000000000C9 /* HintLadderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C8 /* HintLadderTests.swift */; };
@@ -113,6 +117,7 @@
 		000000000000000000000016 /* SudokuPuzzle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuPuzzle.swift; sourceTree = "<group>"; };
 		000000000000000000000017 /* GameState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameState.swift; sourceTree = "<group>"; };
 		000000000000000000000018 /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
+		0000000000000000000000DE /* TechniqueProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TechniqueProgress.swift; sourceTree = "<group>"; };
 		000000000000000000000019 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		0000000000000000000000CA /* DisplayProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayProfile.swift; sourceTree = "<group>"; };
 		00000000000000000000001A /* SudokuValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuValidator.swift; sourceTree = "<group>"; };
@@ -132,6 +137,7 @@
 		00000000000000000000001E /* AppController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppController.swift; sourceTree = "<group>"; };
 		00000000000000000000001F /* GameViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModel.swift; sourceTree = "<group>"; };
 		0000000000000000000000C4 /* HintSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintSession.swift; sourceTree = "<group>"; };
+		0000000000000000000000E0 /* Lesson.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lesson.swift; sourceTree = "<group>"; };
 		000000000000000000000020 /* MainMenuViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuViewModel.swift; sourceTree = "<group>"; };
 		000000000000000000000021 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		000000000000000000000022 /* StatsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsViewModel.swift; sourceTree = "<group>"; };
@@ -139,6 +145,7 @@
 		000000000000000000000025 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
 		000000000000000000000026 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
 		0000000000000000000000C6 /* HintPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintPanelView.swift; sourceTree = "<group>"; };
+		0000000000000000000000E2 /* LearnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearnView.swift; sourceTree = "<group>"; };
 		000000000000000000000027 /* SudokuGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGridView.swift; sourceTree = "<group>"; };
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
 		000000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -153,6 +160,7 @@
 		000000000000000000000032 /* GameStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStateTests.swift; sourceTree = "<group>"; };
 		000000000000000000000033 /* GameViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModelTests.swift; sourceTree = "<group>"; };
 		000000000000000000000034 /* StatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsTests.swift; sourceTree = "<group>"; };
+		0000000000000000000000E4 /* LearningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearningTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000DA /* PuzzleGraderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGraderTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000D2 /* DisplayCalibrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayCalibrationTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000C8 /* HintLadderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintLadderTests.swift; sourceTree = "<group>"; };
@@ -248,6 +256,7 @@
 				000000000000000000000016 /* SudokuPuzzle.swift */,
 				000000000000000000000017 /* GameState.swift */,
 				000000000000000000000018 /* Stats.swift */,
+				0000000000000000000000DE /* TechniqueProgress.swift */,
 				000000000000000000000019 /* Settings.swift */,
 				0000000000000000000000CA /* DisplayProfile.swift */,
 				0000000000000000000000A1 /* GameSource.swift */,
@@ -294,6 +303,7 @@
 				00000000000000000000001E /* AppController.swift */,
 				00000000000000000000001F /* GameViewModel.swift */,
 				0000000000000000000000C4 /* HintSession.swift */,
+				0000000000000000000000E0 /* Lesson.swift */,
 				000000000000000000000020 /* MainMenuViewModel.swift */,
 				000000000000000000000021 /* SettingsViewModel.swift */,
 				000000000000000000000022 /* StatsViewModel.swift */,
@@ -309,6 +319,7 @@
 				000000000000000000000025 /* MainMenuView.swift */,
 				000000000000000000000026 /* GameView.swift */,
 				0000000000000000000000C6 /* HintPanelView.swift */,
+				0000000000000000000000E2 /* LearnView.swift */,
 				000000000000000000000027 /* SudokuGridView.swift */,
 				000000000000000000000028 /* NumberPadView.swift */,
 				000000000000000000000029 /* SettingsView.swift */,
@@ -358,6 +369,7 @@
 				000000000000000000000032 /* GameStateTests.swift */,
 				000000000000000000000033 /* GameViewModelTests.swift */,
 				000000000000000000000034 /* StatsTests.swift */,
+				0000000000000000000000E4 /* LearningTests.swift */,
 				0000000000000000000000DA /* PuzzleGraderTests.swift */,
 				0000000000000000000000D2 /* DisplayCalibrationTests.swift */,
 				0000000000000000000000C8 /* HintLadderTests.swift */,
@@ -558,6 +570,7 @@
 				00000000000000000000004B /* SudokuPuzzle.swift in Sources */,
 				00000000000000000000004C /* GameState.swift in Sources */,
 				00000000000000000000004D /* Stats.swift in Sources */,
+				0000000000000000000000DF /* TechniqueProgress.swift in Sources */,
 				00000000000000000000004E /* Settings.swift in Sources */,
 				0000000000000000000000CB /* DisplayProfile.swift in Sources */,
 				000000000000000000000098 /* GameSource.swift in Sources */,
@@ -583,6 +596,7 @@
 				000000000000000000000053 /* AppController.swift in Sources */,
 				000000000000000000000054 /* GameViewModel.swift in Sources */,
 				0000000000000000000000C5 /* HintSession.swift in Sources */,
+				0000000000000000000000E1 /* Lesson.swift in Sources */,
 				000000000000000000000055 /* MainMenuViewModel.swift in Sources */,
 				000000000000000000000056 /* SettingsViewModel.swift in Sources */,
 				000000000000000000000057 /* StatsViewModel.swift in Sources */,
@@ -591,6 +605,7 @@
 				00000000000000000000005A /* MainMenuView.swift in Sources */,
 				00000000000000000000005B /* GameView.swift in Sources */,
 				0000000000000000000000C7 /* HintPanelView.swift in Sources */,
+				0000000000000000000000E3 /* LearnView.swift in Sources */,
 				00000000000000000000005C /* SudokuGridView.swift in Sources */,
 				00000000000000000000005D /* NumberPadView.swift in Sources */,
 				00000000000000000000005E /* SettingsView.swift in Sources */,
@@ -618,6 +633,7 @@
 				000000000000000000000067 /* GameStateTests.swift in Sources */,
 				000000000000000000000068 /* GameViewModelTests.swift in Sources */,
 				000000000000000000000069 /* StatsTests.swift in Sources */,
+				0000000000000000000000E5 /* LearningTests.swift in Sources */,
 				0000000000000000000000DB /* PuzzleGraderTests.swift in Sources */,
 				0000000000000000000000D3 /* DisplayCalibrationTests.swift in Sources */,
 				0000000000000000000000C9 /* HintLadderTests.swift in Sources */,

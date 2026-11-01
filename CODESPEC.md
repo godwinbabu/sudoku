@@ -936,7 +936,7 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	The last resort (Bowman’s Bingo) can return no hint.
 
 13.4 Mastery
-	•	A technique is mastered when the player has found it without a hint in 3 different puzzles on 3 different days. “Found” means: on the board just before the player’s move, nextStep returns a step, and the move makes that step’s placement or one of its eliminations, with no hint shown for that step. The credit goes to that step’s technique. A move that matches no nextStep result earns no credit.
+	•	A technique is mastered when the player has found it without a hint in 3 different puzzles on 3 different days. “Found” means: on the board just before the player’s move (a correct placement, or removing a wrong note), some step of some technique makes exactly that change, and no hint for that technique was shown since the player’s previous move. The credit goes to the simplest such technique (curriculum order). Checking every step, not only nextStep’s first, lets techniques like Naked Single earn credit even when another single comes first. The check runs off the main thread.
 	•	Each technique has a strength value (0–1) that decays over time (half-life model). Strength rises when found unaided and falls when a hint for it is needed.
 	•	When strength falls low, the Learn screen offers an optional review drill. No streak alarms, no notifications.
 
@@ -944,6 +944,8 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	Opened from the main menu. Shows the four tiers and each technique’s state (new, learning, mastered).
 	•	One lesson per technique, built on a single example on a real board. No catalogs of variants.
 	•	Each lesson ends with three practice puzzles that need that technique (from the drill index).
+	•	Practice puzzles are not saved and do not count toward stats or the streak; they do count toward learning (mastery and strength).
+	•	The example board is a bundled puzzle solved up to the first step of that technique, drawn like a hint: pattern first, then the result on “Show the result”.
 	•	The first time a puzzle needs a technique the player has not seen, the hint offers that lesson.
 
 13.6 Build phases
