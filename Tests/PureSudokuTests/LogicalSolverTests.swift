@@ -40,7 +40,8 @@ final class LogicalSolverTests: XCTestCase {
         }
         print("LogicalSolver corpus: solved \(solvedCount)/\(Self.corpus.count); steps per technique:", Technique.allCases.map { "\($0.rawValue)=\(used[$0, default: 0])" }.joined(separator: " "))
         // Every technique except the rare quads is exercised by the corpus.
-        for technique in Technique.allCases where ![.nakedQuad, .hiddenQuad].contains(technique) {
+        let rare: Set<Technique> = [.nakedQuad, .hiddenQuad, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne]
+        for technique in Technique.allCases where !rare.contains(technique) {
             XCTAssertGreaterThan(used[technique, default: 0], 0, "\(technique) never fired in the corpus")
         }
         XCTAssertGreaterThan(solvedCount, Self.corpus.count / 2, "the solver should finish most generated puzzles")
@@ -80,6 +81,24 @@ final class LogicalSolverTests: XCTestCase {
             guard Set(pincers.map { board.candidates[$0] }) == [SolverBoard.mask(of: [x, z]), SolverBoard.mask(of: [y, z])] else { return "pincers are not {x, z} and {y, z}" }
             guard pincers.allSatisfy({ SolverBoard.sees(pivot, $0) }) else { return "a pincer does not see the pivot" }
             return step.eliminations.allSatisfy({ e in e.digit == z && pincers.allSatisfy { SolverBoard.sees(e.cell, $0) } }) ? nil : "elimination does not see both pincers"
+        case .skyscraper, .twoStringKite, .emptyRectangle, .simpleColoring:
+            // Single-digit patterns: every pattern cell holds the digit; eliminations are that digit.
+            let digit = step.digits[0]
+            guard cells.allSatisfy({ board.has(digit, at: $0) }) else { return "a pattern cell lacks the digit" }
+            return step.eliminations.allSatisfy { $0.digit == digit && !cells.contains($0.cell) } ? nil : "elimination of another digit"
+        case .xyzWing:
+            let pivot = step.cells.first { $0.role == .pivot }!.cell
+            let pincers = step.cells.filter { $0.role == .pincer }.map(\.cell)
+            let z = step.digits.last!
+            guard board.candidates[pivot].nonzeroBitCount == 3 else { return "pivot is not trivalue" }
+            return step.eliminations.allSatisfy({ e in e.digit == z && SolverBoard.sees(e.cell, pivot) && pincers.allSatisfy { SolverBoard.sees(e.cell, $0) } })
+                ? nil : "elimination does not see pivot and pincers"
+        case .wWing:
+            let ends = step.cells.filter { $0.role == .pincer }.map(\.cell)
+            guard board.candidates[ends[0]] == board.candidates[ends[1]], board.candidates[ends[0]].nonzeroBitCount == 2 else { return "ends differ" }
+            return step.eliminations.allSatisfy { e in ends.allSatisfy { SolverBoard.sees(e.cell, $0) } } ? nil : "elimination does not see both ends"
+        case .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne:
+            return cells.allSatisfy({ board.values[$0] == 0 }) ? nil : "pattern cell is filled"
         }
     }
 
@@ -223,6 +242,64 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertEqual(step?.eliminations, expected([0, 1, 2, 3], Array(5...9)))
     }
 
+    // MARK: - Phase 5 boards
+
+    /// Masks where `digit` is removed from every cell of `cells`.
+    private func without(_ digit: Int, _ cells: [Int], plus masks: [Int: [Int]] = [:]) -> [Int: [Int]] {
+        var result = masks
+        for cell in cells where result[cell] == nil { result[cell] = allBut(digit) }
+        return result
+    }
+
+    func testSkyscraperRemovesFromCellsSeeingBothTops() {
+        // 5 in row 1 only at c1, c5; in row 4 only at c1, c6. Bases line up in column 1.
+        let masks = without(5, (0..<9).filter { ![0, 4].contains($0) } + (27..<36).filter { ![27, 32].contains($0) })
+        let steps = SingleDigitDetector.skyscrapers(board(masks)).filter { $0.digits == [5] }
+        XCTAssertEqual(steps.count, 1)
+        XCTAssertEqual(steps.first?.eliminations, expected([14, 23, 40, 49], [5]))
+    }
+
+    func testTwoStringKiteRemovesWhereTheFarEndsCross() {
+        // 7: row 2 only at r2c2, r2c7; column 1 only at r3c1, r8c1 (r2c2 and r3c1 share box 1).
+        let rowCells = (9..<18).filter { ![10, 15].contains($0) }
+        let columnCells = stride(from: 0, to: 81, by: 9).filter { ![18, 63].contains($0) }
+        let steps = SingleDigitDetector.twoStringKites(board(without(7, rowCells + columnCells)))
+        XCTAssertEqual(steps.map(\.eliminations), [[CellDigit(cell: 69, digit: 7)]])
+    }
+
+    func testEmptyRectangleRemovesOneCell() {
+        // Box 5: 5 only on row 5 and column 5 (a cross). Column 9: 5 only at r1c9 and r5c9.
+        let column9 = stride(from: 8, to: 81, by: 9).filter { ![8, 44].contains($0) }
+        let steps = SingleDigitDetector.emptyRectangles(board(without(5, [30, 32, 48, 50] + column9)))
+        XCTAssertTrue(steps.contains { $0.eliminations == [CellDigit(cell: 4, digit: 5)] })
+        XCTAssertTrue(steps.allSatisfy { $0.eliminations.allSatisfy { $0.digit == 5 } })
+    }
+
+    func testXYZWingRemovesFromCellsSeeingAllThree() {
+        let steps = MoreWingsDetector.xyzWings(board([0: [1, 2, 3], 1: [1, 3], 9: [2, 3]]))
+        XCTAssertEqual(steps.count, 1)
+        XCTAssertEqual(steps.first?.eliminations, expected([2, 10, 11, 18, 19, 20], [3]))
+    }
+
+    func testWWingRemovesFromCellsSeeingBothEnds() {
+        // r1c1 and r9c9 hold {1,2}; column 5 has 1 only at r1c5 and r9c5.
+        let column5 = stride(from: 4, to: 81, by: 9).filter { ![4, 76].contains($0) }
+        let steps = MoreWingsDetector.wWings(board(without(1, column5, plus: [0: [1, 2], 80: [1, 2]])))
+        XCTAssertTrue(steps.contains { $0.eliminations == [CellDigit(cell: 8, digit: 2), CellDigit(cell: 72, digit: 2)] })
+    }
+
+    func testUniqueRectangleType1AndItsGate() {
+        let masks: [Int: [Int]] = [0: [4, 6], 3: [4, 6], 9: [4, 6], 12: [4, 6, 8]]
+        let steps = UniquenessDetector.uniqueRectangles(board(masks), type: 1)
+        XCTAssertEqual(steps.map(\.eliminations), [[CellDigit(cell: 12, digit: 4), CellDigit(cell: 12, digit: 6)]])
+        XCTAssertTrue(Technique.uniqueRectangle1.needsUniqueSolution)
+        // A puzzle that may have several solutions never gets a uniqueness step.
+        let noUniqueness = LogicalSolver(allowsUniqueness: false)
+        for (puzzle, _) in Self.corpus.prefix(120) {
+            XCTAssertFalse(noUniqueness.solve(SolverBoard(values: puzzle)).steps.contains { $0.technique.needsUniqueSolution })
+        }
+    }
+
     func testXYWingNeedsThreeDistinctDigits() {
         // Pivot r1c1 {1,2}, pincers r1c5 {1,3} and r5c1 {2,3}: r5c5 sees both pincers and loses 3.
         let wing = WingDetector.xyWings(board([0: [1, 2], 4: [1, 3], 36: [2, 3]]))
@@ -230,6 +307,12 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertEqual(wing.first?.eliminations, [CellDigit(cell: 40, digit: 3)])
         // A pivot and pincer with the same pair is not a wing.
         XCTAssertTrue(WingDetector.xyWings(board([0: [4, 5], 2: [4, 5], 72: [3, 5]])).isEmpty)
+    }
+
+    func testEveryTechniqueHasADetector() {
+        for technique in Technique.allCases {
+            XCTAssertNotNil(LogicalSolver.detectors[technique], "\(technique) has no detector")
+        }
     }
 
     func testCombinations() {

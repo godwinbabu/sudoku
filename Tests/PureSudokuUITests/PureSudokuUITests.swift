@@ -30,7 +30,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.buttons["difficulty_medium"].exists)
         XCTAssertTrue(app.buttons["difficulty_hard"].exists)
         // Each level names the techniques it needs (CODESPEC 1, 2.2).
-        XCTAssertTrue(app.staticTexts["Medium, then X-Wing, Swordfish, XY-Wing"].exists)
+        XCTAssertTrue(app.staticTexts["Medium, then X-Wing, Skyscraper, wings, coloring"].exists)
     }
 
     func testImportButtonOpensImportScreen() {

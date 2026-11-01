@@ -21,8 +21,8 @@ struct PuzzleGrade: Codable, Equatable {
 enum PuzzleGrader {
     /// Solves step by step, always taking the simplest step. Nil if the solver gets stuck (the
     /// puzzle needs a technique the app does not know yet) — such a puzzle fits no level.
-    static func grade(_ values: [Int]) -> (grade: PuzzleGrade, solution: [Int])? {
-        let result = LogicalSolver().solve(SolverBoard(values: values))
+    static func grade(_ values: [Int], allowsUniqueness: Bool = true) -> (grade: PuzzleGrade, solution: [Int])? {
+        let result = LogicalSolver(allowsUniqueness: allowsUniqueness).solve(SolverBoard(values: values))
         guard result.isSolved else { return nil }
         let used = Set(result.steps.map(\.technique))
         let grade = PuzzleGrade(

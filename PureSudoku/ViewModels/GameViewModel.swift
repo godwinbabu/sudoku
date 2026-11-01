@@ -662,7 +662,7 @@ extension GameViewModel {
             hint = HintSession(content: .mistake(cell: mistake.cell, kind: mistake.kind))
         } else {
             let board = SolverBoard(cells: state.cells)
-            if let step = LogicalSolver().nextStep(board) {
+            if let step = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).nextStep(board) {
                 hint = HintSession(content: .step(step, board: board))
             } else {
                 hint = HintSession(content: .noStep(cell: revealTarget()))

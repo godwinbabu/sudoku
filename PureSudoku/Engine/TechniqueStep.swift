@@ -24,8 +24,18 @@ enum Technique: String, Codable, CaseIterable {
     case nakedQuad
     case hiddenQuad
     case xWing
+    case skyscraper
+    case twoStringKite
+    case emptyRectangle
     case swordfish
     case xyWing
+    case xyzWing
+    case wWing
+    case simpleColoring
+    case uniqueRectangle1
+    case uniqueRectangle2
+    case uniqueRectangle4
+    case bugPlusOne
 
     var displayName: String {
         switch self {
@@ -45,15 +55,31 @@ enum Technique: String, Codable, CaseIterable {
         case .xWing: return "X-Wing"
         case .swordfish: return "Swordfish"
         case .xyWing: return "XY-Wing"
+        case .skyscraper: return "Skyscraper"
+        case .twoStringKite: return "2-String Kite"
+        case .emptyRectangle: return "Empty Rectangle"
+        case .xyzWing: return "XYZ-Wing"
+        case .wWing: return "W-Wing"
+        case .simpleColoring: return "Simple Coloring"
+        case .uniqueRectangle1: return "Unique Rectangle"
+        case .uniqueRectangle2: return "Unique Rectangle (Type 2)"
+        case .uniqueRectangle4: return "Unique Rectangle (Type 4)"
+        case .bugPlusOne: return "BUG+1"
         }
     }
 
     var tier: TechniqueTier {
         switch self {
         case .fullHouse, .hiddenSingleBox, .hiddenSingleLine, .nakedSingle: return .basic
-        case .xWing, .swordfish, .xyWing: return .advanced
+        case .xWing, .swordfish, .xyWing, .skyscraper, .twoStringKite, .emptyRectangle, .xyzWing, .wWing, .simpleColoring,
+             .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne: return .advanced
         default: return .intermediate
         }
+    }
+
+    /// Assumes the puzzle has exactly one solution (CODESPEC 2.1).
+    var needsUniqueSolution: Bool {
+        [.uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne].contains(self)
     }
 
     /// One-line definition shown at rung 1.
@@ -70,6 +96,15 @@ enum Technique: String, Codable, CaseIterable {
         case .xWing: return "A digit in two rows (or columns) lines up in two columns (or rows)."
         case .swordfish: return "An X-Wing across three rows and three columns."
         case .xyWing: return "Three two-candidate cells that force a digit out of the cells they both see."
+        case .skyscraper: return "Two strong links on one digit that share one end line; the cells seeing both free ends lose it."
+        case .twoStringKite: return "A row link and a column link on one digit, joined in a box."
+        case .emptyRectangle: return "A digit confined to a cross in one box, used with a strong link outside the box."
+        case .xyzWing: return "Like an XY-Wing, but the pivot also holds the shared digit."
+        case .wWing: return "Two cells with the same pair, joined by a strong link on one of the digits."
+        case .simpleColoring: return "Color one digit's strong links in two colors: exactly one color is true."
+        case .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4:
+            return "Four cells that would allow two solutions; a one-solution puzzle must avoid that."
+        case .bugPlusOne: return "All cells but one have two candidates; that one must break the tie."
         }
     }
 
@@ -97,6 +132,11 @@ enum Technique: String, Codable, CaseIterable {
         case .xWing: return 140
         case .hiddenQuad, .swordfish: return 150
         case .xyWing: return 160
+        case .emptyRectangle: return 120
+        case .skyscraper: return 130
+        case .twoStringKite, .wWing, .simpleColoring: return 150
+        case .xyzWing: return 180
+        case .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne: return 100
         }
     }
 }
@@ -179,12 +219,35 @@ struct TechniqueStep: Equatable, Codable {
         case .hiddenPair, .hiddenTriple, .hiddenQuad:
             return "In \(baseNames), \(digitList) fit only in \(cellNames). "
                 + "Those cells must hold them, so their other candidates can go."
-        case .xyWing:
+        case .xyWing, .xyzWing:
             let pivot = cells.first { $0.role == .pivot }.map { SolverBoard.name(of: $0.cell, names) } ?? ""
             let pincers = Self.list(cells.filter { $0.role == .pincer }.map { SolverBoard.name(of: $0.cell, names) })
             let z = digits.last.map(String.init) ?? ""
-            return "Whatever \(pivot) turns out to be, one of \(pincers) must be \(z). "
-                + "So a cell that sees both can't be \(z)."
+            let seers = technique == .xyzWing ? "all three" : "both"
+            return "Whatever \(pivot) turns out to be, one of \(technique == .xyzWing ? pivot + ", " : "")\(pincers) must be \(z). "
+                + "So a cell that sees \(seers) can't be \(z)."
+        case .skyscraper:
+            return "In \(baseNames), \(digitList) has only two places each, and one end of each lines up. "
+                + "So one of the other two ends is \(digitList), and a cell that sees both can't be."
+        case .twoStringKite:
+            return "In \(baseNames), \(digitList) has only two places each, and the two links meet in \(coverNames). "
+                + "So one of the far ends is \(digitList), and the cell where their lines cross can't be."
+        case .emptyRectangle:
+            return "In \(houses.first.map(\.house.name) ?? ""), \(digitList) sits only on one row and one column. "
+                + "Together with the strong link in \(houses.dropFirst().first.map(\.house.name) ?? ""), that rules out one cell."
+        case .wWing:
+            let ends = Self.list(cells.filter { $0.role == .pincer }.map { SolverBoard.name(of: $0.cell, names) })
+            let (link, other) = (digits.first.map(String.init) ?? "", digits.last.map(String.init) ?? "")
+            return "\(ends.capitalizedFirst) both hold only \(link) and \(other). A strong link on \(link) in \(baseNames) "
+                + "means one of them is \(other), so a cell that sees both can't be \(other)."
+        case .simpleColoring:
+            return "Color \(digitList)'s strong links in two colors: one color is all \(digitList), the other has none. "
+                + "That rules out \(digitList) where the colors clash or meet."
+        case .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4:
+            return "\(cellNames.capitalizedFirst) form a rectangle that could hold only \(Self.list(digits.prefix(2).map(String.init))). "
+                + "That would allow two solutions, and the puzzle has one, so something must break it."
+        case .bugPlusOne:
+            return "Every other empty cell has two candidates. If \(cellNames) weren't the right digit, the puzzle would have two solutions."
         }
     }
 

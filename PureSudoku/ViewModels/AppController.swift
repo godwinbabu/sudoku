@@ -140,7 +140,8 @@ final class AppController: ObservableObject {
         guard let solution = generatorService.solve(initialGrid: initialGrid) else { return nil }
         let values = initialGrid.map { Int(String($0)) ?? 0 }
         // Level from the techniques needed; an import the solver can't finish is Hard (CODESPEC 2.2).
-        let grade = PuzzleGrader.grade(values)?.grade
+        let unique = SolutionCounter.count(values, limit: 2) == 1
+        let grade = PuzzleGrader.grade(values, allowsUniqueness: unique)?.grade
         let puzzle = SudokuPuzzle(
             id: UUID().uuidString,
             difficulty: grade?.difficulty ?? .hard,
@@ -150,7 +151,7 @@ final class AppController: ObservableObject {
             source: .imported,
             importedAt: date,
             importImageID: imageID,
-            hasUniqueSolution: SolutionCounter.count(values, limit: 2) == 1
+            hasUniqueSolution: unique
         )
         let gameState = GameState.newGame(for: puzzle, now: timeProvider.now())
         let imported = ImportedGame(gameState: gameState, createdAt: date, lastOpened: date)

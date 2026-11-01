@@ -20,6 +20,7 @@
 		00000000000000000000004F /* SudokuValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001A /* SudokuValidator.swift */; };
 		0000000000000000000000B1 /* Board.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B0 /* Board.swift */; };
 		0000000000000000000000BD /* FishAndWings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BC /* FishAndWings.swift */; };
+		0000000000000000000000DD /* AdvancedDetectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DC /* AdvancedDetectors.swift */; };
 		0000000000000000000000BB /* SubsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BA /* SubsetDetector.swift */; };
 		0000000000000000000000B9 /* SinglesAndIntersections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B8 /* SinglesAndIntersections.swift */; };
 		0000000000000000000000B7 /* LogicalSolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B6 /* LogicalSolver.swift */; };
@@ -117,6 +118,7 @@
 		00000000000000000000001A /* SudokuValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuValidator.swift; sourceTree = "<group>"; };
 		0000000000000000000000B0 /* Board.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Board.swift; sourceTree = "<group>"; };
 		0000000000000000000000BC /* FishAndWings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FishAndWings.swift; sourceTree = "<group>"; };
+		0000000000000000000000DC /* AdvancedDetectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedDetectors.swift; sourceTree = "<group>"; };
 		0000000000000000000000BA /* SubsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsetDetector.swift; sourceTree = "<group>"; };
 		0000000000000000000000B8 /* SinglesAndIntersections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinglesAndIntersections.swift; sourceTree = "<group>"; };
 		0000000000000000000000B6 /* LogicalSolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalSolver.swift; sourceTree = "<group>"; };
@@ -263,6 +265,7 @@
 				00000000000000000000001A /* SudokuValidator.swift */,
 				0000000000000000000000B0 /* Board.swift */,
 				0000000000000000000000BC /* FishAndWings.swift */,
+				0000000000000000000000DC /* AdvancedDetectors.swift */,
 				0000000000000000000000BA /* SubsetDetector.swift */,
 				0000000000000000000000B8 /* SinglesAndIntersections.swift */,
 				0000000000000000000000B6 /* LogicalSolver.swift */,
@@ -562,6 +565,7 @@
 				00000000000000000000004F /* SudokuValidator.swift in Sources */,
 				0000000000000000000000B1 /* Board.swift in Sources */,
 				0000000000000000000000BD /* FishAndWings.swift in Sources */,
+				0000000000000000000000DD /* AdvancedDetectors.swift in Sources */,
 				0000000000000000000000BB /* SubsetDetector.swift in Sources */,
 				0000000000000000000000B9 /* SinglesAndIntersections.swift in Sources */,
 				0000000000000000000000B7 /* LogicalSolver.swift in Sources */,
