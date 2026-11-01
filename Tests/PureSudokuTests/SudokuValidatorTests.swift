@@ -45,4 +45,13 @@ final class SudokuValidatorTests: XCTestCase {
         XCTAssertTrue(conflicts.contains(editable.id))
         XCTAssertFalse(conflicts.contains(givenCell.id), "Given should not be flagged as conflicting")
     }
+
+    func testBoardPeersAndConflicts() {
+        XCTAssertTrue(Board.peers.allSatisfy { $0.count == 20 })
+        var digits = [Int?](repeating: nil, count: 81)
+        digits[0] = 5; digits[8] = 5   // same row
+        digits[40] = 3                  // alone
+        XCTAssertEqual(Board.conflictingPositions(in: Board.from(digits: digits)), [0, 8])
+        XCTAssertEqual(Board.from(grid: "1.0" + String(repeating: "0", count: 78)).prefix(3), [0, nil, nil])
+    }
 }

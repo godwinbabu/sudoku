@@ -540,11 +540,8 @@ final class GameViewModel: ObservableObject {
 
     private func removeCandidate(_ digit: Int, relatedTo cell: SudokuCell, from cells: [SudokuCell]) -> [SudokuCell] {
         var newCells = cells
-        for idx in newCells.indices {
-            guard newCells[idx].id != cell.id else { continue }
-            if newCells[idx].row == cell.row || newCells[idx].col == cell.col || (newCells[idx].row / 3 == cell.row / 3 && newCells[idx].col / 3 == cell.col / 3) {
-                newCells[idx].candidates.remove(digit)
-            }
+        for idx in newCells.indices where Board.peers[cell.index].contains(newCells[idx].index) {
+            newCells[idx].candidates.remove(digit)
         }
         return newCells
     }
@@ -629,15 +626,7 @@ final class GameViewModel: ObservableObject {
     }
 
     private func updateContradictionFlag(on state: inout GameState) {
-        let board = generatorBoard(from: state.cells)
-        state.hasContradiction = PureSudoku.hasContradiction(board)
-    }
-
-    private func generatorBoard(from cells: [SudokuCell]) -> GeneratorBoard {
-        cells.map { cell in
-            guard let value = cell.value, value > 0 else { return nil }
-            return value - 1
-        }
+        state.hasContradiction = PureSudoku.hasContradiction(Board.from(cells: state.cells))
     }
 
     private func markContradictionDetected() {
@@ -667,14 +656,10 @@ final class GameViewModel: ObservableObject {
 
     private func computeCandidateOverlay() -> [UUID: Set<Int>] {
         var overlay: [UUID: Set<Int>] = [:]
+        let valueAt = Dictionary(uniqueKeysWithValues: state.cells.map { ($0.index, $0.value) })
         for cell in state.cells where cell.value == nil {
-            let rowValues = Set(state.cells.filter { $0.row == cell.row }.compactMap(\.value))
-            let colValues = Set(state.cells.filter { $0.col == cell.col }.compactMap(\.value))
-            let boxValues = Set(state.cells.filter { $0.row / 3 == cell.row / 3 && $0.col / 3 == cell.col / 3 }.compactMap(\.value))
-            let existing = cell.candidates
-            let possible = Set(1...9).subtracting(rowValues).subtracting(colValues).subtracting(boxValues)
-            let merged = existing.union(possible)
-            overlay[cell.id] = merged
+            let seen = Set(Board.peers[cell.index].compactMap { valueAt[$0] ?? nil })
+            overlay[cell.id] = cell.candidates.union(Set(1...9).subtracting(seen))
         }
         return overlay
     }

@@ -17,6 +17,7 @@
 		00000000000000000000004D /* Stats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000018 /* Stats.swift */; };
 		00000000000000000000004E /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000019 /* Settings.swift */; };
 		00000000000000000000004F /* SudokuValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001A /* SudokuValidator.swift */; };
+		0000000000000000000000B1 /* Board.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B0 /* Board.swift */; };
 		000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001B /* SudokuPuzzleRepository.swift */; };
 		000000000000000000000051 /* TimeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001C /* TimeProvider.swift */; };
 		000000000000000000000052 /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001D /* PersistenceManager.swift */; };
@@ -95,6 +96,7 @@
 		000000000000000000000018 /* Stats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stats.swift; sourceTree = "<group>"; };
 		000000000000000000000019 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		00000000000000000000001A /* SudokuValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuValidator.swift; sourceTree = "<group>"; };
+		0000000000000000000000B0 /* Board.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Board.swift; sourceTree = "<group>"; };
 		00000000000000000000001B /* SudokuPuzzleRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuPuzzleRepository.swift; sourceTree = "<group>"; };
 		00000000000000000000001C /* TimeProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeProvider.swift; sourceTree = "<group>"; };
 		00000000000000000000001D /* PersistenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManager.swift; sourceTree = "<group>"; };
@@ -223,6 +225,7 @@
 				00000000000000000000008E /* SudokuGeneratorService.swift */,
 				0000000000000000000000AB /* SudokuImageDetector.swift */,
 				00000000000000000000001A /* SudokuValidator.swift */,
+				0000000000000000000000B0 /* Board.swift */,
 				00000000000000000000001B /* SudokuPuzzleRepository.swift */,
 				00000000000000000000001C /* TimeProvider.swift */,
 			);
@@ -502,6 +505,7 @@
 				000000000000000000000098 /* GameSource.swift in Sources */,
 				000000000000000000000099 /* ImportedGame.swift in Sources */,
 				00000000000000000000004F /* SudokuValidator.swift in Sources */,
+				0000000000000000000000B1 /* Board.swift in Sources */,
 				000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */,
 				000000000000000000000051 /* TimeProvider.swift in Sources */,
 				000000000000000000000094 /* SudokuGeneratorCore.swift in Sources */,

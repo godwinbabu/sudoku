@@ -67,27 +67,7 @@ func nextHint(for board: GeneratorBoard) -> GeneratorHint? {
 }
 
 func hasContradiction(_ board: GeneratorBoard) -> Bool {
-    var rowMask = Array(repeating: 0, count: 9)
-    var colMask = Array(repeating: 0, count: 9)
-    var boxMask = Array(repeating: 0, count: 9)
-
-    for pos in 0..<81 {
-        guard let val = board[pos] else { continue }
-        let bit = 1 << val
-        let row = pos / 9
-        let col = pos % 9
-        let box = (pos / 27) * 3 + (pos / 3) % 3
-
-        if rowMask[row] & bit != 0 { return true }
-        if colMask[col] & bit != 0 { return true }
-        if boxMask[box] & bit != 0 { return true }
-
-        rowMask[row] |= bit
-        colMask[col] |= bit
-        boxMask[box] |= bit
-    }
-
-    return false
+    !Board.conflictingPositions(in: board).isEmpty
 }
 
 private func rowCol(from pos: Int) -> (Int, Int) {
@@ -371,7 +351,7 @@ private func applyXWingElimination(candidates: inout [Int]) -> Bool {
 
 private func applyYWingElimination(candidates: inout [Int]) -> Bool {
     var changed = false
-    let peers = peerMap()
+    let peers = Board.peers
     for pivot in 0..<81 {
         let pivotMask = candidates[pivot]
         guard bitCount(pivotMask) == 2 else { continue }
@@ -457,7 +437,7 @@ private func applySwordfishElimination(candidates: inout [Int]) -> Bool {
 }
 
 private func applyXYChainElimination(candidates: inout [Int]) -> Bool {
-    let peers = peerMap()
+    let peers = Board.peers
     var changed = false
     let bivalueCells = (0..<81).filter { bitCount(candidates[$0]) == 2 }
 
@@ -498,27 +478,6 @@ private func applyXYChainElimination(candidates: inout [Int]) -> Bool {
         }
     }
     return changed
-}
-
-private func peerMap() -> [Set<Int>] {
-    var peers: [Set<Int>] = Array(repeating: Set<Int>(), count: 81)
-    for pos in 0..<81 {
-        let row = pos / 9
-        let col = pos % 9
-        let boxRow = (row / 3) * 3
-        let boxCol = (col / 3) * 3
-        var set: Set<Int> = []
-        for c in 0..<9 where c != col { set.insert(row * 9 + c) }
-        for r in 0..<9 where r != row { set.insert(r * 9 + col) }
-        for r in boxRow..<(boxRow + 3) {
-            for c in boxCol..<(boxCol + 3) {
-                let p = r * 9 + c
-                if p != pos { set.insert(p) }
-            }
-        }
-        peers[pos] = set
-    }
-    return peers
 }
 
 private func bowmansBingoHint(board: GeneratorBoard, candidates: [Int]) -> GeneratorHint? {

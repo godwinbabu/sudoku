@@ -239,40 +239,6 @@ final class ImportPuzzleViewModel: ObservableObject {
     }
 
     private func findConflicts(in values: [Int?]) -> Set<Int> {
-        var conflicts: Set<Int> = []
-        for row in 0..<9 {
-            conflicts.formUnion(conflictsIn(indices: (0..<9).map { row * 9 + $0 }, values: values))
-        }
-        for col in 0..<9 {
-            conflicts.formUnion(conflictsIn(indices: (0..<9).map { $0 * 9 + col }, values: values))
-        }
-        for boxRow in 0..<3 {
-            for boxCol in 0..<3 {
-                let startRow = boxRow * 3
-                let startCol = boxCol * 3
-                let indices = (0..<9).map { offset -> Int in
-                    let r = startRow + offset / 3
-                    let c = startCol + offset % 3
-                    return r * 9 + c
-                }
-                conflicts.formUnion(conflictsIn(indices: indices, values: values))
-            }
-        }
-        return conflicts
-    }
-
-    private func conflictsIn(indices: [Int], values: [Int?]) -> Set<Int> {
-        var seen: [Int: Int] = [:]
-        var conflicts: Set<Int> = []
-        for index in indices {
-            guard let value = values[index] else { continue }
-            if let first = seen[value] {
-                conflicts.insert(first)
-                conflicts.insert(index)
-            } else {
-                seen[value] = index
-            }
-        }
-        return conflicts
+        Board.conflictingPositions(in: Board.from(digits: values))
     }
 }

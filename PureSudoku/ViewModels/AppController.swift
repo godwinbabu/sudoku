@@ -115,11 +115,7 @@ final class AppController: ObservableObject {
     func createImportedGame(initialGrid: String, imageID: String? = nil, date: Date = Date()) -> ImportedGame? {
         guard initialGrid.count == 81 else { return nil }
         guard let solution = generatorService.solve(initialGrid: initialGrid) else { return nil }
-        let board = GeneratorBoard(initialGrid.map { char -> Int? in
-            guard let intVal = Int(String(char)), intVal > 0 else { return nil }
-            return intVal - 1
-        })
-        let rating = ratePuzzle(board, samples: 2)
+        let rating = ratePuzzle(Board.from(grid: initialGrid), samples: 2)
         let difficulty = generatorService.difficulty(for: rating)
         let puzzle = SudokuPuzzle(
             id: UUID().uuidString,
