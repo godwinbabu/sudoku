@@ -771,7 +771,7 @@ Extend the existing AppTheme.sleep behavior:
 
 Target (phase 3): per-person display calibration instead of fixed steps.
 Why: total light, not color, is what affects sleep, and people differ widely. The light level that halves melatonin varies more than 50-fold between people. A 60-year-old’s retina gets about a third of the light a 20-year-old’s gets, and needs more contrast at the same dimness. So dimness and contrast are separate controls, set by each player.
-	•	Calibration flow (about one minute, offered the first time Sleep theme or Bedtime Mode is used, and any time from Settings):
+	•	Calibration flow (about one minute, offered the first time Bedtime Mode is turned on, and any time from Settings › Bedtime display). One screen with a live preview grid in the palette being edited; Cancel and Save stay readable at any dimness:
 	1.	Text size: a sample grid with digits and candidates. Scale on top of Dynamic Type.
 	2.	Dimness: “Slide down until the digits are just comfortable, then go one step up.”
 	3.	Contrast: separates digits, candidates and grid lines. Sets the floor for candidate marks.
@@ -779,6 +779,8 @@ Why: total light, not color, is what affects sleep, and people differ widely. Th
 	5.	System brightness (opt-in): lower the screen to its minimum while the app is open. iOS restores it when the app leaves the foreground.
 	6.	Tip: how to turn on iOS Reduce White Point and add it to the Accessibility Shortcut (triple-click). It dims far more than any app can.
 	•	The result is a display profile. Players keep up to three named profiles (e.g. “Reading in bed”, “Night wake-up”). Two people sharing a phone can each keep one.
+	•	Settings › Bedtime display picks the profile the Sleep theme uses, and separately the profile Bedtime Mode uses (“Same as above” by default).
+	•	Text size applies to the grid in the Sleep theme, never below the system Dynamic Type size.
 	•	The palette is computed from the profile (Section 7.2). No black overlay.
 	•	Warmth is a comfort setting. The app must not claim that warm colors protect sleep.
 	•	Limits the app must respect: it cannot go below the system brightness minimum, cannot read room light, and cannot turn on Reduce White Point.

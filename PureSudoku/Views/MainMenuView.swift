@@ -21,11 +21,13 @@ struct MainMenuView: View {
     private enum Sheet: Identifiable {
         case settings
         case stats
+        case calibration
 
         var id: Int {
             switch self {
             case .settings: return 0
             case .stats: return 1
+            case .calibration: return 2
             }
         }
     }
@@ -95,6 +97,16 @@ struct MainMenuView: View {
                 case .stats:
                     StatsView(viewModel: StatsViewModel(controller: controller))
                     .sheetTheme(controller)
+                case .calibration:
+                    NavigationStack {
+                        DisplayCalibrationView(profile: controller.settings.currentDisplayProfile, onSave: { profile in
+                            controller.updateSettings { $0.saveDisplayProfile(profile) }
+                            activeSheet = nil
+                        }, onCancel: {
+                            controller.updateSettings { $0.hasCalibratedDisplay = true } // offered once; Settings can re-run it
+                            activeSheet = nil
+                        })
+                    }
                 }
             }
         }
@@ -198,6 +210,8 @@ struct MainMenuView: View {
     private func bedtimeToggle(theme: ThemeColors) -> some View {
         Button {
             viewModel.toggleBedtimeMode()
+            // First time in Bedtime Mode: offer the display calibration (CODESPEC 12.3).
+            if controller.settings.bedtimeMode && !controller.settings.hasCalibratedDisplay { activeSheet = .calibration }
         } label: {
             HStack(spacing: 12) {
                 BedtimeIcon(color: theme.accent)

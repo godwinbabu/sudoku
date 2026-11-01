@@ -134,6 +134,21 @@ struct SudokuCellView: View {
         }
         .frame(height: cellSize)
         .overlay(borderOverlay)
+        .overlay(alignment: .topTrailing) {
+            // Errors show by shape, not color alone (CODESPEC 7.2).
+            if cell.isError {
+                Path { path in
+                    path.move(to: .zero)
+                    path.addLine(to: CGPoint(x: cellSize * 0.28, y: 0))
+                    path.addLine(to: CGPoint(x: cellSize * 0.28, y: cellSize * 0.28))
+                    path.closeSubpath()
+                }
+                .fill(theme.error)
+                .frame(width: cellSize * 0.28, height: cellSize * 0.28)
+                .padding(3)
+                .accessibilityHidden(true)
+            }
+        }
         .accessibilityLabel(accessibilityText)
     }
 

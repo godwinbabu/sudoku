@@ -18,6 +18,7 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// The three fixed dim steps used before display profiles. Kept only to migrate old settings files.
 enum SleepBrightness: String, Codable, CaseIterable, Identifiable {
     case normal
     case dim
@@ -30,14 +31,6 @@ enum SleepBrightness: String, Codable, CaseIterable, Identifiable {
         case .normal: return "Normal"
         case .dim: return "Dim"
         case .extraDim: return "Extra Dim"
-        }
-    }
-
-    var overlayOpacity: Double {
-        switch self {
-        case .normal: return 0.0
-        case .dim: return 0.25
-        case .extraDim: return 0.45
         }
     }
 }

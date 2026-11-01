@@ -3,13 +3,19 @@ import XCTest
 
 @MainActor
 final class AppControllerTests: XCTestCase {
-    func testBedtimeModeForcesMaximumDimming() {
+    func testBedtimeModeUsesTheBedtimeDisplayProfile() {
         let (controller, _) = makeTestController()
+        let night = DisplayProfile(name: "Night wake-up", dimness: 1)
         controller.updateSettings { settings in
-            settings.sleepBrightness = .normal
-            settings.toggleBedtimeMode(true)
+            let reading = settings.displayProfiles[0]
+            settings.saveDisplayProfile(night)
+            settings.activeDisplayProfileID = reading.id
+            settings.bedtimeDisplayProfileID = night.id
         }
-        XCTAssertEqual(controller.sleepOverlayOpacity, SleepBrightness.extraDim.overlayOpacity)
+        XCTAssertNotEqual(controller.settings.currentDisplayProfile.id, night.id)
+        controller.updateSettings { $0.toggleBedtimeMode(true) }
+        XCTAssertEqual(controller.settings.currentDisplayProfile.id, night.id)
+        XCTAssertEqual(controller.settings.themeEffective, .sleep)
     }
 
     func testUpdateSettingsAppliesImmediately() {

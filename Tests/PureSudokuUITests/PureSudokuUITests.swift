@@ -132,6 +132,48 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
 
+    /// Display calibration from Settings, then a game in Bedtime Mode (CODESPEC 12.3).
+    func testCalibrateDisplayAndPlayInBedtime() {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["settingsButton"].waitForExistence(timeout: 2))
+        app.buttons["settingsButton"].tap()
+        let adjust = app.buttons["settings_adjustDisplay"]
+        for _ in 0..<5 where !adjust.isHittable { app.swipeUp() }
+        adjust.tap()
+        let dimness = app.sliders["calibration_dimness"]
+        XCTAssertTrue(dimness.waitForExistence(timeout: 2))
+        dimness.adjust(toNormalizedSliderPosition: 0.9)
+        snapshot(app, "calibration")
+        app.buttons["calibration_save"].tap()
+        XCTAssertFalse(dimness.waitForExistence(timeout: 1))
+        app.buttons["settings_done"].tap()
+        let easy = app.buttons["difficulty_easy"]
+        XCTAssertTrue(waitUntilHittable(easy), "Settings closed")
+
+        let toggle = app.buttons["bedtimeToggle"]
+        if toggle.label.hasSuffix("Off") { toggle.tap() }
+        if app.buttons["calibration_save"].waitForExistence(timeout: 1) {
+            app.buttons["Cancel"].tap()
+            XCTAssertTrue(waitUntilHittable(easy))
+        }
+        XCTAssertTrue(toggle.label.hasSuffix("On"), toggle.label)
+        easy.tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        snapshot(app, "bedtime-game")
+        app.buttons["backButton"].tap()
+        if waitUntilHittable(toggle), toggle.label.hasSuffix("On") { toggle.tap() } // leave the app as found
+    }
+
+    private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.exists && element.isHittable { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return false
+    }
+
     private func snapshot(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "hint-" + name

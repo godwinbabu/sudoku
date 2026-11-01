@@ -1,10 +1,9 @@
 import SwiftUI
 
 /// Gives sheets the same look as the screen behind them: colour scheme, the warm Sleep palette when
-/// Sleep/Bedtime is active, and the bedtime dimming overlay (sheets sit above the root overlay).
+/// Sleep/Bedtime is active.
 struct SheetTheme: ViewModifier {
     let settings: Settings
-    let overlayOpacity: Double
 
     func body(content: Content) -> some View {
         let theme = settings.themeColors
@@ -16,7 +15,6 @@ struct SheetTheme: ViewModifier {
             .tint(theme.accent)
             .environment(\.sleepRowBackground, isSleep ? theme.cardBackground : nil)
             .preferredColorScheme(settings.preferredColorScheme)
-            .overlay(SleepDimmingOverlay(opacity: overlayOpacity).ignoresSafeArea())
     }
 }
 
@@ -43,7 +41,7 @@ struct SleepRowBackground: ViewModifier {
 
 extension View {
     func sheetTheme(_ controller: AppController) -> some View {
-        modifier(SheetTheme(settings: controller.settings, overlayOpacity: controller.sleepOverlayOpacity))
+        modifier(SheetTheme(settings: controller.settings))
     }
 
     func sleepRowBackground() -> some View {

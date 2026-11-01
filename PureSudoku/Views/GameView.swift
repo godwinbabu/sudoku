@@ -4,6 +4,7 @@ struct GameView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var systemTypeSize
     @StateObject private var viewModel: GameViewModel
     @State private var activeSheet: Sheet?
     @State private var showCelebration: Bool = false
@@ -38,6 +39,7 @@ struct GameView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
+                    .dynamicTypeSize(gridTypeSize)
                     .padding(.vertical, 4)
                     .allowsHitTesting(!viewModel.state.isCompleted && !viewModel.isPaused)
                     if let session = viewModel.hint {
@@ -197,6 +199,12 @@ struct GameView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("gameView")
+    }
+
+    /// In the Sleep theme the profile sets the grid's text size, but never below the system size.
+    private var gridTypeSize: DynamicTypeSize {
+        guard controller.settings.themeEffective == .sleep else { return systemTypeSize }
+        return max(systemTypeSize, SleepPalette.typeSize(controller.settings.currentDisplayProfile.textSize))
     }
 
     private func topBar(theme: ThemeColors) -> some View {
