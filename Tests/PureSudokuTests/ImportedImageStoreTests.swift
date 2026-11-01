@@ -97,3 +97,19 @@ final class ImageOrientationTests: XCTestCase {
         XCTAssertLessThan(cg.width, cg.height, "pixels must now be portrait")
     }
 }
+
+final class ImageResizeTests: XCTestCase {
+    func testResizeCapsPixelsNotPoints() throws {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1
+        let big = UIGraphicsImageRenderer(size: CGSize(width: 4032, height: 3024), format: format).image { context in
+            UIColor.gray.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 4032, height: 3024))
+        }
+        let store = ImportedImageStore(directory: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString))
+        let resized = store.resize(image: big, maxDimension: 2048)
+        let cg = try XCTUnwrap(resized.cgImage)
+        XCTAssertEqual(cg.width, 2048)
+        XCTAssertEqual(cg.height, 1536)
+    }
+}

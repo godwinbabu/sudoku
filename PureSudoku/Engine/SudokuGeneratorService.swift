@@ -8,10 +8,12 @@ enum PuzzleRatingBucket: String, Codable {
     case unsolvable
 }
 
+/// Rating = average backtracking depth over several solver runs. Limits measured on 400 seeded
+/// puzzles (CODESPEC 2.2): about 42% rate below 0.5, 26% between 0.5 and 2, 31% at 2 or above.
 struct RatingThresholds {
-    var easyMax: Double = 20
-    var mediumMax: Double = 60
-    var hardMax: Double = 120
+    var easyMax: Double = 0.5
+    var mediumMax: Double = 2
+    var hardMax: Double = 1_000
 }
 
 struct SudokuGeneratorConfiguration {
@@ -80,17 +82,13 @@ struct SudokuGeneratorService {
         return makeResult(from: fallback, difficulty: difficulty)
     }
 
+    /// Difficulty for an imported puzzle's rating; uses the same limits as generation.
     func difficulty(for rating: Double) -> Difficulty {
-        if rating < 0 {
-            return .medium
+        switch bucket(for: rating) {
+        case .easy: return .easy
+        case .medium, .unsolvable: return .medium
+        case .hard, .veryHard: return .hard
         }
-        if rating < config.thresholds.easyMax {
-            return .easy
-        }
-        if rating < config.thresholds.mediumMax {
-            return .medium
-        }
-        return .hard
     }
 
     func solve(board: GeneratorBoard) -> GeneratorBoard? {

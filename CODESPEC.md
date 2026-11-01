@@ -87,6 +87,11 @@ For now, implement one of these two approaches (either is acceptable):
 	•	Removes numbers to create puzzles.
 	•	Uses a solver to ensure uniqueness and assign a rough difficulty score.
 	•	Map difficulty score to .easy, .medium, .hard.
+	•	Current implementation: score = average backtracking depth over 4 solver runs.
+	•	Thresholds (measured on 400 seeded puzzles, see docs/audit/bench-ratings.swift):
+	•	Easy: score < 0.5 (solvable by deduction alone, ~42% of generated puzzles).
+	•	Medium: 0.5 ≤ score < 2 (~26%).
+	•	Hard: score ≥ 2 (~31%).
 
 For this first version, it’s acceptable to only implement the JSON-puzzle approach and leave the generator as a future enhancement (stubbed).
 
