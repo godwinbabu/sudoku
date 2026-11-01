@@ -99,16 +99,97 @@ final class LearningTests: XCTestCase {
         XCTAssertTrue([Technique.fullHouse, .hiddenSingleBox, .hiddenSingleLine, .nakedSingle].contains(found()[0]))
     }
 
-    func testAMoveRightAfterItsHintEarnsNoCredit() async throws {
+    /// Places the solver's next single (a correct move nobody hinted) as a positive control.
+    private func placeNextSingle(_ viewModel: GameViewModel) throws {
+        let step = try XCTUnwrap(LogicalSolver().nextStep(SolverBoard(cells: viewModel.state.cells)))
+        let placement = try XCTUnwrap(step.placements.first)
+        viewModel.select(cell: viewModel.state.cells.first { $0.index == placement.cell }!)
+        viewModel.setDigit(placement.digit)
+    }
+
+    /// Waits until `count` credits arrive, then a little longer to catch any extra one.
+    private func settle(_ found: () -> [Technique], count: Int) async {
+        await waitFor { found().count >= count }
+        try? await Task.sleep(nanoseconds: 300_000_000)
+    }
+
+    func testAHintedTechniqueEarnsNoCreditForTheRestOfThePuzzle() async throws {
         let (viewModel, found) = makeViewModel()
         viewModel.requestHint()
         let placement = try XCTUnwrap(viewModel.hint?.step?.placements.first)
         let hinted = try XCTUnwrap(viewModel.hint?.step?.technique)
         viewModel.endHint()
-        viewModel.select(cell: viewModel.state.cells.first { $0.index == placement.cell }!)
+        let target = viewModel.state.cells.first { $0.index == placement.cell }!
+        // A wrong digit, Undo, then the hinted move: none of this may earn credit for the hint.
+        viewModel.select(cell: target)
+        viewModel.setDigit(placement.digit % 9 + 1)
+        viewModel.undo()
+        viewModel.select(cell: target)
         viewModel.setDigit(placement.digit)
-        try await Task.sleep(nanoseconds: 300_000_000)
+        await settle(found, count: 0)
         XCTAssertFalse(found().contains(hinted))
+        // Positive control: an unhinted single of another kind is still credited.
+        var control = 0
+        while control < 30, found().isEmpty {
+            try placeNextSingle(viewModel)
+            await settle(found, count: 0)
+            control += 1
+        }
+        XCTAssertFalse(found().isEmpty, "crediting works at all")
+        XCTAssertFalse(found().contains(hinted), "the hinted technique stays uncredited in this puzzle")
+    }
+
+    func testAWrongButPossibleDigitEarnsNothing() async throws {
+        let (viewModel, found) = makeViewModel()
+        let board = SolverBoard(cells: viewModel.state.cells)
+        let solution = Array(TestData.puzzle.solutionGrid).map { Int(String($0))! }
+        let cell = try XCTUnwrap((0..<81).first { board.values[$0] == 0 && board.candidates[$0].nonzeroBitCount > 1 })
+        let wrong = try XCTUnwrap(SolverBoard.digits(in: board.candidates[cell]).first { $0 != solution[cell] })
+        viewModel.select(cell: viewModel.state.cells.first { $0.index == cell }!)
+        viewModel.setDigit(wrong)
+        // Board now has a mistake, so even a correct single elsewhere earns nothing.
+        try placeNextSingle(viewModel)
+        await settle(found, count: 0)
+        XCTAssertTrue(found().isEmpty)
+    }
+
+    func testRemovingANoteThatPointingExplainsIsCredited() {
+        // Box 1: 5 only in r1c1, r1c2 → pointing removes 5 from r1c4.
+        var candidates = Array(repeating: SolverBoard.allDigits, count: 81)
+        for cell in [2, 9, 10, 11, 18, 19, 20] { candidates[cell] &= ~SolverBoard.bit(5) }
+        let board = SolverBoard(values: Array(repeating: 0, count: 81), candidates: candidates)
+        XCTAssertEqual(MasteryJudge.technique(for: .removedCandidate(cell: 3, digit: 5), on: board), .pointing)
+        XCTAssertNil(MasteryJudge.technique(for: .placed(cell: 3, digit: 5), on: board), "placements only match singles")
+    }
+
+    func testReplayingAMoveDoesNotFarmStrength() {
+        var progress = TechniqueProgress()
+        progress.recordFound(puzzleID: "a", at: start)
+        let once = progress.strength(at: start)
+        progress.recordFound(puzzleID: "a", at: start.addingTimeInterval(10))
+        progress.recordFound(puzzleID: "a", at: start.addingTimeInterval(20))
+        XCTAssertEqual(progress.strength(at: start), once, accuracy: 1e-9)
+    }
+
+    func testPracticeGamesLeaveStatsAndSavedGamesAlone() {
+        let (controller, _) = makeTestController()
+        let games = controller.activeGames
+        let viewModel = controller.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .medium)[0], number: 1)
+        XCTAssertTrue(viewModel.isPractice)
+        viewModel.revealPuzzle()
+        XCTAssertTrue(viewModel.state.isCompleted)
+        XCTAssertEqual(controller.stats, Stats())
+        XCTAssertEqual(controller.activeGames, games)
+    }
+
+    func testLessonPracticeSkipsTheExamplePuzzle() throws {
+        let lesson = try XCTUnwrap(Lesson.make(for: .pointing))
+        let drills = BundledPuzzles.drills(for: .pointing)
+        let example = try XCTUnwrap(drills.first { entry in
+            let start = entry.initialGrid.map { Int(String($0)) ?? 0 }
+            return zip(start, lesson.board.values).allSatisfy { $0 == 0 || $0 == $1 }
+        })
+        XCTAssertFalse(lesson.practice.contains(example))
     }
 
     func testANewTechniqueOpensAtWhyWithALessonOffer() {

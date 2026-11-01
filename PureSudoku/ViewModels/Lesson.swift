@@ -22,7 +22,9 @@ struct Lesson {
             let solver = LogicalSolver()
             while let step = solver.nextStep(board) {
                 if step.technique == technique || (technique == .hiddenSingleBox && step.technique == .hiddenSingleLine) {
-                    return Lesson(technique: technique, board: board, step: step, practice: Array(drills.prefix(3)))
+                    // Practice uses other puzzles: the example's answer is already shown.
+                    let practice = drills.filter { $0.initialGrid != entry.initialGrid }.prefix(3)
+                    return Lesson(technique: technique, board: board, step: step, practice: Array(practice))
                 }
                 board.apply(step)
             }

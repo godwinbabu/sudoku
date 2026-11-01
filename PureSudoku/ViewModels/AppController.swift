@@ -9,6 +9,8 @@ final class AppController: ObservableObject {
     @Published private(set) var importedGames: [ImportedGame]
     /// Per-technique learning progress (CODESPEC 13.4), keyed by `Technique.rawValue`.
     @Published private(set) var techniqueProgress: [String: TechniqueProgress]
+    /// True when technique_progress.json could not be loaded: never overwrite it this session.
+    private var techniqueProgressLoadFailed = false
     @Published var lastPersistenceError: (any Error)?
 
     private let persistence: PersistenceManager
@@ -74,6 +76,7 @@ final class AppController: ObservableObject {
             self.techniqueProgress = try persistence.load([String: TechniqueProgress].self, from: File.techniqueProgress.rawValue) ?? [:]
         } catch {
             self.techniqueProgress = [:]
+            self.techniqueProgressLoadFailed = true
             self.lastPersistenceError = error
         }
         countSolutionsOfOldImports()
@@ -122,6 +125,7 @@ final class AppController: ObservableObject {
         )
         let viewModel = GameViewModel(state: GameState.newGame(for: puzzle, now: timeProvider.now()), settings: settings,
                                       validator: validator, timeProvider: timeProvider, hintService: generatorService)
+        viewModel.isPractice = true
         connectLearning(viewModel)
         return viewModel
     }
@@ -144,6 +148,7 @@ final class AppController: ObservableObject {
         var progress = progress(for: technique)
         change(&progress)
         techniqueProgress[technique.rawValue] = progress
+        guard !techniqueProgressLoadFailed else { return }
         do {
             try persistence.save(techniqueProgress, to: File.techniqueProgress.rawValue)
         } catch {

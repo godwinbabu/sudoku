@@ -35,12 +35,12 @@ struct TechniqueProgress: Codable, Equatable {
 
     mutating func recordFound(puzzleID: String, at date: Date, calendar: Calendar = .current) {
         let day = Self.dayKey(date, calendar: calendar)
-        if !foundUnaided.contains(where: { $0.puzzleID == puzzleID }) {
-            foundUnaided.append(Found(puzzleID: puzzleID, day: day))
-        }
+        lastSeen = date
+        // Once per puzzle: replaying a move (e.g. after Undo) doesn't add strength.
+        guard !foundUnaided.contains(where: { $0.puzzleID == puzzleID }) else { return }
+        foundUnaided.append(Found(puzzleID: puzzleID, day: day))
         strength = min(1, strength(at: date) + 0.34)
         strengthDate = date
-        lastSeen = date
     }
 
     mutating func recordHint(at date: Date) {
@@ -65,7 +65,13 @@ enum MasteryJudge {
     }
 
     static func technique(for move: Move, on board: SolverBoard, allowsUniqueness: Bool = true) -> Technique? {
-        for technique in Technique.allCases where allowsUniqueness || !technique.needsUniqueSolution {
+        // Only singles and BUG+1 place digits; every other technique only removes candidates.
+        let placers: Set<Technique> = [.fullHouse, .hiddenSingleBox, .hiddenSingleLine, .nakedSingle, .bugPlusOne]
+        let candidates = Technique.allCases.filter { technique in
+            if case .placed = move { return placers.contains(technique) }
+            return !placers.contains(technique)
+        }
+        for technique in candidates where allowsUniqueness || !technique.needsUniqueSolution {
             let steps = LogicalSolver.steps(for: technique, on: board)
             let matches = steps.contains { step in
                 switch move {

@@ -13,12 +13,17 @@ final class GameViewModel: ObservableObject {
     var onNewGame: (() async -> GameState?)?
     var onSave: ((GameState) -> Void)?
     /// Learning (CODESPEC 13.4): the player found a technique without a hint (technique, puzzle id).
-    var onTechniqueFound: ((Technique, String) -> Void)?
+    var onTechniqueFound: (@MainActor (Technique, String) -> Void)?
     var onHintShown: ((Technique) -> Void)?
     /// How well the player knows a technique; sets where a hint opens (CODESPEC 6.3.1 fading).
     var learningLevel: ((Technique) -> TechniqueProgress.Level)?
-    /// Techniques hinted since the player's last move: finding them now earns no credit.
-    private var hintedSinceMove: Set<Technique> = []
+    /// Practice game from a lesson: not saved, no stats, no New Puzzle (CODESPEC 13.5).
+    var isPractice = false
+    /// Techniques hinted in this puzzle (this session); with the saved hint log, finding them earns no credit.
+    private var hintedThisPuzzle: Set<Technique> = []
+    private var hintedTechniques: Set<Technique> {
+        hintedThisPuzzle.union(state.hintLog.compactMap { Technique(rawValue: $0.technique) })
+    }
 
     @Published var pendingAction: PendingAction?
     @Published private(set) var canUndo: Bool = false
@@ -446,6 +451,7 @@ final class GameViewModel: ObservableObject {
     func load(state newState: GameState) {
         _ = calculateAndStopTimer()
         checkedWrongIDs.removeAll()
+        hintedThisPuzzle.removeAll()
 
         var finalState = newState
         finalState.cells = finalState.cells.map { cell in
@@ -683,8 +689,8 @@ extension GameViewModel {
                 // Fading: a technique the player has never met opens at "why", as a worked example.
                 let isNew = learningLevel?(step.technique) == .new
                 hint = HintSession(content: .step(step, board: board), opensAtRung: isNew ? 3 : 1, offersLesson: isNew)
-                hintedSinceMove.insert(step.technique)
-                onHintShown?(step.technique)
+                if !hintedTechniques.contains(step.technique) { onHintShown?(step.technique) } // count each once per puzzle
+                hintedThisPuzzle.insert(step.technique)
             } else {
                 hint = HintSession(content: .noStep(cell: revealTarget()))
             }
@@ -757,9 +763,10 @@ extension GameViewModel {
     /// Credits the technique a correct move shows (CODESPEC 13.4). Runs the detectors off the main
     /// thread; a technique hinted since the last move earns nothing.
     private func judgeMove(_ move: MasteryJudge.Move, before board: SolverBoard) {
-        let hinted = hintedSinceMove
-        hintedSinceMove = []
-        guard let onTechniqueFound else { return }
+        // No credit for a technique hinted in this puzzle, or while the board has a mistake (a wrong
+        // digit can make a "single" that only looks found).
+        let hinted = hintedTechniques
+        guard let onTechniqueFound, firstMistake() == nil else { return }
         let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
         guard solution.count == 81 else { return }
         switch move {

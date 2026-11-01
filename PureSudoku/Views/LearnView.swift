@@ -94,8 +94,10 @@ struct LessonView: View {
                             .font(.body.weight(.semibold))
                             .foregroundColor(theme.accent)
                     } else {
-                        Button("Show the result") { showsResult = true }
-                            .accessibilityIdentifier("lesson_showResult")
+                        Button { showsResult = true } label: {
+                            Text("Show the result").foregroundColor(theme.accent)
+                        }
+                        .accessibilityIdentifier("lesson_showResult")
                     }
                     Text("Practice").font(.headline).foregroundColor(theme.primaryText).padding(.top, 8)
                     ForEach(Array(lesson.practice.enumerated()), id: \.offset) { index, entry in
@@ -103,6 +105,7 @@ struct LessonView: View {
                             GameView(viewModel: controller.makePracticeGameViewModel(entry, number: index + 1), difficulty: entry.difficulty)
                         } label: {
                             Text("Practice puzzle \(index + 1) · \(entry.difficulty.displayName)")
+                                .foregroundColor(theme.accent)
                                 .frame(maxWidth: .infinity, minHeight: 44)
                                 .background(theme.accent.opacity(0.12))
                                 .clipShape(RoundedRectangle(cornerRadius: 12))

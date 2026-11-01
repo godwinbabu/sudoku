@@ -113,7 +113,7 @@ struct GameView: View {
                     Button("Reset Puzzle", role: .destructive) {
                         viewModel.pendingAction = .reset
                     }
-                    if viewModel.state.puzzle.source != .imported {
+                    if viewModel.state.puzzle.source != .imported && !viewModel.isPractice {
                         Button("New Puzzle") {
                             viewModel.pendingAction = .newPuzzle
                         }
