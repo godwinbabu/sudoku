@@ -68,6 +68,25 @@ final class AppController: ObservableObject {
             self.importedGamesLoadFailed = true
             self.lastPersistenceError = error
         }
+        countSolutionsOfOldImports()
+    }
+
+    /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
+    /// until then `isUnique` is false, so uniqueness techniques stay off (CODESPEC 2.1).
+    private func countSolutionsOfOldImports() {
+        let pending = importedGames.filter { $0.gameState.puzzle.hasUniqueSolution == nil }
+            .map { (id: $0.id, values: $0.gameState.puzzle.initialGrid.map { Int(String($0)) ?? 0 }) }
+        guard !pending.isEmpty else { return }
+        Task {
+            let counted = await Task.detached(priority: .utility) {
+                pending.map { (id: $0.id, unique: SolutionCounter.count($0.values, limit: 2) == 1) }
+            }.value
+            for result in counted {
+                guard let index = importedGames.firstIndex(where: { $0.id == result.id }) else { continue }
+                importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
+            }
+            persistImportedGames()
+        }
     }
 
     func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
@@ -119,21 +138,19 @@ final class AppController: ObservableObject {
     func createImportedGame(initialGrid: String, imageID: String? = nil, date: Date = Date()) -> ImportedGame? {
         guard initialGrid.count == 81 else { return nil }
         guard let solution = generatorService.solve(initialGrid: initialGrid) else { return nil }
-        let rating = ratePuzzle(Board.from(grid: initialGrid), samples: 2)
-        let difficulty = generatorService.difficulty(for: rating)
+        let values = initialGrid.map { Int(String($0)) ?? 0 }
+        // Level from the techniques needed; an import the solver can't finish is Hard (CODESPEC 2.2).
+        let grade = PuzzleGrader.grade(values)?.grade
         let puzzle = SudokuPuzzle(
             id: UUID().uuidString,
-            difficulty: difficulty,
+            difficulty: grade?.difficulty ?? .hard,
             initialGrid: initialGrid,
             solutionGrid: solution,
-            rating: rating,
-            generatorSeed: nil,
-            generatorBucket: nil,
-            generationAttempts: nil,
-            generatedAt: nil,
+            grade: grade,
             source: .imported,
             importedAt: date,
-            importImageID: imageID
+            importImageID: imageID,
+            hasUniqueSolution: SolutionCounter.count(values, limit: 2) == 1
         )
         let gameState = GameState.newGame(for: puzzle, now: timeProvider.now())
         let imported = ImportedGame(gameState: gameState, createdAt: date, lastOpened: date)
@@ -217,6 +234,11 @@ final class AppController: ObservableObject {
 
     private func persistImported(state: GameState, id: String) {
         guard let index = importedGames.firstIndex(where: { $0.id == id }) else { return }
+        var state = state
+        // An open game may predate the background solution count; keep the counted flag.
+        if state.puzzle.hasUniqueSolution == nil {
+            state.puzzle.hasUniqueSolution = importedGames[index].gameState.puzzle.hasUniqueSolution
+        }
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
         persistImportedGames()
@@ -224,7 +246,10 @@ final class AppController: ObservableObject {
 
     private func handleImportedCompletion(state: GameState, id: String) {
         updateStats { stats in
-            stats.recordCompletion(for: state.puzzle.difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, usedHint: state.usedHint, source: state.puzzle.source, date: self.timeProvider.now())
+            stats.recordCompletion(
+                for: state.puzzle.difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
+                usedHint: state.usedHint, source: state.puzzle.source, date: self.timeProvider.now()
+            )
         }
         persistImported(state: state, id: id)
     }

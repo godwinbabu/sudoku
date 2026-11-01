@@ -1,38 +1,21 @@
 import Foundation
 
-enum PuzzleRatingBucket: String, Codable {
-    case easy
-    case medium
-    case hard
-    case veryHard
-    case unsolvable
-}
-
-/// Rating = average backtracking depth over several solver runs. Limits measured on 400 seeded
-/// puzzles (CODESPEC 2.2): about 42% rate below 0.5, 26% between 0.5 and 2, 31% at 2 or above.
-struct RatingThresholds {
-    var easyMax: Double = 0.5
-    var mediumMax: Double = 2
-    var hardMax: Double = 1_000
-}
-
 struct SudokuGeneratorConfiguration {
-    var ratingSamples: Int = 4
-    var maxAttempts: Int = 25
-    var thresholds: RatingThresholds = .init()
+    /// Generated puzzles tried before falling back to a bundled one. About 12 ms each on a Mac;
+    /// Hard (3-6% of generated puzzles) succeeds within 30 tries about 80% of the time.
+    var maxAttempts: Int = 30
 }
 
 struct GeneratedPuzzleResult {
     let puzzle: SudokuPuzzle
-    let board: GeneratorBoard
-    let solution: GeneratorBoard
-    let rating: Double
-    let bucket: PuzzleRatingBucket
+    let grade: PuzzleGrade
     let attempts: Int
-    let seed: UInt64?
+    /// True when no generated puzzle fit in time and a pre-graded bundled one was used.
+    let isBundled: Bool
 }
 
-/// Adapter around the vendored solver/generator with deterministic seeding and difficulty bucketing.
+/// Generates puzzles graded by the techniques a person needs (CODESPEC 2.2). A puzzle is only
+/// offered at the level its grade maps to; there is no silent fallback to another level.
 struct SudokuGeneratorService {
     private let config: SudokuGeneratorConfiguration
 
@@ -42,53 +25,25 @@ struct SudokuGeneratorService {
 
     func generatePuzzle(for difficulty: Difficulty, seed: UInt64? = nil) -> GeneratedPuzzleResult {
         var rng = seed.map { AnyRandomNumberGenerator(SeededRandomNumberGenerator(seed: $0)) } ?? AnyRandomNumberGenerator(SystemRandomNumberGenerator())
-        var bestCandidate: (board: GeneratorBoard, solution: GeneratorBoard, rating: Double, bucket: PuzzleRatingBucket, attempts: Int, seed: UInt64?)?
-
-        for attempt in 1...config.maxAttempts {
-            var localRng = rng
-            let board = makePuzzle(using: &localRng)
-
-            var ratingRng = localRng
-            let rating = ratePuzzle(board, samples: config.ratingSamples, using: &ratingRng)
-            let bucket = bucket(for: rating)
-
-            var solutionRng = localRng
-            let solution = solvePuzzle(board, using: &solutionRng) ?? []
-
-            let candidate = (board, solution, rating, bucket, attempt, seed)
-
-            if matchesTarget(bucket: bucket, requested: difficulty) {
-                rng = localRng
-                return makeResult(from: candidate, difficulty: difficulty)
-            }
-
-            if let current = bestCandidate {
-                let targetRange = targetRange(for: difficulty)
-                let currentDistance = distance(from: current.rating, to: targetRange)
-                let candidateDistance = distance(from: rating, to: targetRange)
-                if candidateDistance < currentDistance {
-                    bestCandidate = candidate
-                }
-            } else {
-                bestCandidate = candidate
-            }
-
-            rng = localRng
+        let id = seed.map { "seed-\(difficulty.rawValue)-\($0)" } ?? UUID().uuidString
+        for attempt in stride(from: 1, through: config.maxAttempts, by: 1) {
+            let values = makePuzzle(using: &rng).map { ($0 ?? -1) + 1 }
+            guard let (grade, solution) = PuzzleGrader.grade(values), grade.difficulty == difficulty else { continue }
+            let puzzle = SudokuPuzzle(
+                id: id, difficulty: difficulty,
+                initialGrid: values.map(String.init).joined(), solutionGrid: solution.map(String.init).joined(),
+                grade: grade, generatorSeed: seed, generationAttempts: attempt, generatedAt: Date(), hasUniqueSolution: true
+            )
+            return GeneratedPuzzleResult(puzzle: puzzle, grade: grade, attempts: attempt, isBundled: false)
         }
-
-        guard let fallback = bestCandidate else {
-            return makeResult(from: ([], [], -1, .unsolvable, config.maxAttempts, seed), difficulty: difficulty)
-        }
-        return makeResult(from: fallback, difficulty: difficulty)
-    }
-
-    /// Difficulty for an imported puzzle's rating; uses the same limits as generation.
-    func difficulty(for rating: Double) -> Difficulty {
-        switch bucket(for: rating) {
-        case .easy: return .easy
-        case .medium, .unsolvable: return .medium
-        case .hard, .veryHard: return .hard
-        }
+        let options = BundledPuzzles.puzzles(for: difficulty)
+        let entry = options[Int(rng.next() % UInt64(options.count))]
+        let grade = PuzzleGrade(hardestTier: entry.techniques.map(\.tier).max() ?? .basic, score: entry.score, techniques: entry.techniques)
+        let puzzle = SudokuPuzzle(
+            id: id, difficulty: difficulty, initialGrid: entry.initialGrid, solutionGrid: entry.solutionGrid,
+            grade: grade, generatorSeed: seed, generationAttempts: config.maxAttempts, generatedAt: Date(), hasUniqueSolution: true
+        )
+        return GeneratedPuzzleResult(puzzle: puzzle, grade: grade, attempts: config.maxAttempts, isBundled: true)
     }
 
     func solve(board: GeneratorBoard) -> GeneratorBoard? {
@@ -104,57 +59,6 @@ struct SudokuGeneratorService {
     }
 
     // MARK: - Private helpers
-
-    private func makeResult(from tuple: (board: GeneratorBoard, solution: GeneratorBoard, rating: Double, bucket: PuzzleRatingBucket, attempts: Int, seed: UInt64?), difficulty: Difficulty) -> GeneratedPuzzleResult {
-        let initialGrid = stringify(board: tuple.board, blanksAsZero: true)
-        let solutionGrid = stringify(board: tuple.solution, blanksAsZero: false)
-        let puzzleID = tuple.seed.map { "seed-\(difficulty.rawValue)-\($0)" } ?? UUID().uuidString
-        let puzzle = SudokuPuzzle(
-            id: puzzleID,
-            difficulty: difficulty,
-            initialGrid: initialGrid,
-            solutionGrid: solutionGrid,
-            rating: tuple.rating,
-            generatorSeed: tuple.seed,
-            generatorBucket: tuple.bucket,
-            generationAttempts: tuple.attempts,
-            generatedAt: Date()
-        )
-        return GeneratedPuzzleResult(puzzle: puzzle, board: tuple.board, solution: tuple.solution, rating: tuple.rating, bucket: tuple.bucket, attempts: tuple.attempts, seed: tuple.seed)
-    }
-
-    private func bucket(for rating: Double) -> PuzzleRatingBucket {
-        if rating < 0 { return .unsolvable }
-        if rating < config.thresholds.easyMax { return .easy }
-        if rating < config.thresholds.mediumMax { return .medium }
-        if rating < config.thresholds.hardMax { return .hard }
-        return .veryHard
-    }
-
-    private func matchesTarget(bucket: PuzzleRatingBucket, requested: Difficulty) -> Bool {
-        switch requested {
-        case .easy: return bucket == .easy
-        case .medium: return bucket == .medium
-        case .hard: return bucket == .hard
-        }
-    }
-
-    private func targetRange(for difficulty: Difficulty) -> ClosedRange<Double> {
-        switch difficulty {
-        case .easy:
-            return 0...config.thresholds.easyMax
-        case .medium:
-            return config.thresholds.easyMax...config.thresholds.mediumMax
-        case .hard:
-            return config.thresholds.mediumMax...config.thresholds.hardMax
-        }
-    }
-
-    private func distance(from rating: Double, to target: ClosedRange<Double>) -> Double {
-        if target.contains(rating) { return 0 }
-        if rating < target.lowerBound { return target.lowerBound - rating }
-        return rating - target.upperBound
-    }
 
     private func stringify(board: GeneratorBoard, blanksAsZero: Bool) -> String {
         board.map { value -> String in

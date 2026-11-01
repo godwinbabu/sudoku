@@ -23,6 +23,8 @@
 		0000000000000000000000BB /* SubsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BA /* SubsetDetector.swift */; };
 		0000000000000000000000B9 /* SinglesAndIntersections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B8 /* SinglesAndIntersections.swift */; };
 		0000000000000000000000B7 /* LogicalSolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B6 /* LogicalSolver.swift */; };
+		0000000000000000000000D9 /* BundledPuzzles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D8 /* BundledPuzzles.swift */; };
+		0000000000000000000000D7 /* PuzzleGrader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D6 /* PuzzleGrader.swift */; };
 		0000000000000000000000B5 /* TechniqueStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B4 /* TechniqueStep.swift */; };
 		0000000000000000000000B3 /* SolverBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B2 /* SolverBoard.swift */; };
 		000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001B /* SudokuPuzzleRepository.swift */; };
@@ -52,6 +54,7 @@
 		000000000000000000000067 /* GameStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000032 /* GameStateTests.swift */; };
 		000000000000000000000068 /* GameViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000033 /* GameViewModelTests.swift */; };
 		000000000000000000000069 /* StatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000034 /* StatsTests.swift */; };
+		0000000000000000000000DB /* PuzzleGraderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DA /* PuzzleGraderTests.swift */; };
 		0000000000000000000000D3 /* DisplayCalibrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D2 /* DisplayCalibrationTests.swift */; };
 		0000000000000000000000C9 /* HintLadderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C8 /* HintLadderTests.swift */; };
 		0000000000000000000000C3 /* PuzzleDataConsistencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */; };
@@ -117,6 +120,8 @@
 		0000000000000000000000BA /* SubsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsetDetector.swift; sourceTree = "<group>"; };
 		0000000000000000000000B8 /* SinglesAndIntersections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinglesAndIntersections.swift; sourceTree = "<group>"; };
 		0000000000000000000000B6 /* LogicalSolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalSolver.swift; sourceTree = "<group>"; };
+		0000000000000000000000D8 /* BundledPuzzles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledPuzzles.swift; sourceTree = "<group>"; };
+		0000000000000000000000D6 /* PuzzleGrader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGrader.swift; sourceTree = "<group>"; };
 		0000000000000000000000B4 /* TechniqueStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TechniqueStep.swift; sourceTree = "<group>"; };
 		0000000000000000000000B2 /* SolverBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolverBoard.swift; sourceTree = "<group>"; };
 		00000000000000000000001B /* SudokuPuzzleRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuPuzzleRepository.swift; sourceTree = "<group>"; };
@@ -146,6 +151,7 @@
 		000000000000000000000032 /* GameStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStateTests.swift; sourceTree = "<group>"; };
 		000000000000000000000033 /* GameViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameViewModelTests.swift; sourceTree = "<group>"; };
 		000000000000000000000034 /* StatsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsTests.swift; sourceTree = "<group>"; };
+		0000000000000000000000DA /* PuzzleGraderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGraderTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000D2 /* DisplayCalibrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayCalibrationTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000C8 /* HintLadderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintLadderTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleDataConsistencyTests.swift; sourceTree = "<group>"; };
@@ -260,6 +266,8 @@
 				0000000000000000000000BA /* SubsetDetector.swift */,
 				0000000000000000000000B8 /* SinglesAndIntersections.swift */,
 				0000000000000000000000B6 /* LogicalSolver.swift */,
+				0000000000000000000000D8 /* BundledPuzzles.swift */,
+				0000000000000000000000D6 /* PuzzleGrader.swift */,
 				0000000000000000000000B4 /* TechniqueStep.swift */,
 				0000000000000000000000B2 /* SolverBoard.swift */,
 				00000000000000000000001B /* SudokuPuzzleRepository.swift */,
@@ -347,6 +355,7 @@
 				000000000000000000000032 /* GameStateTests.swift */,
 				000000000000000000000033 /* GameViewModelTests.swift */,
 				000000000000000000000034 /* StatsTests.swift */,
+				0000000000000000000000DA /* PuzzleGraderTests.swift */,
 				0000000000000000000000D2 /* DisplayCalibrationTests.swift */,
 				0000000000000000000000C8 /* HintLadderTests.swift */,
 				0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */,
@@ -556,6 +565,8 @@
 				0000000000000000000000BB /* SubsetDetector.swift in Sources */,
 				0000000000000000000000B9 /* SinglesAndIntersections.swift in Sources */,
 				0000000000000000000000B7 /* LogicalSolver.swift in Sources */,
+				0000000000000000000000D9 /* BundledPuzzles.swift in Sources */,
+				0000000000000000000000D7 /* PuzzleGrader.swift in Sources */,
 				0000000000000000000000B5 /* TechniqueStep.swift in Sources */,
 				0000000000000000000000B3 /* SolverBoard.swift in Sources */,
 				000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */,
@@ -603,6 +614,7 @@
 				000000000000000000000067 /* GameStateTests.swift in Sources */,
 				000000000000000000000068 /* GameViewModelTests.swift in Sources */,
 				000000000000000000000069 /* StatsTests.swift in Sources */,
+				0000000000000000000000DB /* PuzzleGraderTests.swift in Sources */,
 				0000000000000000000000D3 /* DisplayCalibrationTests.swift in Sources */,
 				0000000000000000000000C9 /* HintLadderTests.swift in Sources */,
 				0000000000000000000000C3 /* PuzzleDataConsistencyTests.swift in Sources */,

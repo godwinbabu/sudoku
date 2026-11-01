@@ -20,22 +20,6 @@ func solvePuzzle(_ board: GeneratorBoard) -> GeneratorBoard? {
     return solvePuzzle(board, using: &rng)
 }
 
-func ratePuzzle(_ puzzle: GeneratorBoard, samples: Int, using rng: inout some RandomNumberGenerator) -> Double {
-    guard samples > 0 else { return -1 }
-    var total = 0
-    for _ in 0..<samples {
-        let tuple = solveBoard(puzzle, using: &rng)
-        guard let _ = tuple.answer else { return -1 }
-        total += tuple.state.count
-    }
-    return Double(total) / Double(samples)
-}
-
-func ratePuzzle(_ puzzle: GeneratorBoard, samples: Int) -> Double {
-    var rng = SystemRandomNumberGenerator()
-    return ratePuzzle(puzzle, samples: samples, using: &rng)
-}
-
 func posFor(x: Int, y: Int, axis: Int = 0) -> Int {
     switch axis {
     case 0:

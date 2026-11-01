@@ -1,0 +1,67 @@
+import Foundation
+
+/// How hard a puzzle is for a person (CODESPEC 2.2): the techniques the logical solver needs.
+struct PuzzleGrade: Codable, Equatable {
+    let hardestTier: TechniqueTier
+    /// Sum of step scores (HINT_STRATEGIES.md); orders puzzles within a level.
+    let score: Int
+    /// Techniques used, in curriculum order.
+    let techniques: [Technique]
+
+    /// One level per tier: Basic → Easy, Intermediate → Medium, Advanced (and later Expert) → Hard.
+    var difficulty: Difficulty {
+        switch hardestTier {
+        case .basic: return .easy
+        case .intermediate: return .medium
+        case .advanced, .expert: return .hard
+        }
+    }
+}
+
+enum PuzzleGrader {
+    /// Solves step by step, always taking the simplest step. Nil if the solver gets stuck (the
+    /// puzzle needs a technique the app does not know yet) — such a puzzle fits no level.
+    static func grade(_ values: [Int]) -> (grade: PuzzleGrade, solution: [Int])? {
+        let result = LogicalSolver().solve(SolverBoard(values: values))
+        guard result.isSolved else { return nil }
+        let used = Set(result.steps.map(\.technique))
+        let grade = PuzzleGrade(
+            hardestTier: used.map(\.tier).max() ?? .basic,
+            score: result.steps.reduce(0) { $0 + $1.technique.score },
+            techniques: Technique.allCases.filter(used.contains)
+        )
+        return (grade, result.board.values)
+    }
+}
+
+/// Counts solutions by backtracking, stopping at `limit` (CODESPEC 2.1: imports count to 2).
+enum SolutionCounter {
+    static func count(_ values: [Int], limit: Int = 2) -> Int {
+        let board = SolverBoard(values: values)
+        guard !board.hasContradiction else { return 0 }
+        var count = 0
+        search(board, limit: limit, count: &count)
+        return count
+    }
+
+    private static func search(_ board: SolverBoard, limit: Int, count: inout Int) {
+        // Branch on the empty cell with the fewest candidates.
+        var best: Int?
+        var fewest = 10
+        for cell in 0..<81 where board.values[cell] == 0 {
+            let options = board.candidates[cell].nonzeroBitCount
+            if options == 0 { return }
+            if options < fewest { fewest = options; best = cell }
+        }
+        guard let cell = best else {
+            count += 1
+            return
+        }
+        for digit in SolverBoard.digits(in: board.candidates[cell]) {
+            var next = board
+            next.place(digit, at: cell)
+            search(next, limit: limit, count: &count)
+            if count >= limit { return }
+        }
+    }
+}

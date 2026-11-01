@@ -101,13 +101,9 @@ For now, implement one of these two approaches (either is acceptable):
 	•	Removes numbers to create puzzles.
 	•	Uses a solver to ensure uniqueness and assign a rough difficulty score.
 	•	Map difficulty score to .easy, .medium, .hard.
-	•	Current implementation (until phase 4): score = average backtracking depth over 4 solver runs.
-	•	Thresholds (measured on 400 seeded puzzles, see docs/audit/bench-ratings.swift):
-	•	Easy: score < 0.5 (solvable by deduction alone, ~42% of generated puzzles).
-	•	Medium: 0.5 ≤ score < 2 (~26%).
-	•	Hard: score ≥ 2 (~31%).
+	•	(Before phase 4 the score was the average backtracking depth over 4 solver runs; see docs/audit/bench-ratings.swift. Replaced by the logical grade below.)
 
-Target rating (phase 4): a logical grade, measured the way a person solves.
+Rating (phase 4 onward): a logical grade, measured the way a person solves (PuzzleGrader).
 	•	Solve the puzzle with the logical solver (Section 13.3), one step at a time, always taking the simplest available step.
 	•	The grade records:
 	•	hardestTier: the tier of the hardest technique needed (Basic, Intermediate, Advanced, Expert).
@@ -121,6 +117,9 @@ Target rating (phase 4): a logical grade, measured the way a person solves.
 	•	(Optional, phase 6) Expert: needs at least one Expert technique.
 	•	Within a level, the score orders puzzles from easier to harder.
 	•	No silent fallback: a puzzle is only offered at the level its grade maps to. If generation cannot find one in time, use a bundled pre-graded puzzle of that level.
+	•	Generation tries up to 30 puzzles (about 12 ms each on a Mac). Measured on 1,000 generated puzzles: 43% Easy, 19% Medium, 3.7% Hard, 34% need a technique not built yet (discarded).
+	•	Bundled: 120 pre-graded, unique-solution puzzles per level (BundledPuzzles.swift, generated offline with this app’s generator; no licence applies). They also serve as practice drills, indexed by technique.
+	•	An import the logical solver can’t finish gets Hard and no grade.
 	•	The grade is deterministic: the same puzzle always gets the same grade.
 
 For this first version, it’s acceptable to only implement the JSON-puzzle approach and leave the generator as a future enhancement (stubbed).

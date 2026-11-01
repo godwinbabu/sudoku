@@ -202,6 +202,10 @@ struct MainMenuView: View {
                 .buttonStyle(.plain)
                 .frame(maxWidth: 200)
                 .accessibilityIdentifier("difficulty_\(difficulty.rawValue)")
+                Text(difficulty.techniqueSummary)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                    .padding(.top, -10)
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
