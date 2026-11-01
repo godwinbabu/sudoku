@@ -117,7 +117,7 @@ Target rating (phase 4): a logical grade, measured the way a person solves.
 	•	Map grade to difficulty by the techniques it needs:
 	•	Easy: Basic tier only.
 	•	Medium: needs at least one Intermediate technique, nothing harder.
-	•	Hard: needs at least one Advanced technique, nothing harder.
+	•	Hard: needs at least one Advanced technique, nothing harder. (Phase 4: the Advanced techniques built so far are X-Wing, Swordfish and XY-Wing; puzzles that need other Advanced techniques are discarded until phase 5.)
 	•	(Optional, phase 6) Expert: needs at least one Expert technique.
 	•	Within a level, the score orders puzzles from easier to harder.
 	•	No silent fallback: a puzzle is only offered at the level its grade maps to. If generation cannot find one in time, use a bundled pre-graded puzzle of that level.
@@ -179,18 +179,20 @@ struct GameState: Codable {
 
 Additions for teaching (added in the phase that first needs them, Section 13.6):
 	•	SudokuPuzzle:
-	•	hasUniqueSolution: Bool (Section 2.1).
+	•	hasUniqueSolution: Bool (Section 2.1). Default when missing from a saved file: source == .generated. An imported puzzle saved without it gets its solutions counted (stopping at 2) the first time it loads, and the result is saved.
 	•	grade: PuzzleGrade? (hardestTier, score, techniques; Section 2.2). Nil for puzzles saved before grading existed.
 	•	GameState:
 	•	hintLog: [HintLogEntry] — one entry per hint: technique, deepest rung shown (0–4), whether it was applied.
 	•	usedHint: Bool — true once any hint step is applied (Section 6.3).
 	•	TechniqueProgress (new model, one per technique):
 	•	foundUnaidedCount: Int, foundUnaidedDays: Set<day>, lastSeen: Date?, strength: Double (0–1, decays over time).
-	•	All new fields decode with defaults, so older save files still load.
+	•	All new fields decode with defaults (decodeIfPresent), so older save files still load. This applies to every persisted model: SudokuPuzzle, GameState, Settings, Stats, TechniqueProgress and display profiles. A strict decode of a new field would make the old file fail to load and be moved aside, losing the player’s settings.
 
 Testing requirements:
 	•	Unit tests:
-	•	Decode a GameState and SudokuPuzzle saved without the new fields; verify defaults (empty hintLog, usedHint == false, grade == nil).
+	•	Decode a GameState and SudokuPuzzle saved without the new fields; verify defaults (empty hintLog, usedHint == false, grade == nil, hasUniqueSolution == true for generated).
+	•	An imported two-solution puzzle saved without hasUniqueSolution loads as false.
+	•	Settings and Stats files saved by the previous version load without errors, with defaults for new fields.
 	•	Construct a GameState from initialGrid and solutionGrid and verify:
 	•	Exactly 81 cells.
 	•	given and value are set correctly based on initialGrid.
@@ -389,7 +391,8 @@ Until phase 3 ships, the current behavior stays: Hint finds a placement and, wit
 	•	The board never changes until the player taps Apply.
 	•	Rungs:
 	•	Rung 0 – Check (automatic, always first):
-	•	If the board has a wrong digit, or a cell’s notes leave out its correct digit, or notes conflict with a placed digit: “There’s a mistake on the board.”
+	•	If the board has a wrong digit, or a cell that has notes leaves out its correct digit: “There’s a mistake on the board.”
+	•	Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored, not reported.
 	•	Next narrows it: first the house (row, column or box), then the cell.
 	•	No technique hint is given until the mistake is fixed. The panel offers Undo.
 	•	Rung 1 – Name: “A Hidden Single is available.” Shows the tier badge and a one-line definition.
@@ -409,10 +412,10 @@ Until phase 3 ships, the current behavior stays: Hint finds a placement and, wit
 	•	If the solver finds no step it can explain: “I can’t find a step I can explain. Reveal this cell?” This links to Reveal Cell. It never returns nothing.
 	•	Fading (phase 5):
 	•	A technique the player has mastered (Section 13.4) opens at rung 1 and stops there unless the player taps Next.
-	•	A technique the player has never seen opens at rung 3, as a worked example.
+	•	A technique the player has never seen opens at rung 3, as a worked example, and the panel also offers its lesson.
 	•	Stats:
 	•	Rungs 0–3 do not affect stats.
-	•	Apply sets usedHint = true. The solve still counts toward puzzles solved, total time and the streak, but not toward best time.
+	•	Showing rung 4 (the result) sets usedHint = true, whether or not the player taps Apply. Undo never clears it (same as usedReveal). The solve still counts toward puzzles solved, total time and the streak, but not toward best time.
 	•	Reveal Cell and Reveal Puzzle keep their current rule (usedReveal: the solve does not count).
 	•	The autoFillHints setting is removed when the ladder ships. Older settings files that contain it still load.
 
@@ -430,8 +433,10 @@ Testing requirements:
 	•	usedReveal == true.
 	•	Hint ladder (phase 3):
 	•	With a wrong digit on the board, Hint returns rung 0 and no technique.
+	•	With no notes anywhere, Hint returns a technique (not rung 0).
+	•	With stale notes only (Auto-remove off), Hint returns a technique.
 	•	Rungs 1–3 never change the board.
-	•	Apply changes the board as the step says, sets usedHint, and one Undo reverts it.
+	•	Showing rung 4 sets usedHint; Apply changes the board as the step says, and one Undo reverts the board but leaves usedHint set.
 	•	A solve with usedHint counts in puzzles solved and the streak but not in best time.
 	•	The same board gives the same hint twice.
 	•	When the solver finds no step, Hint offers Reveal Cell instead of returning nothing.
@@ -554,7 +559,7 @@ enum AppTheme: String, Codable {
 Testing requirements:
 	•	Unit tests:
 	•	Theme selection is persisted and restored.
-	•	Palette (phase 3): for every profile in the allowed range, candidate and grid-line colors stay above their readable floor against the background.
+	•	Palette (phase 3): for every profile in the allowed range, digits, candidates and grid lines stay at or above the floors in Section 9.
 	•	UI tests (basic):
 	•	Switch theme to Dark and verify at least that background or some key UI element changes (sanity check).
 	•	autoCheckMistakes: place a conflicting number and verify visual error (e.g., presence of an error indicator).
@@ -631,7 +636,10 @@ Testing requirements:
 	•	Hint correctness (phase 2 onward): no hint may ever remove a correct candidate or place a wrong digit.
 	•	Accessibility:
 	•	Support Dynamic Type, including candidate marks (with a minimum size).
-	•	Ensure color contrast in all themes: at least 4.5:1 for digits and text, 3:1 for grid lines and large or bold text, at every display profile setting.
+	•	Color contrast:
+	•	System, Light and Dark themes: at least 4.5:1 for digits and text, 3:1 for grid lines and large or bold text.
+	•	Sleep theme: the player chooses the dimness, and it may go below 4.5:1 (a dark room needs less contrast, and this is the player’s own choice). Fixed floors still apply: digits never darker than luminance 0.01; candidates at least 60% and grid lines at least 40% of the digit luminance.
+	•	Sleep theme with iOS Increase Contrast on: the 4.5:1 / 3:1 floors apply here too.
 	•	If iOS Bold Text or Increase Contrast is on, raise the app’s weight and contrast floors.
 	•	VoiceOver can play a full game (phase 6): each cell reads its row, column, value or candidates, and hints read their explanation.
 	•	Code organization:
@@ -645,7 +653,7 @@ Testing requirements:
 	•	Stats streak & time tests.
 	•	Persistence round-trip tests.
 	•	Solver correctness oracle (phase 2 onward): run the logical solver step by step over a few thousand bundled puzzles. Every elimination and placement is checked against the known solution. Zero failures allowed.
-	•	Hint latency: an XCTest measure benchmark for one hint on a hard board, recorded per release.
+	•	Hint latency: an XCTest measure benchmark for one hint on a hard board, with a simulator baseline that fails the test on a large regression. Each release also gets a manual on-device check on the oldest supported iPhone (iPhone 8 for iOS 16).
 	•	UI tests:
 	•	Core happy paths:
 	•	Launch → Easy → enter a few cells → back.
@@ -772,8 +780,8 @@ Why: total light, not color, is what affects sleep, and people differ widely. Th
 	•	The palette is computed from the profile (Section 7.2). No black overlay.
 	•	Warmth is a comfort setting. The app must not claim that warm colors protect sleep.
 	•	Limits the app must respect: it cannot go below the system brightness minimum, cannot read room light, and cannot turn on Reduce White Point.
-	•	If Reduce White Point is detectably on, do not stack the app’s own dimming so far that text becomes unreadable.
-	•	Existing sleepBrightness values migrate to a starting profile (Normal / Dim / Extra Dim → matching dimness).
+	•	Only if iOS offers a public API to read Reduce White Point: when it is on, do not stack the app’s own dimming so far that text drops below the Section 9 floors. Without such an API, the floors alone protect readability.
+	•	Existing sleepBrightness values migrate to a starting profile whose look matches today’s (Normal / Dim / Extra Dim → the same overall dimness). If that look breaks a Section 9 floor, the floor wins.
 
 Testing requirements:
 	•	UI tests (visual sanity checks / snapshot-ready):
@@ -863,7 +871,7 @@ Testing requirements:
 	•	Force soundsEnabled == false, hapticsEnabled == false.
 	•	Set in-app brightness to minimum (via overlay). From phase 3: apply the player’s bedtime display profile instead.
 	•	Force dark appearance for every screen, including system sheets the app presents. Avoid system views that cannot be themed dark (they flash white).
-	•	The launch screen is black.
+	•	The launch screen is black in every mode (iOS shows a static launch screen, so it cannot depend on Bedtime Mode).
 	•	Optionally, provide a shortcut on the main menu:
 	•	Small icon or button, e.g. “🌙 Bedtime Mode”.
 	•	Tapping it:
@@ -879,7 +887,7 @@ Testing requirements:
 	•	UI tests:
 	•	Enable Bedtime Mode via settings and assert that:
 	•	Sleep theme is active.
-	•	UI re-renders with dark warm palette and dim overlay.
+	•	UI re-renders with dark warm palette and dim overlay (until phase 3; from phase 3: the bedtime display profile is applied).
 
 ⸻
 
@@ -914,14 +922,18 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	Steps stack: after each step, the next search starts from the updated candidates.
 	•	Uniqueness techniques run only when hasUniqueSolution is true (Section 2.1).
 	•	If no technique applies, return nil. The hint then offers Reveal Cell (Section 6.3); it never guesses.
-	•	Replaces the current SudokuHintEngine when it reaches the same coverage. Known issues in the current engine that the new solver must not repeat:
+	•	Which engine feeds hints:
+	•	Phases 1–2: the current SudokuHintEngine (current behavior).
+	•	From phase 3: the logical solver. By then it covers every technique the old engine handles correctly (phase 2). The old engine’s XY-Chain (buggy) and Bowman’s Bingo (trial and error) are dropped; boards that needed them get the honest “Reveal this cell?” fallback until phase 6.
+	•	SudokuHintEngine is deleted in phase 3.
+	•	Known issues in the current engine that the new solver must not repeat:
 	•	Each technique starts again from the original candidates, so steps do not stack.
 	•	A hint carries only a target cell and a message, so the pattern cannot be shown.
 	•	XY-Chain only eliminates when the chain’s end sees its start; the rule is any cell that sees both ends.
 	•	The last resort (Bowman’s Bingo) can return no hint.
 
 13.4 Mastery
-	•	A technique is mastered when the player has found it without a hint in 3 different puzzles on 3 different days. “Found” means the player made the step’s placement or elimination before asking for a hint on that board.
+	•	A technique is mastered when the player has found it without a hint in 3 different puzzles on 3 different days. “Found” means: on the board just before the player’s move, nextStep returns a step, and the move makes that step’s placement or one of its eliminations, with no hint shown for that step. The credit goes to that step’s technique. A move that matches no nextStep result earns no credit.
 	•	Each technique has a strength value (0–1) that decays over time (half-life model). Strength rises when found unaided and falls when a hint for it is needed.
 	•	When strength falls low, the Learn screen offers an optional review drill. No streak alarms, no notifications.
 
@@ -934,10 +946,10 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 13.6 Build phases
 Each phase ships on its own and keeps the app working.
 	1.	Spec (this section, CODESPEC updates, HINT_STRATEGIES.md, BYOS.md uniqueness rule).
-	2.	Engine core: SolverBoard, TechniqueStep, LogicalSolver; Basic and Intermediate tiers including hidden subsets; deterministic order; honest last resort; correctness oracle and latency benchmark in the test suite.
+	2.	Engine core: SolverBoard, TechniqueStep, LogicalSolver; Basic and Intermediate tiers including hidden subsets; X-Wing, Swordfish and XY-Wing (ported from the old engine, so nothing it does correctly is lost); deterministic order; honest last resort; correctness oracle and latency benchmark in the test suite.
 	3.	Hint ladder and display calibration: Section 6.3 rungs 0–4, Apply with Undo, Reveal Cell separate, autoFillHints removed; Section 12.3 calibration and profiles.
 	4.	Grading and drills: logical grade per puzzle (Section 2.2), technique lines under difficulty buttons, no silent fallback, bundled pre-graded puzzles and drill index, solution count on import.
-	5.	Advanced tier and Learn: fish, single-digit patterns, wings, simple coloring, uniqueness techniques (gated); Learn screen, lessons, mastery and fading.
+	5.	Advanced tier and Learn: the rest of the Advanced tier (single-digit patterns, XYZ-Wing, W-Wing, simple coloring, uniqueness techniques, gated); Learn screen, lessons, mastery and fading.
 	6.	Expert tier and polish: chain link graph, X-Chain, AIC, grouped AIC, ALS-XZ, ALS-XY-Wing, Sue de Coq; optional Expert difficulty; full VoiceOver play.
 
 Testing requirements:

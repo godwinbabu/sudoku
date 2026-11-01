@@ -13,7 +13,8 @@ Rules:
 - **Gated** techniques assume the puzzle has exactly one solution. They run only when
   `hasUniqueSolution` is true (CODESPEC 2.1).
 - **Concept** rows are short lessons, not solver steps.
-- **Phase** is the build phase that adds the technique (CODESPEC 13.6).
+- **Phase** is the build phase that adds the technique (CODESPEC 13.6). X-Wing, Swordfish and XY-Wing
+  come early (phase 2) because the current engine already has them.
 - **Today** shows what the current `SudokuHintEngine.swift` does, so the gap is clear.
 
 ## Tier 1: Basic
@@ -32,9 +33,9 @@ Rules:
 |---|---|---|---|---|---|
 | 5 | Pointing | 50 | 2 | In a box, a digit's candidates lie on one row/column; remove it from the rest of that line. | Yes |
 | 6 | Claiming | 50 | 2 | In a row/column, a digit's candidates lie in one box; remove it from the rest of the box. | Yes |
-| 7 | Naked Pair | 60 | 2 | Two cells in a house hold the same two candidates; remove those digits from the house's other cells. | Yes |
-| 8 | Hidden Pair | 70 | 2 | Two digits fit only in the same two cells of a house; remove other candidates from those cells. | No |
-| 9 | Locked Pair / Triple | 40 / 60 | 2 | A naked pair/triple that is also inside one box and one line; eliminates from both. | No |
+| 7 | Locked Pair / Triple | 40 / 60 | 2 | A naked pair/triple that is also inside one box and one line; eliminates from both. Listed before Naked Pair so it is found first. | No |
+| 8 | Naked Pair | 60 | 2 | Two cells in a house hold the same two candidates; remove those digits from the house's other cells. | Yes |
+| 9 | Hidden Pair | 70 | 2 | Two digits fit only in the same two cells of a house; remove other candidates from those cells. | No |
 | 10 | Naked Triple | 80 | 2 | Three cells in a house hold only three digits between them. | Yes |
 | 11 | Hidden Triple | 100 | 2 | Three digits fit only in the same three cells of a house. | No |
 | 12 | Naked / Hidden Quad | 120 / 150 | 2 | The same idea with four cells. Rare; brief lesson. | Naked only |
@@ -44,13 +45,13 @@ Rules:
 | # | Technique | Score | Phase | What it is | Today |
 |---|---|---|---|---|---|
 | – | Concept: strong link | – | 5 | A digit has exactly two places in a house: if one is false, the other is true. | – |
-| 13 | X-Wing | 140 | 5 | A digit has two places in each of two rows, in the same two columns (or the reverse); remove it from the rest of those columns. | Yes |
+| 13 | X-Wing | 140 | 2 | A digit has two places in each of two rows, in the same two columns (or the reverse); remove it from the rest of those columns. | Yes |
 | 14 | Skyscraper | 130 | 5 | Two strong links on one digit share one end line; cells that see both free ends lose the digit. | No |
 | 15 | 2-String Kite | 150 | 5 | A row link and a column link on one digit joined through a box; the cell that sees both free ends loses the digit. | No |
 | 16 | Empty Rectangle | 120 | 5 | A box's candidates for a digit form an L/cross shape that, with a strong link, removes the digit from one cell. | No |
-| 17 | Swordfish | 150 | 5 | The X-Wing idea on three rows and three columns. (Jellyfish, four lines, is a note only.) | Yes |
+| 17 | Swordfish | 150 | 2 | The X-Wing idea on three rows and three columns. (Jellyfish, four lines, is a note only.) | Yes |
 | – | Concept: bivalue cell | – | 5 | A cell with exactly two candidates. | – |
-| 18 | XY-Wing | 160 | 5 | A pivot cell (XY) sees two pincers (XZ, YZ); cells that see both pincers lose Z. | Yes (as "Y-Wing") |
+| 18 | XY-Wing | 160 | 2 | A pivot cell (XY) sees two pincers (XZ, YZ); cells that see both pincers lose Z. | Yes (as "Y-Wing") |
 | 19 | XYZ-Wing | 180 | 5 | Like XY-Wing, but the pivot also holds Z; cells that see all three lose Z. | No |
 | 20 | W-Wing | 150 | 5 | Two identical bivalue cells joined by a strong link on one of their digits; cells that see both lose the other digit. | No |
 | 21 | Simple Coloring | 150 | 5 | Color one digit's strong-link chain in two colors; a contradiction or a cell seeing both colors gives eliminations. | No |

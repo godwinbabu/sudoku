@@ -88,6 +88,8 @@ Three positions are open, and PureSudoku can hold all three at once. The first i
 
 ## Five build phases, and the CODESPEC sections each one changes
 
+> **Note (added later):** CODESPEC.md numbers these phases 1–6, one higher than here (Spec = phase 1). CODESPEC 13.6 is the source of truth for phase contents; it moved X-Wing, Swordfish and XY-Wing into its phase 2 and XY-Chain into its phase 6.
+
 AGENTS.md makes CODESPEC.md the source of truth, so the spec changes come first. Each phase ships on its own and keeps the current hint working until the new one replaces it.
 
 | Phase | Scope | Exit test |
