@@ -33,7 +33,6 @@
 		00000000000000000000005E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SettingsView.swift */; };
 		00000000000000000000005F /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* StatsView.swift */; };
 		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
-		000000000000000000000061 /* Puzzles in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* Puzzles */; };
 		000000000000000000000062 /* Media in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* Media */; };
 		000000000000000000000063 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002D /* README.md */; };
 		000000000000000000000064 /* TestData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* TestData.swift */; };
@@ -44,7 +43,6 @@
 		000000000000000000000069 /* StatsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000034 /* StatsTests.swift */; };
 		00000000000000000000006A /* PersistenceManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000035 /* PersistenceManagerTests.swift */; };
 		00000000000000000000006B /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* Mocks.swift */; };
-		00000000000000000000006C /* Puzzles in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002B /* Puzzles */; };
 		00000000000000000000006D /* PureSudokuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* PureSudokuUITests.swift */; };
 		000000000000000000000088 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000082 /* AppColors.swift */; };
 		000000000000000000000089 /* ThemeColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000083 /* ThemeColors.swift */; };
@@ -111,7 +109,6 @@
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
 		000000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		00000000000000000000002A /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
-		00000000000000000000002B /* Puzzles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Puzzles; sourceTree = "<group>"; };
 		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
 		00000000000000000000002D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		00000000000000000000002E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -273,7 +270,6 @@
 		000000000000000000000008 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				00000000000000000000002B /* Puzzles */,
 				00000000000000000000002C /* Media */,
 				00000000000000000000002D /* README.md */,
 			);
@@ -465,7 +461,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				000000000000000000000060 /* Assets.xcassets in Resources */,
-				000000000000000000000061 /* Puzzles in Resources */,
 				000000000000000000000062 /* Media in Resources */,
 				000000000000000000000063 /* README.md in Resources */,
 			);
@@ -475,7 +470,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				00000000000000000000006C /* Puzzles in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
