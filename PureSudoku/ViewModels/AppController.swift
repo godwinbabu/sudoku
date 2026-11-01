@@ -15,6 +15,8 @@ final class AppController: ObservableObject {
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
     private let imageStore: ImportedImageStore
+    /// Images saved for an import screen that has not created its game yet; never treated as orphans.
+    private var pendingImageIDs: Set<String> = []
 
     init(
         persistence: PersistenceManager = PersistenceManager(),
@@ -131,6 +133,7 @@ final class AppController: ObservableObject {
         let gameState = GameState.newGame(for: puzzle, now: timeProvider.now())
         let imported = ImportedGame(gameState: gameState, createdAt: date, lastOpened: date)
         importedGames.append(imported)
+        if let imageID { pendingImageIDs.remove(imageID) }
         persistImportedGames()
         return imported
     }
@@ -146,14 +149,25 @@ final class AppController: ObservableObject {
     }
 
     func saveImportedImage(_ image: UIImage) -> String? {
-        guard settings.keepImportImages else { return nil }
-        let id = imageStore.save(image: image)
-        cleanupImportImages()
+        guard settings.keepImportImages, let id = imageStore.save(image: image) else { return nil }
+        pendingImageIDs.insert(id)
         return id
     }
 
     func removeImportedImage(id: String) {
+        pendingImageIDs.remove(id)
         imageStore.delete(id: id)
+    }
+
+    func deleteImportedGame(id: String) {
+        guard let index = importedGames.firstIndex(where: { $0.id == id }) else { return }
+        importedGames.remove(at: index)
+        persistImportedGames()
+    }
+
+    /// Unfinished imported games, most recently played first.
+    var savedImports: [ImportedGame] {
+        importedGames.filter { !$0.gameState.isCompleted }.sorted { $0.lastOpened > $1.lastOpened }
     }
 
     func clearImportedImages() {
@@ -162,7 +176,7 @@ final class AppController: ObservableObject {
 
     private func cleanupImportImages() {
         let ids = Set(importedGames.compactMap { $0.gameState.puzzle.importImageID })
-        imageStore.cleanup(keeping: ids)
+        imageStore.removeOrphans(keeping: ids.union(pendingImageIDs))
     }
 
     func updateStats(_ block: (inout Stats) -> Void) {
@@ -209,11 +223,13 @@ final class AppController: ObservableObject {
         persistImported(state: state, id: id)
     }
 
+    /// Saves the imported list, then removes images no game uses (only after a successful save).
     private func persistImportedGames() {
         do {
             try persistence.save(importedGames, to: File.importedGames.rawValue)
         } catch {
             self.lastPersistenceError = error
+            return
         }
         cleanupImportImages()
     }

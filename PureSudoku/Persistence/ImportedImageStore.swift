@@ -30,7 +30,7 @@ final class ImportedImageStore {
         let url = baseURL.appendingPathComponent("\(id).jpg")
         do {
             try data.write(to: url, options: .atomic)
-            cleanup(keeping: [])
+            evictOldest()
             return id
         } catch {
             return nil
@@ -49,15 +49,17 @@ final class ImportedImageStore {
         }
     }
 
-    func cleanup(keeping ids: Set<String>) {
-        guard var files = try? fileManager.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: [.creationDateKey]) else { return }
-        for url in files {
-            let id = url.deletingPathExtension().lastPathComponent
-            if !ids.isEmpty, !ids.contains(id) {
-                try? fileManager.removeItem(at: url)
-            }
+    /// Deletes every image whose ID is not in `ids` (BYOS: remove orphaned images).
+    func removeOrphans(keeping ids: Set<String>) {
+        guard let files = try? fileManager.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: nil) else { return }
+        for url in files where !ids.contains(url.deletingPathExtension().lastPathComponent) {
+            try? fileManager.removeItem(at: url)
         }
-        files = (try? fileManager.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: [.creationDateKey])) ?? []
+    }
+
+    /// Keeps only the newest `maxImages` images (BYOS: delete oldest beyond the limit).
+    func evictOldest() {
+        let files = (try? fileManager.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: [.creationDateKey])) ?? []
         let sorted = files.sorted { lhs, rhs in
             let leftDate = (try? lhs.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             let rightDate = (try? rhs.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast

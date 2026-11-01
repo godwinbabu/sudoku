@@ -24,3 +24,59 @@ final class ImportedImageStoreTests: XCTestCase {
         }
     }
 }
+
+@MainActor
+final class ImportImageLifecycleTests: XCTestCase {
+    private func image() -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 10, height: 10)).image { context in
+            UIColor.blue.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 10, height: 10))
+        }
+    }
+
+    private func imageExists(_ id: String, in dir: URL) -> Bool {
+        FileManager.default.fileExists(atPath: dir.appendingPathComponent("ImportedImages/\(id).jpg").path)
+    }
+
+    func testEveryImportKeepsItsImage() throws {
+        let (controller, dir) = makeTestController()
+        let first = try XCTUnwrap(controller.saveImportedImage(image()))
+        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: first))
+        let second = try XCTUnwrap(controller.saveImportedImage(image()))
+        XCTAssertTrue(imageExists(second, in: dir), "pending image must survive cleanup")
+        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: second))
+        XCTAssertTrue(imageExists(first, in: dir))
+        XCTAssertTrue(imageExists(second, in: dir))
+    }
+
+    func testDeletingImportedGameRemovesItsImage() throws {
+        let (controller, dir) = makeTestController()
+        let id = try XCTUnwrap(controller.saveImportedImage(image()))
+        let game = try XCTUnwrap(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: id))
+        XCTAssertEqual(controller.savedImports.map(\.id), [game.id])
+        controller.deleteImportedGame(id: game.id)
+        XCTAssertTrue(controller.savedImports.isEmpty)
+        XCTAssertFalse(imageExists(id, in: dir))
+    }
+
+    func testDiscardedImportScreenDeletesItsImage() throws {
+        let (controller, dir) = makeTestController()
+        let viewModel = ImportPuzzleViewModel(controller: controller)
+        viewModel.updateImage(image())
+        let id = try XCTUnwrap(viewModel.imageID)
+        XCTAssertTrue(imageExists(id, in: dir))
+        viewModel.discardIfUnused()
+        XCTAssertFalse(imageExists(id, in: dir))
+    }
+
+    func testStalePhotoIsIgnoredAfterManualEdit() {
+        let (controller, _) = makeTestController()
+        let viewModel = ImportPuzzleViewModel(controller: controller)
+        let token = viewModel.beginPhotoRequest()
+        viewModel.selectedIndex = 0
+        viewModel.setDigit(5)
+        viewModel.applyPhoto(image(), token: token)
+        XCTAssertNil(viewModel.image)
+        XCTAssertEqual(viewModel.gridValues[0], 5)
+    }
+}

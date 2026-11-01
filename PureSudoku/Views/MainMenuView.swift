@@ -41,6 +41,7 @@ struct MainMenuView: View {
                         topSection(theme: theme)
                         difficultyButtons(theme: theme)
                         importButton(theme: theme)
+                        savedImports(theme: theme)
                         statsSummary(theme: theme)
                     }
                     .frame(maxWidth: 420)
@@ -235,6 +236,54 @@ struct MainMenuView: View {
             return controller.makeGameViewModel(for: difficulty)
         case let .imported(id, _):
             return controller.makeImportedGameViewModel(id: id) ?? controller.makeGameViewModel(for: .easy)
+        }
+    }
+
+    /// Unfinished imported puzzles, so the player can return to them (BYOS: "return to them later").
+    @ViewBuilder
+    private func savedImports(theme: ThemeColors) -> some View {
+        let saved = controller.savedImports
+        if !saved.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Saved imports")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(theme.secondaryText)
+                ForEach(saved) { imported in
+                    Button {
+                        openImportedGame(imported)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(imported.gameState.puzzle.difficulty.displayName)
+                                    .font(.body.weight(.semibold))
+                                    .foregroundColor(theme.primaryText)
+                                Text(imported.createdAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.footnote)
+                                    .foregroundColor(theme.secondaryText)
+                            }
+                            Spacer()
+                            Text("\(imported.gameState.cells.filter { $0.value != nil }.count)/81")
+                                .font(.footnote.monospacedDigit())
+                                .foregroundColor(theme.secondaryText)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(theme.cardBackground)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
+                            controller.deleteImportedGame(id: imported.id)
+                        }
+                    }
+                    .accessibilityIdentifier("savedImport_\(imported.id)")
+                }
+            }
+            .frame(maxWidth: 320)
         }
     }
 

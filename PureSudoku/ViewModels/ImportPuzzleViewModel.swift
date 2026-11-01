@@ -24,6 +24,10 @@ final class ImportPuzzleViewModel: ObservableObject {
     private let saveImage: (UIImage) -> String?
     private let deleteImage: (String) -> Void
     private var solveWorkItem: DispatchWorkItem?
+    /// Bumped by every new photo request and every manual edit; results for older tokens are dropped.
+    private var requestToken = 0
+    private var detectionTask: Task<Void, Never>?
+    private var didStartGame = false
 
     let cellIDs: [UUID]
     private let idToIndex: [UUID: Int]
@@ -97,17 +101,20 @@ final class ImportPuzzleViewModel: ObservableObject {
 
     func setDigit(_ digit: Int) {
         guard (1...9).contains(digit), let index = selectedIndex else { return }
+        stopPendingDetection()
         gridValues[index] = digit
         validate()
     }
 
     func clearSelected() {
         guard let index = selectedIndex else { return }
+        stopPendingDetection()
         gridValues[index] = nil
         validate()
     }
 
     func clearAll() {
+        stopPendingDetection()
         gridValues = Array(repeating: nil, count: 81)
         validate()
     }
@@ -118,7 +125,20 @@ final class ImportPuzzleViewModel: ObservableObject {
         validate()
     }
 
+    /// Call before loading a picked photo; pass the token back to `applyPhoto`.
+    func beginPhotoRequest() -> Int {
+        stopPendingDetection()
+        return requestToken
+    }
+
+    /// Applies a loaded photo only if no newer photo or manual edit happened meanwhile.
+    func applyPhoto(_ image: UIImage, token: Int) {
+        guard token == requestToken else { return }
+        updateImage(image)
+    }
+
     func updateImage(_ image: UIImage?) {
+        stopPendingDetection()
         if let existing = imageID {
             deleteImage(existing)
             imageID = nil
@@ -127,14 +147,31 @@ final class ImportPuzzleViewModel: ObservableObject {
         detectionMessage = nil
         guard let image else { return }
         imageID = saveImage(image)
-        Task {
-            await detectGrid(from: image)
+        let token = requestToken
+        detectionTask = Task { [weak self] in
+            await self?.detectGrid(from: image, token: token)
         }
     }
 
     func createImportedGame() -> ImportedGame? {
-        guard canStart else { return nil }
-        return createGame(gridString(), imageID)
+        guard canStart, let game = createGame(gridString(), imageID) else { return nil }
+        didStartGame = true
+        return game
+    }
+
+    /// Called when the import screen closes. Deletes the photo if no game was started from it.
+    func discardIfUnused() {
+        stopPendingDetection()
+        guard !didStartGame, let existing = imageID else { return }
+        deleteImage(existing)
+        imageID = nil
+    }
+
+    private func stopPendingDetection() {
+        requestToken += 1
+        detectionTask?.cancel()
+        detectionTask = nil
+        isDetecting = false
     }
 
     func displayCells() -> [SudokuCell] {
@@ -158,14 +195,21 @@ final class ImportPuzzleViewModel: ObservableObject {
         scheduleSolveCheck()
     }
 
-    private func detectGrid(from image: UIImage) async {
+    private func detectGrid(from image: UIImage, token: Int) async {
         isDetecting = true
         detectionMessage = "Detecting grid…"
+        let result: Result<[Int?], Error>
         do {
-            let values = try await imageDetector.detectGrid(from: image)
+            result = .success(try await imageDetector.detectGrid(from: image))
+        } catch {
+            result = .failure(error)
+        }
+        guard token == requestToken, !Task.isCancelled else { return }
+        switch result {
+        case let .success(values):
             gridValues = values
             detectionMessage = nil
-        } catch {
+        case .failure:
             detectionMessage = "Could not detect a clear grid. You can fill it manually."
         }
         isDetecting = false

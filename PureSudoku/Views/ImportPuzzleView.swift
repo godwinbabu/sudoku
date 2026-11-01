@@ -41,20 +41,24 @@ struct ImportPuzzleView: View {
         }
         .onChange(of: selectedPhoto) { newItem in
             guard let newItem else { return }
+            let token = viewModel.beginPhotoRequest()
             Task {
                 if let data = try? await newItem.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
                     await MainActor.run {
-                        viewModel.updateImage(image)
-                        selectedPhoto = nil
+                        viewModel.applyPhoto(image, token: token)
                     }
                 }
+                await MainActor.run { selectedPhoto = nil }
             }
         }
         .sheet(isPresented: $showCamera) {
             ImagePicker(sourceType: .camera) { image in
                 viewModel.updateImage(image)
             }
+        }
+        .onDisappear {
+            viewModel.discardIfUnused()
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("importPuzzleView")
