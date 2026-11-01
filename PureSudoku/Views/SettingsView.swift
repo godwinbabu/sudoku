@@ -31,6 +31,12 @@ struct SettingsView: View {
                         .font(.footnote)
                         .foregroundColor(.secondary)
                 }
+                Section("Imports") {
+                    Toggle("Keep import images", isOn: Binding(get: { viewModel.settings.keepImportImages }, set: { viewModel.setKeepImportImages($0) }))
+                    Button("Clear imported images", role: .destructive) {
+                        viewModel.clearImportedImages()
+                    }
+                }
             }
             .navigationTitle("Settings")
         }

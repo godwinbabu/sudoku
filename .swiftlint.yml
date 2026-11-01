@@ -1,0 +1,30 @@
+included:
+  - PureSudoku
+  - Tests
+excluded:
+  - build
+  - PureSudoku/Store
+
+disabled_rules:
+  - todo
+  - trailing_whitespace
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_comments: true
+
+type_body_length:
+  warning: 400
+  error: 600
+
+file_length:
+  warning: 600
+  error: 1000
+
+function_body_length:
+  warning: 60
+  error: 120
+
+identifier_name:
+  min_length: 1

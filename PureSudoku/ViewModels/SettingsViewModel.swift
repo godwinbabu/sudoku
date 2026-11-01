@@ -51,4 +51,12 @@ final class SettingsViewModel: ObservableObject {
     func setSleepBrightness(_ brightness: SleepBrightness) {
         controller.updateSettings { $0.sleepBrightness = brightness }
     }
+
+    func setKeepImportImages(_ value: Bool) {
+        controller.updateSettings { $0.keepImportImages = value }
+    }
+
+    func clearImportedImages() {
+        controller.clearImportedImages()
+    }
 }

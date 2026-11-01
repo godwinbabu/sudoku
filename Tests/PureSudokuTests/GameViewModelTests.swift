@@ -1,6 +1,7 @@
 import XCTest
 @testable import PureSudoku
 
+@MainActor
 final class GameViewModelTests: XCTestCase {
     private func makeViewModel(settings: Settings = Settings()) -> GameViewModel {
         GameViewModel(state: TestData.newGameState(), settings: settings, validator: SudokuValidator(), timeProvider: MockTimeProvider())

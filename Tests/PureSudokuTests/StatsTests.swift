@@ -6,16 +6,17 @@ final class StatsTests: XCTestCase {
         var stats = Stats()
         let calendar = Calendar(identifier: .gregorian)
         let day1 = Date()
-        stats.recordCompletion(for: .easy, time: 120, usedReveal: false, date: day1, calendar: calendar)
+        stats.recordCompletion(for: .easy, time: 120, usedReveal: false, source: .generated, date: day1, calendar: calendar)
         let day2 = calendar.date(byAdding: .day, value: 1, to: day1)!
-        stats.recordCompletion(for: .medium, time: 140, usedReveal: false, date: day2, calendar: calendar)
+        stats.recordCompletion(for: .medium, time: 140, usedReveal: false, source: .generated, date: day2, calendar: calendar)
         XCTAssertEqual(stats.streakDays, 2)
     }
 
     func testRevealDoesNotAffectStreakOrBestTime() {
         var stats = Stats()
-        stats.recordCompletion(for: .easy, time: 100, usedReveal: true)
+        stats.recordCompletion(for: .easy, time: 100, usedReveal: true, source: .imported)
         XCTAssertEqual(stats.streakDays, 1)
         XCTAssertEqual(stats.bestTime(for: .easy), 100)
+        XCTAssertEqual(stats.importedPuzzlesSolved, 1)
     }
 }

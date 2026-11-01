@@ -54,6 +54,16 @@
 		000000000000000000000095 /* SudokuHintEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008D /* SudokuHintEngine.swift */; };
 		000000000000000000000096 /* SudokuGeneratorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008E /* SudokuGeneratorService.swift */; };
 		000000000000000000000097 /* GeneratorTelemetry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000008F /* GeneratorTelemetry.swift */; };
+		000000000000000000000098 /* GameSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A1 /* GameSource.swift */; };
+		000000000000000000000099 /* ImportedGame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A2 /* ImportedGame.swift */; };
+		00000000000000000000009A /* ImportedImageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A3 /* ImportedImageStore.swift */; };
+		00000000000000000000009B /* ImportPuzzleViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A4 /* ImportPuzzleViewModel.swift */; };
+		00000000000000000000009C /* ImportPuzzleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A5 /* ImportPuzzleView.swift */; };
+		00000000000000000000009D /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A6 /* ImagePicker.swift */; };
+		00000000000000000000009E /* ImportPuzzleViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A7 /* ImportPuzzleViewModelTests.swift */; };
+		00000000000000000000009F /* ImportedImageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A8 /* ImportedImageStoreTests.swift */; };
+		0000000000000000000000A0 /* ImportedGamePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A9 /* ImportedGamePersistenceTests.swift */; };
+		0000000000000000000000AA /* SudokuImageDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AB /* SudokuImageDetector.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -126,6 +136,16 @@
 		00000000000000000000008D /* SudokuHintEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuHintEngine.swift; sourceTree = "<group>"; };
 		00000000000000000000008E /* SudokuGeneratorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGeneratorService.swift; sourceTree = "<group>"; };
 		00000000000000000000008F /* GeneratorTelemetry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratorTelemetry.swift; sourceTree = "<group>"; };
+		0000000000000000000000A1 /* GameSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameSource.swift; sourceTree = "<group>"; };
+		0000000000000000000000A2 /* ImportedGame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedGame.swift; sourceTree = "<group>"; };
+		0000000000000000000000A3 /* ImportedImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedImageStore.swift; sourceTree = "<group>"; };
+		0000000000000000000000A4 /* ImportPuzzleViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPuzzleViewModel.swift; sourceTree = "<group>"; };
+		0000000000000000000000A5 /* ImportPuzzleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPuzzleView.swift; sourceTree = "<group>"; };
+		0000000000000000000000A6 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		0000000000000000000000A7 /* ImportPuzzleViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportPuzzleViewModelTests.swift; sourceTree = "<group>"; };
+		0000000000000000000000A8 /* ImportedImageStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedImageStoreTests.swift; sourceTree = "<group>"; };
+		0000000000000000000000A9 /* ImportedGamePersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedGamePersistenceTests.swift; sourceTree = "<group>"; };
+		0000000000000000000000AB /* SudokuImageDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuImageDetector.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -190,6 +210,8 @@
 				000000000000000000000017 /* GameState.swift */,
 				000000000000000000000018 /* Stats.swift */,
 				000000000000000000000019 /* Settings.swift */,
+				0000000000000000000000A1 /* GameSource.swift */,
+				0000000000000000000000A2 /* ImportedGame.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -201,6 +223,7 @@
 				00000000000000000000008D /* SudokuHintEngine.swift */,
 				00000000000000000000008E /* SudokuGeneratorService.swift */,
 				00000000000000000000008F /* GeneratorTelemetry.swift */,
+				0000000000000000000000AB /* SudokuImageDetector.swift */,
 				00000000000000000000001A /* SudokuValidator.swift */,
 				00000000000000000000001B /* SudokuPuzzleRepository.swift */,
 				00000000000000000000001C /* TimeProvider.swift */,
@@ -212,6 +235,7 @@
 			isa = PBXGroup;
 			children = (
 				00000000000000000000001D /* PersistenceManager.swift */,
+				0000000000000000000000A3 /* ImportedImageStore.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -224,6 +248,7 @@
 				000000000000000000000020 /* MainMenuViewModel.swift */,
 				000000000000000000000021 /* SettingsViewModel.swift */,
 				000000000000000000000022 /* StatsViewModel.swift */,
+				0000000000000000000000A4 /* ImportPuzzleViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -238,6 +263,8 @@
 				000000000000000000000028 /* NumberPadView.swift */,
 				000000000000000000000029 /* SettingsView.swift */,
 				00000000000000000000002A /* StatsView.swift */,
+				0000000000000000000000A5 /* ImportPuzzleView.swift */,
+				0000000000000000000000A6 /* ImagePicker.swift */,
 				000000000000000000000087 /* Icons */,
 			);
 			path = Views;
@@ -283,6 +310,9 @@
 				000000000000000000000034 /* StatsTests.swift */,
 				000000000000000000000035 /* PersistenceManagerTests.swift */,
 				000000000000000000000036 /* Mocks.swift */,
+				0000000000000000000000A7 /* ImportPuzzleViewModelTests.swift */,
+				0000000000000000000000A8 /* ImportedImageStoreTests.swift */,
+				0000000000000000000000A9 /* ImportedGamePersistenceTests.swift */,
 			);
 			path = PureSudokuTests;
 			sourceTree = "<group>";
@@ -472,6 +502,8 @@
 				00000000000000000000004C /* GameState.swift in Sources */,
 				00000000000000000000004D /* Stats.swift in Sources */,
 				00000000000000000000004E /* Settings.swift in Sources */,
+				000000000000000000000098 /* GameSource.swift in Sources */,
+				000000000000000000000099 /* ImportedGame.swift in Sources */,
 				00000000000000000000004F /* SudokuValidator.swift in Sources */,
 				000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */,
 				000000000000000000000051 /* TimeProvider.swift in Sources */,
@@ -479,12 +511,15 @@
 				000000000000000000000095 /* SudokuHintEngine.swift in Sources */,
 				000000000000000000000096 /* SudokuGeneratorService.swift in Sources */,
 				000000000000000000000097 /* GeneratorTelemetry.swift in Sources */,
+				0000000000000000000000AA /* SudokuImageDetector.swift in Sources */,
 				000000000000000000000052 /* PersistenceManager.swift in Sources */,
+				00000000000000000000009A /* ImportedImageStore.swift in Sources */,
 				000000000000000000000053 /* AppController.swift in Sources */,
 				000000000000000000000054 /* GameViewModel.swift in Sources */,
 				000000000000000000000055 /* MainMenuViewModel.swift in Sources */,
 				000000000000000000000056 /* SettingsViewModel.swift in Sources */,
 				000000000000000000000057 /* StatsViewModel.swift in Sources */,
+				00000000000000000000009B /* ImportPuzzleViewModel.swift in Sources */,
 				000000000000000000000059 /* Settings+Theme.swift in Sources */,
 				00000000000000000000005A /* MainMenuView.swift in Sources */,
 				00000000000000000000005B /* GameView.swift in Sources */,
@@ -492,6 +527,8 @@
 				00000000000000000000005D /* NumberPadView.swift in Sources */,
 				00000000000000000000005E /* SettingsView.swift in Sources */,
 				00000000000000000000005F /* StatsView.swift in Sources */,
+				00000000000000000000009C /* ImportPuzzleView.swift in Sources */,
+				00000000000000000000009D /* ImagePicker.swift in Sources */,
 				000000000000000000000088 /* AppColors.swift in Sources */,
 				000000000000000000000089 /* ThemeColors.swift in Sources */,
 				00000000000000000000008A /* SleepDimmingOverlay.swift in Sources */,
@@ -511,6 +548,9 @@
 				000000000000000000000069 /* StatsTests.swift in Sources */,
 				00000000000000000000006A /* PersistenceManagerTests.swift in Sources */,
 				00000000000000000000006B /* Mocks.swift in Sources */,
+				00000000000000000000009E /* ImportPuzzleViewModelTests.swift in Sources */,
+				00000000000000000000009F /* ImportedImageStoreTests.swift in Sources */,
+				0000000000000000000000A0 /* ImportedGamePersistenceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -542,6 +582,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				SDKROOT = iphoneos;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
@@ -583,6 +624,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				SDKROOT = iphoneos;
 				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
 				CLANG_WARN_COMMA = YES;
@@ -687,6 +729,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.PureSudokuTests;
 				PRODUCT_NAME = PureSudokuTests;
 				SWIFT_VERSION = 5.0;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PureSudoku.app/PureSudoku";
 			};
 			name = Debug;
@@ -709,6 +752,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.example.PureSudokuTests;
 				PRODUCT_NAME = PureSudokuTests;
 				SWIFT_VERSION = 5.0;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PureSudoku.app/PureSudoku";
 			};
 			name = Release;
