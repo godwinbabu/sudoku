@@ -32,10 +32,17 @@ final class PersistenceManagerTests: XCTestCase {
     func testUnreadableFileIsNeverOverwritten() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         let manager = PersistenceManager(directory: dir)
-        try manager.save(Settings(), to: "probe.json")
-        // A folder where the file should be makes the read fail.
-        try FileManager.default.createDirectory(at: dir.appendingPathComponent("stats.json"), withIntermediateDirectories: true)
+        try manager.save(Stats(streakDays: 7), to: "stats.json")
+        let url = dir.appendingPathComponent("stats.json")
+        let original = try Data(contentsOf: url)
+        // Unreadable file: a plain save would still replace it (that only needs folder write access).
+        try FileManager.default.setAttributes([.posixPermissions: 0o000], ofItemAtPath: url.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: url.path) }
+
         XCTAssertThrowsError(try manager.load(Stats.self, from: "stats.json"))
         XCTAssertThrowsError(try manager.save(Stats(), to: "stats.json"))
+
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: url.path)
+        XCTAssertEqual(try Data(contentsOf: url), original)
     }
 }
