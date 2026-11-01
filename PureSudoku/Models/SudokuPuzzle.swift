@@ -80,7 +80,8 @@ struct SudokuPuzzle: Codable, Equatable, Identifiable {
         difficulty = try container.decode(Difficulty.self, forKey: .difficulty)
         initialGrid = try container.decode(String.self, forKey: .initialGrid)
         solutionGrid = try container.decode(String.self, forKey: .solutionGrid)
-        grade = try container.decodeIfPresent(PuzzleGrade.self, forKey: .grade)
+        // The grade is display data: a technique this build doesn't know drops the grade, not the game.
+        grade = (try? container.decodeIfPresent(PuzzleGrade.self, forKey: .grade)) ?? nil
         generatorSeed = try container.decodeIfPresent(UInt64.self, forKey: .generatorSeed)
         generationAttempts = try container.decodeIfPresent(Int.self, forKey: .generationAttempts)
         generatedAt = try container.decodeIfPresent(Date.self, forKey: .generatedAt)

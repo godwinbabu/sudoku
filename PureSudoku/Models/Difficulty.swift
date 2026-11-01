@@ -19,8 +19,8 @@ enum Difficulty: String, Codable, CaseIterable, Identifiable {
     var techniqueSummary: String {
         switch self {
         case .easy: return "Singles"
-        case .medium: return "Pointing, claiming, pairs, triples"
-        case .hard: return "X-Wing, Swordfish, XY-Wing"
+        case .medium: return "Singles, then pointing, pairs, triples"
+        case .hard: return "Medium, then X-Wing, wings, more"
         }
     }
 }
