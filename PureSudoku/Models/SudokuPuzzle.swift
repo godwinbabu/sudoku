@@ -80,7 +80,8 @@ struct SudokuPuzzle: Codable, Equatable, Identifiable {
         difficulty = try container.decode(Difficulty.self, forKey: .difficulty)
         initialGrid = try container.decode(String.self, forKey: .initialGrid)
         solutionGrid = try container.decode(String.self, forKey: .solutionGrid)
-        // The grade is display data: a technique this build doesn't know drops the grade, not the game.
+        // The grade is display data: an unreadable grade (e.g. a technique this build doesn't know) is
+        // dropped rather than failing the whole save file. The next save then omits it — accepted.
         grade = (try? container.decodeIfPresent(PuzzleGrade.self, forKey: .grade)) ?? nil
         generatorSeed = try container.decodeIfPresent(UInt64.self, forKey: .generatorSeed)
         generationAttempts = try container.decodeIfPresent(Int.self, forKey: .generationAttempts)
