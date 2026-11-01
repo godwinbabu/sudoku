@@ -78,14 +78,16 @@ final class ImportedImageStore {
             .appendingPathComponent("ImportedImages", isDirectory: true)
     }
 
-    private func resize(image: UIImage, maxDimension: CGFloat) -> UIImage {
-        let size = image.size
-        let maxSide = max(size.width, size.height)
+    /// Downscales so the longest side is at most `maxDimension` pixels (BYOS: 2048 px cap).
+    func resize(image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let pixelSize = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        let maxSide = max(pixelSize.width, pixelSize.height)
         guard maxSide > maxDimension else { return image }
-        let scale = maxDimension / maxSide
-        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        return renderer.image { _ in
+        let factor = maxDimension / maxSide
+        let newSize = CGSize(width: (pixelSize.width * factor).rounded(), height: (pixelSize.height * factor).rounded())
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1 // size is in pixels; the default would multiply by the screen scale
+        return UIGraphicsImageRenderer(size: newSize, format: format).image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
