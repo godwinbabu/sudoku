@@ -1,0 +1,360 @@
+<title>PureSudoku Code Audit</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Public+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column; a summary block, then findings as expandable rows with a severity stripe. */
+:root {
+  --bg: #f6f5f2;
+  --surface: #ffffff;
+  --ink: #1f2330;
+  --muted: #5b6070;
+  --line: #dddbd4;
+  --accent: #a4600f;      /* warm amber, echoes the app's Sleep theme */
+  --must: #b3261e;
+  --should: #9a6700;
+  --nice: #2f6f9f;
+  --code-bg: #efede7;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "Public Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17181d; --surface: #202229; --ink: #e9e6df; --muted: #a3a6b0; --line: #34363f;
+    --accent: #e0a24a; --must: #f2786f; --should: #e3b341; --nice: #7fb6e0; --code-bg: #2a2c34;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17181d; --surface: #202229; --ink: #e9e6df; --muted: #a3a6b0; --line: #34363f;
+  --accent: #e0a24a; --must: #f2786f; --should: #e3b341; --nice: #7fb6e0; --code-bg: #2a2c34;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.55;
+}
+.wrap {
+  max-width: 760px; margin: 0 auto;
+  padding-block: 40px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 32px;
+}
+header { display: flex; flex-direction: column; gap: 8px; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(28px, 5vw, 38px); line-height: 1.15; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+code { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.summary {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  padding: 20px 22px; display: flex; flex-direction: column; gap: 10px;
+}
+.summary ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.meta { color: var(--muted); font-size: 14px; }
+.tally { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 13px; font-weight: 600; padding: 3px 10px; border-radius: 999px; border: 1px solid currentColor; font-variant-numeric: tabular-nums; }
+.chip.must { color: var(--must); } .chip.should { color: var(--should); } .chip.nice { color: var(--nice); }
+section { display: flex; flex-direction: column; gap: 12px; }
+.group-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.group-head .meta { font-size: 14px; }
+details {
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--sev);
+  border-radius: 8px;
+}
+details.must { --sev: var(--must); } details.should { --sev: var(--should); } details.nice { --sev: var(--nice); }
+summary {
+  cursor: pointer; list-style: none; padding: 14px 16px;
+  display: grid; grid-template-columns: 2.2em 1fr auto; gap: 4px 10px; align-items: baseline;
+}
+summary::-webkit-details-marker { display: none; }
+summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.num { font-family: var(--font-mono); font-weight: 600; color: var(--sev); font-variant-numeric: tabular-nums; }
+.title { font-weight: 700; min-width: 0; }
+.loc { grid-column: 2 / 4; font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.caret { color: var(--muted); font-size: 13px; transition: transform .15s; }
+details[open] .caret { transform: rotate(90deg); }
+.body { padding: 0 16px 16px calc(16px + 2.2em + 10px); display: grid; gap: 10px; }
+.row { display: grid; grid-template-columns: 8.5em 1fr; gap: 12px; }
+.row b { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; padding-top: 2px; }
+.row > div { min-width: 0; }
+.tag { font-size: 12px; font-weight: 600; color: var(--muted); border: 1px dashed var(--line); padding: 1px 8px; border-radius: 999px; margin-left: 6px; white-space: nowrap; }
+.chart { overflow-x: auto; }
+.chart svg { display: block; width: 100%; min-width: 460px; height: auto; }
+.chart text { fill: var(--muted); font-family: var(--font-body); font-size: 12px; }
+.footer { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--line); padding-top: 24px; }
+.footer p b { font-weight: 700; }
+@media (max-width: 560px) {
+  .body { padding-left: 16px; }
+  .row { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .caret { transition: none; } }
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Code audit · main @ edc41b6 · 31 Oct 2026</span>
+  <h1>PureSudoku Code Audit</h1>
+</header>
+
+<div class="summary">
+  <h2>Summary</h2>
+  <ul>
+    <li>The code is tidy and the tests pass, but 6 bugs hit what players see most: stats, difficulty, and photo import.</li>
+    <li>Medium and Hard are not harder. Every generated puzzle is "Easy" by the app's own measure, so the levels are almost the same.</li>
+    <li>A player can inflate stats by revealing a solved puzzle again and again. A revealed puzzle also sets a best time.</li>
+    <li>The photo import deletes new photos right away, and probably reads camera photos sideways.</li>
+    <li>About 300 lines and 3.5&nbsp;MB of unused files can go. No new libraries are needed for any fix.</li>
+  </ul>
+  <p class="meta"><b>What this repo does:</b> PureSudoku is an offline iPhone Sudoku app built with SwiftUI. It makes puzzles on the phone, saves games and stats as JSON files, and can import a puzzle from a photo. <b>Load assumed:</b> one person on one phone. The limits that matter are main-thread time (a frozen screen), app size, and saved data staying correct.</p>
+  <div class="tally"><span class="chip must">6 must fix</span><span class="chip should">9 should fix</span><span class="chip nice">3 nice to have</span></div>
+</div>
+
+<section>
+  <div class="group-head"><h2>Must fix</h2><span class="meta">Wrong results players can see, or lost data</span></div>
+
+  <details class="must" open>
+    <summary><span class="num">1</span><span class="title">Revealing a solved puzzle counts the win again</span><span class="caret">▶</span>
+      <span class="loc">Views/GameView.swift:86 · ViewModels/GameViewModel.swift:341</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>The game menu has a "Reveal Puzzle" item. It fills in the answer and reports the game as finished.</div></div>
+      <div class="row"><b>Problem</b><div>The item stays active after the puzzle is solved, and <code>revealPuzzle()</code> does not check <code>isCompleted</code>. Each tap of Reveal → Confirm calls <code>onCompletion</code> again. That adds 1 to "puzzles solved", adds the time again, and can extend the streak.</div></div>
+      <div class="row"><b>Fix</b><div>Add <code>guard !state.isCompleted else { return }</code> at the top of <code>revealPuzzle()</code>, and <code>.disabled(viewModel.state.isCompleted)</code> on the menu item. Add one unit test: reveal twice, and the completion callback fires once.</div></div>
+      <div class="row"><b>If we skip it</b><div>Stats can be pushed to any number with a few taps, so they mean nothing.</div></div>
+    </div>
+  </details>
+
+  <details class="must" open>
+    <summary><span class="num">2</span><span class="title">Revealed puzzles set best times and streaks</span><span class="caret">▶</span>
+      <span class="loc">Models/Stats.swift:22 · Tests/PureSudokuTests/StatsTests.swift:15</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div><code>recordCompletion</code> updates the counts, best time and streak when a game ends.</div></div>
+      <div class="row"><b>Problem</b><div>It takes a <code>usedReveal</code> flag but never reads it. <code>CODESPEC.md</code> says stats update only for a "puzzle completed without usedReveal". Start a Hard game, reveal it after 3 seconds, and the Hard best time is 3 seconds for good. The test <code>testRevealDoesNotAffectStreakOrBestTime</code> checks the opposite of its own name: it asserts that the reveal <em>did</em> set the streak and best time.</div></div>
+      <div class="row"><b>Fix</b><div>Start <code>recordCompletion</code> with <code>guard !usedReveal else { return }</code>. Change the test to expect streak 0 and no best time.</div></div>
+      <div class="row"><b>If we skip it</b><div>Best times can be faked, and the code breaks a clear rule in the spec.</div></div>
+    </div>
+  </details>
+
+  <details class="must" open>
+    <summary><span class="num">3</span><span class="title">Medium and Hard are barely harder than Easy</span><span class="caret">▶</span>
+      <span class="loc">Engine/SudokuGeneratorService.swift:11-16, 44-84</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>The generator makes a puzzle, then rates it. The rating counts how many guesses the solver needed. A puzzle under 20 counts as Easy, 20–60 as Medium, and 60–120 as Hard. The generator tries up to 25 times to hit the level you asked for.</div></div>
+      <div class="row"><b>Problem</b><div>I ran the generator 200 times. Ratings ranged from 0 to 5.75 (median 1), so <b>no puzzle ever reached 20</b>. Medium and Hard never match, so both always use all 25 tries and keep the "closest" one. For both levels that is simply the highest of the 25, so <b>Medium and Hard pick puzzles the same way</b>. Every imported puzzle is labelled Easy, and every saved puzzle stores the bucket "easy".</div></div>
+      <div class="row"><b>Fix</b><div>Set the limits from the real spread, for example Easy &lt; 1, Medium 1–3, Hard ≥ 3. Keep them in one place (see #13). Add a test that makes 30 puzzles per level and checks that the average rating rises from Easy to Hard. For a truly hard level, rate puzzles by the techniques the hint engine needs to solve them. That is a bigger change, so record it in <code>CODESPEC.md</code> first.</div></div>
+      <div class="row"><b>If we skip it</b><div>The app's main choice, the difficulty level, does almost nothing.</div></div>
+      <div class="chart" role="img" aria-label="Chart: the rating limits are at 20, 60 and 120, but all measured ratings fall between 0 and 6.25.">
+        <svg viewBox="0 0 640 120" xmlns="http://www.w3.org/2000/svg">
+          <line x1="20" y1="60" x2="620" y2="60" stroke="var(--line)" stroke-width="2"/>
+          <rect x="20" y="44" width="31.25" height="32" fill="var(--must)" opacity=".85"/>
+          <text x="58" y="36">all 200 measured ratings (0–6.25)</text>
+          <line x1="120" y1="40" x2="120" y2="80" stroke="var(--accent)" stroke-width="2"/>
+          <line x1="320" y1="40" x2="320" y2="80" stroke="var(--accent)" stroke-width="2"/>
+          <line x1="620" y1="40" x2="620" y2="80" stroke="var(--accent)" stroke-width="2"/>
+          <text x="120" y="98" text-anchor="middle">20 · Medium starts</text>
+          <text x="320" y="98" text-anchor="middle">60 · Hard starts</text>
+          <text x="612" y="98" text-anchor="end">120</text>
+          <text x="20" y="98">0</text>
+          <text x="20" y="116">Rating = backtracking steps the solver needed (scale 0–120)</text>
+        </svg>
+      </div>
+    </div>
+  </details>
+
+  <details class="must" open>
+    <summary><span class="num">4</span><span class="title">New import photos are deleted right after saving</span><span class="caret">▶</span>
+      <span class="loc">Persistence/ImportedImageStore.swift:52-58 · ViewModels/AppController.swift:155-173</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>When "keep import images" is on, the photo is saved, then <code>cleanup(keeping:)</code> deletes photos that no imported game uses.</div></div>
+      <div class="row"><b>Problem</b><div>The cleanup runs right after the save, before the new game exists. So the new photo is not on the "keep" list yet. With at least one earlier imported game, the list is not empty, and the new photo is deleted at once. The game later stores an ID that points to a missing file. With zero imported games the list is empty, the code skips deletion, and unused photos pile up to 50.</div></div>
+      <div class="row"><b>Fix</b><div>Remove <code>cleanupImportImages()</code> from <code>saveImportedImage</code>. Keep the one in <code>persistImportedGames</code>, which runs after the game is created. In <code>cleanup</code>, drop the <code>!ids.isEmpty</code> special case. Also delete the photo when the user taps Discard. Add a test that goes through <code>AppController</code>: import game 1, import game 2, and check that both photos exist.</div></div>
+      <div class="row"><b>If we skip it</b><div>The "keep images" setting stops working after the first import.</div></div>
+    </div>
+  </details>
+
+  <details class="must">
+    <summary><span class="num">5</span><span class="title">Camera photos are probably read sideways <span class="tag">not tested on a device</span></span><span class="caret">▶</span>
+      <span class="loc">Engine/SudokuImageDetector.swift:14, 46, 147</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>The detector finds the grid and reads each digit with Apple's Vision framework.</div></div>
+      <div class="row"><b>Problem</b><div>It uses <code>image.cgImage</code>, which drops the photo's rotation flag. An iPhone portrait photo is stored on its side with a "rotate right" flag. Vision then sees the grid turned 90°, and the digits land in the wrong cells (rows become columns).</div></div>
+      <div class="row"><b>Fix</b><div>Redraw the image upright once at the start of <code>detectGrid</code> (a <code>UIGraphicsImageRenderer</code> draw, about 4 lines). The alternative is to pass the orientation to each <code>VNImageRequestHandler</code>. Check it with one real portrait photo.</div></div>
+      <div class="row"><b>If we skip it</b><div>The headline import feature fails on the most common kind of photo.</div></div>
+    </div>
+  </details>
+
+  <details class="must">
+    <summary><span class="num">6</span><span class="title">Imported puzzles with more than one answer can never be finished</span><span class="caret">▶</span>
+      <span class="loc">ViewModels/AppController.swift:113-141 · Engine/SudokuValidator.swift:49 · BYOS.md:10</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>Import needs at least 10 digits and a puzzle that can be solved. <code>BYOS.md</code> allows puzzles with more than one answer.</div></div>
+      <div class="row"><b>Problem</b><div>The app stores one answer, picked at random by the solver, and judges the player against it. With 10–20 digits there are many answers. A player who fills in a different correct grid sees cells marked wrong, and the game never ends.</div></div>
+      <div class="row"><b>Fix</b><div>The simplest fix is to require one answer at import. <code>checkPuzzle</code> in <code>SudokuGeneratorCore.swift</code> already tests this, so the code only needs to call it, plus a one-line change to <code>BYOS.md</code>. Another option: for imported games, accept any full grid with no repeated digits.</div></div>
+      <div class="row"><b>If we skip it</b><div>Sparse or misread imports turn into games nobody can win.</div></div>
+    </div>
+  </details>
+</section>
+
+<section>
+  <div class="group-head"><h2>Should fix</h2><span class="meta">Slowness, risky code without tests, extra code</span></div>
+
+  <details class="should">
+    <summary><span class="num">7</span><span class="title">Starting a Medium or Hard game freezes the screen</span><span class="caret">▶</span>
+      <span class="loc">ViewModels/AppController.swift:96 · ViewModels/MainMenuViewModel.swift:36</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>Tapping a level makes the puzzle right away, on the main thread. The main thread also draws the screen.</div></div>
+      <div class="row"><b>Problem</b><div>I measured one try at about 12&nbsp;ms in an optimized build and 206&nbsp;ms in a debug build. Because of #3, Medium and Hard always make all 25 tries. That is a ~0.3&nbsp;s freeze for users and ~5&nbsp;s while developing. Older phones are slower.</div></div>
+      <div class="row"><b>Fix</b><div>Fixing #3 removes most of it, because a match then stops the loop early. Also make the puzzle in a background <code>Task</code> and show the grid when it is ready.</div></div>
+      <div class="row"><b>If we skip it</b><div>The app feels stuck right when a game starts.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">8</span><span class="title">Hints give wrong advice when the board has a mistake</span><span class="caret">▶</span>
+      <span class="loc">ViewModels/GameViewModel.swift:294 · Engine/SudokuHintEngine.swift:35, 764</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>Hint looks at the board as the player filled it and suggests the next logical move.</div></div>
+      <div class="row"><b>Problem</b><div>It catches only repeated digits. A wrong digit with no repeat makes the hint reason from a false board, so it can say "place 5" in a cell whose answer is 7. With auto-fill on, the cell then shows 7, which contradicts the message. "Bowman's Bingo" tries each digit and keeps the one that is not impossible. On a board with a mistake every digit is impossible, so it names a wrong digit.</div></div>
+      <div class="row"><b>Fix</b><div>Before asking for a hint, compare the player's digits with the answer. If one is wrong, select that cell and say "This cell is not right", which takes about 6 lines. Add a test with one wrong digit.</div></div>
+      <div class="row"><b>If we skip it</b><div>Players lose trust in hints at the moment they need them most.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">9</span><span class="title">A save file that fails to load is silently replaced</span><span class="caret">▶</span>
+      <span class="loc">ViewModels/AppController.swift:34-64</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>At start the app loads settings, stats and games from JSON files. If a load fails it uses empty defaults and sets <code>lastPersistenceError</code>.</div></div>
+      <div class="row"><b>Problem</b><div>Nothing in the app ever shows <code>lastPersistenceError</code>. The next save writes the defaults over the file. Say a future update adds a stats field but forgets <code>decodeIfPresent</code>: every player's stats load as errors and are wiped on the next save, with no trace.</div></div>
+      <div class="row"><b>Fix</b><div>When a load fails, rename the file to <code>&lt;name&gt;.corrupt.json</code> before going on, so the data can be recovered. That is about 3 lines in <code>PersistenceManager.load</code>. Then delete <code>lastPersistenceError</code> if nothing will show it. The custom decoders already handle the common case, so this is a safety net.</div></div>
+      <div class="row"><b>If we skip it</b><div>One coding mistake in a future version can erase player history for good.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">10</span><span class="title">"New Puzzle" does nothing in an imported game</span><span class="caret">▶</span>
+      <span class="loc">ViewModels/AppController.swift:82-93 · Views/GameView.swift:92</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>The game menu shows "New Puzzle" in every game.</div></div>
+      <div class="row"><b>Problem</b><div><code>makeImportedGameViewModel</code> never sets <code>onNewGame</code>. In an imported game, the player confirms "Start a new puzzle?" and nothing happens.</div></div>
+      <div class="row"><b>Fix</b><div>Hide the item when <code>state.puzzle.source == .imported</code>.</div></div>
+      <div class="row"><b>If we skip it</b><div>The app has a button that does nothing.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">11</span><span class="title">3.5&nbsp;MB of puzzle files ship but are never read</span><span class="caret">▶</span>
+      <span class="loc">PureSudoku/Resources/Puzzles/{easy,medium,hard}.json · project.pbxproj:36, 47</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>The puzzles from the first version of the app, before puzzles were made on the phone.</div></div>
+      <div class="row"><b>Problem</b><div>Nothing loads them: there are no <code>Bundle</code> or <code>forResource</code> calls anywhere. They are still copied into both the app and the unit-test bundle.</div></div>
+      <div class="row"><b>Fix</b><div>Delete the folder and its 4 entries in <code>project.pbxproj</code>.</div></div>
+      <div class="row"><b>If we skip it</b><div>The download is 3.5&nbsp;MB bigger for no reason.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">12</span><span class="title">About 140 lines of unused code</span><span class="caret">▶</span>
+      <span class="loc">Engine/ · ViewModels/AppController.swift · Models/GameState.swift</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>I searched code and tests for each item below, and none is called.</div></div>
+      <div class="row"><b>Problem</b><div>
+        <ul style="margin:0;padding-left:18px">
+          <li>Daily puzzles: <code>GenerationMode.daily</code>, <code>seed(for:)</code>, <code>dailyPuzzle</code> and <code>startDailyGame</code>. The seed also uses Swift's <code>Hasher</code>, which changes on every launch, so a "daily" puzzle would differ each time.</li>
+          <li><code>GeneratorTelemetry</code>: written to disk on every new game, never read (<code>telemetryAverage</code> has no callers).</li>
+          <li><code>randomPuzzle</code>, <code>fallbackPuzzle</code>, <code>GameState.replace(cell:)</code>, and the no-RNG <code>makePuzzle()</code>.</li>
+          <li><code>SudokuValidator.removeCandidates</code> and <code>hasContradiction(in:)</code>, which copy code in <code>GameViewModel</code>.</li>
+          <li>The Exocet and Sue de Coq hint steps, which always return <code>false</code>, plus their enum cases.</li>
+          <li><code>allowVeryHard</code> and <code>veryHardMin</code>, plus a <code>validator.isValid(...)</code> call whose result is thrown away (<code>SudokuPuzzleRepository.swift:62</code>).</li>
+        </ul></div></div>
+      <div class="row"><b>Fix</b><div>Delete them. Keep <code>.seeded</code>, because a test uses it.</div></div>
+      <div class="row"><b>If we skip it</b><div>Readers have to work out that this code does nothing, and the daily-puzzle bug waits for whoever turns it on.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">13</span><span class="title">The same small jobs are written 2–4 times</span><span class="caret">▶</span>
+      <span class="loc">GameViewModel.swift · SudokuValidator.swift · SudokuGeneratorService.swift · ImportPuzzleViewModel.swift · AppController.swift</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>Code that must change together but lives in several places.</div></div>
+      <div class="row"><b>Problem</b><div>
+        <ul style="margin:0;padding-left:18px">
+          <li>Turning cells or an 81-digit string into the solver's board: 5 copies (<code>GameViewModel.generatorBoard</code>, <code>SudokuValidator.hasContradiction</code>, <code>GeneratorService.hint</code>, <code>solve(initialGrid:)</code>, <code>AppController.createImportedGame</code>).</li>
+          <li>Finding repeated digits: 3 copies (<code>ImportPuzzleViewModel.findConflicts</code>, <code>SudokuValidator.conflictingIndices</code>, <code>hasContradiction</code>).</li>
+          <li>The difficulty limits: 2 copies (<code>difficulty(for:)</code> and <code>bucket(for:)</code>). This is why #3 must be fixed in two places.</li>
+          <li>"Cells in the same row, column or box": 3 ways (<code>removeCandidate</code>, <code>computeCandidateOverlay</code>, <code>peerMap</code>).</li>
+        </ul></div></div>
+      <div class="row"><b>Fix</b><div>Add one small <code>Engine/Board.swift</code> with <code>board(from cells:)</code>, <code>board(from grid:)</code> and a fixed <code>peers</code> table. Have <code>ImportPuzzleViewModel</code> use <code>hasContradiction</code>, and make <code>difficulty(for:)</code> call <code>bucket(for:)</code>. That saves about 60 lines.</div></div>
+      <div class="row"><b>If we skip it</b><div>A rule fixed in one copy stays wrong in the others, as #3 already shows.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">14</span><span class="title">The hint steps are 13 copy-pasted blocks</span><span class="caret">▶</span>
+      <span class="loc">Engine/SudokuHintEngine.swift:48-189</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div><code>nextHint</code> tries each solving technique in order.</div></div>
+      <div class="row"><b>Problem</b><div>Each technique is a 10-line block that differs only in its name and function. That is 140 lines for one loop, and adding a technique means copying a block again.</div></div>
+      <div class="row"><b>Fix</b><div>Make a list of <code>(technique, apply)</code> pairs and loop over it with <code>hintAfterElimination</code>. That takes about 25 lines, and the order stays visible in one place.</div></div>
+      <div class="row"><b>If we skip it</b><div>About 115 extra lines to read, and a risk that a pasted block gets the wrong name.</div></div>
+    </div>
+  </details>
+
+  <details class="should">
+    <summary><span class="num">15</span><span class="title">No tests cover findings 1–4</span><span class="caret">▶</span>
+      <span class="loc">Tests/PureSudokuTests/</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>There are 27 unit tests, and all pass.</div></div>
+      <div class="row"><b>Problem</b><div>No test fails if a win is counted twice, a reveal sets a best time, the levels match, or a new photo is deleted. One stats test even locks in the wrong behavior (#2). <code>ImportedImageStoreTests</code> calls the store directly, so it never runs the <code>AppController</code> order that causes #4.</div></div>
+      <div class="row"><b>Fix</b><div>Add the single test named in each of #1–#4. No new test tools are needed.</div></div>
+      <div class="row"><b>If we skip it</b><div>The same bugs can come back unnoticed after they are fixed.</div></div>
+    </div>
+  </details>
+</section>
+
+<section>
+  <div class="group-head"><h2>Nice to have</h2><span class="meta">Small speed-ups and shorter code</span></div>
+
+  <details class="nice">
+    <summary><span class="num">16</span><span class="title">The timer redraws the whole grid every second</span><span class="caret">▶</span>
+      <span class="loc">ViewModels/GameViewModel.swift:550-560</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div>Each second, <code>tick()</code> adds 1 to <code>elapsedSeconds</code>, which lives inside the published <code>state</code>.</div></div>
+      <div class="row"><b>Problem</b><div>Every tick changes <code>state</code>, so SwiftUI checks all 81 cells again. With "Show Candidates" on, it also rebuilds the candidate overlay, about 20,000 cell checks, even though no cell changed.</div></div>
+      <div class="row"><b>Fix</b><div>Remove <code>refreshCandidateOverlayIfNeeded()</code> from <code>tick()</code>, a one-line change. Optionally publish the elapsed time apart from <code>state</code>.</div></div>
+      <div class="row"><b>If we skip it</b><div>The phone does a little extra work every second, which costs some battery in long games.</div></div>
+    </div>
+  </details>
+
+  <details class="nice">
+    <summary><span class="num">17</span><span class="title">Settings and stats saves are delayed for no reason</span><span class="caret">▶</span>
+      <span class="loc">ViewModels/AppController.swift:143-184</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div><code>updateSettings</code> and <code>updateStats</code> wrap their work in <code>DispatchQueue.main.async</code>.</div></div>
+      <div class="row"><b>Problem</b><div>The class already runs on the main thread (<code>@MainActor</code>), so the wrapper only delays the change. Code that reads <code>settings</code> right after calling <code>updateSettings</code> sees the old value.</div></div>
+      <div class="row"><b>Fix</b><div>Remove the wrapper and run the block directly. That is 4 lines shorter.</div></div>
+      <div class="row"><b>If we skip it</b><div>The delay can cause bugs that are hard to explain.</div></div>
+    </div>
+  </details>
+
+  <details class="nice">
+    <summary><span class="num">18</span><span class="title">The answer is re-split on every check</span><span class="caret">▶</span>
+      <span class="loc">Engine/SudokuValidator.swift:36-57</span></summary>
+    <div class="body">
+      <div class="row"><b>What this is</b><div><code>isCorrect</code> and <code>solutionValue</code> look up one cell in the answer string.</div></div>
+      <div class="row"><b>Problem</b><div>Each call turns the whole 81-character string into an array. <code>isSolved</code> calls it up to 81 times per move, which builds 81 arrays.</div></div>
+      <div class="row"><b>Fix</b><div>Turn the answer into <code>[Int]</code> once in <code>isSolved</code>, or store it that way on <code>SudokuPuzzle</code>.</div></div>
+      <div class="row"><b>If we skip it</b><div>Nobody will notice the cost today.</div></div>
+    </div>
+  </details>
+</section>
+
+<div class="footer">
+  <p><b>Verdict:</b> Fix 1–4 first. Each takes a few lines, and they decide whether the stats, levels and photo import are right. Then fix 5 and 6 and check them on a device.</p>
+  <p><b>Lean:</b> about −300 lines (unused code 140, hint loop 115, shared board helper 60) and −3.5&nbsp;MB of app size possible. No dependencies to remove; the app has none.</p>
+  <p><b>Not checked:</b> I did not check whether the advanced hint techniques (XY-Chain, Medusa, Unique Rectangle, Swordfish) are correct. I did not run the photo import on a real device, and did not time the 81 separate Vision digit reads. I only skimmed the Settings, Stats, Theme, NumberPad and Import screens. I measured generation in a Mac command-line build, not on a phone.</p>
+</div>
+</div>
