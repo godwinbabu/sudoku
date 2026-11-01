@@ -134,6 +134,20 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(completions, 1)
     }
 
+    func testUndoKeepsElapsedTime() {
+        let clock = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+        viewModel.handleSceneDidAppear()
+        viewModel.select(cell: cell)
+        viewModel.setDigit(1)
+        clock.advance(60)
+        viewModel.pauseTimer()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 60)
+        viewModel.undo()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 60)
+    }
+
     func testPauseIgnoredAfterCompletion() {
         let viewModel = makeViewModel()
         viewModel.revealPuzzle() // marks puzzle as completed

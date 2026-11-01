@@ -458,7 +458,10 @@ final class GameViewModel: ObservableObject {
 
     func undo() {
         guard canUndo else { return }
-        let previous = undoStack.removeLast()
+        var previous = undoStack.removeLast()
+        // Undo restores the board, not the clock or the fact that a reveal happened.
+        previous.elapsedSeconds = state.elapsedSeconds
+        previous.usedReveal = previous.usedReveal || state.usedReveal
         state = previous
         selectedCellID = nil
         hintMessage = nil
@@ -557,7 +560,6 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         
         lastTickDate = now
-        refreshCandidateOverlayIfNeeded()
     }
 
     private func refreshCandidateOverlayIfNeeded() {

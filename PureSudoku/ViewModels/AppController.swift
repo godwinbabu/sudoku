@@ -140,15 +140,13 @@ final class AppController: ObservableObject {
         return imported
     }
 
-    func updateSettings(_ block: @escaping (inout Settings) -> Void) {
-        DispatchQueue.main.async {
-            block(&self.settings)
-            self.settings.enforceBedtimeRulesIfNeeded()
-            do {
-                try self.persistence.save(self.settings, to: File.settings.rawValue)
-            } catch {
-                self.lastPersistenceError = error
-            }
+    func updateSettings(_ block: (inout Settings) -> Void) {
+        block(&settings)
+        settings.enforceBedtimeRulesIfNeeded()
+        do {
+            try persistence.save(settings, to: File.settings.rawValue)
+        } catch {
+            lastPersistenceError = error
         }
     }
 
@@ -172,14 +170,12 @@ final class AppController: ObservableObject {
         imageStore.cleanup(keeping: ids)
     }
 
-    func updateStats(_ block: @escaping (inout Stats) -> Void) {
-        DispatchQueue.main.async {
-            block(&self.stats)
-            do {
-                try self.persistence.save(self.stats, to: File.stats.rawValue)
-            } catch {
-                self.lastPersistenceError = error
-            }
+    func updateStats(_ block: (inout Stats) -> Void) {
+        block(&stats)
+        do {
+            try persistence.save(stats, to: File.stats.rawValue)
+        } catch {
+            lastPersistenceError = error
         }
     }
 

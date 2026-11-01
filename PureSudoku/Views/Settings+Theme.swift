@@ -20,6 +20,8 @@ extension Settings {
 
 extension AppController {
     var sleepOverlayOpacity: Double {
-        settings.themeEffective == .sleep ? settings.sleepBrightness.overlayOpacity : 0.0
+        // CODESPEC 12.7: Bedtime Mode sets in-app brightness to minimum.
+        if settings.bedtimeMode { return SleepBrightness.extraDim.overlayOpacity }
+        return settings.themeEffective == .sleep ? settings.sleepBrightness.overlayOpacity : 0.0
     }
 }

@@ -90,8 +90,10 @@ struct GameView: View {
                     Button("Reset Puzzle", role: .destructive) {
                         viewModel.pendingAction = .reset
                     }
-                    Button("New Puzzle") {
-                        viewModel.pendingAction = .newPuzzle
+                    if viewModel.state.puzzle.source != .imported {
+                        Button("New Puzzle") {
+                            viewModel.pendingAction = .newPuzzle
+                        }
                     }
                 } label: {
                     Image(systemName: "line.3.horizontal")

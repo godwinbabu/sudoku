@@ -47,9 +47,10 @@ struct SudokuValidator {
     }
 
     func isSolved(cells: [SudokuCell], solution: String) -> Bool {
-        guard cells.count == 81 else { return false }
+        guard cells.count == 81, solution.count == 81 else { return false }
+        let answer = solution.map { Int(String($0)) }
         for cell in cells where !cell.given {
-            guard let value = cell.value, isCorrect(value: value, row: cell.row, col: cell.col, solution: solution) else {
+            guard let value = cell.value, answer[cell.row * 9 + cell.col] == value else {
                 return false
             }
         }
