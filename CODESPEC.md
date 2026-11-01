@@ -674,11 +674,11 @@ Testing requirements:
 	•	SudokuValidator.swift
 	•	SudokuPuzzleRepository.swift
 	•	(Optional) SudokuGenerator.swift
-	•	Solver/ (phase 2 onward, Section 13.3):
-	•	SolverBoard.swift (bitset board)
-	•	TechniqueStep.swift
-	•	LogicalSolver.swift
-	•	One detector file per family: Singles, Intersections, Subsets, Fish, SingleDigitPatterns, Wings, Coloring, Uniqueness, Chains, ALS
+	•	Logical solver (phase 2 onward, Section 13.3), in the Engine group:
+	•	SolverBoard.swift (bitset board, House)
+	•	TechniqueStep.swift (Technique, TechniqueStep, explanation text)
+	•	LogicalSolver.swift (nextStep / solve loop, tie-break)
+	•	Detector files by family: SinglesAndIntersections.swift, SubsetDetector.swift, FishAndWings.swift (phase 2); later phases add SingleDigitPatterns, Coloring, Uniqueness, Chains, ALS
 	•	PuzzleGrader.swift (phase 4)
 	•	DrillIndex.swift (phase 4)
 	•	ViewModels/

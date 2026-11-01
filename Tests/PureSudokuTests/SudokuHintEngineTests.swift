@@ -61,7 +61,7 @@ final class SudokuHintEngineTests: XCTestCase {
         candidates[1] = mask([0, 1]) // r1c2
         candidates[2] = mask([0, 2]) // r1c3 target
 
-        let changed = _applyXYChainElimination(candidates: &candidates)
+        let changed = applyXYChainElimination(candidates: &candidates)
 
         XCTAssertTrue(changed)
         XCTAssertEqual(candidates[2] & (1 << 0), 0)
@@ -73,7 +73,7 @@ final class SudokuHintEngineTests: XCTestCase {
         candidates[0] = mask([3, 4])   // r1c1 {4,5}
         candidates[2] = mask([3, 4])   // r1c3 {4,5}
         candidates[72] = mask([2, 4])  // r9c1 {3,5}
-        _ = _applyYWingElimination(candidates: &candidates)
+        _ = applyYWingElimination(candidates: &candidates)
         XCTAssertNotEqual(candidates[74] & (1 << 4), 0, "r9c3 must keep 5")
     }
 
@@ -89,7 +89,7 @@ final class SudokuHintEngineTests: XCTestCase {
         var candidates = Array(repeating: 0, count: 81)
         candidates[0] = mask([correctDigit, wrongDigit])
 
-        let hint = _bowmansBingoHint(board: board, candidates: candidates)
+        let hint = bowmansBingoHint(board: board, candidates: candidates)
 
         XCTAssertNotNil(hint)
         XCTAssertEqual(hint?.technique, .bowmansBingo)

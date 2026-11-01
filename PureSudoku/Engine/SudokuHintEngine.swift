@@ -349,7 +349,7 @@ private func applyXWingElimination(candidates: inout [Int]) -> Bool {
     return changed
 }
 
-private func applyYWingElimination(candidates: inout [Int]) -> Bool {
+func applyYWingElimination(candidates: inout [Int]) -> Bool {
     var changed = false
     let peers = Board.peers
     for pivot in 0..<81 {
@@ -436,7 +436,7 @@ private func applySwordfishElimination(candidates: inout [Int]) -> Bool {
     return changed
 }
 
-private func applyXYChainElimination(candidates: inout [Int]) -> Bool {
+func applyXYChainElimination(candidates: inout [Int]) -> Bool {
     let peers = Board.peers
     var changed = false
     let bivalueCells = (0..<81).filter { bitCount(candidates[$0]) == 2 }
@@ -480,7 +480,7 @@ private func applyXYChainElimination(candidates: inout [Int]) -> Bool {
     return changed
 }
 
-private func bowmansBingoHint(board: GeneratorBoard, candidates: [Int]) -> GeneratorHint? {
+func bowmansBingoHint(board: GeneratorBoard, candidates: [Int]) -> GeneratorHint? {
     let empties = (0..<81).filter { board[$0] == nil }
     guard !empties.isEmpty else { return nil }
     let sorted = empties.sorted { bitCount(candidates[$0]) < bitCount(candidates[$1]) }
