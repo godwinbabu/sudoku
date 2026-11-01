@@ -69,10 +69,11 @@ struct SleepPalette: Equatable {
     var rendered: Rendered {
         let accentLevel = levels.digit * 0.85
         let accent = color(luminance: accentLevel, hue: hue.mix(RGB(r: 1, g: 0.6, b: 0.2), 0.5))
-        // A brighter knob when the hue allows it; on bright profiles, where the track is already
-        // bright, a darker knob instead.
-        let brighter = color(luminance: max(levels.digit * 3, 0.1))
-        let knob = (brighter.luminance + 0.05) / (accent.luminance + 0.05) >= 1.6 ? brighter : color(luminance: accentLevel * 0.3)
+        // Just bright enough to read against both tracks (1.6:1 on, 1.8:1 off), never brighter: a
+        // knob must not be the brightest thing on a bedtime screen. Where the hue can't get that
+        // bright (warm, bright profiles) the knob goes darker than the track instead.
+        let brighter = color(luminance: max(1.6 * accent.luminance + 0.035, 0.1))
+        let knob = (brighter.luminance + 0.05) / (accent.luminance + 0.05) >= 1.6 ? brighter : color(luminance: 0.1)
         return Rendered(
             digit: color(luminance: levels.digit),
             candidate: color(luminance: levels.candidate),

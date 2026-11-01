@@ -34,11 +34,14 @@ final class DisplayCalibrationTests: XCTestCase {
     /// A switch knob must stand out from the accent "on" track and the near-black "off" track.
     func testSwitchKnobStaysVisibleAgainstItsTrack() {
         for dimness in steps {
-            let drawn = SleepPalette(profile: DisplayProfile(name: "p", dimness: dimness)).rendered
+          for warmth in steps {
+            let drawn = SleepPalette(profile: DisplayProfile(name: "p", dimness: dimness, warmth: warmth)).rendered
             let knob = drawn.knob.luminance
             let track = drawn.accent.luminance
             XCTAssertGreaterThanOrEqual((max(knob, track) + 0.05) / (min(knob, track) + 0.05), 1.6, "dimness \(dimness)")
             XCTAssertGreaterThanOrEqual((knob + 0.05) / (0.03 + 0.05), 1.8, "against the off track")
+            XCTAssertLessThanOrEqual(knob, max(drawn.digit.luminance * 3, 0.1) + 1e-6, "not the brightest thing on screen")
+          }
         }
     }
 

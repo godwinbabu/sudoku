@@ -41,6 +41,7 @@ struct ThemedTitle: ViewModifier {
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         Text(title).font(.headline).foregroundColor(color)
+                            .accessibilityAddTraits(.isHeader)
                     }
                 }
         } else {
