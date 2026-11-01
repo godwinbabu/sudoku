@@ -65,6 +65,7 @@ Mapping:
 	•	primaryText: .appTextPrimary
 	•	secondaryText: .appTextSecondary
 	•	error: .appErrorRed but used subtly (no flashing).
+	•	Errors must also show by shape (corner marker or underline), not red alone (CODESPEC 7.2).
 	4.	Update major views to use these colors via the theme, not hardcoded system colors:
 	•	GameView:
 	•	Background should use theme.background.
@@ -88,7 +89,7 @@ Implement:
 	•	Background is very dark.
 	•	Accent is amber/orange (no blue).
 	•	There are no pure-white large surfaces.
-	2.	Optional dimming overlay:
+	2.	Optional dimming overlay (current implementation; replaced in phase 3 by the computed palette in CODESPEC 7.2 and 12.3, which takes precedence):
 	•	In GameView (and possibly at a higher level if you prefer), when the current theme is .sleep:
 	•	Add a semi-transparent black overlay with ~0.3–0.4 opacity on top of the background (but behind the grid and numbers), to visually “double-dim” the screen.
 	•	This should be driven by the theme manager so it’s easy to tweak.
