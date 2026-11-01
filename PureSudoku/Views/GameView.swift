@@ -86,6 +86,7 @@ struct GameView: View {
                     Button("Reveal Puzzle", role: .destructive) {
                         viewModel.pendingAction = .revealPuzzle
                     }
+                    .disabled(viewModel.state.isCompleted)
                     Button("Reset Puzzle", role: .destructive) {
                         viewModel.pendingAction = .reset
                     }

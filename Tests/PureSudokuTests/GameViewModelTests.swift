@@ -123,6 +123,17 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertNotNil(viewModel.hintMessage)
     }
 
+    func testRevealPuzzleTwiceReportsCompletionOnce() async {
+        let viewModel = makeViewModel()
+        var completions = 0
+        viewModel.onCompletion = { _ in completions += 1 }
+        viewModel.revealPuzzle()
+        viewModel.revealPuzzle()
+        await Task.yield()
+        await Task.yield()
+        XCTAssertEqual(completions, 1)
+    }
+
     func testPauseIgnoredAfterCompletion() {
         let viewModel = makeViewModel()
         viewModel.revealPuzzle() // marks puzzle as completed

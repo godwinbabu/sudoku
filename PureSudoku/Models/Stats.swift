@@ -19,7 +19,9 @@ struct Stats: Codable, Equatable {
         self.totalTimeSeconds = totalTimeSeconds
     }
 
+    /// Per CODESPEC "Streak rules", only puzzles completed without Reveal update stats.
     mutating func recordCompletion(for difficulty: Difficulty, time: Int, usedReveal: Bool, source: GameSource = .generated, date: Date = Date(), calendar: Calendar = .current) {
+        guard !usedReveal else { return }
         totalPuzzlesSolved += 1
         totalTimeSeconds += time
         puzzlesSolved[difficulty, default: 0] += 1

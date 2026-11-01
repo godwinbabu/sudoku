@@ -339,6 +339,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func revealPuzzle() {
+        guard !state.isCompleted else { return }
         recordUndoPoint()
         var newState = self.state
         for idx in newState.cells.indices {
