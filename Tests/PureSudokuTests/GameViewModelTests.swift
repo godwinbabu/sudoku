@@ -176,6 +176,38 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.cells[cell.index].isError)
     }
 
+    func testUndoRestoresCheckResult() {
+        var settings = Settings()
+        settings.autoCheckMistakes = false
+        let viewModel = makeViewModel(settings: settings)
+        let cell = viewModel.state.cells[2] // r1c3, answer 4
+        viewModel.select(cell: cell)
+        viewModel.setDigit(1)
+        viewModel.checkCell()
+        XCTAssertTrue(viewModel.state.cells[2].isError)
+        viewModel.setDigit(4)
+        viewModel.undo()
+        XCTAssertEqual(viewModel.state.cells[2].value, 1)
+        XCTAssertTrue(viewModel.state.cells[2].isError)
+    }
+
+    func testSecondCheckPuzzleStillChecksNewEntries() {
+        var settings = Settings()
+        settings.autoCheckMistakes = false
+        let viewModel = makeViewModel(settings: settings)
+        viewModel.select(cell: viewModel.state.cells[2]) // r1c3, answer 4
+        viewModel.setDigit(4)
+        viewModel.checkPuzzle()
+        XCTAssertTrue(viewModel.state.cells[2].isVerifiedCorrect)
+        viewModel.select(cell: viewModel.state.cells[3]) // r1c4, answer 6
+        viewModel.setDigit(2)
+        viewModel.checkPuzzle()
+        XCTAssertTrue(viewModel.state.cells[3].isError)
+        viewModel.checkPuzzle() // nothing new: hides green marks only
+        XCTAssertFalse(viewModel.state.cells[2].isVerifiedCorrect)
+        XCTAssertTrue(viewModel.state.cells[3].isError)
+    }
+
     func testBackgroundPauseResumesWithoutOverlay() {
         let clock = AdvancingTimeProvider()
         let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)

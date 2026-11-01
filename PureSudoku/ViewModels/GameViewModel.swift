@@ -67,7 +67,7 @@ final class GameViewModel: ObservableObject {
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
     private let hintService: SudokuGeneratorService
-    private var undoStack: [GameState] = []
+    private var undoStack: [(state: GameState, checkedWrong: Set<UUID>)] = []
 
     init(state: GameState, settings: Settings, validator: SudokuValidator, timeProvider: TimeProvider, hintService: SudokuGeneratorService = SudokuGeneratorService()) {
         self.state = state
@@ -291,8 +291,11 @@ final class GameViewModel: ObservableObject {
 
     func checkPuzzle() {
         var newState = self.state
-        // Toggle off green "correct" marks from a previous check. Wrong values stay flagged (CODESPEC 6.2).
-        if newState.cells.contains(where: { $0.isVerifiedCorrect }) {
+        // A second tap with nothing new to check hides the green "correct" marks. Any unchecked entry
+        // is checked instead, so new mistakes are never skipped. Wrong values stay flagged (CODESPEC 6.2).
+        let filled = newState.cells.filter { !$0.given && $0.value != nil }
+        let allChecked = !filled.isEmpty && filled.allSatisfy { $0.isVerifiedCorrect || checkedWrongIDs.contains($0.id) }
+        if allChecked && newState.cells.contains(where: { $0.isVerifiedCorrect }) {
             for idx in newState.cells.indices {
                 newState.cells[idx].isVerifiedCorrect = false
             }
@@ -507,7 +510,9 @@ final class GameViewModel: ObservableObject {
 
     func undo() {
         guard canUndo else { return }
-        var previous = undoStack.removeLast()
+        let snapshot = undoStack.removeLast()
+        var previous = snapshot.state
+        checkedWrongIDs = snapshot.checkedWrong
         // Undo restores the board, not the clock or the fact that a reveal happened.
         previous.elapsedSeconds = state.elapsedSeconds
         previous.usedReveal = previous.usedReveal || state.usedReveal
@@ -525,7 +530,7 @@ final class GameViewModel: ObservableObject {
 
     private func recordUndoPoint() {
         guard !state.isCompleted else { return }
-        undoStack.append(state)
+        undoStack.append((state, checkedWrongIDs))
         updateCanUndo()
     }
 
