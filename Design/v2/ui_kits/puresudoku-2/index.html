@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pure Sudoku 2 — iPhone prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ps2.css">
+<style>
+html,body{margin:0;height:100%;background:#0b0b0b;overflow:hidden}
+a{color:#c98a3a}a:hover{color:#e0a456}
+#root{height:100%;display:flex;align-items:center;justify-content:center}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="engine.js"></script>
+<script src="night.js"></script>
+<script type="text/babel" src="Primitives.jsx"></script>
+<script type="text/babel" src="GameScreen.jsx"></script>
+<script type="text/babel" src="Screens.jsx"></script>
+<script type="text/babel" src="NightSheet.jsx"></script>
+<script type="text/babel" src="Learn.jsx"></script>
+<script type="text/babel" src="Display.jsx"></script>
+<script type="text/babel" src="Import.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+const DEFAULTS = { appearance: 'night', glow: 42, warmth: 62, clarity: 0, drift: true, mistakes: 'immediate', autoRemove: true, showTimer: true, glowFloor: 0 };
+const load = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch (e) { return d; } };
+const STATS = { streak: 6, assisted: 3, best: { easy: 252, medium: 498, hard: 1104, expert: 1986 }, typical: { easy: 341, medium: 702, hard: 1530, expert: 2410 }, solved: { easy: 24, medium: 13, hard: 5, expert: 2 } };
+
+function seedGames() {
+  const g = newGame('medium');
+  const E = window.PSEngine; let n = 0;
+  for (let i = 0; i < 81 && n < 14; i++) if (!g.vals[i]) { g.vals[i] = g.sol[i]; n++; }
+  g.elapsed = 412; g.touched = 1;
+  return { medium: g };
+}
+
+function App() {
+  const [settings, setSettings] = useState(() => ({ ...DEFAULTS, ...load('ps2.settings', {}) }));
+  const [games, setGames] = useState(seedGames);
+  const [tab, setTab] = useState(() => load('ps2.tab', 'play'));
+  const [view, setView] = useState({ v: 'tabs' });
+  const [nightOpen, setNightOpen] = useState(false);
+  const [black, setBlack] = useState(null);
+  const [drift, setDrift] = useState(0);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => { localStorage.setItem('ps2.settings', JSON.stringify(settings)); }, [settings]);
+  useEffect(() => { localStorage.setItem('ps2.tab', JSON.stringify(tab)); }, [tab]);
+  useEffect(() => { const f = () => setScale(Math.min(1, (window.innerHeight - 32) / 868, (window.innerWidth - 32) / 414)); f(); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f); }, []);
+  useEffect(() => {
+    if (view.v !== 'game' || !settings.drift || settings.appearance === 'day') { setDrift(0); return; }
+    const id = setInterval(() => setDrift(d => Math.min(d + 1, 20)), 9000);
+    return () => clearInterval(id);
+  }, [view.v, settings.drift, settings.appearance]);
+  useEffect(() => { const k = e => { if (e.key === 'h' && view.v === 'game') setBlack('hush'); }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [view.v]);
+
+  const eff = { ...settings, appearance: settings.appearance === 'auto' ? 'night' : settings.appearance === 'system' ? 'day' : settings.appearance, glow: Math.max(settings.glowFloor || 0, settings.glow - drift), warmth: Math.min(100, settings.warmth + drift) };
+  const pal = PSNight.palette(eff);
+  const setS = p => setSettings(s => ({ ...s, ...p }));
+
+  const play = (diff, fresh) => {
+    setGames(gs => (fresh || !gs[diff] || gs[diff].done ? { ...gs, [diff]: { ...newGame(diff), touched: Date.now() } } : { ...gs, [diff]: { ...gs[diff], touched: Date.now() } }));
+    setView({ v: 'game', diff });
+  };
+  const setGame = diff => fn => setGames(gs => ({ ...gs, [diff]: fn(gs[diff]) }));
+
+  let body;
+  if (view.v === 'game' && games[view.diff]) {
+    body = <GameScreen key={view.diff + (games[view.diff].touched || 0)} game={games[view.diff]} setGame={setGame(view.diff)} settings={settings} pal={pal}
+      onBack={() => setView({ v: 'tabs' })} openNight={() => setNightOpen(true)} onHush={() => setBlack('hush')}
+      onLesson={name => setView({ v: 'lesson', name, from: view })} onGoodnight={() => { setBlack('goodnight'); setView({ v: 'tabs' }); }} onNew={() => play(view.diff, true)} />;
+  } else if (view.v === 'display') {
+    body = <DisplaySettings settings={settings} setS={setS} pal={pal} onBack={() => setView({ v: 'tabs' })} onCalibrate={() => setNightOpen('cal')} />;
+  } else if (view.v === 'lesson') {
+    body = <LessonScreen key={view.name} name={view.name} pal={pal} onBack={() => setView(view.from || { v: 'tabs' })} onPractice={d => play(d, true)} />;
+  } else {
+    body = (
+      <React.Fragment>
+        {tab === 'play' && <HomeScreen games={games} onPlay={play} openNight={() => setNightOpen(true)} pal={pal} stats={STATS} />}
+        {tab === 'learn' && <LearnScreen openNight={() => setNightOpen(true)} openLesson={name => setView({ v: 'lesson', name, from: { v: 'tabs' } })} />}
+        {tab === 'journal' && <JournalScreen stats={STATS} settings={settings} setS={setS} openNight={() => setNightOpen(true)} onOpenDisplay={() => setView({ v: 'display' })} />}
+        <TabBar tab={tab} setTab={setTab} />
+      </React.Fragment>
+    );
+  }
+
+  return (
+    <div className="ps-root" data-mode={pal.mode} style={{ ...pal.vars, transform: `scale(${scale})`, transformOrigin: 'center' }}>
+      <PhoneFrame hideStatus={(view.v === 'game' && pal.mode === 'night') || !!black} dimChrome={view.v === 'game' && pal.mode === 'night'}>
+        {body}
+        {nightOpen && <NightSheet settings={settings} setS={setS} pal={pal} initialCal={nightOpen === 'cal'} onClose={() => setNightOpen(false)} />}
+        {pal.mode === 'night' && !settings.calibrated && <div style={{ position: 'absolute', inset: 0, background: 'var(--bg)', zIndex: 75 }}><FirstNight settings={settings} setS={setS} pal={pal} onDone={() => setS({ calibrated: true })} /></div>}
+        {black && (
+          <div onClick={() => setBlack(null)} style={{ position: 'absolute', inset: 0, background: '#000', zIndex: 85, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span className={black === 'goodnight' ? 'ps-serif' : ''} style={{ color: 'var(--ink3)', fontSize: black === 'goodnight' ? 30 : 13, animation: 'psFade 3.5s ease forwards' }}>{black === 'goodnight' ? 'Sleep well.' : 'Tap anywhere to return'}</span>
+          </div>
+        )}
+      </PhoneFrame>
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

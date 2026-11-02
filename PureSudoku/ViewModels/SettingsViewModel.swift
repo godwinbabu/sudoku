@@ -20,22 +20,41 @@ final class SettingsViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func setTheme(_ theme: AppTheme) {
-        controller.updateSettings { settings in
-            settings.updateTheme(theme)
-        }
+    func setAppearance(_ value: Appearance) {
+        controller.updateSettings { $0.appearance = value }
+    }
+
+    /// The preset matching the current glow and warmth, if any.
+    var currentPreset: NightPreset? {
+        NightPreset.allCases.first { $0.glow == settings.glow && $0.warmth == settings.warmth }
+    }
+
+    func applyPreset(_ preset: NightPreset) {
+        controller.updateSettings { $0.apply(preset) }
+    }
+
+    func setGlow(_ value: Double) {
+        controller.updateSettings { $0.glow = max(value, $0.glowFloor) }
+    }
+
+    func setWarmth(_ value: Double) {
+        controller.updateSettings { $0.warmth = value }
+    }
+
+    func setClarity(_ value: Clarity) {
+        controller.updateSettings { $0.clarity = value }
     }
 
     func setShowTimer(_ value: Bool) {
         controller.updateSettings { $0.showTimer = value }
     }
 
-    func setAutoRemoveCandidates(_ value: Bool) {
-        controller.updateSettings { $0.autoRemoveCandidates = value }
+    func setTidyNotes(_ value: Bool) {
+        controller.updateSettings { $0.tidyNotes = value }
     }
 
-    func setAutoCheckMistakes(_ value: Bool) {
-        controller.updateSettings { $0.autoCheckMistakes = value }
+    func setMistakes(_ value: MistakeMode) {
+        controller.updateSettings { $0.mistakes = value }
     }
 
     func setAskBeforeHintResult(_ value: Bool) {
@@ -45,34 +64,6 @@ final class SettingsViewModel: ObservableObject {
     func setShortCellNames(_ value: Bool) {
         controller.updateSettings { $0.cellNameStyle = value ? .short : .long }
     }
-
-    func setBedtimeMode(_ value: Bool) {
-        controller.updateSettings { settings in
-            settings.toggleBedtimeMode(value)
-        }
-    }
-
-    func setActiveDisplayProfile(_ id: UUID) {
-        controller.updateSettings { $0.activeDisplayProfileID = id }
-    }
-
-    func setBedtimeDisplayProfile(_ id: UUID?) {
-        controller.updateSettings { $0.bedtimeDisplayProfileID = id }
-    }
-
-    func saveDisplayProfile(_ profile: DisplayProfile) {
-        controller.updateSettings { $0.saveDisplayProfile(profile) }
-    }
-
-    func deleteDisplayProfile(_ id: UUID) {
-        controller.updateSettings { $0.deleteDisplayProfile(id: id) }
-    }
-
-    func markDisplayCalibrationOffered() {
-        controller.updateSettings { $0.hasCalibratedDisplay = true }
-    }
-
-    var canAddDisplayProfile: Bool { controller.settings.displayProfiles.count < DisplayProfile.maxProfiles }
 
     func setKeepImportImages(_ value: Bool) {
         controller.updateSettings { $0.keepImportImages = value }

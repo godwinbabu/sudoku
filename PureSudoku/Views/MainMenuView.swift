@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MainMenuView: View {
     @EnvironmentObject private var controller: AppController
+    @Environment(\.psPalette) private var palette
     @StateObject private var viewModel: MainMenuViewModel
     @State private var activeSheet: Sheet?
     @State private var navigationPath = NavigationPath()
@@ -21,23 +22,21 @@ struct MainMenuView: View {
     private enum Sheet: Identifiable {
         case settings
         case stats
-        case calibration
 
         var id: Int {
             switch self {
             case .settings: return 0
             case .stats: return 1
-            case .calibration: return 2
             }
         }
     }
 
     var body: some View {
-        let theme = controller.settings.themeColors
+        let theme = palette
         return NavigationStack(path: $navigationPath) {
             GeometryReader { proxy in
                 ZStack {
-                    theme.background.ignoresSafeArea()
+                    theme.bg.ignoresSafeArea()
                     VStack(spacing: 12) {
                         ScrollView(showsIndicators: false) {
                     VStack(spacing: 24) {
@@ -101,39 +100,25 @@ struct MainMenuView: View {
                 case .stats:
                     StatsView(viewModel: StatsViewModel(controller: controller))
                     .sheetTheme(controller)
-                case .calibration:
-                    NavigationStack {
-                        DisplayCalibrationView(profile: controller.settings.currentDisplayProfile, onSave: { profile in
-                            controller.updateSettings { $0.saveDisplayProfile(profile) }
-                            activeSheet = nil
-                        }, onCancel: {
-                            controller.updateSettings { $0.hasCalibratedDisplay = true } // offered once; Settings can re-run it
-                            activeSheet = nil
-                        })
-                    }
                 }
             }
         }
     }
 
-    private func topSection(theme: ThemeColors) -> some View {
+    private func topSection(theme: PSPalette) -> some View {
         VStack(spacing: 8) {
-            Image("LandingIcon")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 115, height: 115)
             Text("Pure Sudoku")
                 .font(.system(size: 40, weight: .bold, design: .serif))
-                .foregroundColor(theme.primaryText)
+                .foregroundColor(theme.ink)
             Text(taglineOptions[displayedTaglineIndex])
                 .font(.callout)
                 .multilineTextAlignment(.center)
-                .foregroundColor(theme.secondaryText)
+                .foregroundColor(theme.ink2)
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func statsSummary(theme: ThemeColors) -> some View {
+    private func statsSummary(theme: PSPalette) -> some View {
         let streak = viewModel.stats.streakDays
         let total = viewModel.stats.totalPuzzlesSolved
         return VStack(spacing: 20) {
@@ -141,44 +126,31 @@ struct MainMenuView: View {
                 statColumn(title: "Day Streak", value: "\(streak)", theme: theme)
                 Divider()
                     .frame(height: 48)
-                    .background(theme.gridLine.opacity(0.3))
+                    .background(theme.lineMajor.opacity(0.3))
                 statColumn(title: "Solved Total", value: "\(total)", theme: theme)
             }
             .padding(.vertical, 18)
             .padding(.horizontal, 26)
-            .background(theme.cardBackground, in: RoundedRectangle(cornerRadius: 22))
+            .background(theme.surface, in: RoundedRectangle(cornerRadius: 22))
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func statColumn(title: String, value: String, theme: ThemeColors) -> some View {
+    private func statColumn(title: String, value: String, theme: PSPalette) -> some View {
         VStack {
             Text(value)
                 .font(.largeTitle.bold())
-                .foregroundColor(theme.primaryText)
+                .foregroundColor(theme.ink)
             Text(title)
                 .font(.callout)
-                .foregroundColor(theme.secondaryText)
+                .foregroundColor(theme.ink2)
         }
     }
 
-    private func difficultyButtons(theme: ThemeColors) -> some View {
-        let fillColor: Color = {
-            switch theme.theme {
-            case .light, .system:
-                return Color.black.opacity(0.92)
-            case .dark, .sleep:
-                return theme.cardBackground.opacity(0.9)
-            }
-        }()
-        let textColor: Color = {
-            switch theme.theme {
-            case .light, .system:
-                return .white
-            case .dark, .sleep:
-                return theme.primaryText
-            }
-        }()
+    private func difficultyButtons(theme: PSPalette) -> some View {
+        // Night: outline only, no fill behind text (CODESPEC 12.4).
+        let fillColor: Color = theme.isNight ? .clear : theme.ink
+        let textColor: Color = theme.isNight ? theme.accent : theme.bg
         return VStack(spacing: 16) {
             ForEach(Difficulty.allCases) { difficulty in
                 let hasActive = controller.activeGames[difficulty]?.isCompleted == false
@@ -195,6 +167,10 @@ struct MainMenuView: View {
                                 Capsule(style: .continuous)
                                     .fill(fillColor)
                             )
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(theme.isNight ? theme.accentDim : .clear, lineWidth: 1.5)
+                            )
                         if hasActive {
                             Circle()
                                 .fill(theme.accent)
@@ -208,33 +184,32 @@ struct MainMenuView: View {
                 .accessibilityIdentifier("difficulty_\(difficulty.rawValue)")
                 Text(difficulty.techniqueSummary)
                     .font(.caption)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundColor(theme.ink2)
                     .padding(.top, -10)
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private func bedtimeToggle(theme: ThemeColors) -> some View {
+    private func bedtimeToggle(theme: PSPalette) -> some View {
         Button {
-            viewModel.toggleBedtimeMode()
-            // First time in Bedtime Mode: offer the display calibration (CODESPEC 12.3).
-            if controller.settings.bedtimeMode && !controller.settings.hasCalibratedDisplay { activeSheet = .calibration }
+            viewModel.toggleNight()
         } label: {
             HStack(spacing: 12) {
                 BedtimeIcon(color: theme.accent)
                     .frame(width: 18, height: 18)
-                Text(controller.settings.bedtimeMode ? "Bedtime Mode On" : "Enable Bedtime Mode")
-                    .foregroundColor(theme.primaryText)
+                Text(controller.isNight ? "Night On" : "Turn On Night")
+                    .foregroundColor(theme.ink)
                     .font(.body.bold())
                 Spacer()
-                BedtimeSwitch(isOn: controller.settings.bedtimeMode, theme: theme)
+                BedtimeSwitch(isOn: controller.isNight, theme: theme)
             }
             .padding(.vertical, 10)
             .padding(.horizontal, 16)
+            .contentShape(Capsule())
         }
-        .buttonStyle(.borderedProminent)
-        .tint(theme.accent)
+        .buttonStyle(.plain)
+        .overlay(Capsule().stroke(theme.accentDim, lineWidth: 1.5))
         .accessibilityIdentifier("bedtimeToggle")
     }
 
@@ -269,13 +244,13 @@ struct MainMenuView: View {
 
     /// Unfinished imported puzzles, so the player can return to them (BYOS: "return to them later").
     @ViewBuilder
-    private func savedImports(theme: ThemeColors) -> some View {
+    private func savedImports(theme: PSPalette) -> some View {
         let saved = controller.savedImports
         if !saved.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Saved imports")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundColor(theme.ink2)
                 ForEach(saved) { imported in
                     Button {
                         openImportedGame(imported)
@@ -284,22 +259,22 @@ struct MainMenuView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(imported.gameState.puzzle.difficulty.displayName)
                                     .font(.body.weight(.semibold))
-                                    .foregroundColor(theme.primaryText)
+                                    .foregroundColor(theme.ink)
                                 Text(imported.createdAt.formatted(date: .abbreviated, time: .shortened))
                                     .font(.footnote)
-                                    .foregroundColor(theme.secondaryText)
+                                    .foregroundColor(theme.ink2)
                             }
                             Spacer()
                             Text("\(imported.gameState.cells.filter { $0.value != nil }.count)/81")
                                 .font(.footnote.monospacedDigit())
-                                .foregroundColor(theme.secondaryText)
+                                .foregroundColor(theme.ink2)
                         }
                         .padding(.vertical, 10)
                         .padding(.horizontal, 14)
                         .frame(minHeight: 44)
                         .background(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(theme.cardBackground)
+                                .fill(theme.surface)
                         )
                     }
                     .buttonStyle(.plain)
@@ -316,7 +291,7 @@ struct MainMenuView: View {
     }
 
     /// Opens the technique curriculum (CODESPEC 13.5).
-    private func learnButton(theme: ThemeColors) -> some View {
+    private func learnButton(theme: PSPalette) -> some View {
         Button {
             navigationPath.append(LearnRoute())
         } label: {
@@ -326,17 +301,17 @@ struct MainMenuView: View {
                 Text("Learn techniques")
                     .font(.headline.weight(.semibold))
             }
-            .foregroundColor(theme.primaryText)
+            .foregroundColor(theme.ink)
             .padding(.vertical, 12)
             .frame(maxWidth: 220)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.cardBackground))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.gridLine.opacity(0.4), lineWidth: 1))
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.surface))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.lineMajor.opacity(0.4), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("learnButton")
     }
 
-    private func importButton(theme: ThemeColors) -> some View {
+    private func importButton(theme: PSPalette) -> some View {
         Button {
             navigationPath.append(ImportRoute())
         } label: {
@@ -346,16 +321,16 @@ struct MainMenuView: View {
                 Text("Import Puzzle")
                     .font(.headline.weight(.semibold))
             }
-            .foregroundColor(theme.primaryText)
+            .foregroundColor(theme.ink)
             .padding(.vertical, 12)
             .frame(maxWidth: 220)
             .background(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(theme.cardBackground)
+                    .fill(theme.surface)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(theme.gridLine.opacity(0.4), lineWidth: 1)
+                    .stroke(theme.lineMajor.opacity(0.4), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -388,20 +363,20 @@ private struct ImportRoute: Hashable, Identifiable {
 
 private struct LearnRoute: Hashable {}
 
-// A non-interactive, high-contrast switch indicator for Bedtime Mode state
+// A non-interactive switch indicator for the Night state
 private struct BedtimeSwitch: View {
     let isOn: Bool
-    let theme: ThemeColors
+    let theme: PSPalette
 
     var body: some View {
-        let trackColor = theme.cardBackground
-        let knobColor = isOn ? theme.accent : theme.secondaryText
+        let trackColor = theme.surface
+        let knobColor = isOn ? theme.accent : theme.ink2
         ZStack(alignment: isOn ? .trailing : .leading) {
             Capsule()
                 .fill(trackColor)
                 .overlay(
                     Capsule()
-                        .stroke(theme.gridLine.opacity(0.6), lineWidth: 1)
+                        .stroke(theme.lineMajor.opacity(0.6), lineWidth: 1)
                 )
             Circle()
                 .fill(knobColor)
@@ -409,7 +384,7 @@ private struct BedtimeSwitch: View {
                 .padding(.horizontal, 3)
         }
         .frame(width: 50, height: 28)
-        .accessibilityLabel(isOn ? "Bedtime Mode On" : "Bedtime Mode Off")
+        .accessibilityLabel(isOn ? "Night On" : "Night Off")
         .accessibilityAddTraits(.isStaticText)
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import SwiftUI
 
 @MainActor
 final class AppController: ObservableObject {
@@ -214,9 +215,19 @@ final class AppController: ObservableObject {
         return imported
     }
 
+    // MARK: Display (CODESPEC 12)
+
+    /// Night is worked out on read, so After dark follows the clock and Match iPhone the system setting.
+    var isNight: Bool { settings.isNight(systemIsDark: UIScreen.main.traitCollection.userInterfaceStyle == .dark) }
+    var palette: PSPalette { settings.palette(isNight: isNight) }
+    var preferredColorScheme: ColorScheme? { settings.preferredColorScheme(isNight: isNight) }
+    /// Night always keeps sound and vibration off, whatever the saved settings say.
+    /// Any future sound or haptic must check these, never `settings.soundsEnabled` / `hapticsEnabled`.
+    var soundsActive: Bool { settings.soundsEnabled && !isNight }
+    var hapticsActive: Bool { settings.hapticsEnabled && !isNight }
+
     func updateSettings(_ block: (inout Settings) -> Void) {
         block(&settings)
-        settings.enforceBedtimeRulesIfNeeded()
         do {
             try persistence.save(settings, to: File.settings.rawValue)
         } catch {

@@ -1,173 +1,228 @@
 import Foundation
 
+/// When wrong digits are shown (CODESPEC 7.3).
+enum MistakeMode: String, Codable, CaseIterable, Identifiable {
+    case immediate, onCheck, never
+    var id: String { rawValue }
+    /// shortcut: Never is hidden because Check still marks mistakes; offer it once the v2 game screen honours it.
+    static let offered: [MistakeMode] = [.immediate, .onCheck]
+    var displayName: String {
+        switch self {
+        case .immediate: return "Right away"
+        case .onCheck: return "When I check"
+        case .never: return "Never"
+        }
+    }
+}
+
+/// Hours and minutes of a day, for the After dark fallback window.
+struct ClockTime: Codable, Equatable {
+    var hour: Int
+    var minute: Int
+    var minutes: Int { hour * 60 + minute }
+}
+
 struct Settings: Codable, Equatable {
-    var theme: AppTheme
-    var showTimer: Bool
-    var autoRemoveCandidates: Bool
-    var autoCheckMistakes: Bool
-    var bedtimeMode: Bool
+    // Display & Night (CODESPEC 12)
+    var appearance: Appearance
+    /// 0...100
+    var glow: Double
+    /// 0...100
+    var warmth: Double
+    var clarity: Clarity
+    /// Set by "Find my lowest glow"; glow and Drift never go below it.
+    var glowFloor: Double
+    /// False → the first-night flow runs the first time Night is active.
+    var calibrated: Bool
+    /// During a night game: −1 glow / +1 warmth every 90 s, max 20 each.
+    var drift: Bool
+    var hideStatusBarInGames: Bool
+    var useLocationForAfterDark: Bool
+    /// Fallback After dark window when there is no location.
+    var afterDarkStart: ClockTime
+    var afterDarkEnd: ClockTime
+    // Quiet: Night always forces both off.
     var soundsEnabled: Bool
     var hapticsEnabled: Bool
-    /// Calibrated Sleep displays, at most `DisplayProfile.maxProfiles` (CODESPEC 12.3).
-    var displayProfiles: [DisplayProfile]
-    /// Profile used by the Sleep theme.
-    var activeDisplayProfileID: UUID
-    /// Profile used while Bedtime Mode is on (nil = the active one).
-    var bedtimeDisplayProfileID: UUID?
-    /// True once the player has run the calibration (or dismissed the offer).
-    var hasCalibratedDisplay: Bool
-    var keepImportImages: Bool
+    // Assists
+    var mistakes: MistakeMode
+    /// Remove a placed digit from the notes it sees.
+    var tidyNotes: Bool
+    var showTimer: Bool
+    // Hints
     /// Ask "Try it yourself first?" before a hint shows its result (CODESPEC 6.3.1).
     var askBeforeHintResult: Bool
     /// How hint text names cells.
     var cellNameStyle: CellNameStyle
+    // Imports
+    var keepImportImages: Bool
 
     init(
-        theme: AppTheme = .system,
-        showTimer: Bool = true,
-        autoRemoveCandidates: Bool = true,
-        autoCheckMistakes: Bool = true,
-        bedtimeMode: Bool = false,
+        appearance: Appearance = .afterDark,
+        glow: Double = NightPreset.lightsOut.glow,
+        warmth: Double = NightPreset.lightsOut.warmth,
+        clarity: Clarity = .standard,
+        glowFloor: Double = 0,
+        calibrated: Bool = false,
+        drift: Bool = true,
+        hideStatusBarInGames: Bool = true,
+        useLocationForAfterDark: Bool = true,
+        afterDarkStart: ClockTime = ClockTime(hour: 21, minute: 0),
+        afterDarkEnd: ClockTime = ClockTime(hour: 6, minute: 30),
         soundsEnabled: Bool = false,
         hapticsEnabled: Bool = false,
-        displayProfiles: [DisplayProfile]? = nil,
-        keepImportImages: Bool = true,
+        mistakes: MistakeMode = .immediate,
+        tidyNotes: Bool = true,
+        showTimer: Bool = true,
         askBeforeHintResult: Bool = true,
-        cellNameStyle: CellNameStyle = .long
+        cellNameStyle: CellNameStyle = .long,
+        keepImportImages: Bool = true
     ) {
-        self.theme = theme
-        self.showTimer = showTimer
-        self.autoRemoveCandidates = autoRemoveCandidates
-        self.autoCheckMistakes = autoCheckMistakes
-        self.bedtimeMode = bedtimeMode
+        self.appearance = appearance
+        self.glow = glow
+        self.warmth = warmth
+        self.clarity = clarity
+        self.glowFloor = glowFloor
+        self.calibrated = calibrated
+        self.drift = drift
+        self.hideStatusBarInGames = hideStatusBarInGames
+        self.useLocationForAfterDark = useLocationForAfterDark
+        self.afterDarkStart = afterDarkStart
+        self.afterDarkEnd = afterDarkEnd
         self.soundsEnabled = soundsEnabled
         self.hapticsEnabled = hapticsEnabled
-        let profiles = displayProfiles ?? [DisplayProfile.migrated(from: .extraDim)]
-        self.displayProfiles = profiles
-        self.activeDisplayProfileID = profiles[0].id
-        self.bedtimeDisplayProfileID = nil
-        self.hasCalibratedDisplay = false
-        self.keepImportImages = keepImportImages
+        self.mistakes = mistakes
+        self.tidyNotes = tidyNotes
+        self.showTimer = showTimer
         self.askBeforeHintResult = askBeforeHintResult
         self.cellNameStyle = cellNameStyle
-        enforceBedtimeRulesIfNeeded()
-    }
-
-    mutating func toggleBedtimeMode(_ enabled: Bool) {
-        bedtimeMode = enabled
-        if bedtimeMode {
-            soundsEnabled = false
-            hapticsEnabled = false
-        } else {
-            // retain previously selected theme when exiting Bedtime Mode
-        }
-    }
-
-    mutating func updateTheme(_ newValue: AppTheme) {
-        theme = newValue
-    }
-
-    mutating func enforceBedtimeRulesIfNeeded() {
-        if bedtimeMode {
-            soundsEnabled = false
-            hapticsEnabled = false
-        }
+        self.keepImportImages = keepImportImages
     }
 
     static var `default`: Settings { Settings() }
 
-    /// The profile the Sleep theme uses now: the bedtime profile in Bedtime Mode, else the active one.
-    var currentDisplayProfile: DisplayProfile {
-        let id = bedtimeMode ? (bedtimeDisplayProfileID ?? activeDisplayProfileID) : activeDisplayProfileID
-        return displayProfiles.first { $0.id == id } ?? displayProfiles[0]
-    }
-
-    /// Adds or replaces a profile (matched by id) and makes it active. Returns false if the
-    /// profile is new and the limit is reached.
-    @discardableResult
-    mutating func saveDisplayProfile(_ profile: DisplayProfile) -> Bool {
-        if let index = displayProfiles.firstIndex(where: { $0.id == profile.id }) {
-            displayProfiles[index] = profile
-        } else {
-            guard displayProfiles.count < DisplayProfile.maxProfiles else { return false }
-            displayProfiles.append(profile)
+    /// Night is active when appearance is .night, .afterDark inside the window, or .matchSystem
+    /// with a dark iPhone setting.
+    func isNight(now: Date = Date(), sunset: Date? = nil, sunrise: Date? = nil, systemIsDark: Bool, calendar: Calendar = .current) -> Bool {
+        switch appearance {
+        case .day: return false
+        case .night: return true
+        case .matchSystem: return systemIsDark
+        case .afterDark:
+            if useLocationForAfterDark, let sunset, let sunrise { return now >= sunset || now < sunrise }
+            let minute = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
+            let start = afterDarkStart.minutes, end = afterDarkEnd.minutes
+            return start <= end ? (minute >= start && minute < end) : (minute >= start || minute < end)
         }
-        activeDisplayProfileID = profile.id
-        hasCalibratedDisplay = true
-        return true
     }
 
-    /// Deletes a profile; the last one cannot be deleted.
-    mutating func deleteDisplayProfile(id: UUID) {
-        guard displayProfiles.count > 1 else { return }
-        displayProfiles.removeAll { $0.id == id }
-        if activeDisplayProfileID == id { activeDisplayProfileID = displayProfiles[0].id }
-        if bedtimeDisplayProfileID == id { bedtimeDisplayProfileID = nil }
+    mutating func apply(_ preset: NightPreset) {
+        glow = max(preset.glow, glowFloor)
+        warmth = preset.warmth
     }
+
+    // MARK: Codable, with migration from the v1 keys
 
     private enum CodingKeys: String, CodingKey {
-        case theme
-        case showTimer
-        case autoRemoveCandidates
-        case autoCheckMistakes
-        case bedtimeMode
-        case soundsEnabled
-        case hapticsEnabled
-        case sleepBrightness // read only, to migrate old files
-        case displayProfiles
-        case activeDisplayProfileID
-        case bedtimeDisplayProfileID
-        case hasCalibratedDisplay
-        case keepImportImages
-        case askBeforeHintResult
-        case cellNameStyle
+        case appearance, glow, warmth, clarity, glowFloor, calibrated, drift, hideStatusBarInGames
+        case useLocationForAfterDark, afterDarkStart, afterDarkEnd
+        case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer
+        case askBeforeHintResult, cellNameStyle, keepImportImages
+        // v1, read only
+        case theme, bedtimeMode, sleepBrightness, autoRemoveCandidates, autoCheckMistakes
+        case hasCalibratedDisplay, displayProfiles, activeDisplayProfileID, bedtimeDisplayProfileID
+    }
+
+    /// The part of a v1 display profile we carry over.
+    private struct LegacyProfile: Decodable {
+        let id: UUID
+        let dimness: Double
+        let warmth: Double
     }
 
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        theme = try container.decode(AppTheme.self, forKey: .theme)
-        showTimer = try container.decode(Bool.self, forKey: .showTimer)
-        autoRemoveCandidates = try container.decode(Bool.self, forKey: .autoRemoveCandidates)
-        autoCheckMistakes = try container.decode(Bool.self, forKey: .autoCheckMistakes)
-        bedtimeMode = try container.decode(Bool.self, forKey: .bedtimeMode)
-        soundsEnabled = try container.decode(Bool.self, forKey: .soundsEnabled)
-        hapticsEnabled = try container.decode(Bool.self, forKey: .hapticsEnabled)
-        let legacy = try container.decodeIfPresent(SleepBrightness.self, forKey: .sleepBrightness) ?? .extraDim
-        let profiles = try container.decodeIfPresent([DisplayProfile].self, forKey: .displayProfiles) ?? []
-        displayProfiles = profiles.isEmpty ? [DisplayProfile.migrated(from: legacy)] : Array(profiles.prefix(DisplayProfile.maxProfiles))
-        let active = try container.decodeIfPresent(UUID.self, forKey: .activeDisplayProfileID)
-        if let active, displayProfiles.contains(where: { $0.id == active }) {
-            activeDisplayProfileID = active
-        } else {
-            activeDisplayProfileID = displayProfiles[0].id
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = Settings()
+        func value<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T {
+            (try? c.decodeIfPresent(T.self, forKey: key)) ?? fallback
         }
-        let bedtime = try container.decodeIfPresent(UUID.self, forKey: .bedtimeDisplayProfileID)
-        bedtimeDisplayProfileID = displayProfiles.contains { $0.id == bedtime } ? bedtime : nil
-        hasCalibratedDisplay = try container.decodeIfPresent(Bool.self, forKey: .hasCalibratedDisplay) ?? false
-        keepImportImages = try container.decodeIfPresent(Bool.self, forKey: .keepImportImages) ?? true
-        askBeforeHintResult = try container.decodeIfPresent(Bool.self, forKey: .askBeforeHintResult) ?? true
-        cellNameStyle = try container.decodeIfPresent(CellNameStyle.self, forKey: .cellNameStyle) ?? .long
-        enforceBedtimeRulesIfNeeded()
+
+        var appearance = defaults.appearance
+        var glow = defaults.glow
+        var warmth = defaults.warmth
+        // v1: theme light → Day, dark → Night, system → Match iPhone, sleep or Bedtime Mode → Night with Lights out.
+        if let theme: String = try? c.decodeIfPresent(String.self, forKey: .theme) {
+            switch theme {
+            case "light": appearance = .day
+            case "dark", "sleep": appearance = .night
+            default: appearance = .matchSystem
+            }
+            switch value(.sleepBrightness, "extraDim") {
+            case "normal": glow = 55
+            case "dim": glow = 30
+            default: glow = 18
+            }
+            let bedtime = value(.bedtimeMode, false)
+            let sleepy = theme == "sleep" || bedtime
+            if sleepy {
+                appearance = .night
+                glow = NightPreset.lightsOut.glow
+                warmth = NightPreset.lightsOut.warmth
+            }
+            // A v1 display profile is the player's own tuning: keep its brightness and warmth. Sleep players
+            // got an untuned profile until they calibrated, so for them only a calibrated one beats Lights out.
+            let profiles: [LegacyProfile] = value(.displayProfiles, [])
+            let activeID: UUID? = value(.activeDisplayProfileID, nil)
+            let wantedID: UUID? = bedtime ? (value(.bedtimeDisplayProfileID, nil) ?? activeID) : activeID
+            if !sleepy || value(.hasCalibratedDisplay, false),
+               let profile = profiles.first(where: { $0.id == wantedID }) ?? profiles.first {
+                glow = ((1 - profile.dimness) * 60).rounded()
+                warmth = (profile.warmth * 100).rounded()
+            }
+        }
+
+        self.appearance = value(.appearance, appearance)
+        self.glow = value(.glow, glow)
+        self.warmth = value(.warmth, warmth)
+        clarity = value(.clarity, defaults.clarity)
+        glowFloor = value(.glowFloor, defaults.glowFloor)
+        calibrated = value(.calibrated, value(.hasCalibratedDisplay, defaults.calibrated))
+        drift = value(.drift, defaults.drift)
+        hideStatusBarInGames = value(.hideStatusBarInGames, defaults.hideStatusBarInGames)
+        useLocationForAfterDark = value(.useLocationForAfterDark, defaults.useLocationForAfterDark)
+        afterDarkStart = value(.afterDarkStart, defaults.afterDarkStart)
+        afterDarkEnd = value(.afterDarkEnd, defaults.afterDarkEnd)
+        soundsEnabled = value(.soundsEnabled, defaults.soundsEnabled)
+        hapticsEnabled = value(.hapticsEnabled, defaults.hapticsEnabled)
+        let legacyMistakes: MistakeMode = value(.autoCheckMistakes, true) ? .immediate : .onCheck
+        mistakes = value(.mistakes, legacyMistakes)
+        tidyNotes = value(.tidyNotes, value(.autoRemoveCandidates, defaults.tidyNotes))
+        showTimer = value(.showTimer, defaults.showTimer)
+        askBeforeHintResult = value(.askBeforeHintResult, defaults.askBeforeHintResult)
+        cellNameStyle = value(.cellNameStyle, defaults.cellNameStyle)
+        keepImportImages = value(.keepImportImages, defaults.keepImportImages)
     }
 
     func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(theme, forKey: .theme)
-        try container.encode(showTimer, forKey: .showTimer)
-        try container.encode(autoRemoveCandidates, forKey: .autoRemoveCandidates)
-        try container.encode(autoCheckMistakes, forKey: .autoCheckMistakes)
-        try container.encode(bedtimeMode, forKey: .bedtimeMode)
-        try container.encode(soundsEnabled, forKey: .soundsEnabled)
-        try container.encode(hapticsEnabled, forKey: .hapticsEnabled)
-        // Older builds require this key; without it they would reset every setting.
-        let dimness = currentDisplayProfile.dimness
-        try container.encode(dimness < 0.35 ? SleepBrightness.normal : dimness < 0.62 ? .dim : .extraDim, forKey: .sleepBrightness)
-        try container.encode(displayProfiles, forKey: .displayProfiles)
-        try container.encode(activeDisplayProfileID, forKey: .activeDisplayProfileID)
-        try container.encodeIfPresent(bedtimeDisplayProfileID, forKey: .bedtimeDisplayProfileID)
-        try container.encode(hasCalibratedDisplay, forKey: .hasCalibratedDisplay)
-        try container.encode(keepImportImages, forKey: .keepImportImages)
-        try container.encode(askBeforeHintResult, forKey: .askBeforeHintResult)
-        try container.encode(cellNameStyle, forKey: .cellNameStyle)
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(appearance, forKey: .appearance)
+        try c.encode(glow, forKey: .glow)
+        try c.encode(warmth, forKey: .warmth)
+        try c.encode(clarity, forKey: .clarity)
+        try c.encode(glowFloor, forKey: .glowFloor)
+        try c.encode(calibrated, forKey: .calibrated)
+        try c.encode(drift, forKey: .drift)
+        try c.encode(hideStatusBarInGames, forKey: .hideStatusBarInGames)
+        try c.encode(useLocationForAfterDark, forKey: .useLocationForAfterDark)
+        try c.encode(afterDarkStart, forKey: .afterDarkStart)
+        try c.encode(afterDarkEnd, forKey: .afterDarkEnd)
+        try c.encode(soundsEnabled, forKey: .soundsEnabled)
+        try c.encode(hapticsEnabled, forKey: .hapticsEnabled)
+        try c.encode(mistakes, forKey: .mistakes)
+        try c.encode(tidyNotes, forKey: .tidyNotes)
+        try c.encode(showTimer, forKey: .showTimer)
+        try c.encode(askBeforeHintResult, forKey: .askBeforeHintResult)
+        try c.encode(cellNameStyle, forKey: .cellNameStyle)
+        try c.encode(keepImportImages, forKey: .keepImportImages)
     }
 }

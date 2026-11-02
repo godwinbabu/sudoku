@@ -9,7 +9,7 @@ final class HintLadderTests: XCTestCase {
     private func makeViewModel(state: GameState = TestData.newGameState(), askFirst: Bool = true, autoRemove: Bool = true) -> GameViewModel {
         var settings = Settings()
         settings.askBeforeHintResult = askFirst
-        settings.autoRemoveCandidates = autoRemove
+        settings.tidyNotes = autoRemove
         return GameViewModel(state: state, settings: settings, validator: SudokuValidator(), timeProvider: MockTimeProvider())
     }
 

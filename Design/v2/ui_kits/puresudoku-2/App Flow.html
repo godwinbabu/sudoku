@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="design_doc_mode" content="canvas">
+<title>Pure Sudoku 2 — App flow</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ps2.css">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+a{color:#9A5712}a:hover{color:#1B1A17}
+.fl-row{position:absolute;left:80px;font-size:40px;font-weight:600;letter-spacing:-.01em;color:#1B1A17}
+.fl-row small{display:block;font-size:20px;font-weight:400;color:#57534B;margin-top:8px;max-width:1500px}
+.fl-lbl{position:absolute;width:414px;font-size:17px;color:#1B1A17;line-height:1.35}
+.fl-lbl b{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:26px;padding:0 8px;border-radius:13px;background:#1B1A17;color:#F4F1E9;font-size:14px;margin-right:8px;box-sizing:border-box}
+.fl-lbl span{display:block;color:#57534B;font-size:15px;margin-top:4px}
+.fl-arrow{position:absolute;width:44px;height:2px;background:#8A857A}
+.fl-arrow:after{content:"";position:absolute;right:-1px;top:-5px;border:6px solid transparent;border-left:9px solid #8A857A;border-right:0}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="engine.js"></script>
+<script src="night.js"></script>
+<script type="text/babel" src="Primitives.jsx"></script>
+<script type="text/babel" src="GameScreen.jsx"></script>
+<script type="text/babel" src="Screens.jsx"></script>
+<script type="text/babel" src="NightSheet.jsx"></script>
+<script type="text/babel" src="Learn.jsx"></script>
+<script type="text/babel" src="Display.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+const STATS = { streak: 6, assisted: 3, best: { easy: 252, medium: 498, hard: 1104, expert: 1986 }, typical: { easy: 341, medium: 702, hard: 1530, expert: 2410 }, solved: { easy: 24, medium: 13, hard: 5, expert: 2 } };
+const BASE = { appearance: 'night', glow: 20, warmth: 72, clarity: 0, drift: true, mistakes: 'immediate', autoRemove: true, showTimer: true, glowFloor: 14, calibrated: true };
+const noop = () => {};
+
+function seeded(diff, filled, extra = {}) {
+  const g = newGame(diff); let n = 0;
+  for (let i = 0; i < 81 && n < filled; i++) if (!g.vals[i]) { g.vals[i] = g.sol[i]; n++; }
+  return { ...g, elapsed: 412, touched: 1, ...extra };
+}
+
+function Frame({ init, hideStatus, dim, render }) {
+  const [s, setSt] = useState({ ...BASE, ...init });
+  const setS = p => setSt(x => ({ ...x, ...p }));
+  const eff = { ...s, appearance: s.appearance === 'auto' ? 'night' : s.appearance === 'system' ? 'day' : s.appearance };
+  const pal = PSNight.palette(eff);
+  return (
+    <div className="ps-root" data-mode={pal.mode} style={pal.vars}>
+      <PhoneFrame hideStatus={hideStatus} dimChrome={dim}>{render(s, setS, pal)}</PhoneFrame>
+    </div>
+  );
+}
+function LiveGame({ seed, s, pal, demo }) {
+  const [g, setG] = useState(seed);
+  return <GameScreen game={g} setGame={setG} settings={s} pal={pal} onBack={noop} openNight={noop} onHush={noop} onLesson={noop} onGoodnight={noop} onNew={noop} demo={demo} />;
+}
+const Tabs = ({ tab, children }) => <React.Fragment>{children}<TabBar tab={tab} setTab={noop} /></React.Fragment>;
+
+const COL = i => 80 + i * 500, ROW = i => 240 + i * 1180;
+const FRAMES = [
+  // Row 1 — first night
+  { r: 0, c: 0, id: '1a', t: 'Launch', d: 'Always black. The first frame never flashes.', hide: true, render: () => <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span className="ps-serif" style={{ fontSize: 30, color: 'var(--ink3)' }}>Pure Sudoku</span></div> },
+  { r: 0, c: 1, id: '1b', t: 'First night: welcome', d: 'Shown once, the first time Night is on. It sets up before any play.', init: { calibrated: false, glow: 30 }, render: (s, setS, pal) => <FirstNight settings={s} setS={setS} pal={pal} onDone={noop} /> },
+  { r: 0, c: 2, id: '1c', t: 'Find my lowest glow', d: 'Six digits fade down. He taps the faintest one he can read without effort.', init: { calibrated: false, glow: 30 }, render: (s, setS, pal) => <FirstNight settings={s} setS={setS} pal={pal} onDone={noop} initialStep="cal" initialPick={6} /> },
+  { r: 0, c: 3, id: '1d', t: 'Result', d: 'Glow = his pick + 4. The pick becomes the floor that Drift and the slider never go below.', init: { glow: 10, glowFloor: 6 }, render: (s, setS, pal) => <FirstNight settings={s} setS={setS} pal={pal} onDone={noop} initialStep="done" /> },
+  { r: 0, c: 4, id: '1e', t: 'Home at his glow', d: 'Continue card first. All five levels ship.', init: { glow: 10, glowFloor: 6 }, render: (s, setS, pal) => <Tabs tab="play"><HomeScreen games={{ medium: seeded('medium', 14) }} onPlay={noop} openNight={noop} pal={pal} stats={STATS} /></Tabs> },
+  // Row 2 — Display & Night settings
+  { r: 1, c: 0, id: '2a', t: 'Journal → Settings', d: 'The full settings page is one tap from Journal.', init: { appearance: 'day' }, render: (s, setS, pal) => <Tabs tab="journal"><JournalScreen stats={STATS} settings={s} setS={setS} openNight={noop} onOpenDisplay={noop} /></Tabs> },
+  { r: 1, c: 1, id: '2b', t: 'Display & Night — Day', d: 'Four appearances with plain explanations. The live preview strip at the top repaints as you change anything.', init: { appearance: 'day' }, render: (s, setS, pal) => <DisplaySettings settings={s} setS={setS} pal={pal} onBack={noop} onCalibrate={noop} /> },
+  { r: 1, c: 2, id: '2c', t: 'Display & Night — After dark', d: 'The same page drawn in the night palette. The warmth track shows real Kelvin colours.', init: { appearance: 'auto', glow: 34, warmth: 60, location: false }, render: (s, setS, pal) => <DisplaySettings settings={s} setS={setS} pal={pal} onBack={noop} onCalibrate={noop} /> },
+  { r: 1, c: 3, id: '2d', t: 'Quick sheet from the moon', d: 'From any screen without leaving the game. The board behind repaints live.', hide: true, dim: true, init: { glow: 30, warmth: 66 }, render: (s, setS, pal) => <React.Fragment><LiveGame seed={seeded('hard', 0)} s={s} pal={pal} demo={{ frozen: true }} /><NightSheet settings={s} setS={setS} pal={pal} onClose={noop} /></React.Fragment> },
+  { r: 1, c: 4, id: '2e', t: 'Day · Clarity Large', d: 'Bigger, heavier digits and stronger box lines. The same setting works in Day and Night.', init: { appearance: 'day', clarity: 1 }, render: (s, setS, pal) => <LiveGame seed={seeded('hard', 0)} s={s} pal={pal} demo={{ frozen: true }} /> },
+  // Row 3 — play & assisted
+  { r: 2, c: 0, id: '3a', t: 'Red light · Bold', d: 'Warmth 100 (1200 K, no blue). Hue carries no meaning here; weight, brightness and the underline do.', hide: true, dim: true, init: { glow: 22, warmth: 100, clarity: 2 }, render: (s, setS, pal) => <LiveGame seed={{ ...seeded('medium', 14), vals: (() => { const g = seeded('medium', 14); const v = g.vals.slice(); const i = v.findIndex(x => !x); v[i] = (g.sol[i] % 9) + 1; return v; })() }} s={s} pal={pal} demo={{ frozen: true }} /> },
+  { r: 2, c: 1, id: '3b', t: 'Hint, step 3: Why', d: 'The proof cells are ringed. The button says up front that placing the digit makes this solve assisted.', hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={seeded('easy', 4)} s={s} pal={pal} demo={{ hint: 3, frozen: true }} /> },
+  { r: 2, c: 2, id: '3c', t: 'Solved — assisted', d: 'Keeps the streak, doesn’t set a best time. Goodnight ends on black.', hide: true, dim: true, render: (s, setS, pal) => { const g = newGame('easy'); return <LiveGame seed={{ ...g, vals: g.sol.slice(), done: true, assisted: true, hints: 2, elapsed: 384 }} s={s} pal={pal} demo={{ frozen: true }} />; } },
+  { r: 2, c: 3, id: '3d', t: 'Journal shows assisted solves', d: 'One quiet line explains it. No penalties shown.', init: { appearance: 'day' }, render: (s, setS, pal) => <div style={{ position: 'absolute', inset: 0 }}><JournalScreen stats={STATS} settings={s} setS={setS} openNight={noop} onOpenDisplay={noop} /><TabBar tab="journal" setTab={noop} /></div> },
+];
+const ROWS = [
+  ['First night', 'The first time it’s dark, he tunes the screen before playing. Each phone below works — tap around.'],
+  ['Display & Night settings', 'Two ways in: the moon (a quick sheet, from anywhere) and Journal → Display & Night (the full page). One settings model behind both.'],
+  ['Playing at night, and assisted solves', 'Hint steps 1–3 are free. Placing a digit marks the solve as assisted.'],
+];
+
+function Board() {
+  return (
+    <div style={{ position: 'relative', width: COL(5), height: ROW(3) }}>
+      {ROWS.map(([t, d], i) => <div key={t} className="fl-row" style={{ top: ROW(i) - 200 }}>{t}<small>{d}</small></div>)}
+      {FRAMES.map(f => (
+        <React.Fragment key={f.id}>
+          <div id={f.id} className="fl-lbl" style={{ left: COL(f.c), top: ROW(f.r) - 74 }}><b>{f.id}</b>{f.t}<span>{f.d}</span></div>
+          <div style={{ position: 'absolute', left: COL(f.c), top: ROW(f.r) }}><Frame init={f.init} hideStatus={f.hide} dim={f.dim} render={f.render} /></div>
+          {f.r === 0 && f.c < 4 && <div className="fl-arrow" style={{ left: COL(f.c) + 432, top: ROW(0) + 434 }}></div>}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<Board />);
+</script>
+</body>
+</html>

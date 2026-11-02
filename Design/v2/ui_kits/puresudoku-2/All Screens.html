@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="design_doc_mode" content="canvas">
+<title>Pure Sudoku 2 — All screens</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="ps2.css">
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+a{color:#9A5712}a:hover{color:#1B1A17}
+.as-sec{position:absolute;left:80px;font-size:44px;font-weight:600;letter-spacing:-.01em;color:#1B1A17}
+.as-sec small{display:block;font-size:20px;font-weight:400;color:#57534B;margin-top:8px;max-width:1600px}
+.as-lbl{position:absolute;width:414px;font-size:17px;color:#1B1A17;line-height:1.35}
+.as-lbl b{display:inline-flex;align-items:center;justify-content:center;min-width:36px;height:26px;padding:0 8px;border-radius:13px;background:#1B1A17;color:#F4F1E9;font-size:14px;margin-right:8px;box-sizing:border-box}
+.as-lbl span{display:block;color:#57534B;font-size:15px;margin-top:4px}
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="engine.js"></script>
+<script src="night.js"></script>
+<script src="../../assets/app-icon/icon.js"></script>
+<script type="text/babel" src="Primitives.jsx"></script>
+<script type="text/babel" src="GameScreen.jsx"></script>
+<script type="text/babel" src="Screens.jsx"></script>
+<script type="text/babel" src="NightSheet.jsx"></script>
+<script type="text/babel" src="Learn.jsx"></script>
+<script type="text/babel" src="Display.jsx"></script>
+<script type="text/babel" src="Import.jsx"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+const STATS = { streak: 6, assisted: 3, best: { easy: 252, medium: 498, hard: 1104, expert: 1986 }, typical: { easy: 341, medium: 702, hard: 1530, expert: 2410 }, solved: { easy: 24, medium: 13, hard: 5, expert: 2 } };
+const BASE = { appearance: 'night', glow: 42, warmth: 62, clarity: 0, drift: true, mistakes: 'immediate', autoRemove: true, showTimer: true, glowFloor: 14, calibrated: true, notation: 'plain' };
+const DAY = { appearance: 'day' };
+const noop = () => {};
+
+function seeded(diff, filled, extra = {}) {
+  const g = newGame(diff); let n = 0;
+  for (let i = 0; i < 81 && n < filled; i++) if (!g.vals[i]) { g.vals[i] = g.sol[i]; n++; }
+  return { ...g, elapsed: 412, touched: 1, ...extra };
+}
+function withNotes(g) {
+  const E = window.PSEngine, notes = g.notes.slice(); let n = 0;
+  for (let i = 0; i < 81 && n < 22; i++) if (!g.vals[i]) { notes[i] = E.candMask(g.vals, i); n++; }
+  return { ...g, notes };
+}
+function withWrong(g) { const v = g.vals.slice(); const i = v.findIndex(x => !x); v[i] = (g.sol[i] % 9) + 1; return { ...g, vals: v }; }
+
+function Frame({ init, hideStatus, dim, render }) {
+  const [s, setSt] = useState({ ...BASE, ...init });
+  const setS = p => setSt(x => ({ ...x, ...p }));
+  const eff = { ...s, appearance: s.appearance === 'auto' ? 'night' : s.appearance === 'system' ? 'day' : s.appearance };
+  const pal = PSNight.palette(eff);
+  return <div className="ps-root" data-mode={pal.mode} style={pal.vars}><PhoneFrame hideStatus={hideStatus} dimChrome={dim}>{render(s, setS, pal)}</PhoneFrame></div>;
+}
+function LiveGame({ seed, s, pal, demo }) {
+  const [g, setG] = useState(seed);
+  return <GameScreen game={g} setGame={setG} settings={s} pal={pal} onBack={noop} openNight={noop} onHush={noop} onLesson={noop} onGoodnight={noop} onNew={noop} demo={{ frozen: true, ...demo }} />;
+}
+const Tabs = ({ tab, children }) => <React.Fragment>{children}<TabBar tab={tab} setTab={noop} /></React.Fragment>;
+const Black = ({ text, serif }) => <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><span className={serif ? 'ps-serif' : ''} style={{ color: 'var(--ink3)', fontSize: serif ? 30 : 13 }}>{text}</span></div>;
+
+function HomeScreenMock({ night }) {
+  const ph = n => [...Array(n)].map((_, i) => <div key={i} style={{ width: 64, height: 64, borderRadius: 15, background: night ? '#1c1c1e' : 'rgba(255,255,255,.55)' }}></div>);
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: night ? 'radial-gradient(120% 80% at 50% 0%, #1b1410 0%, #000 70%)' : 'radial-gradient(120% 80% at 50% 0%, #f3e6cf 0%, #cdbfa6 100%)', padding: '96px 28px 0' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,64px)', justifyContent: 'space-between', rowGap: 28 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 64 }}>
+          <span dangerouslySetInnerHTML={{ __html: PSIcon(night ? 'dark' : 'light', 64) }} style={{ display: 'block', width: 64, height: 64 }}></span>
+          <span style={{ fontSize: 11.5, color: night ? '#cfcfcf' : '#1B1A17', whiteSpace: 'nowrap' }}>Pure Sudoku</span>
+        </div>
+        {ph(7)}
+      </div>
+      <div style={{ position: 'absolute', left: 14, right: 14, bottom: 22, height: 92, borderRadius: 32, background: night ? 'rgba(40,40,42,.6)' : 'rgba(255,255,255,.35)', display: 'flex', alignItems: 'center', justifyContent: 'space-around', padding: '0 14px' }}>{ph(4)}</div>
+    </div>
+  );
+}
+
+const SECTIONS = [
+  ['Arrive', 'The icon, launch and first night.', [
+    ['1.1', 'Home screen · night', 'Dark icon variant: the lit cell reads even at 60 pt.', { hide: false, render: () => <HomeScreenMock night /> }],
+    ['1.2', 'Home screen · day', 'Light icon variant.', { init: DAY, render: () => <HomeScreenMock /> }],
+    ['1.3', 'Launch', 'Always black. Day fades up from black over 300 ms.', { hide: true, render: () => <Black text="Pure Sudoku" serif /> }],
+    ['1.4', 'First night · welcome', 'Shown once, the first time Night is on.', { init: { calibrated: false, glow: 30 }, render: (s, setS, pal) => <FirstNight settings={s} setS={setS} pal={pal} onDone={noop} /> }],
+    ['1.5', 'Find my lowest glow', 'Tap the faintest digit you can read without effort.', { init: { calibrated: false, glow: 30 }, render: (s, setS, pal) => <FirstNight settings={s} setS={setS} pal={pal} onDone={noop} initialStep="cal" initialPick={6} /> }],
+    ['1.6', 'Result', 'The pick becomes the glow floor.', { init: { glow: 10, glowFloor: 6 }, render: (s, setS, pal) => <FirstNight settings={s} setS={setS} pal={pal} onDone={noop} initialStep="done" /> }],
+  ]],
+  ['Play', 'Home and the game screen, night and day.', [
+    ['2.1', 'Home · night', 'Continue card first. Five levels, each labelled with what it needs.', { render: (s, setS, pal) => <Tabs tab="play"><HomeScreen games={{ medium: seeded('medium', 14) }} onPlay={noop} openNight={noop} pal={pal} stats={STATS} /></Tabs> }],
+    ['2.2', 'Home · day', 'The same layout on warm paper.', { init: DAY, render: (s, setS, pal) => <Tabs tab="play"><HomeScreen games={{ medium: seeded('medium', 14) }} onPlay={noop} openNight={noop} pal={pal} stats={STATS} /></Tabs> }],
+    ['2.3', 'Game · night', 'Status bar hidden. Only digits and hairlines are lit.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={seeded('hard', 6)} s={s} pal={pal} /> }],
+    ['2.4', 'Game · notes on', 'Keys show each digit in its pencil-mark position.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={withNotes(seeded('medium', 10))} s={s} pal={pal} demo={{ notes: true }} /> }],
+    ['2.5', 'Game · day', 'Filled selection and same-digit highlights are fine in daylight.', { init: DAY, render: (s, setS, pal) => <LiveGame seed={withNotes(seeded('medium', 10))} s={s} pal={pal} /> }],
+    ['2.6', 'More menu', 'Check puzzle, Fill all notes, Restart, Hush.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={seeded('hard', 6)} s={s} pal={pal} demo={{ menu: true }} /> }],
+    ['2.7', 'Paused', 'Tap the timer. The board is hidden so it can’t be studied for free.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={seeded('hard', 6)} s={s} pal={pal} demo={{ paused: true }} /> }],
+  ]],
+  ['Hints & endings', 'Three free steps, then Place (assisted). Endings never flash.', [
+    ['3.1', 'Hint 1 · Where', 'Spotlights one unit.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={seeded('easy', 4)} s={s} pal={pal} demo={{ hint: 1 }} /> }],
+    ['3.2', 'Hint 2 · Which', 'Technique name, tier, a one-line definition, and a link to the lesson.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={seeded('easy', 4)} s={s} pal={pal} demo={{ hint: 2 }} /> }],
+    ['3.3', 'Hint 3 · Why', 'Proof cells ringed; the target is dashed and shows a ghost digit.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={seeded('easy', 4)} s={s} pal={pal} demo={{ hint: 3 }} /> }],
+    ['3.4', 'Hint 3 · R5C2 names', 'Cell names set to grid codes in Journal → Assists.', { hide: true, dim: true, init: { notation: 'grid' }, render: (s, setS, pal) => <LiveGame seed={seeded('easy', 4)} s={s} pal={pal} demo={{ hint: 3 }} /> }],
+    ['3.5', 'Mistake hint', 'A wrong entry is always the first hint.', { hide: true, dim: true, render: (s, setS, pal) => <LiveGame seed={withWrong(seeded('easy', 4))} s={s} pal={pal} demo={{ hint: 2 }} /> }],
+    ['3.6', 'Solved · assisted', 'Keeps the streak, sets no best time.', { hide: true, dim: true, render: (s, setS, pal) => { const g = newGame('easy'); return <LiveGame seed={{ ...g, vals: g.sol.slice(), done: true, assisted: true, hints: 2, elapsed: 384 }} s={s} pal={pal} />; } }],
+    ['3.7', 'Hush', 'Two-finger tap anywhere. Pure black; the hint text fades in 3 s.', { hide: true, render: () => <Black text="Tap anywhere to return" /> }],
+    ['3.8', 'Goodnight', 'Ends the session on black.', { hide: true, render: () => <Black text="Sleep well." serif /> }],
+  ]],
+  ['Night & Display', 'The moon sheet from anywhere, and the full settings page.', [
+    ['4.1', 'Moon sheet', 'Presets, Glow, Warmth, Clarity, Drift. The game behind repaints live.', { hide: true, dim: true, init: { glow: 30, warmth: 66 }, render: (s, setS, pal) => <React.Fragment><LiveGame seed={seeded('hard', 6)} s={s} pal={pal} /><NightSheet settings={s} setS={setS} pal={pal} onClose={noop} /></React.Fragment> }],
+    ['4.2', 'Moon sheet · check glow', 'Re-run the glow check any night.', { hide: true, init: { glow: 30 }, render: (s, setS, pal) => <React.Fragment><LiveGame seed={seeded('hard', 6)} s={s} pal={pal} /><NightSheet settings={s} setS={setS} pal={pal} onClose={noop} initialCal /></React.Fragment> }],
+    ['4.3', 'Display & Night · day', 'Four appearances and a live preview strip.', { init: DAY, render: (s, setS, pal) => <DisplaySettings settings={s} setS={setS} pal={pal} onBack={noop} onCalibrate={noop} /> }],
+    ['4.4', 'Display & Night · after dark', 'Sunset to sunrise from local time; fixed hours without location.', { init: { appearance: 'auto', glow: 34, warmth: 60 }, render: (s, setS, pal) => <DisplaySettings settings={s} setS={setS} pal={pal} onBack={noop} onCalibrate={noop} /> }],
+    ['4.5', 'Red light · Bold', '1200 K, no blue. Meaning comes from weight, brightness and the underline.', { hide: true, dim: true, init: { glow: 22, warmth: 100, clarity: 2 }, render: (s, setS, pal) => <LiveGame seed={withWrong(seeded('medium', 14))} s={s} pal={pal} /> }],
+    ['4.6', 'Reading lamp', 'Glow 55, warmth 45, 2200 K.', { hide: true, dim: true, init: { glow: 55, warmth: 45 }, render: (s, setS, pal) => <LiveGame seed={seeded('medium', 14)} s={s} pal={pal} /> }],
+  ]],
+  ['Learn', '17 techniques in 5 tiers. Lessons use the real board.', [
+    ['5.1', 'Learn · night', 'Up next card, then tiers with progress dots.', { render: (s, setS, pal) => <Tabs tab="learn"><LearnScreen openNight={noop} openLesson={noop} /></Tabs> }],
+    ['5.2', 'Learn · day', '', { init: DAY, render: (s, setS, pal) => <Tabs tab="learn"><LearnScreen openNight={noop} openLesson={noop} /></Tabs> }],
+    ['5.3', 'Lesson · Hidden Single 3/5', 'Ringed blockers, dotted ruled-out cells.', { render: (s, setS, pal) => <LessonScreen name="Hidden Single" pal={pal} onBack={noop} onPractice={noop} initialStep={2} /> }],
+    ['5.4', 'Lesson · Naked Pair 3/4', 'Struck-through candidates.', { init: DAY, render: (s, setS, pal) => <LessonScreen name="Naked Pair" pal={pal} onBack={noop} onPractice={noop} initialStep={2} /> }],
+    ['5.5', 'Lesson · X-Wing 4/4', 'Ends with Practise at the level that needs it.', { render: (s, setS, pal) => <LessonScreen name="X-Wing" pal={pal} onBack={noop} onPractice={noop} initialStep={3} /> }],
+    ['5.6', 'Lesson in progress', 'Template for the remaining 13 lessons.', { render: (s, setS, pal) => <LessonScreen name="Swordfish" pal={pal} onBack={noop} onPractice={noop} /> }],
+  ]],
+  ['Journal & Import', 'Stats, assists and settings; bringing in a puzzle from paper.', [
+    ['6.1', 'Journal · night', 'Streak, week, solved table, assisted count.', { render: (s, setS, pal) => <Tabs tab="journal"><JournalScreen stats={STATS} settings={s} setS={setS} openNight={noop} onOpenDisplay={noop} /></Tabs> }],
+    ['6.2', 'Journal · day', 'Settings → Display & Night; Assists, including cell names.', { init: DAY, render: (s, setS, pal) => <Tabs tab="journal"><JournalScreen stats={STATS} settings={s} setS={setS} openNight={noop} onOpenDisplay={noop} /></Tabs> }],
+    ['6.3', 'Import · source', 'Camera, Photos, or type it in.', { render: (s, setS, pal) => <ImportSource onBack={noop} /> }],
+    ['6.4', 'Import · reading', 'Grid found and squared up on the device. Image area is a placeholder.', { render: () => <ImportReading /> }],
+    ['6.5', 'Import · check the grid', 'Unsure cells ringed, conflicts underlined. Start unlocks when solvable.', { init: DAY, render: (s, setS, pal) => <ImportReview pal={pal} onBack={noop} /> }],
+  ]],
+];
+
+const COLW = 470, ROWH = 1200, TOP = 260;
+function AllScreens() {
+  const maxCols = Math.max(...SECTIONS.map(s => s[2].length));
+  return (
+    <div style={{ position: 'relative', width: 80 * 2 + maxCols * COLW, height: TOP + SECTIONS.length * ROWH }}>
+      {SECTIONS.map(([title, sub, frames], r) => (
+        <React.Fragment key={title}>
+          <div className="as-sec" style={{ top: TOP + r * ROWH - 210 }}>{title}<small>{sub}</small></div>
+          {frames.map(([id, t, d, f], c) => (
+            <React.Fragment key={id}>
+              <div id={id.replace('.', '-')} className="as-lbl" style={{ left: 80 + c * COLW, top: TOP + r * ROWH - 80 }}><b>{id}</b>{t}{d && <span>{d}</span>}</div>
+              <div style={{ position: 'absolute', left: 80 + c * COLW, top: TOP + r * ROWH }}><Frame init={f.init} hideStatus={f.hide} dim={f.dim} render={f.render} /></div>
+            </React.Fragment>
+          ))}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<AllScreens />);
+</script>
+</body>
+</html>

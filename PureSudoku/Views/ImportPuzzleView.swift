@@ -5,6 +5,7 @@ import UIKit
 struct ImportPuzzleView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var controller: AppController
+    @Environment(\.psPalette) private var palette
     @StateObject private var viewModel: ImportPuzzleViewModel
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showCamera = false
@@ -16,7 +17,7 @@ struct ImportPuzzleView: View {
     }
 
     var body: some View {
-        let theme = controller.settings.themeColors
+        let theme = palette
         ScrollView {
             VStack(spacing: 18) {
                 imageSection(theme: theme)
@@ -28,7 +29,7 @@ struct ImportPuzzleView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
-        .background(theme.background.ignoresSafeArea())
+        .background(theme.bg.ignoresSafeArea())
         .themedTitle("Import Puzzle")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -65,11 +66,11 @@ struct ImportPuzzleView: View {
     }
 
     @ViewBuilder
-    private func imageSection(theme: ThemeColors) -> some View {
+    private func imageSection(theme: PSPalette) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Puzzle Photo")
                 .font(.headline)
-                .foregroundColor(theme.primaryText)
+                .foregroundColor(theme.ink)
             if let image = viewModel.image {
                 Image(uiImage: image)
                     .resizable()
@@ -78,20 +79,20 @@ struct ImportPuzzleView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(theme.gridLine.opacity(0.4), lineWidth: 1)
+                            .stroke(theme.lineMajor.opacity(0.4), lineWidth: 1)
                     )
                 if viewModel.isDetecting {
                     Text("Detecting grid…")
                         .font(.footnote)
-                        .foregroundColor(theme.secondaryText)
+                        .foregroundColor(theme.ink2)
                 }
             } else {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(theme.cardBackground)
+                    .fill(theme.surface)
                     .frame(height: 160)
                     .overlay(
                         Text("Add a photo or screenshot")
-                            .foregroundColor(theme.secondaryText)
+                            .foregroundColor(theme.ink2)
                     )
             }
             HStack(spacing: 12) {
@@ -115,11 +116,11 @@ struct ImportPuzzleView: View {
     }
 
     @ViewBuilder
-    private func gridSection(theme: ThemeColors) -> some View {
+    private func gridSection(theme: PSPalette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Review & Edit")
                 .font(.headline)
-                .foregroundColor(theme.primaryText)
+                .foregroundColor(theme.ink)
             SudokuGridView(
                 cells: viewModel.displayCells(),
                 selectedCellID: viewModel.selectedIndex.map { viewModel.cellIDs[$0] },
@@ -136,7 +137,7 @@ struct ImportPuzzleView: View {
     }
 
     @ViewBuilder
-    private func numberPadSection(theme: ThemeColors) -> some View {
+    private func numberPadSection(theme: PSPalette) -> some View {
         NumberPadView(
             theme: theme,
             disabledDigits: [],
@@ -148,33 +149,33 @@ struct ImportPuzzleView: View {
     }
 
     @ViewBuilder
-    private func validationSection(theme: ThemeColors) -> some View {
+    private func validationSection(theme: PSPalette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if let message = viewModel.detectionMessage {
                 Text(message)
                     .font(.footnote)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundColor(theme.ink2)
             }
             Text(viewModel.validationMessage)
                 .font(.footnote)
-                .foregroundColor(viewModel.canStart ? theme.secondaryText : theme.error)
+                .foregroundColor(viewModel.canStart ? theme.ink2 : theme.err)
             if !viewModel.conflictIndices.isEmpty {
                 Text("Tap a cell to correct duplicates.")
                     .font(.footnote)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundColor(theme.ink2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
-    private func actionSection(theme: ThemeColors) -> some View {
+    private func actionSection(theme: PSPalette) -> some View {
         HStack(spacing: 12) {
             Button("Clear All") {
                 viewModel.clearAll()
             }
             .buttonStyle(.bordered)
-            .tint(theme.secondaryText)
+            .tint(theme.ink2)
 
             Button("Start Puzzle") {
                 if let game = viewModel.createImportedGame() {

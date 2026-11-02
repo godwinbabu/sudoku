@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="design_doc_mode" content="canvas">
+<title>PureSudoku — App icon options</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&display=swap" rel="stylesheet">
+<script src="icon.js"></script>
+<script src="icon-options.js"></script>
+<style>
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;color:#1B1A17}
+a{color:#9A5712}a:hover{color:#1B1A17}
+.opt{position:absolute;width:560px}
+.opt h2{margin:0 0 6px;font-size:26px;font-weight:600;display:flex;align-items:center;gap:10px}
+.opt h2 b{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:28px;border-radius:14px;background:#1B1A17;color:#F4F1E9;font-size:15px}
+.opt p{margin:0 0 22px;font-size:16px;line-height:1.45;color:#57534B;max-width:520px}
+.big svg{display:block;filter:drop-shadow(0 14px 30px rgba(0,0,0,.25))}
+.sizes{display:flex;gap:16px;align-items:flex-end;margin-top:26px}
+.sizes div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:#8A857A}
+.home{margin-top:26px;width:360px;height:150px;border-radius:26px;background:radial-gradient(120% 120% at 50% 0%,#1b1410,#000);display:flex;align-items:center;gap:22px;padding:0 26px;box-sizing:border-box}
+.home .ph{width:60px;height:60px;border-radius:14px;background:#1c1c1e}
+.home .me{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:#cfcfcf}
+.title{position:absolute;left:80px;top:60px;font-size:44px;font-weight:600;letter-spacing:-.01em}
+.title small{display:block;font-size:20px;font-weight:400;color:#57534B;margin-top:8px}
+</style></head>
+<body>
+<div style="position:relative;width:3200px;height:3700px">
+<div class="title">Round 2 — icons that teach<small>Each one borrows a mark the app actually uses to teach: technique patterns, struck-through candidates, the hint rings, the tier bars.</small></div>
+<div id="learn"></div>
+<div class="title" style="top:1860px">Round 1 — 5 options<small>Each shown large, at real sizes, and on a night home screen. All are dark-first; each can get light and tinted versions like the current one.</small></div>
+<div id="opts"></div>
+</div>
+<script>
+const OPTS=[
+ ['1a','moon','Moon over the grid','A warm crescent cut from the night, with the box lines showing through. It says bedtime first, Sudoku second.'],
+ ['1b','lastcell','The last cell','Eight solved cells in dim ink and one lit empty square: the moment before the answer. At 29 pt it reduces to one warm square.'],
+ ['1c','numeral','The numeral','A single cropped serif 9 over faint grid lines. Editorial and confident, like a magazine cover. The strongest silhouette.'],
+ ['1d','ember','Ember','Pencil-mark dots with one glowing at the centre. The quietest option, and it reads at every size.'],
+ ['1e','window','Lit window','A 3×3 window at night with one pane lit and a small moon. Someone is awake, quietly. The most narrative option.'],
+ ];
+const LEARN=[
+ ['2a','xwing','The X-Wing','Four lit candidates locking a rectangle, joined by an X: the first technique that feels like a real discovery. A pattern, not a puzzle.'],
+ ['2b','resolve','Notes to answer','Candidates 1, 3, 7 and 9 struck through, leaving a glowing 5. Deduction in one image — what every hint teaches.'],
+ ['2c','hintring','The hint — chosen','The app’s own teaching marks: proof cells in solid rings, the answer in a dashed ring. Dashes are now equal: four identical curved corner dashes and four straight ones.'],
+ ['2d','ladder','The ladder','The five tier bars from Home, climbing toward a lit top step. About getting better, with a faint path up.'],
+ ['2e','book','The workbook','An open book whose pages are Sudoku boxes, one cell lit. The most literal option: you learn here.'],
+];
+function place(list,rootId,top){const root=document.getElementById(rootId);list.forEach(([id,k,t,d],i)=>{
+ const svg=s=>k==='current'?PSIcon('dark',s):PSIconAlt(k,s);
+ const x=80+(i%3)*640, y=top+Math.floor(i/3)*840;
+ root.insertAdjacentHTML('beforeend',`<div class="opt" id="opt-${id}" style="left:${x}px;top:${y}px"><h2><b>${id}</b>${t}</h2><p>${d}</p>
+ <div class="big">${svg(300)}</div>
+ <div class="sizes">${[120,87,60,40,29].map(s=>`<div>${svg(s)}<span>${s}</span></div>`).join('')}</div>
+ <div class="home"><div class="me">${svg(60)}<span>Pure Sudoku</span></div><div class="ph"></div><div class="ph"></div><div class="ph"></div></div></div>`);
+});}
+place(LEARN,'learn',230);
+place(OPTS,'opts',2030);
+</script>
+</body></html>
