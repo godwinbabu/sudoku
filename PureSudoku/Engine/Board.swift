@@ -39,6 +39,11 @@ enum Board {
         return set
     }
 
+    /// True if a digit repeats in a row, column or box.
+    static func hasContradiction(_ board: GeneratorBoard) -> Bool {
+        !conflictingPositions(in: board).isEmpty
+    }
+
     /// Every position whose digit repeats in its row, column or box.
     static func conflictingPositions(in board: GeneratorBoard) -> Set<Int> {
         var conflicts: Set<Int> = []

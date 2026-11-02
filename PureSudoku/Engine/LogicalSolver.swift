@@ -4,11 +4,15 @@ import Foundation
 /// (`Technique.allCases`) and returns the simplest step that changes the board. The same loop
 /// drives hints, grading and drills.
 struct LogicalSolver {
+    /// False for puzzles that may have several solutions: uniqueness techniques are skipped
+    /// (CODESPEC 2.1).
+    var allowsUniqueness = true
+
     /// The simplest step available on `board`, or nil if the board is solved, contradictory, or
     /// needs a technique the solver does not know yet.
     func nextStep(_ board: SolverBoard) -> TechniqueStep? {
         guard !board.isSolved, !board.hasContradiction else { return nil }
-        for technique in Technique.allCases {
+        for technique in Technique.allCases where allowsUniqueness || !technique.needsUniqueSolution {
             let found = Self.steps(for: technique, on: board).filter { $0.changeCount > 0 }
             if let best = found.min(by: Self.isPreferred) { return best }
         }
@@ -33,26 +37,39 @@ struct LogicalSolver {
     }
 
     static func steps(for technique: Technique, on board: SolverBoard) -> [TechniqueStep] {
-        switch technique {
-        case .fullHouse: return SinglesDetector.fullHouses(board)
-        case .hiddenSingleBox: return SinglesDetector.hiddenSingles(board, in: House.boxes, technique: .hiddenSingleBox)
-        case .hiddenSingleLine: return SinglesDetector.hiddenSingles(board, in: House.lines, technique: .hiddenSingleLine)
-        case .nakedSingle: return SinglesDetector.nakedSingles(board)
-        case .pointing: return IntersectionDetector.pointing(board)
-        case .claiming: return IntersectionDetector.claiming(board)
-        case .lockedPair: return SubsetDetector.locked(board, size: 2)
-        case .lockedTriple: return SubsetDetector.locked(board, size: 3)
-        case .nakedPair: return SubsetDetector.naked(board, size: 2)
-        case .hiddenPair: return SubsetDetector.hidden(board, size: 2)
-        case .nakedTriple: return SubsetDetector.naked(board, size: 3)
-        case .hiddenTriple: return SubsetDetector.hidden(board, size: 3)
-        case .nakedQuad: return SubsetDetector.naked(board, size: 4)
-        case .hiddenQuad: return SubsetDetector.hidden(board, size: 4)
-        case .xWing: return FishDetector.fish(board, size: 2)
-        case .swordfish: return FishDetector.fish(board, size: 3)
-        case .xyWing: return WingDetector.xyWings(board)
-        }
+        detectors[technique]?(board) ?? []
     }
+
+    /// One detector per technique (HINT_STRATEGIES.md gives the order, `Technique.allCases`).
+    static let detectors: [Technique: (SolverBoard) -> [TechniqueStep]] = [
+        .fullHouse: SinglesDetector.fullHouses,
+        .hiddenSingleBox: { SinglesDetector.hiddenSingles($0, in: House.boxes, technique: .hiddenSingleBox) },
+        .hiddenSingleLine: { SinglesDetector.hiddenSingles($0, in: House.lines, technique: .hiddenSingleLine) },
+        .nakedSingle: SinglesDetector.nakedSingles,
+        .pointing: IntersectionDetector.pointing,
+        .claiming: IntersectionDetector.claiming,
+        .lockedPair: { SubsetDetector.locked($0, size: 2) },
+        .lockedTriple: { SubsetDetector.locked($0, size: 3) },
+        .nakedPair: { SubsetDetector.naked($0, size: 2) },
+        .hiddenPair: { SubsetDetector.hidden($0, size: 2) },
+        .nakedTriple: { SubsetDetector.naked($0, size: 3) },
+        .hiddenTriple: { SubsetDetector.hidden($0, size: 3) },
+        .nakedQuad: { SubsetDetector.naked($0, size: 4) },
+        .hiddenQuad: { SubsetDetector.hidden($0, size: 4) },
+        .xWing: { FishDetector.fish($0, size: 2) },
+        .skyscraper: SingleDigitDetector.skyscrapers,
+        .twoStringKite: SingleDigitDetector.twoStringKites,
+        .emptyRectangle: SingleDigitDetector.emptyRectangles,
+        .swordfish: { FishDetector.fish($0, size: 3) },
+        .xyWing: WingDetector.xyWings,
+        .xyzWing: MoreWingsDetector.xyzWings,
+        .wWing: MoreWingsDetector.wWings,
+        .simpleColoring: ColoringDetector.simpleColoring,
+        .uniqueRectangle1: { UniquenessDetector.uniqueRectangles($0, type: 1) },
+        .uniqueRectangle2: { UniquenessDetector.uniqueRectangles($0, type: 2) },
+        .uniqueRectangle4: { UniquenessDetector.uniqueRectangles($0, type: 4) },
+        .bugPlusOne: UniquenessDetector.bugPlusOne
+    ]
 
     /// Deterministic choice between steps of one technique: fewest pattern cells, then most changes,
     /// then lowest cells, then lowest houses. Never depends on Set or Dictionary order.

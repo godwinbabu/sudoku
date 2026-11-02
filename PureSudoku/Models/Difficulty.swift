@@ -14,4 +14,13 @@ enum Difficulty: String, Codable, CaseIterable, Identifiable {
         case .hard: return "Hard"
         }
     }
+
+    /// The techniques a level needs (CODESPEC 1, 2.2), shown under its button.
+    var techniqueSummary: String {
+        switch self {
+        case .easy: return "Singles"
+        case .medium: return "Singles, pointing, claiming, pairs, triples, quads"
+        case .hard: return "Medium, then X-Wing, Skyscraper, wings, coloring"
+        }
+    }
 }

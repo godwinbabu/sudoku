@@ -6,11 +6,24 @@ final class GameViewModel: ObservableObject {
     @Published var selectedCellID: UUID?
     @Published var inputMode: InputMode
     @Published var showTimer: Bool
-    @Published var hintMessage: String?
+    /// The open hint, if any (CODESPEC 6.3.1).
+    @Published private(set) var hint: HintSession?
 
     var onCompletion: ((GameState) -> Void)?
     var onNewGame: (() async -> GameState?)?
     var onSave: ((GameState) -> Void)?
+    /// Learning (CODESPEC 13.4): the player found a technique without a hint (technique, puzzle id).
+    var onTechniqueFound: (@MainActor (Technique, String) -> Void)?
+    var onHintShown: ((Technique) -> Void)?
+    /// How well the player knows a technique; sets where a hint opens (CODESPEC 6.3.1 fading).
+    var learningLevel: ((Technique) -> TechniqueProgress.Level)?
+    /// Practice game from a lesson: not saved, no stats, no New Puzzle (CODESPEC 13.5).
+    var isPractice = false
+    /// Techniques hinted in this puzzle (this session); with the saved hint log, finding them earns no credit.
+    private var hintedThisPuzzle: Set<Technique> = []
+    private var hintedTechniques: Set<Technique> {
+        hintedThisPuzzle.union(state.hintLog.compactMap { Technique(rawValue: $0.technique) })
+    }
 
     @Published var pendingAction: PendingAction?
     @Published private(set) var canUndo: Bool = false
@@ -214,7 +227,7 @@ final class GameViewModel: ObservableObject {
         checkedWrongIDs.remove(cellID)
         newState.cells[index].isVerifiedCorrect = false
         self.state = newState
-        self.hintMessage = nil
+        endHint()
         
         updateAutoCheckHighlights()
         refreshCandidateOverlayIfNeeded()
@@ -224,7 +237,17 @@ final class GameViewModel: ObservableObject {
     func setDigit(_ digit: Int) {
         guard (1...9).contains(digit), let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
+        let before = SolverBoard(cells: state.cells)
+        let cellIndex = state.cells[index].index
+        let removesNote = inputMode == .candidate && state.cells[index].candidates.contains(digit)
         recordUndoPoint()
+        defer {
+            if inputMode == .normal {
+                judgeMove(.placed(cell: cellIndex, digit: digit), before: before)
+            } else if removesNote {
+                judgeMove(.removedCandidate(cell: cellIndex, digit: digit), before: before)
+            }
+        }
 
         var newState = self.state
         switch inputMode {
@@ -238,7 +261,7 @@ final class GameViewModel: ObservableObject {
                 newState.cells = removeCandidate(digit, relatedTo: newState.cells[index], from: newState.cells)
             }
             self.state = newState
-            self.hintMessage = nil
+            endHint()
             updateAutoCheckHighlights()
             checkIfSolved()
             updateCanUndo()
@@ -251,7 +274,7 @@ final class GameViewModel: ObservableObject {
                 newState.cells[index].candidates.insert(digit)
             }
             self.state = newState
-            self.hintMessage = nil
+            endHint()
             updateAutoCheckHighlights()
             updateCanUndo()
             refreshCandidateOverlayIfNeeded()
@@ -324,48 +347,15 @@ final class GameViewModel: ObservableObject {
         self.state = newState
     }
 
-    func requestHint() {
-        var aligned = state
-        let entriesFit = alignImportedSolution(&aligned)
-        state = aligned
-        if state.puzzle.source == .imported {
-            guard entriesFit else {
-                hintMessage = "Some of your entries don't fit together. Try undoing recent moves."
-                return
-            }
-        } else if let wrong = state.cells.first(where: { cell in
-            !cell.given && cell.value != nil && !validator.isCorrect(value: cell.value!, row: cell.row, col: cell.col, solution: state.puzzle.solutionGrid)
-        }) {
-            selectedCellID = wrong.id
-            hintMessage = "r\(wrong.row + 1)c\(wrong.col + 1) is not right. Fix it first."
-            return
-        }
-        let hint = hintService.hint(for: state.cells)
-        hintMessage = hint?.message
-
-        guard let hint else { return }
-        if hint.technique == .invalid {
-            markContradictionDetected()
-            return
-        }
-        guard let position = hint.positions.first else { return }
-        let row = position / 9
-        let col = position % 9
-        guard let index = state.cells.firstIndex(where: { $0.row == row && $0.col == col }) else { return }
-        selectedCellID = state.cells[index].id
-        if settings.autoFillHints {
-            revealCell(at: index, markUsedReveal: true, force: true)
-        }
-    }
-
     func revealCell() {
+        endHint()
         guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         revealCell(at: index, markUsedReveal: true)
     }
 
-    private func revealCell(at index: Int, markUsedReveal: Bool, force: Bool = false) {
+    private func revealCell(at index: Int, markUsedReveal: Bool) {
         guard index < state.cells.count else { return }
-        guard force || (!state.cells[index].given && !state.cells[index].isRevealed) else { return }
+        guard !state.cells[index].given && !state.cells[index].isRevealed else { return }
         recordUndoPoint()
 
         var newState = self.state
@@ -390,6 +380,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func revealPuzzle() {
+        endHint()
         guard !state.isCompleted else { return }
         recordUndoPoint()
         var newState = self.state
@@ -438,7 +429,7 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         self.inputMode = .normal
         self.selectedCellID = nil
-        self.hintMessage = nil
+        hint = nil // the old board's hint no longer applies
         undoStack.removeAll()
         updateCanUndo()
         candidateOverlay = [:]
@@ -460,6 +451,7 @@ final class GameViewModel: ObservableObject {
     func load(state newState: GameState) {
         _ = calculateAndStopTimer()
         checkedWrongIDs.removeAll()
+        hintedThisPuzzle.removeAll()
 
         var finalState = newState
         finalState.cells = finalState.cells.map { cell in
@@ -475,7 +467,7 @@ final class GameViewModel: ObservableObject {
         self.selectedCellID = nil
         self.inputMode = .normal
         self.showTimer = settings.showTimer
-        self.hintMessage = nil
+        hint = nil // the old board's hint no longer applies
         undoStack.removeAll()
         isTimerRunning = false
         isManuallyPaused = false
@@ -505,7 +497,7 @@ final class GameViewModel: ObservableObject {
                 if let newState = await self.onNewGame?() {
                     self.load(state: newState)
                 }
-                self.hintMessage = nil
+                self.hint = nil
                 self.isPreparingNewPuzzle = false
             case .reset:
                 self.resetPuzzle()
@@ -523,9 +515,11 @@ final class GameViewModel: ObservableObject {
         // Undo restores the board, not the clock or the fact that a reveal happened.
         previous.elapsedSeconds = state.elapsedSeconds
         previous.usedReveal = previous.usedReveal || state.usedReveal
+        previous.usedHint = previous.usedHint || state.usedHint
+        previous.hintLog = state.hintLog
         state = previous
         selectedCellID = nil
-        hintMessage = nil
+        endHint()
         pendingAction = nil
         updateAutoCheckHighlights()
         updateCanUndo()
@@ -633,7 +627,7 @@ final class GameViewModel: ObservableObject {
     }
 
     private func updateContradictionFlag(on state: inout GameState) {
-        state.hasContradiction = PureSudoku.hasContradiction(Board.from(cells: state.cells))
+        state.hasContradiction = Board.hasContradiction(Board.from(cells: state.cells))
     }
 
     private func markContradictionDetected() {
@@ -669,5 +663,176 @@ final class GameViewModel: ObservableObject {
             overlay[cell.id] = cell.candidates.union(Set(1...9).subtracting(seen))
         }
         return overlay
+    }
+}
+
+// MARK: - Hint ladder (CODESPEC 6.3.1)
+
+extension GameViewModel {
+    var hintHighlight: HintHighlight { hint?.highlight ?? HintHighlight() }
+
+    /// Opens a hint: a mistake check first, then the simplest technique on the player's board.
+    func requestHint() {
+        guard !state.isCompleted else { return }
+        endHint()
+        var aligned = state
+        let entriesFit = alignImportedSolution(&aligned)
+        state = aligned
+        if !entriesFit {
+            // TODO(phase 4): with hasUniqueSolution, a unique import can point at the wrong digit like a generated puzzle.
+            hint = HintSession(content: .mistake(cell: nil, kind: .entriesConflict))
+        } else if let mistake = firstMistake() {
+            hint = HintSession(content: .mistake(cell: mistake.cell, kind: mistake.kind))
+        } else {
+            let board = SolverBoard(cells: state.cells)
+            if let step = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).nextStep(board) {
+                // Fading: a technique the player has never met opens at "why", as a worked example.
+                let isNew = learningLevel?(step.technique) == .new
+                hint = HintSession(content: .step(step, board: board), opensAtRung: isNew ? 3 : 1, offersLesson: isNew)
+                if !hintedTechniques.contains(step.technique) { onHintShown?(step.technique) } // count each once per puzzle
+                hintedThisPuzzle.insert(step.technique)
+            } else {
+                hint = HintSession(content: .noStep(cell: revealTarget()))
+            }
+        }
+    }
+
+    func hintNext() {
+        guard var session = hint else { return }
+        if session.next(askFirst: settings.askBeforeHintResult) { markHintResultShown() }
+        hint = session
+        if case let .mistake(cell?, _) = session.content, session.rung == 2 { selectedCellID = cellID(at: cell) }
+    }
+
+    func hintShowResult() {
+        guard var session = hint, session.showResult() else { return }
+        hint = session
+        markHintResultShown()
+    }
+
+    func hintBack() {
+        hint?.back()
+    }
+
+    func hintToggleAfter() {
+        hint?.showsAfter.toggle()
+    }
+
+    /// Applies the hinted step as one undoable edit. Eliminations in cells without notes write the
+    /// cell's candidates first, so the deduction is kept and the next hint moves on.
+    func applyHint() {
+        guard let session = hint, session.canApply, case let .step(step, board) = session.content else { return }
+        recordUndoPoint()
+        var newState = state
+        let indexOf = Dictionary(uniqueKeysWithValues: newState.cells.indices.map { (newState.cells[$0].index, $0) })
+        for elimination in step.eliminations {
+            guard let index = indexOf[elimination.cell], newState.cells[index].value == nil else { continue }
+            if newState.cells[index].candidates.isEmpty {
+                newState.cells[index].candidates = Set(SolverBoard.digits(in: board.candidates[elimination.cell]))
+            }
+            newState.cells[index].candidates.remove(elimination.digit)
+        }
+        for placement in step.placements {
+            guard let index = indexOf[placement.cell], newState.cells[index].value == nil else { continue }
+            newState.cells[index].value = placement.digit
+            newState.cells[index].candidates.removeAll()
+            newState.cells[index].isError = false
+            newState.cells[index].isVerifiedCorrect = false
+            checkedWrongIDs.remove(newState.cells[index].id)
+            if settings.autoRemoveCandidates {
+                newState.cells = removeCandidate(placement.digit, relatedTo: newState.cells[index], from: newState.cells)
+            }
+        }
+        state = newState
+        endHint(applied: true)
+        updateAutoCheckHighlights()
+        checkIfSolved()
+        updateCanUndo()
+        refreshCandidateOverlayIfNeeded()
+        scheduleSave()
+    }
+
+    /// From the "no step found" hint: reveal the suggested cell.
+    func hintRevealCell() {
+        guard case let .noStep(cell?) = hint?.content, let id = cellID(at: cell) else { return }
+        endHint()
+        selectedCellID = id
+        revealCell()
+    }
+
+    /// Credits the technique a correct move shows (CODESPEC 13.4). Runs the detectors off the main
+    /// thread; a technique hinted since the last move earns nothing.
+    private func judgeMove(_ move: MasteryJudge.Move, before board: SolverBoard) {
+        // No credit for a technique hinted in this puzzle, or while the board has a mistake (a wrong
+        // digit can make a "single" that only looks found).
+        let hinted = hintedTechniques
+        guard let onTechniqueFound else { return }
+        let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
+        guard solution.count == 81 else { return }
+        // Cheap check first: the move itself must be right.
+        switch move {
+        case let .placed(cell, digit): guard solution[cell] == digit else { return }
+        case let .removedCandidate(cell, digit): guard solution[cell] != digit else { return }
+        }
+        guard firstMistake() == nil else { return }
+        let unique = state.puzzle.isUnique
+        let puzzleID = state.puzzle.id
+        Task.detached(priority: .utility) {
+            guard let technique = MasteryJudge.technique(for: move, on: board, allowsUniqueness: unique),
+                  !hinted.contains(technique) else { return }
+            await MainActor.run { onTechniqueFound(technique, puzzleID) }
+        }
+    }
+
+    /// Closes the open hint and records it in the hint log.
+    func endHint(applied: Bool = false) {
+        guard let session = hint else { return }
+        hint = nil
+        let name: String
+        switch session.content {
+        case .mistake: name = "mistake"
+        case .step(let step, _): name = step.technique.rawValue
+        case .noStep: name = "noStep"
+        }
+        state.hintLog.append(HintLogEntry(technique: name, deepestRung: session.deepestRung, applied: applied))
+    }
+
+    private func markHintResultShown() {
+        guard !state.usedHint else { return }
+        state.usedHint = true
+        scheduleSave()
+    }
+
+    /// Rung 0: a wrong digit, or notes that leave out the cell's digit. Empty cells without notes
+    /// and stale notes (digits already placed in a peer) are never mistakes.
+    private func firstMistake() -> (cell: Int, kind: HintSession.MistakeKind)? {
+        let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
+        guard solution.count == 81 else { return nil }
+        let cells = state.cells.sorted { $0.index < $1.index }
+        if let wrong = cells.first(where: { !$0.given && $0.value != nil && $0.value != solution[$0.index] }) {
+            return (wrong.index, .wrongDigit)
+        }
+        let suspects = cells.filter { $0.value == nil && !$0.candidates.isEmpty && !$0.candidates.contains(solution[$0.index]) }
+        // An import may have several solutions: a note is only wrong if none of its digits can work.
+        let missing = state.puzzle.source == .imported ? suspects.first { !anyNoteCanWork(in: $0) } : suspects.first
+        return missing.map { ($0.index, .missingNote) }
+    }
+
+    private func anyNoteCanWork(in cell: SudokuCell) -> Bool {
+        var grid = state.cells.sorted { $0.index < $1.index }.map { $0.value ?? 0 }
+        return cell.candidates.contains { digit in
+            grid[cell.index] = digit
+            return hintService.solve(initialGrid: grid.map(String.init).joined()) != nil
+        }
+    }
+
+    /// The cell Reveal would fill: the selected empty cell, else the first empty cell.
+    private func revealTarget() -> Int? {
+        if let id = selectedCellID, let cell = state.cells.first(where: { $0.id == id }), cell.value == nil { return cell.index }
+        return state.cells.filter { $0.value == nil }.map(\.index).min()
+    }
+
+    private func cellID(at index: Int) -> UUID? {
+        state.cells.first { $0.index == index }?.id
     }
 }

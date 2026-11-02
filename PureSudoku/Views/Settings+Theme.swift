@@ -13,15 +13,9 @@ extension Settings {
         bedtimeMode ? .sleep : theme
     }
 
+    /// Sleep colors come from the current display profile (CODESPEC 12.3); other themes are fixed.
     var themeColors: ThemeColors {
-        ThemeColors.forTheme(themeEffective)
-    }
-}
-
-extension AppController {
-    var sleepOverlayOpacity: Double {
-        // CODESPEC 12.7: Bedtime Mode sets in-app brightness to minimum.
-        if settings.bedtimeMode { return SleepBrightness.extraDim.overlayOpacity }
-        return settings.themeEffective == .sleep ? settings.sleepBrightness.overlayOpacity : 0.0
+        guard themeEffective == .sleep else { return ThemeColors.forTheme(themeEffective) }
+        return SleepPalette(profile: currentDisplayProfile, increaseContrast: UIAccessibility.isDarkerSystemColorsEnabled).themeColors
     }
 }

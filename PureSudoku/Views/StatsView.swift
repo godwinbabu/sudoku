@@ -49,7 +49,7 @@ struct StatsView: View {
                 }
                 .sleepRowBackground()
             }
-            .navigationTitle("Stats")
+            .themedTitle("Stats")
         }
     }
 }

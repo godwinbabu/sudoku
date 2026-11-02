@@ -101,13 +101,9 @@ For now, implement one of these two approaches (either is acceptable):
 	•	Removes numbers to create puzzles.
 	•	Uses a solver to ensure uniqueness and assign a rough difficulty score.
 	•	Map difficulty score to .easy, .medium, .hard.
-	•	Current implementation (until phase 4): score = average backtracking depth over 4 solver runs.
-	•	Thresholds (measured on 400 seeded puzzles, see docs/audit/bench-ratings.swift):
-	•	Easy: score < 0.5 (solvable by deduction alone, ~42% of generated puzzles).
-	•	Medium: 0.5 ≤ score < 2 (~26%).
-	•	Hard: score ≥ 2 (~31%).
+	•	(Before phase 4 the score was the average backtracking depth over 4 solver runs; see docs/audit/bench-ratings.swift. Replaced by the logical grade below.)
 
-Target rating (phase 4): a logical grade, measured the way a person solves.
+Rating (phase 4 onward): a logical grade, measured the way a person solves (PuzzleGrader).
 	•	Solve the puzzle with the logical solver (Section 13.3), one step at a time, always taking the simplest available step.
 	•	The grade records:
 	•	hardestTier: the tier of the hardest technique needed (Basic, Intermediate, Advanced, Expert).
@@ -117,10 +113,13 @@ Target rating (phase 4): a logical grade, measured the way a person solves.
 	•	Map grade to difficulty by the techniques it needs:
 	•	Easy: Basic tier only.
 	•	Medium: needs at least one Intermediate technique, nothing harder.
-	•	Hard: needs at least one Advanced technique, nothing harder. (Phase 4: the Advanced techniques built so far are X-Wing, Swordfish and XY-Wing; puzzles that need other Advanced techniques are discarded until phase 5.)
+	•	Hard: needs at least one Advanced technique, nothing harder.
 	•	(Optional, phase 6) Expert: needs at least one Expert technique.
 	•	Within a level, the score orders puzzles from easier to harder.
 	•	No silent fallback: a puzzle is only offered at the level its grade maps to. If generation cannot find one in time, use a bundled pre-graded puzzle of that level.
+	•	Generation tries up to 30 puzzles (about 12 ms each on a Mac). Measured on 1,000 generated puzzles with the full Advanced tier (phase 5): 42% Easy, 19% Medium, 18% Hard, 21% need an Expert technique (discarded). (Phase 4 alone: 3.7% Hard.)
+	•	Bundled: 120 pre-graded, unique-solution puzzles per level (BundledPuzzles.swift, generated offline with this app’s generator; no licence applies). They also serve as practice drills, indexed by technique.
+	•	An import the logical solver can’t finish gets Hard and no grade.
 	•	The grade is deterministic: the same puzzle always gets the same grade.
 
 For this first version, it’s acceptable to only implement the JSON-puzzle approach and leave the generator as a future enhancement (stubbed).
@@ -183,7 +182,7 @@ Additions for teaching (added in the phase that first needs them, Section 13.6):
 	•	grade: PuzzleGrade? (hardestTier, score, techniques; Section 2.2). Nil for puzzles saved before grading existed.
 	•	GameState:
 	•	hintLog: [HintLogEntry] — one entry per hint: technique, deepest rung shown (0–4), whether it was applied.
-	•	usedHint: Bool — true once any hint step is applied (Section 6.3).
+	•	usedHint: Bool — true once a hint’s result (rung 4) has been shown (Section 6.3.1).
 	•	TechniqueProgress (new model, one per technique):
 	•	foundUnaidedCount: Int, foundUnaidedDays: Set<day>, lastSeen: Date?, strength: Double (0–1, decays over time).
 	•	All new fields decode with defaults (decodeIfPresent), so older save files still load. This applies to every persisted model: SudokuPuzzle, GameState, Settings, Stats, TechniqueProgress and display profiles. A strict decode of a new field would make the old file fail to load and be moved aside, losing the player’s settings.
@@ -391,6 +390,7 @@ Until phase 3 ships, the current behavior stays: Hint finds a placement and, wit
 	•	The board never changes until the player taps Apply.
 	•	Rungs:
 	•	Rung 0 – Check (automatic, always first):
+	•	Narrowing uses the cell’s box: “Look at box 5”, then the cell.
 	•	If the board has a wrong digit, or a cell that has notes leaves out its correct digit: “There’s a mistake on the board.”
 	•	Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored, not reported.
 	•	Next narrows it: first the house (row, column or box), then the cell.
@@ -403,7 +403,8 @@ Until phase 3 ships, the current behavior stays: Hint finds a placement and, wit
 	•	Rung 4 – Result: eliminated candidates are struck through, or the placed digit appears as a ghost.
 	•	A Before / After toggle stays until the player taps Apply or Done.
 	•	If “Try it yourself first?” is on, ask once before showing this rung.
-	•	Apply makes the change as one undoable edit (Section 6.7).
+	•	Apply makes the change as one undoable edit (Section 6.7). An elimination in a cell without notes first writes that cell’s candidates as notes, then removes the digit, so the deduction is kept and the next hint moves on.
+	•	For singles (placement steps), the target cell is outlined only at rung 4: at rung 3 it would give the answer away.
 	•	Done closes the panel without changing the board.
 	•	Hint content:
 	•	The hint comes from the logical solver (Section 13.3): the simplest step available on the player’s current board.
@@ -769,7 +770,7 @@ Extend the existing AppTheme.sleep behavior:
 
 Target (phase 3): per-person display calibration instead of fixed steps.
 Why: total light, not color, is what affects sleep, and people differ widely. The light level that halves melatonin varies more than 50-fold between people. A 60-year-old’s retina gets about a third of the light a 20-year-old’s gets, and needs more contrast at the same dimness. So dimness and contrast are separate controls, set by each player.
-	•	Calibration flow (about one minute, offered the first time Sleep theme or Bedtime Mode is used, and any time from Settings):
+	•	Calibration flow (about one minute, offered the first time Bedtime Mode is turned on, and any time from Settings › Bedtime display). One screen with a live preview grid in the palette being edited; Cancel and Save stay readable at any dimness:
 	1.	Text size: a sample grid with digits and candidates. Scale on top of Dynamic Type.
 	2.	Dimness: “Slide down until the digits are just comfortable, then go one step up.”
 	3.	Contrast: separates digits, candidates and grid lines. Sets the floor for candidate marks.
@@ -777,6 +778,8 @@ Why: total light, not color, is what affects sleep, and people differ widely. Th
 	5.	System brightness (opt-in): lower the screen to its minimum while the app is open. iOS restores it when the app leaves the foreground.
 	6.	Tip: how to turn on iOS Reduce White Point and add it to the Accessibility Shortcut (triple-click). It dims far more than any app can.
 	•	The result is a display profile. Players keep up to three named profiles (e.g. “Reading in bed”, “Night wake-up”). Two people sharing a phone can each keep one.
+	•	Settings › Bedtime display picks the profile the Sleep theme uses, and separately the profile Bedtime Mode uses (“Same as above” by default).
+	•	Text size applies to the grid in the Sleep theme, never below the system Dynamic Type size.
 	•	The palette is computed from the profile (Section 7.2). No black overlay.
 	•	Warmth is a comfort setting. The app must not claim that warm colors protect sleep.
 	•	Limits the app must respect: it cannot go below the system brightness minimum, cannot read room light, and cannot turn on Reduce White Point.
@@ -790,8 +793,8 @@ Testing requirements:
 	•	No pure white elements dominate the screen.
 	•	Accent colors are warm (not blue).
 	•	Manual test:
-	•	With system brightness at ~25%, enable Sleep theme and in-app “Extra Dim”.
-	•	Subjectively confirm the grid is still readable but significantly dim.
+	•	With system brightness at ~25%, enable Bedtime Mode and calibrate to the dimmest readable profile.
+	•	Subjectively confirm the grid is still readable but significantly dim, and nothing on screen is pure white except the iOS status bar.
 	•	Calibration (phase 3):
 	•	Unit tests: a profile round-trips through persistence; old sleepBrightness values migrate to a profile; the computed palette keeps candidates and grid lines above their floor.
 	•	Manual test in a dark room with two testers, one near 30 and one near 60: each calibrates, then plays for 5 minutes. Both can read candidates without strain.
@@ -933,7 +936,7 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	The last resort (Bowman’s Bingo) can return no hint.
 
 13.4 Mastery
-	•	A technique is mastered when the player has found it without a hint in 3 different puzzles on 3 different days. “Found” means: on the board just before the player’s move, nextStep returns a step, and the move makes that step’s placement or one of its eliminations, with no hint shown for that step. The credit goes to that step’s technique. A move that matches no nextStep result earns no credit.
+	•	A technique is mastered when the player has found it without a hint in 3 different puzzles on 3 different days. “Found” means: on the board just before the player’s move (a correct placement, or removing a wrong note), some step of some technique makes exactly that change, and no hint for that technique was shown in this puzzle, and the board has no mistake. The credit goes to the simplest such technique (curriculum order). Checking every step, not only nextStep’s first, lets techniques like Naked Single earn credit even when another single comes first. The check runs off the main thread.
 	•	Each technique has a strength value (0–1) that decays over time (half-life model). Strength rises when found unaided and falls when a hint for it is needed.
 	•	When strength falls low, the Learn screen offers an optional review drill. No streak alarms, no notifications.
 
@@ -941,6 +944,8 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	Opened from the main menu. Shows the four tiers and each technique’s state (new, learning, mastered).
 	•	One lesson per technique, built on a single example on a real board. No catalogs of variants.
 	•	Each lesson ends with three practice puzzles that need that technique (from the drill index).
+	•	Practice puzzles are not saved and do not count toward stats or the streak; they do count toward learning (mastery and strength).
+	•	The example board is a bundled puzzle solved up to the first step of that technique, drawn like a hint: pattern first, then the result on “Show the result”.
 	•	The first time a puzzle needs a technique the player has not seen, the hint offers that lesson.
 
 13.6 Build phases

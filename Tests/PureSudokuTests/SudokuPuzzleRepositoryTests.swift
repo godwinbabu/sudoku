@@ -22,19 +22,19 @@ final class SudokuPuzzleRepositoryTests: XCTestCase {
         XCTAssertEqual(first.solutionGrid, second.solutionGrid)
     }
 
-    /// Fixed seeds make this reproducible. Each level must land in its own rating band, and the
-    /// average rating must rise from Easy to Hard (audit #3: levels used to be nearly the same).
+    /// Fixed seeds make this reproducible. Each level needs harder techniques than the one below
+    /// (CODESPEC 2.2; audit #3: levels used to be nearly the same).
     func testDifficultyLevelsAreSeparated() {
         let service = SudokuGeneratorService()
         var means: [Difficulty: Double] = [:]
         for difficulty in Difficulty.allCases {
-            var total = 0.0
+            var total = 0
             for seed in UInt64(1)...UInt64(6) {
                 let result = service.generatePuzzle(for: difficulty, seed: seed)
-                XCTAssertEqual(service.difficulty(for: result.rating), difficulty, "seed \(seed) rating \(result.rating)")
-                total += result.rating
+                XCTAssertEqual(result.grade.difficulty, difficulty, "seed \(seed)")
+                total += result.grade.score
             }
-            means[difficulty] = total / 6
+            means[difficulty] = Double(total) / 6
         }
         XCTAssertLessThan(means[.easy]!, means[.medium]!)
         XCTAssertLessThan(means[.medium]!, means[.hard]!)

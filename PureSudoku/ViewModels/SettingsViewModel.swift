@@ -38,8 +38,12 @@ final class SettingsViewModel: ObservableObject {
         controller.updateSettings { $0.autoCheckMistakes = value }
     }
 
-    func setAutoFillHints(_ value: Bool) {
-        controller.updateSettings { $0.autoFillHints = value }
+    func setAskBeforeHintResult(_ value: Bool) {
+        controller.updateSettings { $0.askBeforeHintResult = value }
+    }
+
+    func setShortCellNames(_ value: Bool) {
+        controller.updateSettings { $0.cellNameStyle = value ? .short : .long }
     }
 
     func setBedtimeMode(_ value: Bool) {
@@ -48,9 +52,27 @@ final class SettingsViewModel: ObservableObject {
         }
     }
 
-    func setSleepBrightness(_ brightness: SleepBrightness) {
-        controller.updateSettings { $0.sleepBrightness = brightness }
+    func setActiveDisplayProfile(_ id: UUID) {
+        controller.updateSettings { $0.activeDisplayProfileID = id }
     }
+
+    func setBedtimeDisplayProfile(_ id: UUID?) {
+        controller.updateSettings { $0.bedtimeDisplayProfileID = id }
+    }
+
+    func saveDisplayProfile(_ profile: DisplayProfile) {
+        controller.updateSettings { $0.saveDisplayProfile(profile) }
+    }
+
+    func deleteDisplayProfile(_ id: UUID) {
+        controller.updateSettings { $0.deleteDisplayProfile(id: id) }
+    }
+
+    func markDisplayCalibrationOffered() {
+        controller.updateSettings { $0.hasCalibratedDisplay = true }
+    }
+
+    var canAddDisplayProfile: Bool { controller.settings.displayProfiles.count < DisplayProfile.maxProfiles }
 
     func setKeepImportImages(_ value: Bool) {
         controller.updateSettings { $0.keepImportImages = value }

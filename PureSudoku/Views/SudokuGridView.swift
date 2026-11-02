@@ -5,6 +5,8 @@ struct SudokuGridView: View {
     let selectedCellID: UUID?
     let theme: ThemeColors
     var candidateOverlay: [UUID: Set<Int>] = [:]
+    /// Open hint's marks (CODESPEC 7.3).
+    var highlight = HintHighlight()
     var onSelect: (SudokuCell) -> Void
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 9)
@@ -46,7 +48,8 @@ struct SudokuGridView: View {
                                 isHighlighted: isHighlighted,
                                 isNumberMatch: isNumberMatch,
                                 theme: theme,
-                                cellSize: cellSide
+                                cellSize: cellSide,
+                                hint: CellHintMark(highlight, cell: cell.index)
                             )
                                 .frame(height: cellSide)
                         }
@@ -59,6 +62,7 @@ struct SudokuGridView: View {
             }
             gridGuides
         }
+        .animation(.easeInOut(duration: 0.3), value: highlight)
     }
 
     private var gridGuides: some View {
@@ -93,10 +97,11 @@ struct SudokuGridView: View {
     }
 
     private func displayCandidates(for cell: SudokuCell) -> Set<Int> {
-        guard let overlay = candidateOverlay[cell.id] else {
-            return cell.candidates
-        }
-        return cell.candidates.union(overlay)
+        var shown = cell.candidates
+        if let overlay = candidateOverlay[cell.id] { shown.formUnion(overlay) }
+        // A hint shows the candidates it reasons about in cells without notes.
+        if shown.isEmpty, let hinted = highlight.shownCandidates[cell.index] { shown = hinted }
+        return shown.subtracting(highlight.hiddenDigits[cell.index] ?? [])
     }
 }
 
@@ -108,12 +113,18 @@ struct SudokuCellView: View {
     let isNumberMatch: Bool
     let theme: ThemeColors
     let cellSize: CGFloat
+    var hint = CellHintMark()
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
                 .fill(cellFillColor)
-            if let value = cell.value {
+            if cell.value == nil, let ghost = hint.ghost {
+                Text("\(ghost)")
+                    .font(.title)
+                    .foregroundColor(theme.accent.opacity(0.5))
+                    .accessibilityIdentifier("hintGhost")
+            } else if let value = cell.value {
                 Text("\(value)")
                     .font(cell.given ? .title.bold() : .title)
                     .foregroundColor(cell.given ? theme.primaryText : theme.accent)
@@ -123,6 +134,21 @@ struct SudokuCellView: View {
         }
         .frame(height: cellSize)
         .overlay(borderOverlay)
+        .overlay(alignment: .topTrailing) {
+            // Errors show by shape, not color alone (CODESPEC 7.2).
+            if cell.isError {
+                Path { path in
+                    path.move(to: .zero)
+                    path.addLine(to: CGPoint(x: cellSize * 0.28, y: 0))
+                    path.addLine(to: CGPoint(x: cellSize * 0.28, y: cellSize * 0.28))
+                    path.closeSubpath()
+                }
+                .fill(theme.error)
+                .frame(width: cellSize * 0.28, height: cellSize * 0.28)
+                .padding(3)
+                .accessibilityHidden(true)
+            }
+        }
         .accessibilityLabel(accessibilityText)
     }
 
@@ -146,9 +172,16 @@ struct SudokuCellView: View {
             let size = geometry.size
             ForEach(displayCandidates.sorted(), id: \.self) { number in
                 let position = candidatePosition(for: number, in: size)
+                let isStruck = hint.struck.contains(number)
                 Text("\(number)")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(theme.secondaryText)
+                    .font(.caption2.weight(hint.ringed.contains(number) ? .heavy : .semibold))
+                    .strikethrough(isStruck, color: theme.primaryText)
+                    .foregroundColor(isStruck ? theme.secondaryText.opacity(0.6) : theme.secondaryText)
+                    .overlay {
+                        if hint.ringed.contains(number) {
+                            Circle().stroke(theme.accent, lineWidth: 1.2).frame(width: size.width / 3.2, height: size.width / 3.2)
+                        }
+                    }
                     .position(position)
             }
         }
@@ -173,9 +206,13 @@ struct SudokuCellView: View {
 
     @ViewBuilder
     private var borderOverlay: some View {
-        if cell.isError || cell.isVerifiedCorrect || isSelected {
+        if hint.isPattern {
+            RoundedRectangle(cornerRadius: 8).stroke(theme.accent, lineWidth: 3)
+        } else if cell.isError || cell.isVerifiedCorrect || isSelected {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(borderColor, lineWidth: cell.isError ? 2 : 1.5)
+        } else if hint.inArea {
+            RoundedRectangle(cornerRadius: 8).stroke(theme.accent.opacity(0.7), style: StrokeStyle(lineWidth: 1.2, dash: [3, 3]))
         }
     }
 
@@ -194,5 +231,24 @@ struct SudokuCellView: View {
         } else {
             return "Row \(cell.row + 1) column \(cell.col + 1) empty"
         }
+    }
+}
+
+/// One cell's share of an open hint's highlight.
+struct CellHintMark: Equatable {
+    var inArea = false
+    var isPattern = false
+    var ringed: Set<Int> = []
+    var struck: Set<Int> = []
+    var ghost: Int?
+
+    init() {}
+
+    init(_ highlight: HintHighlight, cell: Int) {
+        inArea = highlight.areaCells.contains(cell)
+        isPattern = highlight.patternCells.contains(cell)
+        ringed = highlight.ringedDigits[cell] ?? []
+        struck = highlight.struckDigits[cell] ?? []
+        ghost = highlight.ghostDigits[cell]
     }
 }

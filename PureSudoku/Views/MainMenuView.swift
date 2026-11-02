@@ -21,11 +21,13 @@ struct MainMenuView: View {
     private enum Sheet: Identifiable {
         case settings
         case stats
+        case calibration
 
         var id: Int {
             switch self {
             case .settings: return 0
             case .stats: return 1
+            case .calibration: return 2
             }
         }
     }
@@ -42,6 +44,7 @@ struct MainMenuView: View {
                         topSection(theme: theme)
                         difficultyButtons(theme: theme)
                         importButton(theme: theme)
+                        learnButton(theme: theme)
                         savedImports(theme: theme)
                         statsSummary(theme: theme)
                     }
@@ -79,6 +82,9 @@ struct MainMenuView: View {
                         routeViewModels.removeValue(forKey: route.id)
                     }
             }
+            .navigationDestination(for: LearnRoute.self) { _ in
+                LearnView()
+            }
             .navigationDestination(for: ImportRoute.self) { _ in
                 ImportPuzzleView(viewModel: ImportPuzzleViewModel(controller: controller)) { imported in
                     if !navigationPath.isEmpty {
@@ -95,6 +101,16 @@ struct MainMenuView: View {
                 case .stats:
                     StatsView(viewModel: StatsViewModel(controller: controller))
                     .sheetTheme(controller)
+                case .calibration:
+                    NavigationStack {
+                        DisplayCalibrationView(profile: controller.settings.currentDisplayProfile, onSave: { profile in
+                            controller.updateSettings { $0.saveDisplayProfile(profile) }
+                            activeSheet = nil
+                        }, onCancel: {
+                            controller.updateSettings { $0.hasCalibratedDisplay = true } // offered once; Settings can re-run it
+                            activeSheet = nil
+                        })
+                    }
                 }
             }
         }
@@ -190,6 +206,10 @@ struct MainMenuView: View {
                 .buttonStyle(.plain)
                 .frame(maxWidth: 200)
                 .accessibilityIdentifier("difficulty_\(difficulty.rawValue)")
+                Text(difficulty.techniqueSummary)
+                    .font(.caption)
+                    .foregroundColor(theme.secondaryText)
+                    .padding(.top, -10)
             }
         }
         .frame(maxWidth: .infinity, alignment: .center)
@@ -198,6 +218,8 @@ struct MainMenuView: View {
     private func bedtimeToggle(theme: ThemeColors) -> some View {
         Button {
             viewModel.toggleBedtimeMode()
+            // First time in Bedtime Mode: offer the display calibration (CODESPEC 12.3).
+            if controller.settings.bedtimeMode && !controller.settings.hasCalibratedDisplay { activeSheet = .calibration }
         } label: {
             HStack(spacing: 12) {
                 BedtimeIcon(color: theme.accent)
@@ -293,6 +315,27 @@ struct MainMenuView: View {
         }
     }
 
+    /// Opens the technique curriculum (CODESPEC 13.5).
+    private func learnButton(theme: ThemeColors) -> some View {
+        Button {
+            navigationPath.append(LearnRoute())
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "graduationcap")
+                    .font(.headline)
+                Text("Learn techniques")
+                    .font(.headline.weight(.semibold))
+            }
+            .foregroundColor(theme.primaryText)
+            .padding(.vertical, 12)
+            .frame(maxWidth: 220)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.cardBackground))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.gridLine.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("learnButton")
+    }
+
     private func importButton(theme: ThemeColors) -> some View {
         Button {
             navigationPath.append(ImportRoute())
@@ -342,6 +385,8 @@ private struct GameRoute: Hashable, Identifiable {
 private struct ImportRoute: Hashable, Identifiable {
     let id = UUID()
 }
+
+private struct LearnRoute: Hashable {}
 
 // A non-interactive, high-contrast switch indicator for Bedtime Mode state
 private struct BedtimeSwitch: View {

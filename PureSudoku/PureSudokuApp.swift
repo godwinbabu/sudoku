@@ -14,11 +14,29 @@ struct PureSudokuApp: App {
 
 struct RootView: View {
     @EnvironmentObject private var controller: AppController
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var brightness = ScreenBrightnessController()
 
     var body: some View {
         MainMenuView(viewModel: MainMenuViewModel(controller: controller))
             .environmentObject(controller)
             .preferredColorScheme(controller.settings.preferredColorScheme)
-            .overlay(SleepDimmingOverlay(opacity: controller.sleepOverlayOpacity))
+            .environment(\.sleepTitleColor, controller.settings.themeEffective == .sleep ? controller.settings.themeColors.primaryText : nil)
+            .onChange(of: scenePhase) { _ in updateDisplay() }
+            .onChange(of: controller.settings) { _ in updateDisplay() }
+            .onAppear(perform: updateDisplay)
+            .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.darkerSystemColorsStatusDidChangeNotification)) { _ in
+                controller.objectWillChange.send() // Increase Contrast changes the Sleep floors (CODESPEC 9)
+                updateDisplay()
+            }
+    }
+
+    private func updateDisplay() {
+        let settings = controller.settings
+        brightness.update(lower: ScreenBrightnessController.shouldLower(phase: scenePhase, settings: settings))
+        let palette = settings.themeEffective == .sleep
+            ? SleepPalette(profile: settings.currentDisplayProfile, increaseContrast: UIAccessibility.isDarkerSystemColorsEnabled)
+            : nil
+        SystemAppearance.apply(palette)
     }
 }

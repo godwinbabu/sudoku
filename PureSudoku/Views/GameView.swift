@@ -4,9 +4,11 @@ struct GameView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var systemTypeSize
     @StateObject private var viewModel: GameViewModel
     @State private var activeSheet: Sheet?
     @State private var showCelebration: Bool = false
+    @State private var lessonTechnique: Technique?
     private let difficulty: Difficulty
     init(viewModel: GameViewModel, difficulty: Difficulty) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -33,25 +35,45 @@ struct GameView: View {
                 VStack(spacing: 16) {
                     topBar(theme: theme)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme, candidateOverlay: viewModel.candidateOverlay) { cell in
+                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme, candidateOverlay: viewModel.candidateOverlay, highlight: viewModel.hintHighlight) { cell in
                         viewModel.select(cell: cell)
                     }
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
+                    .dynamicTypeSize(gridTypeSize)
                     .padding(.vertical, 4)
                     .allowsHitTesting(!viewModel.state.isCompleted && !viewModel.isPaused)
-                    modeToggle(theme: theme)
-                        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
-                    NumberPadView(
-                        theme: theme,
-                        disabledDigits: viewModel.disabledDigits,
-                        isCandidateMode: viewModel.inputMode == .candidate,
-                        onDigit: { viewModel.setDigit($0) },
-                        onClear: { viewModel.clearSelectedCell() }
-                    )
-                    .disabled(viewModel.state.isCompleted || viewModel.isPaused)
-                    actionButtons(theme: theme)
+                    if let session = viewModel.hint {
+                        HintPanelView(
+                            session: session,
+                            names: controller.settings.cellNameStyle,
+                            theme: theme,
+                            onBack: viewModel.hintBack,
+                            onNext: viewModel.hintNext,
+                            onShowResult: viewModel.hintShowResult,
+                            onApply: viewModel.applyHint,
+                            onToggleAfter: viewModel.hintToggleAfter,
+                            onReveal: viewModel.hintRevealCell,
+                            onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
+                            onLesson: { lessonTechnique = session.step?.technique },
+                            onDone: { viewModel.endHint() }
+                        )
                         .disabled(viewModel.isPaused)
+                        .transition(.opacity)
+                    } else {
+                        modeToggle(theme: theme)
+                            .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+                        NumberPadView(
+                            theme: theme,
+                            disabledDigits: viewModel.disabledDigits,
+                            isCandidateMode: viewModel.inputMode == .candidate,
+                            onDigit: { viewModel.setDigit($0) },
+                            onClear: { viewModel.clearSelectedCell() }
+                        )
+                        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+                        actionButtons(theme: theme)
+                            .disabled(viewModel.isPaused)
+                    }
                     hintBanner(theme: theme)
                 }
                 .padding(.horizontal, 20)
@@ -74,6 +96,7 @@ struct GameView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.headline)
+                        .foregroundColor(theme.isSleep ? theme.accent : nil)
                 }
                 .accessibilityIdentifier("backButton")
             }
@@ -90,7 +113,7 @@ struct GameView: View {
                     Button("Reset Puzzle", role: .destructive) {
                         viewModel.pendingAction = .reset
                     }
-                    if viewModel.state.puzzle.source != .imported {
+                    if viewModel.state.puzzle.source != .imported && !viewModel.isPractice {
                         Button("New Puzzle") {
                             viewModel.pendingAction = .newPuzzle
                         }
@@ -167,6 +190,18 @@ struct GameView: View {
                 Text(action.message)
             }
         }
+        .sheet(item: $lessonTechnique) { technique in
+            NavigationStack {
+                LessonView(technique: technique == .hiddenSingleLine ? .hiddenSingleBox : technique)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { lessonTechnique = nil }
+                        }
+                    }
+            }
+            .environmentObject(controller)
+            .sheetTheme(controller)
+        }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .settings:
@@ -179,6 +214,12 @@ struct GameView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("gameView")
+    }
+
+    /// In the Sleep theme the profile sets the grid's text size, but never below the system size.
+    private var gridTypeSize: DynamicTypeSize {
+        guard controller.settings.themeEffective == .sleep else { return systemTypeSize }
+        return max(systemTypeSize, SleepPalette.typeSize(controller.settings.currentDisplayProfile.textSize))
     }
 
     private func topBar(theme: ThemeColors) -> some View {
@@ -275,12 +316,6 @@ struct GameView: View {
                     .font(.footnote)
                     .foregroundColor(theme.error)
                     .accessibilityIdentifier("contradictionWarning")
-            }
-            if let hint = viewModel.hintMessage {
-                Text(hint)
-                    .font(.footnote)
-                    .foregroundColor(theme.secondaryText)
-                    .accessibilityIdentifier("hintMessage")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

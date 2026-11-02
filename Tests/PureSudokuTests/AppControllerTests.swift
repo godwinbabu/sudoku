@@ -3,13 +3,62 @@ import XCTest
 
 @MainActor
 final class AppControllerTests: XCTestCase {
-    func testBedtimeModeForcesMaximumDimming() {
+    func testBedtimeModeUsesTheBedtimeDisplayProfile() {
         let (controller, _) = makeTestController()
+        let night = DisplayProfile(name: "Night wake-up", dimness: 1)
         controller.updateSettings { settings in
-            settings.sleepBrightness = .normal
-            settings.toggleBedtimeMode(true)
+            let reading = settings.displayProfiles[0]
+            settings.saveDisplayProfile(night)
+            settings.activeDisplayProfileID = reading.id
+            settings.bedtimeDisplayProfileID = night.id
         }
-        XCTAssertEqual(controller.sleepOverlayOpacity, SleepBrightness.extraDim.overlayOpacity)
+        XCTAssertNotEqual(controller.settings.currentDisplayProfile.id, night.id)
+        controller.updateSettings { $0.toggleBedtimeMode(true) }
+        XCTAssertEqual(controller.settings.currentDisplayProfile.id, night.id)
+        XCTAssertEqual(controller.settings.themeEffective, .sleep)
+    }
+
+    /// Only the first row is given, so the import has many solutions (CODESPEC 2.1).
+    private let twoSolutionGrid = String(TestData.puzzle.solutionGrid.prefix(9)) + String(repeating: "0", count: 72)
+
+    func testImportsAreGradedAndFlaggedForUniqueness() throws {
+        let (controller, _) = makeTestController()
+        let unique = try XCTUnwrap(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid)).gameState.puzzle
+        XCTAssertEqual(unique.hasUniqueSolution, true)
+        XCTAssertEqual(unique.difficulty, .easy)
+        XCTAssertNotNil(unique.grade)
+
+        let several = try XCTUnwrap(controller.createImportedGame(initialGrid: twoSolutionGrid)).gameState.puzzle
+        XCTAssertEqual(several.hasUniqueSolution, false)
+        XCTAssertFalse(several.isUnique)
+        XCTAssertNil(several.grade, "the solver can't finish a 9-clue puzzle")
+        XCTAssertEqual(several.difficulty, .hard)
+    }
+
+    func testOldImportsAreRecountedAndSaved() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let persistence = PersistenceManager(directory: dir)
+        let puzzle = SudokuPuzzle(id: "old", difficulty: .hard, initialGrid: twoSolutionGrid,
+                                  solutionGrid: TestData.puzzle.solutionGrid, source: .imported)
+        XCTAssertNil(puzzle.hasUniqueSolution)
+        try persistence.save([ImportedGame(gameState: GameState.newGame(for: puzzle))], to: "imported_games.json")
+
+        let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(),
+                                       imageStore: ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true)))
+        for _ in 0..<100 where controller.importedGames.first?.gameState.puzzle.hasUniqueSolution == nil {
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(controller.importedGames.first?.gameState.puzzle.hasUniqueSolution, false)
+        let saved = try XCTUnwrap(persistence.load([ImportedGame].self, from: "imported_games.json"))
+        XCTAssertEqual(saved.first?.gameState.puzzle.hasUniqueSolution, false, "the count is persisted")
+    }
+
+    func testUnknownTechniqueInASavedGradeKeepsTheGame() throws {
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(TestData.puzzle)) as? [String: Any])
+        json["grade"] = ["hardestTier": 3, "score": 500, "techniques": ["somethingFromTheFuture"]]
+        let puzzle = try JSONDecoder().decode(SudokuPuzzle.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertNil(puzzle.grade)
+        XCTAssertEqual(puzzle.initialGrid, TestData.puzzle.initialGrid)
     }
 
     func testUpdateSettingsAppliesImmediately() {

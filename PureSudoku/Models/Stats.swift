@@ -20,7 +20,7 @@ struct Stats: Codable, Equatable {
     }
 
     /// Per CODESPEC "Streak rules", only puzzles completed without Reveal update stats.
-    mutating func recordCompletion(for difficulty: Difficulty, time: Int, usedReveal: Bool, source: GameSource = .generated, date: Date = Date(), calendar: Calendar = .current) {
+    mutating func recordCompletion(for difficulty: Difficulty, time: Int, usedReveal: Bool, usedHint: Bool = false, source: GameSource = .generated, date: Date = Date(), calendar: Calendar = .current) {
         guard !usedReveal else { return }
         totalPuzzlesSolved += 1
         totalTimeSeconds += time
@@ -29,10 +29,9 @@ struct Stats: Codable, Equatable {
             importedPuzzlesSolved += 1
         }
 
-        if let best = bestTimes[difficulty] {
-            bestTimes[difficulty] = min(best, time)
-        } else {
-            bestTimes[difficulty] = time
+        // A solve that showed a hint's result still counts, but not for best time (CODESPEC 6.3.1).
+        if !usedHint {
+            bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
         }
 
         if let lastDate = lastCompletionDate {
