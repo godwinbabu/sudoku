@@ -1,0 +1,33 @@
+/* PureSudoku 2 — tokens
+ * Day is a fixed palette. Night is computed from three user-controlled axes (see ui_kits/puresudoku-2/night.js):
+ *   glow 0–100 (light emitted), warmth 0–100 (6500 K → 1200 K, mired-interpolated), clarity 0–2.
+ * The night classes below are snapshots of the three presets for static mocks; live UI should call PSNight.palette().
+ * Canvas at night is always #000 (OLED pixels off). Never put a lit fill behind text at night.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap');
+/* Apple system faces: resolved from the device (iOS/macOS ship them). Not redistributable, so no file is bundled. */
+@font-face{font-family:"SF Pro Text";src:local("SF Pro Text"),local("SFProText-Regular"),local(".SFNSText");font-weight:100 900}
+@font-face{font-family:"SF Pro Display";src:local("SF Pro Display"),local("SFProDisplay-Regular"),local(".SFNSDisplay");font-weight:100 900}
+@font-face{font-family:"New York";src:local("New York"),local("NewYorkMedium-Regular"),local(".NewYork");font-weight:100 900}
+:root{
+--font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+--font-display:"New York",ui-serif,"Newsreader",Georgia,serif;
+--font-digits:-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif;
+--t-display:34px;--t-title:30px;--t-headline:24px;--t-body:16px;--t-callout:15px;--t-footnote:13px;--t-caption:11px;--t-label-tracking:.08em;/* @kind other */
+--t-digit-scale:.6;/* @kind other */--t-cand-scale:.25;/* @kind other */
+--w-given:600;/* @kind other */--w-user:400;/* @kind other */--w-given-large:700;/* @kind other */--w-user-large:500;/* @kind other */--w-given-bold:760;/* @kind other */--w-user-bold:600;/* @kind other */
+--s-1:4px;--s-2:8px;--s-3:12px;--s-4:16px;--s-5:22px;--s-6:28px;--s-8:40px;
+--r-cell:4px;--r-board:6px;--r-key:12px;--r-card:18px;--r-sheet:28px;--r-pill:999px;
+--hit-min:44px;--key-h:64px;--board-w:366px;
+--motion-fade:600ms;/* @kind other */--motion-ui:150ms;/* @kind other */
+}
+/* Day — warm paper */
+:root,.ps-day{--bg:#F4F1E9;--surface:#EBE6DA;--surface2:#E2DCCD;--ink:#1B1A17;--ink2:#57534B;--ink3:#8A857A;--accent:#9A5712;--accentDim:#C9A27A;--line:#CFC8B8;--lineMajor:#2E2B25;--hair:#D8D1C1;--sel:#EFD9B0;--peer:#ECE6D9;--same:#F1E2C6;--err:#B3261E;--focusDim:0.28;/* @kind other */--status:#1B1A17}
+/* Night preset: Reading lamp — glow 55, warmth 45 → 2200 K, blue ≈ −91% */
+.ps-night-lamp{--bg:#000;--surface:rgb(11,6,2);--surface2:rgb(17,10,3);--ink:rgb(154,88,24);--ink2:rgb(108,62,17);--ink3:rgb(77,44,12);--accent:rgb(147,63,0);--accentDim:rgb(77,33,0);--line:rgb(26,15,4);--lineMajor:rgb(65,37,10);--hair:rgb(23,13,4);--sel:rgb(31,13,0);--peer:rgb(8,5,1);--same:rgb(18,8,0);--err:rgb(146,40,37);--focusDim:0.22;/* @kind other */--status:rgb(68,39,10)}
+/* Night preset: Lights out — glow 18, warmth 75 → 1500 K, blue ≈ −100% */
+.ps-night-out{--bg:#000;--surface:rgb(6,2,0);--surface2:rgb(9,4,0);--ink:rgb(79,34,0);--ink2:rgb(56,24,0);--ink3:rgb(40,17,0);--accent:rgb(76,27,0);--accentDim:rgb(40,14,0);--line:rgb(13,6,0);--lineMajor:rgb(33,14,0);--hair:rgb(12,5,0);--sel:rgb(16,6,0);--peer:rgb(4,2,0);--same:rgb(10,3,0);--err:rgb(75,21,19);--focusDim:0.22;/* @kind other */--status:rgb(35,15,0)}
+/* Night preset: Red light — glow 10, warmth 100 → 1200 K, blue ≈ −100% */
+.ps-night-red{--bg:#000;--surface:rgb(5,2,0);--surface2:rgb(7,2,0);--ink:rgb(65,22,0);--ink2:rgb(46,15,0);--ink3:rgb(33,11,0);--accent:rgb(63,21,0);--accentDim:rgb(33,11,0);--line:rgb(11,4,0);--lineMajor:rgb(27,9,0);--hair:rgb(10,3,0);--sel:rgb(13,4,0);--peer:rgb(4,1,0);--same:rgb(8,3,0);--err:rgb(62,17,16);--focusDim:0.22;/* @kind other */--status:rgb(29,10,0)}
+body{font-family:var(--font-ui);color:var(--ink);background:var(--bg)}
+a{color:var(--accent)}a:hover{color:var(--ink)}

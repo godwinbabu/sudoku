@@ -1,0 +1,11 @@
+<!-- @dsCard group="Components" viewport="760x400" name="Board" subtitle="Day and Lights out, with selection, mistake and hint marks" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script><style>body{margin:0;font-family:var(--font-ui)}</style></head><body><div id="r" style="display:flex"></div><script>
+const NS=window.PureSudokuDesignSystem_019def,h=React.createElement;
+const v=[...'53..7....6..195....98....6.8...6...34..8.3..1...2...6.6....28....419..5....8..79'].map(c=>c==='.'?0:+c),g=v.map(Boolean);v[2]=4;v[11]=2;
+const n=Array(81).fill(0);n[3]=(1<<2)|(1<<6)|(1<<8);
+const side=(cls,props)=>h('div',{className:cls,style:{background:'var(--bg)',padding:16,flex:1,display:'flex',justifyContent:'center'}},h(NS.Board,Object.assign({values:v,givens:g,notes:n,width:348},props)));
+ReactDOM.createRoot(document.getElementById('r')).render(h(React.Fragment,null,side('ps-day',{selected:11,errors:[2]}),side('ps-night-lamp',{marks:{focus:[27,28,29,36,37,38,45,46,47],target:46,ghost:7,evidence:[37]}})));
+</script></body></html>

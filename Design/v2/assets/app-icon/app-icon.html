@@ -1,0 +1,17 @@
+<!-- @dsCard group="Brand" viewport="760x360" name="App icon" subtitle="The hint — Dark · Light · Tinted (iOS 18 variants), and small sizes" -->
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>PureSudoku — App icon</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../styles.css">
+<script src="icon.js"></script>
+<style>body{margin:0;background:#E9E5DC;font-family:var(--font-ui);color:#1B1A17;padding:24px 28px}.row{display:flex;gap:28px;align-items:flex-end}.c{display:flex;flex-direction:column;align-items:center;gap:10px;font-size:12px;color:#57534B}.c svg{display:block;filter:drop-shadow(0 6px 14px rgba(0,0,0,.18))}a{color:#9A5712}a:hover{color:#1B1A17}</style>
+</head><body>
+<div class="row" id="big"></div>
+<div class="row" id="small" style="margin-top:26px;gap:18px"></div>
+<script>
+const big=document.getElementById('big'),small=document.getElementById('small');
+[['dark','Dark'],['light','Light'],['tinted','Tinted']].forEach(([v,l])=>{big.insertAdjacentHTML('beforeend','<div class="c">'+PSIcon(v,180)+'<span>'+l+'</span></div>')});
+[120,87,60,40,29].forEach(s=>small.insertAdjacentHTML('beforeend','<div class="c">'+PSIcon('dark',s)+'<span>'+s+'</span></div>'));
+small.insertAdjacentHTML('beforeend','<div style="flex:1;font-size:13px;line-height:1.5;color:#57534B;max-width:260px;align-self:center">The app’s own teaching marks: proof cells in solid rings, the answer in a dashed ring. Eight equal dashes; all four corners share one curve.</div>');
+</script>
+</body></html>

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>PureSudoku — 2c review</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500&display=swap" rel="stylesheet">
+<script src="icon.js"></script>
+<style>
+body{margin:0;background:#E9E5DC;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif;color:#1B1A17;padding:40px 48px}
+a{color:#9A5712}a:hover{color:#1B1A17}
+h1{margin:0 0 6px;font-size:30px;font-weight:600}
+.sub{margin:0 0 28px;color:#57534B;font-size:16px;max-width:760px;line-height:1.45}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,420px));gap:48px}
+.col h2{margin:0 0 4px;font-size:20px;font-weight:600;display:flex;gap:10px;align-items:center}
+.col h2 b{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:26px;border-radius:13px;background:#1B1A17;color:#F4F1E9;font-size:14px}
+.col p{margin:0 0 16px;min-height:60px;color:#57534B;font-size:14px;line-height:1.45}
+.big svg,.sm svg{display:block;filter:drop-shadow(0 10px 22px rgba(0,0,0,.22))}
+.sm{display:flex;gap:14px;align-items:flex-end;margin-top:20px}
+.sm div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:#8A857A}
+.var{display:flex;gap:14px;margin-top:20px}
+.home{margin-top:20px;height:120px;border-radius:24px;background:radial-gradient(120% 120% at 50% 0%,#1b1410,#000);display:flex;align-items:center;gap:20px;padding:0 22px}
+.home .ph{width:60px;height:60px;border-radius:14px;background:#1c1c1e}
+</style></head>
+<body>
+<h1>2c — review</h1>
+<p class="sub">The structure stays the same. The refined version only sharpens the order of attention: answer, then proof, then solved digits, then lines. At home-screen size the old one has three bright rings competing; the refined one leads with the 5.</p>
+<div class="pair" id="p"></div>
+<script>
+const p=document.getElementById('p');
+[['A','Previous',{refined:false},'Proof rings and digits are almost as bright as the answer.'],['B','Refined — now the app icon',{refined:true},'Answer: heavier dashes, wider glow, more room inside the ring. Proof: thinner, dimmer rings. Solved digits and lines step back.']].forEach(([id,t,o,d])=>{
+ const svg=(v,s)=>PSIcon(v,s,o);
+ p.insertAdjacentHTML('beforeend',`<div class="col"><h2><b>${id}</b>${t}</h2><p>${d}</p><div class="big">${svg('dark',300)}</div>
+ <div class="sm">${[120,87,60,40,29].map(s=>`<div>${svg('dark',s)}<span>${s}</span></div>`).join('')}</div>
+ <div class="var">${svg('light',96)}${svg('tinted',96)}</div>
+ <div class="home">${svg('dark',60)}<div class="ph"></div><div class="ph"></div><div class="ph"></div><div class="ph"></div></div></div>`);
+});
+</script>
+</body></html>
