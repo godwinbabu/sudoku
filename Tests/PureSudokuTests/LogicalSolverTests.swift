@@ -1,0 +1,255 @@
+import XCTest
+@testable import PureSudoku
+
+final class LogicalSolverTests: XCTestCase {
+    private let solver = LogicalSolver()
+
+    /// Seeded corpus of generated puzzles with their solutions (values 1...9, 0 = empty).
+    private static let corpus: [(puzzle: [Int], solution: [Int])] = {
+        var rng = SeededRandomNumberGenerator(seed: 20261101)
+        return (0..<400).map { _ in
+            let board = makePuzzle(using: &rng)
+            let solution = solvePuzzle(board, using: &rng)!
+            return (board.map { ($0 ?? -1) + 1 }, solution.map { $0! + 1 })
+        }
+    }()
+
+    // MARK: - Correctness oracle (CODESPEC 9, 13.6)
+
+    func testEveryStepAgreesWithTheSolutionAndItsPattern() {
+        var used: [Technique: Int] = [:]
+        var solvedCount = 0
+        for (puzzle, solution) in Self.corpus {
+            var board = SolverBoard(values: puzzle)
+            while let step = solver.nextStep(board) {
+                for placement in step.placements {
+                    XCTAssertEqual(solution[placement.cell], placement.digit, "\(step.technique) placed a wrong digit")
+                }
+                for elimination in step.eliminations {
+                    XCTAssertNotEqual(solution[elimination.cell], elimination.digit, "\(step.technique) removed a correct candidate")
+                }
+                XCTAssertNil(Self.patternProblem(step, on: board), "\(step.technique): \(Self.patternProblem(step, on: board) ?? "")")
+                XCTAssertFalse(step.explanation.isEmpty)
+                used[step.technique, default: 0] += 1
+                board.apply(step)
+            }
+            if board.isSolved {
+                XCTAssertEqual(board.values, solution)
+                solvedCount += 1
+            }
+        }
+        print("LogicalSolver corpus: solved \(solvedCount)/\(Self.corpus.count); steps per technique:", Technique.allCases.map { "\($0.rawValue)=\(used[$0, default: 0])" }.joined(separator: " "))
+        // Every technique except the rare quads is exercised by the corpus.
+        for technique in Technique.allCases where ![.nakedQuad, .hiddenQuad].contains(technique) {
+            XCTAssertGreaterThan(used[technique, default: 0], 0, "\(technique) never fired in the corpus")
+        }
+        XCTAssertGreaterThan(solvedCount, Self.corpus.count / 2, "the solver should finish most generated puzzles")
+    }
+
+    /// Checks that a step's pattern really justifies it, on the board before the step.
+    private static func patternProblem(_ step: TechniqueStep, on board: SolverBoard) -> String? {
+        let cells = step.cells.map(\.cell)
+        let digitMask = SolverBoard.mask(of: step.digits)
+        let base = step.houses.filter { $0.role == .base }.map(\.house)
+        let cover = step.houses.filter { $0.role == .cover }.map(\.house)
+        switch step.technique {
+        case .fullHouse:
+            return base[0].cells.filter { board.values[$0] == 0 } == cells ? nil : "house has more than one empty cell"
+        case .hiddenSingleBox, .hiddenSingleLine:
+            return board.cells(for: step.digits[0], in: base[0]) == cells ? nil : "digit fits elsewhere in the house"
+        case .nakedSingle:
+            return board.candidates[cells[0]] == digitMask ? nil : "cell has more than one candidate"
+        case .pointing, .claiming, .xWing, .swordfish:
+            let digit = step.digits[0]
+            let spots = base.flatMap { board.cells(for: digit, in: $0) }
+            guard Set(spots) == Set(cells) else { return "pattern cells are not the digit's spots" }
+            guard spots.allSatisfy({ spot in cover.contains { $0.cells.contains(spot) } }) else { return "a spot lies outside the cover" }
+            return step.eliminations.allSatisfy({ e in cover.contains { $0.cells.contains(e.cell) } && !cells.contains(e.cell) }) ? nil : "elimination outside the cover"
+        case .nakedPair, .nakedTriple, .nakedQuad, .lockedPair, .lockedTriple:
+            let union = cells.reduce(UInt16(0)) { $0 | board.candidates[$1] }
+            guard union == digitMask, cells.count == step.digits.count else { return "cells hold other digits" }
+            return step.eliminations.allSatisfy({ e in base.contains { $0.cells.contains(e.cell) } && !cells.contains(e.cell) }) ? nil : "elimination outside the house"
+        case .hiddenPair, .hiddenTriple, .hiddenQuad:
+            let spots = Set(step.digits.flatMap { board.cells(for: $0, in: base[0]) })
+            return spots == Set(cells) && cells.count == step.digits.count ? nil : "digits fit outside the pattern"
+        case .xyWing:
+            let pivot = step.cells.first { $0.role == .pivot }!.cell
+            let pincers = step.cells.filter { $0.role == .pincer }.map(\.cell)
+            let (x, y, z) = (step.digits[0], step.digits[1], step.digits[2])
+            guard board.candidates[pivot] == SolverBoard.mask(of: [x, y]) else { return "pivot is not {x, y}" }
+            guard Set(pincers.map { board.candidates[$0] }) == [SolverBoard.mask(of: [x, z]), SolverBoard.mask(of: [y, z])] else { return "pincers are not {x, z} and {y, z}" }
+            guard pincers.allSatisfy({ SolverBoard.sees(pivot, $0) }) else { return "a pincer does not see the pivot" }
+            return step.eliminations.allSatisfy({ e in e.digit == z && pincers.allSatisfy { SolverBoard.sees(e.cell, $0) } }) ? nil : "elimination does not see both pincers"
+        }
+    }
+
+    // MARK: - Behavior
+
+    func testSameBoardGivesTheSameSteps() {
+        for (puzzle, _) in Self.corpus.prefix(30) {
+            let board = SolverBoard(values: puzzle)
+            XCTAssertEqual(solver.solve(board).steps, solver.solve(board).steps)
+        }
+    }
+
+    /// The old engine restarted every technique from the original candidates, so eliminations never
+    /// built on each other. Here they must: some puzzle needs an elimination before it can finish.
+    func testEliminationsStackToFinishAPuzzle() {
+        let stacked = Self.corpus.contains { puzzle, _ in
+            let result = solver.solve(SolverBoard(values: puzzle))
+            return result.isSolved && result.steps.contains { $0.placements.isEmpty }
+        }
+        XCTAssertTrue(stacked)
+    }
+
+    func testSolvedOrContradictoryBoardHasNoStep() {
+        let (_, solution) = Self.corpus[0]
+        XCTAssertNil(solver.nextStep(SolverBoard(values: solution)))
+        var broken = solution
+        broken[0] = 0
+        broken[9] = solution[0] // r2c1 repeats a digit already in row 2
+        XCTAssertNil(solver.nextStep(SolverBoard(values: broken)))
+    }
+
+    func testPlayerNotesAreUsedAndStaleNotesIgnored() {
+        let (puzzle, solution) = Self.corpus[0]
+        let cell = puzzle.firstIndex(of: 0)!
+        let computed = SolverBoard(values: puzzle)
+        var notes = Array(repeating: Set<Int>(), count: 81)
+        // A stale note: a digit already placed in the cell's row is ignored.
+        let placedInRow = SolverBoard.houseCells[SolverBoard.row(of: cell)].map { puzzle[$0] }.first { $0 != 0 }!
+        notes[cell] = [solution[cell], placedInRow]
+        let board = SolverBoard(values: puzzle, notes: notes)
+        XCTAssertEqual(board.candidates[cell], SolverBoard.bit(solution[cell]))
+        // Cells without notes keep computed candidates.
+        let other = puzzle.indices.last { $0 != cell && puzzle[$0] == 0 }!
+        XCTAssertEqual(board.candidates[other], computed.candidates[other])
+    }
+
+    func testBoardFromGameCellsMatchesGrid() {
+        let state = TestData.newGameState()
+        XCTAssertEqual(SolverBoard(cells: state.cells), SolverBoard(grid: TestData.puzzle.initialGrid))
+    }
+
+    // MARK: - Hand-made boards: exact eliminations per technique (CODESPEC 13.6)
+
+    /// Empty board: every cell allows 1...9 except the listed cells, which allow only their digits.
+    private func board(_ masks: [Int: [Int]]) -> SolverBoard {
+        var candidates = Array(repeating: SolverBoard.allDigits, count: 81)
+        for (cell, digits) in masks { candidates[cell] = SolverBoard.mask(of: digits) }
+        return SolverBoard(values: Array(repeating: 0, count: 81), candidates: candidates)
+    }
+
+    private func allBut(_ digit: Int) -> [Int] { (1...9).filter { $0 != digit } }
+
+    private func expected(_ cells: [Int], _ digits: [Int]) -> [CellDigit] {
+        cells.flatMap { cell in digits.map { CellDigit(cell: cell, digit: $0) } }.sorted()
+    }
+
+    func testPointingRemovesFromTheRestOfTheLine() {
+        // In box 1, 5 sits only in r1c1 and r1c2: it leaves the rest of row 1.
+        let masks = Dictionary(uniqueKeysWithValues: [2, 9, 10, 11, 18, 19, 20].map { ($0, allBut(5)) })
+        let step = IntersectionDetector.pointing(board(masks)).first { $0.houses.first?.house == House(kind: .box, index: 0) }
+        XCTAssertEqual(step?.eliminations, expected(Array(3...8), [5]))
+    }
+
+    func testClaimingRemovesFromTheRestOfTheBox() {
+        // In row 1, 5 sits only in r1c1 and r1c2 (box 1): it leaves the rest of box 1.
+        let masks = Dictionary(uniqueKeysWithValues: (2...8).map { ($0, allBut(5)) })
+        let step = IntersectionDetector.claiming(board(masks)).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.eliminations, expected([9, 10, 11, 18, 19, 20], [5]))
+    }
+
+    func testLockedPairRemovesFromBoxAndLine() {
+        let step = SubsetDetector.locked(board([0: [1, 2], 1: [1, 2]]), size: 2).first
+        XCTAssertEqual(step?.technique, .lockedPair)
+        XCTAssertEqual(step?.eliminations, expected([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20], [1, 2]))
+    }
+
+    func testLockedTripleRemovesFromBoxAndLine() {
+        let step = SubsetDetector.locked(board([0: [1, 2, 3], 1: [1, 2, 3], 2: [1, 2, 3]]), size: 3).first
+        XCTAssertEqual(step?.technique, .lockedTriple)
+        XCTAssertEqual(step?.eliminations, expected([3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20], [1, 2, 3]))
+    }
+
+    func testNakedPairRemovesFromTheRestOfTheHouse() {
+        // r1c1 and r1c5 (different boxes) hold only {1, 2}.
+        let step = SubsetDetector.naked(board([0: [1, 2], 4: [1, 2]]), size: 2).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.technique, .nakedPair)
+        XCTAssertEqual(step?.eliminations, expected([1, 2, 3, 5, 6, 7, 8], [1, 2]))
+    }
+
+    func testNakedQuadRemovesFromTheRestOfTheHouse() {
+        let masks = Dictionary(uniqueKeysWithValues: [0, 2, 4, 6].map { ($0, [1, 2, 3, 4]) })
+        let step = SubsetDetector.naked(board(masks), size: 4).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.technique, .nakedQuad)
+        XCTAssertEqual(step?.eliminations, expected([1, 3, 5, 7, 8], [1, 2, 3, 4]))
+    }
+
+    func testListJoinsWithCommasAndFinalAnd() {
+        XCTAssertEqual(TechniqueStep.list([]), "")
+        XCTAssertEqual(TechniqueStep.list(["a"]), "a")
+        XCTAssertEqual(TechniqueStep.list(["a", "b"]), "a and b")
+        XCTAssertEqual(TechniqueStep.list(["a", "b", "c"]), "a, b and c")
+    }
+
+    func testXWingRemovesFromBothCoverColumns() {
+        // 5 sits only in columns 1 and 5 of rows 1 and 4.
+        var masks: [Int: [Int]] = [:]
+        for row in [0, 3] { for col in 0..<9 where ![0, 4].contains(col) { masks[row * 9 + col] = allBut(5) } }
+        let steps = FishDetector.fish(board(masks), size: 2).filter { $0.digits == [5] }
+        XCTAssertEqual(steps.count, 1)
+        let removed = [1, 2, 4, 5, 6, 7, 8].flatMap { [$0 * 9, $0 * 9 + 4] }
+        XCTAssertEqual(steps.first?.eliminations, expected(removed, [5]))
+    }
+
+    func testSwordfishRemovesFromAllThreeCoverColumns() {
+        // 7 sits in rows 1, 5, 9 only within columns 1, 4, 7.
+        let spots: [Int: [Int]] = [0: [0, 3], 4: [3, 6], 8: [0, 6]]
+        var masks: [Int: [Int]] = [:]
+        for (row, cols) in spots { for col in 0..<9 where !cols.contains(col) { masks[row * 9 + col] = allBut(7) } }
+        let steps = FishDetector.fish(board(masks), size: 3).filter { $0.digits == [7] }
+        XCTAssertEqual(steps.count, 1)
+        let removed = [1, 2, 3, 5, 6, 7].flatMap { row in [0, 3, 6].map { row * 9 + $0 } }
+        XCTAssertEqual(steps.first?.eliminations, expected(removed, [7]))
+    }
+
+    func testHiddenQuadClearsOtherCandidates() {
+        // In row 1, digits 1-4 fit only in r1c1-r1c4.
+        let masks = Dictionary(uniqueKeysWithValues: (4...8).map { ($0, Array(5...9)) })
+        let step = SubsetDetector.hidden(board(masks), size: 4).first { $0.houses.first?.house == House(kind: .row, index: 0) }
+        XCTAssertEqual(step?.technique, .hiddenQuad)
+        XCTAssertEqual(step?.digits, [1, 2, 3, 4])
+        XCTAssertEqual(step?.eliminations, expected([0, 1, 2, 3], Array(5...9)))
+    }
+
+    func testXYWingNeedsThreeDistinctDigits() {
+        // Pivot r1c1 {1,2}, pincers r1c5 {1,3} and r5c1 {2,3}: r5c5 sees both pincers and loses 3.
+        let wing = WingDetector.xyWings(board([0: [1, 2], 4: [1, 3], 36: [2, 3]]))
+        XCTAssertEqual(wing.count, 1)
+        XCTAssertEqual(wing.first?.eliminations, [CellDigit(cell: 40, digit: 3)])
+        // A pivot and pincer with the same pair is not a wing.
+        XCTAssertTrue(WingDetector.xyWings(board([0: [4, 5], 2: [4, 5], 72: [3, 5]])).isEmpty)
+    }
+
+    func testCombinations() {
+        XCTAssertEqual(combinations([1, 2, 3, 4], size: 2), [[1, 2], [1, 3], [1, 4], [2, 3], [2, 4], [3, 4]])
+        XCTAssertEqual(combinations([1, 2], size: 3), [])
+    }
+
+    // MARK: - Latency (CODESPEC 9: 50 ms per hint)
+
+    /// The slowest case is a board where no known technique applies, so every detector runs.
+    /// The simulator is faster than the oldest supported iPhone; this catches large regressions.
+    func testHintLatencyOnStuckBoards() {
+        let stuck = Self.corpus.lazy.map { self.solver.solve(SolverBoard(values: $0.puzzle)).board }.filter { !$0.isSolved }.prefix(5)
+        XCTAssertFalse(stuck.isEmpty)
+        for board in stuck {
+            let start = Date()
+            _ = solver.nextStep(board)
+            XCTAssertLessThan(Date().timeIntervalSince(start), 0.05, "one hint took over 50 ms on the simulator")
+        }
+        let board = stuck.first!
+        measure { _ = solver.nextStep(board) }
+    }
+}

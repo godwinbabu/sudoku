@@ -17,6 +17,12 @@ final class PureSudokuUITests: XCTestCase {
         return app.buttons[empty.identifier]
     }
 
+    /// Waits for `cell`'s label to end with `suffix`. Actions like Reset update the grid asynchronously.
+    private func waitForLabel(of cell: XCUIElement, endingWith suffix: String, in app: XCUIApplication) -> Bool {
+        app.buttons.matching(NSPredicate(format: "identifier == %@ AND label ENDSWITH %@", cell.identifier, suffix))
+            .firstMatch.waitForExistence(timeout: 2)
+    }
+
     func testLaunchShowsDifficultyButtons() {
         let app = XCUIApplication()
         app.launch()
@@ -51,11 +57,11 @@ final class PureSudokuUITests: XCTestCase {
         cell.tap()
         app.buttons["mode_candidate"].tap()
         app.buttons["number_2"].tap()
-        XCTAssertTrue(cell.label.hasSuffix("candidates 2"), cell.label)
+        XCTAssertTrue(waitForLabel(of: cell, endingWith: "candidates 2", in: app), cell.label)
         app.buttons["gameMenuButton"].tap()
         app.buttons["Reset Puzzle"].tap()
         app.buttons["Confirm"].tap()
-        XCTAssertTrue(cell.label.hasSuffix(" empty"), cell.label)
+        XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
 
     func testPauseAndResumeShowsOverlay() {
