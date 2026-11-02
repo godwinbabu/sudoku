@@ -4,7 +4,7 @@ struct GameView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dynamicTypeSize) private var systemTypeSize
+    @Environment(\.psPalette) private var palette
     @StateObject private var viewModel: GameViewModel
     @State private var activeSheet: Sheet?
     @State private var showCelebration: Bool = false
@@ -28,9 +28,9 @@ struct GameView: View {
     }
 
     var body: some View {
-        let theme = controller.settings.themeColors
+        let theme = palette
         ZStack {
-            theme.background.ignoresSafeArea()
+            theme.bg.ignoresSafeArea()
             ScrollView {
                 VStack(spacing: 16) {
                     topBar(theme: theme)
@@ -40,7 +40,6 @@ struct GameView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .aspectRatio(1, contentMode: .fit)
-                    .dynamicTypeSize(gridTypeSize)
                     .padding(.vertical, 4)
                     .allowsHitTesting(!viewModel.state.isCompleted && !viewModel.isPaused)
                     if let session = viewModel.hint {
@@ -96,7 +95,7 @@ struct GameView: View {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
                         .font(.headline)
-                        .foregroundColor(theme.isSleep ? theme.accent : nil)
+                        .foregroundColor(theme.accent)
                 }
                 .accessibilityIdentifier("backButton")
             }
@@ -216,13 +215,8 @@ struct GameView: View {
         .accessibilityIdentifier("gameView")
     }
 
-    /// In the Sleep theme the profile sets the grid's text size, but never below the system size.
-    private var gridTypeSize: DynamicTypeSize {
-        guard controller.settings.themeEffective == .sleep else { return systemTypeSize }
-        return max(systemTypeSize, SleepPalette.typeSize(controller.settings.currentDisplayProfile.textSize))
-    }
 
-    private func topBar(theme: ThemeColors) -> some View {
+    private func topBar(theme: PSPalette) -> some View {
         let statusText = viewModel.state.isCompleted ? "Solved" : (viewModel.isPaused ? "Paused" : "In progress")
         return HStack(alignment: .center, spacing: 12) {
             Text(difficulty.displayName)
@@ -246,7 +240,7 @@ struct GameView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .font(.headline.bold())
-        .foregroundColor(theme.primaryText)
+        .foregroundColor(theme.ink)
     }
 
     private func toggleTimer() {
@@ -257,7 +251,7 @@ struct GameView: View {
         }
     }
 
-    private func modeToggle(theme: ThemeColors) -> some View {
+    private func modeToggle(theme: PSPalette) -> some View {
         HStack(spacing: 12) {
             ModeChip(title: "Normal", active: viewModel.inputMode == .normal, theme: theme) {
                 viewModel.inputMode = .normal
@@ -272,8 +266,8 @@ struct GameView: View {
                     .font(.footnote.bold())
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(theme.cardBackground)
-                    .foregroundColor(viewModel.canUndo ? theme.primaryText : theme.secondaryText)
+                    .background(theme.surface)
+                    .foregroundColor(viewModel.canUndo ? theme.ink : theme.ink2)
                     .clipShape(Capsule())
             }
             .disabled(!viewModel.canUndo || viewModel.isPaused || viewModel.state.isCompleted)
@@ -283,7 +277,7 @@ struct GameView: View {
         .accessibilityIdentifier("modeToggle")
     }
 
-    private func actionButtons(theme: ThemeColors) -> some View {
+    private func actionButtons(theme: PSPalette) -> some View {
         let items: [ActionItem] = [
             ActionItem(title: viewModel.showAllCandidates ? "Hide Candidates" : "Show Candidates") { viewModel.toggleAllCandidates() },
             ActionItem(title: "Hint") { viewModel.requestHint() },
@@ -309,12 +303,12 @@ struct GameView: View {
     }
 
     @ViewBuilder
-    private func hintBanner(theme: ThemeColors) -> some View {
+    private func hintBanner(theme: PSPalette) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if viewModel.state.hasContradiction {
                 Text("Board has a contradiction. Check duplicates or reset.")
                     .font(.footnote)
-                    .foregroundColor(theme.error)
+                    .foregroundColor(theme.err)
                     .accessibilityIdentifier("contradictionWarning")
             }
         }
@@ -334,9 +328,9 @@ struct GameView: View {
     }
 
     @ViewBuilder
-    private func celebrationOverlay(theme: ThemeColors) -> some View {
+    private func celebrationOverlay(theme: PSPalette) -> some View {
         ZStack {
-            Color.black.opacity(theme.isSleep ? 0.55 : 0.35)
+            Color.black.opacity(theme.isNight ? 0.55 : 0.35)
                 .ignoresSafeArea()
             VStack(spacing: 20) {
                 HStack(spacing: 10) {
@@ -345,7 +339,7 @@ struct GameView: View {
                         .foregroundColor(theme.accent)
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 90, weight: .bold))
-                        .foregroundColor(theme.success)
+                        .foregroundColor(theme.accent)
                     Image(systemName: "sparkles")
                         .font(.system(size: 30, weight: .bold))
                         .foregroundColor(theme.accent)
@@ -353,13 +347,13 @@ struct GameView: View {
                 VStack(spacing: 6) {
                     Text("Puzzle Solved!")
                         .font(.system(size: 34, weight: .black, design: .rounded))
-                        .foregroundColor(theme.primaryText)
+                        .foregroundColor(theme.ink)
                     Text("Amazing focus. Enjoy that win!")
                         .font(.headline)
-                        .foregroundColor(theme.secondaryText)
+                        .foregroundColor(theme.ink2)
                     Text(timeString(seconds: viewModel.state.elapsedSeconds))
                         .font(.title2.bold())
-                        .foregroundColor(theme.primaryText)
+                        .foregroundColor(theme.ink)
                 }
                 Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -382,30 +376,30 @@ struct GameView: View {
             .frame(minWidth: 320)
             .background(
                 LinearGradient(
-                    colors: [theme.cardBackground.opacity(0.98), theme.accent.opacity(0.18)],
+                    colors: [theme.surface.opacity(0.98), theme.accent.opacity(0.18)],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(theme.success.opacity(0.6), lineWidth: 2.2)
+                    .stroke(theme.accent.opacity(0.6), lineWidth: 2.2)
             )
             .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color.black.opacity(theme.isSleep ? 0.2 : 0.26), radius: 14, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(theme.isNight ? 0.2 : 0.26), radius: 14, x: 0, y: 4)
             .padding(.horizontal, 20)
         }
     }
 
     @ViewBuilder
-    private func pauseOverlay(theme: ThemeColors) -> some View {
+    private func pauseOverlay(theme: PSPalette) -> some View {
         ZStack {
-            Color.black.opacity(theme.isSleep ? 0.55 : 0.35)
+            Color.black.opacity(theme.isNight ? 0.55 : 0.35)
                 .ignoresSafeArea()
             VStack(spacing: 16) {
                 Text("Game is paused")
                     .font(.title2.bold())
-                    .foregroundColor(theme.primaryText)
+                    .foregroundColor(theme.ink)
                 Button {
                     viewModel.resumeTimer()
                 } label: {
@@ -420,7 +414,7 @@ struct GameView: View {
             }
             .padding(24)
             .frame(maxWidth: 320)
-            .background(theme.cardBackground)
+            .background(theme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(radius: 12)
             .accessibilityElement(children: .contain)
@@ -435,7 +429,7 @@ struct GameActionButton: View {
         case destructive
     }
 
-    let theme: ThemeColors
+    let theme: PSPalette
     let title: String
     var style: Style = .normal
     var action: () -> Void
@@ -446,7 +440,7 @@ struct GameActionButton: View {
                 .font(.footnote.bold())
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .foregroundColor(style == .destructive ? theme.error : theme.primaryText)
+                .foregroundColor(style == .destructive ? theme.err : theme.ink)
                 .frame(maxWidth: .infinity)
                 .background(background)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -458,7 +452,7 @@ struct GameActionButton: View {
     private var background: Color {
         switch style {
         case .normal: return theme.accent.opacity(0.15)
-        case .destructive: return theme.error.opacity(0.15)
+        case .destructive: return theme.err.opacity(0.15)
         }
     }
 }
@@ -466,7 +460,7 @@ struct GameActionButton: View {
 private struct ModeChip: View {
     let title: String
     let active: Bool
-    let theme: ThemeColors
+    let theme: PSPalette
     let action: () -> Void
 
     var body: some View {
@@ -476,8 +470,8 @@ private struct ModeChip: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 .frame(maxWidth: .infinity)
-                .background(active ? theme.accent.opacity(0.2) : theme.cardBackground)
-                .foregroundColor(active ? theme.accent : theme.secondaryText)
+                .background(active ? theme.accent.opacity(0.2) : theme.surface)
+                .foregroundColor(active ? theme.accent : theme.ink2)
                 .clipShape(Capsule())
         }
         .accessibilityIdentifier("mode_\(title.lowercased())")

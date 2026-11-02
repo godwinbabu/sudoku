@@ -5,7 +5,7 @@ import SwiftUI
 struct HintPanelView: View {
     let session: HintSession
     let names: CellNameStyle
-    let theme: ThemeColors
+    let theme: PSPalette
     let onBack: () -> Void
     let onNext: () -> Void
     let onShowResult: () -> Void
@@ -23,7 +23,7 @@ struct HintPanelView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text(session.title)
                     .font(.headline)
-                    .foregroundColor(theme.primaryText)
+                    .foregroundColor(theme.ink)
                 if let badge = session.badge {
                     Text(badge)
                         .font(.caption.weight(.semibold))
@@ -36,26 +36,26 @@ struct HintPanelView: View {
                 if session.step != nil {
                     Text("Step \(session.rung) of 4")
                         .font(.caption)
-                        .foregroundColor(theme.secondaryText)
+                        .foregroundColor(theme.ink2)
                 }
             }
             Text(session.text(names))
                 .font(.body)
-                .foregroundColor(theme.primaryText)
+                .foregroundColor(theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("hintText")
             if session.canApply, session.step?.eliminations.isEmpty == false {
                 Toggle("Show after", isOn: Binding(get: { session.showsAfter }, set: { _ in onToggleAfter() }))
                     .font(.footnote)
-                    .foregroundColor(theme.secondaryText)
+                    .foregroundColor(theme.ink2)
                     .tint(theme.accent)
                     .accessibilityIdentifier("hint_toggleAfter")
             }
             buttons
         }
         .padding(16)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.cardBackground))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(theme.gridLine.opacity(0.4), lineWidth: 1))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.surface))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(theme.lineMajor.opacity(0.4), lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("hintPanel")
     }
@@ -96,7 +96,7 @@ struct HintPanelView: View {
                 .font(.subheadline.bold())
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .background(prominent ? theme.accent.opacity(0.22) : theme.accent.opacity(0.08))
-                .foregroundColor(prominent ? theme.accent : theme.primaryText)
+                .foregroundColor(prominent ? theme.accent : theme.ink)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)

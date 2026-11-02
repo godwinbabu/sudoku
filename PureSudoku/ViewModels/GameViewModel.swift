@@ -101,7 +101,7 @@ final class GameViewModel: ObservableObject {
     func apply(settings newValue: Settings) {
         settings = newValue
         showTimer = newValue.showTimer
-        if !newValue.autoCheckMistakes {
+        if newValue.mistakes != .immediate {
             var newState = self.state
             newState.cells = newState.cells.map { cell in
                 var mutable = cell
@@ -257,7 +257,7 @@ final class GameViewModel: ObservableObject {
             newState.cells[index].isError = false
             checkedWrongIDs.remove(cellID)
             newState.cells[index].isVerifiedCorrect = false
-            if settings.autoRemoveCandidates {
+            if settings.tidyNotes {
                 newState.cells = removeCandidate(digit, relatedTo: newState.cells[index], from: newState.cells)
             }
             self.state = newState
@@ -549,7 +549,7 @@ final class GameViewModel: ObservableObject {
 
     private func updateAutoCheckHighlights() {
         var newState = self.state
-        let conflicts = validator.conflictingIndices(in: newState.cells, autoCheckMistakes: settings.autoCheckMistakes)
+        let conflicts = validator.conflictingIndices(in: newState.cells, autoCheckMistakes: settings.mistakes == .immediate)
         for idx in newState.cells.indices {
             if conflicts.contains(newState.cells[idx].id) {
                 newState.cells[idx].isError = true
@@ -739,7 +739,7 @@ extension GameViewModel {
             newState.cells[index].isError = false
             newState.cells[index].isVerifiedCorrect = false
             checkedWrongIDs.remove(newState.cells[index].id)
-            if settings.autoRemoveCandidates {
+            if settings.tidyNotes {
                 newState.cells = removeCandidate(placement.digit, relatedTo: newState.cells[index], from: newState.cells)
             }
         }

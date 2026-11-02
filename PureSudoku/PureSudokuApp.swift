@@ -20,23 +20,23 @@ struct RootView: View {
     var body: some View {
         MainMenuView(viewModel: MainMenuViewModel(controller: controller))
             .environmentObject(controller)
-            .preferredColorScheme(controller.settings.preferredColorScheme)
-            .environment(\.sleepTitleColor, controller.settings.themeEffective == .sleep ? controller.settings.themeColors.primaryText : nil)
-            .onChange(of: scenePhase) { _ in updateDisplay() }
+            .environment(\.psPalette, controller.palette)
+            .environment(\.psType, PSType(controller.settings.clarity))
+            .preferredColorScheme(controller.preferredColorScheme)
+            .onChange(of: scenePhase) { _ in
+                controller.objectWillChange.send() // After dark and Match iPhone may have changed while away
+                updateDisplay()
+            }
             .onChange(of: controller.settings) { _ in updateDisplay() }
             .onAppear(perform: updateDisplay)
             .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.darkerSystemColorsStatusDidChangeNotification)) { _ in
-                controller.objectWillChange.send() // Increase Contrast changes the Sleep floors (CODESPEC 9)
+                controller.objectWillChange.send() // Increase Contrast raises the Night floor (CODESPEC 9)
                 updateDisplay()
             }
     }
 
     private func updateDisplay() {
-        let settings = controller.settings
-        brightness.update(lower: ScreenBrightnessController.shouldLower(phase: scenePhase, settings: settings))
-        let palette = settings.themeEffective == .sleep
-            ? SleepPalette(profile: settings.currentDisplayProfile, increaseContrast: UIAccessibility.isDarkerSystemColorsEnabled)
-            : nil
-        SystemAppearance.apply(palette)
+        brightness.update(lower: ScreenBrightnessController.shouldLower(phase: scenePhase, isNight: controller.isNight))
+        SystemAppearance.apply(controller.palette)
     }
 }

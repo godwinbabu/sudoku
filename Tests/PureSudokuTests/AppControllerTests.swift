@@ -3,19 +3,22 @@ import XCTest
 
 @MainActor
 final class AppControllerTests: XCTestCase {
-    func testBedtimeModeUsesTheBedtimeDisplayProfile() {
+    func testNightForcesSoundAndHapticsOff() {
         let (controller, _) = makeTestController()
-        let night = DisplayProfile(name: "Night wake-up", dimness: 1)
-        controller.updateSettings { settings in
-            let reading = settings.displayProfiles[0]
-            settings.saveDisplayProfile(night)
-            settings.activeDisplayProfileID = reading.id
-            settings.bedtimeDisplayProfileID = night.id
+        controller.updateSettings {
+            $0.soundsEnabled = true
+            $0.hapticsEnabled = true
+            $0.appearance = .day
         }
-        XCTAssertNotEqual(controller.settings.currentDisplayProfile.id, night.id)
-        controller.updateSettings { $0.toggleBedtimeMode(true) }
-        XCTAssertEqual(controller.settings.currentDisplayProfile.id, night.id)
-        XCTAssertEqual(controller.settings.themeEffective, .sleep)
+        XCTAssertTrue(controller.soundsActive)
+        XCTAssertTrue(controller.hapticsActive)
+        XCTAssertFalse(controller.palette.isNight)
+        controller.updateSettings { $0.appearance = .night }
+        XCTAssertFalse(controller.soundsActive)
+        XCTAssertFalse(controller.hapticsActive)
+        XCTAssertTrue(controller.palette.isNight)
+        XCTAssertEqual(controller.preferredColorScheme, .dark)
+        XCTAssertTrue(controller.settings.soundsEnabled, "the saved choice is kept for Day")
     }
 
     /// Only the first row is given, so the import has many solutions (CODESPEC 2.1).

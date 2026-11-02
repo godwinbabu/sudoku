@@ -3,7 +3,7 @@ import SwiftUI
 struct SudokuGridView: View {
     let cells: [SudokuCell]
     let selectedCellID: UUID?
-    let theme: ThemeColors
+    let theme: PSPalette
     var candidateOverlay: [UUID: Set<Int>] = [:]
     /// Open hint's marks (CODESPEC 7.3).
     var highlight = HintHighlight()
@@ -16,10 +16,10 @@ struct SudokuGridView: View {
         let selectedValue = selectedCell?.value
         ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .fill(theme.gridBackground)
+                .fill(theme.bg)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(theme.gridLine.opacity(0.6), lineWidth: 2)
+                        .stroke(theme.lineMajor.opacity(0.6), lineWidth: 2)
                 )
             GeometryReader { geometry in
                 let rawLength = min(geometry.size.width, geometry.size.height)
@@ -82,14 +82,14 @@ struct SudokuGridView: View {
                         path.move(to: CGPoint(x: originX + offset, y: originY))
                         path.addLine(to: CGPoint(x: originX + offset, y: originY + length))
                     }
-                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
+                    .stroke(theme.lineMajor.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
 
                     Path { path in
                         let offset = CGFloat(index) * cellSize
                         path.move(to: CGPoint(x: originX, y: originY + offset))
                         path.addLine(to: CGPoint(x: originX + length, y: originY + offset))
                     }
-                    .stroke(theme.gridLine.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
+                    .stroke(theme.lineMajor.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
                 }
             }
         }
@@ -111,7 +111,7 @@ struct SudokuCellView: View {
     let isSelected: Bool
     let isHighlighted: Bool
     let isNumberMatch: Bool
-    let theme: ThemeColors
+    let theme: PSPalette
     let cellSize: CGFloat
     var hint = CellHintMark()
 
@@ -127,7 +127,7 @@ struct SudokuCellView: View {
             } else if let value = cell.value {
                 Text("\(value)")
                     .font(cell.given ? .title.bold() : .title)
-                    .foregroundColor(cell.given ? theme.primaryText : theme.accent)
+                    .foregroundColor(cell.given ? theme.ink : theme.accent)
             } else if !displayCandidates.isEmpty {
                 candidateGrid
             }
@@ -143,7 +143,7 @@ struct SudokuCellView: View {
                     path.addLine(to: CGPoint(x: cellSize * 0.28, y: cellSize * 0.28))
                     path.closeSubpath()
                 }
-                .fill(theme.error)
+                .fill(theme.err)
                 .frame(width: cellSize * 0.28, height: cellSize * 0.28)
                 .padding(3)
                 .accessibilityHidden(true)
@@ -154,15 +154,15 @@ struct SudokuCellView: View {
 
     private var cellFillColor: Color {
         if cell.isVerifiedCorrect {
-            return theme.success.opacity(0.2)
+            return theme.accent.opacity(0.2)
         } else if isSelected {
-            return theme.selection
+            return theme.sel
         } else if isNumberMatch {
-            return theme.sameNumberHighlight
+            return theme.same
         } else if isHighlighted {
-            return theme.selection.opacity(0.4)
+            return theme.sel.opacity(0.4)
         } else {
-            return theme.cardBackground
+            return theme.surface
         }
     }
 
@@ -175,8 +175,8 @@ struct SudokuCellView: View {
                 let isStruck = hint.struck.contains(number)
                 Text("\(number)")
                     .font(.caption2.weight(hint.ringed.contains(number) ? .heavy : .semibold))
-                    .strikethrough(isStruck, color: theme.primaryText)
-                    .foregroundColor(isStruck ? theme.secondaryText.opacity(0.6) : theme.secondaryText)
+                    .strikethrough(isStruck, color: theme.ink)
+                    .foregroundColor(isStruck ? theme.ink2.opacity(0.6) : theme.ink2)
                     .overlay {
                         if hint.ringed.contains(number) {
                             Circle().stroke(theme.accent, lineWidth: 1.2).frame(width: size.width / 3.2, height: size.width / 3.2)
@@ -217,9 +217,9 @@ struct SudokuCellView: View {
     }
 
     private var borderColor: Color {
-        if cell.isError { return theme.error }
-        if cell.isVerifiedCorrect { return theme.success }
-        return theme.selection
+        if cell.isError { return theme.err }
+        if cell.isVerifiedCorrect { return theme.accent }
+        return theme.sel
     }
 
     private var accessibilityText: String {

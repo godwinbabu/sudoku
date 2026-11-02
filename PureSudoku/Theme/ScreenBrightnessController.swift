@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Lowers the screen to its minimum while the app is open, if the display profile asks for it
-/// (CODESPEC 12.3), and puts the player's brightness back when the app leaves the foreground.
+/// Lowers the screen to its hardware minimum while the app is open in Night (CODESPEC 12.3); below
+/// that, the palette's glow scaling does the rest. Puts the player's brightness back when the app
+/// leaves the foreground.
 @MainActor
 final class ScreenBrightnessController {
     private let read: () -> CGFloat
@@ -17,8 +18,8 @@ final class ScreenBrightnessController {
 
     /// Lower while the app is on screen. `.inactive` (Control Center, a notification banner) keeps
     /// it low; restoring there would flash the screen up and back down.
-    static func shouldLower(phase: ScenePhase, settings: Settings) -> Bool {
-        phase != .background && settings.themeEffective == .sleep && settings.currentDisplayProfile.lowersScreenBrightness
+    static func shouldLower(phase: ScenePhase, isNight: Bool) -> Bool {
+        phase != .background && isNight
     }
 
     func update(lower: Bool) {

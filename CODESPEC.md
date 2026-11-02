@@ -44,7 +44,7 @@ Focus on:
 Fast launch.
 Instant responsiveness to taps.
 Clean, readable UI.
-The app must support bedtime / partner-friendly use with a special Sleep theme and Bedtime Mode (see Section 12).
+The app must support bedtime / partner-friendly use with a Night appearance (black canvas, Glow, Warmth, Clarity; see Section 12).
 The app teaches solving techniques, not only answers (see Section 13):
 A Learn entry point on the main screen opens the technique curriculum.
 Hints name and explain a technique on the player’s own board before any cell changes.
@@ -185,7 +185,7 @@ Additions for teaching (added in the phase that first needs them, Section 13.6):
 	•	usedHint: Bool — true once a hint’s result (rung 4) has been shown (Section 6.3.1).
 	•	TechniqueProgress (new model, one per technique):
 	•	foundUnaidedCount: Int, foundUnaidedDays: Set<day>, lastSeen: Date?, strength: Double (0–1, decays over time).
-	•	All new fields decode with defaults (decodeIfPresent), so older save files still load. This applies to every persisted model: SudokuPuzzle, GameState, Settings, Stats, TechniqueProgress and display profiles. A strict decode of a new field would make the old file fail to load and be moved aside, losing the player’s settings.
+	•	All new fields decode with defaults (decodeIfPresent), so older save files still load. This applies to every persisted model: SudokuPuzzle, GameState, Settings, Stats and TechniqueProgress. A strict decode of a new field would make the old file fail to load and be moved aside, losing the player’s settings.
 
 Testing requirements:
 	•	Unit tests:
@@ -212,7 +212,8 @@ Testing requirements:
 	•	Current streak (“Streak: N days”).
 	•	Total puzzles solved.
 	•	Optional total time spent.
-	•	A settings icon to open SettingsView (for theme, toggles, Bedtime Mode, etc.).
+	•	A settings icon to open SettingsView (appearance, Night screen, toggles).
+	•	A Night toggle at the bottom that switches between Day and Night (until the Night sheet, Section 12.2 of the v2 design, replaces it).
 	•	Behavior:
 	•	Tapping a difficulty:
 	•	If an unfinished game exists for that difficulty (!isCompleted), navigate to GameView with that existing GameState.
@@ -264,18 +265,15 @@ Testing requirements:
 3.3 Settings & Stats Screen
 	•	SwiftUI view: SettingsView and StatsView (can be separate or combined).
 	•	Settings includes:
-	•	Theme: System, Light, Dark, Sleep (low blue light).
+	•	Appearance: Day, Night, After dark, Match iPhone (Section 7.1).
+	•	Night screen: preset (Reading lamp, Lights out, Red light), Glow, Warmth (shown in Kelvin), Clarity (Section 12.3).
 	•	Toggles:
 	•	Show timer on/off.
-	•	Auto remove candidates.
-	•	Auto-check mistakes.
-	•	Bedtime Mode (see Section 12).
+	•	Tidy notes (remove a placed digit from the notes it sees).
+	•	Show mistakes: Right away / When I check / Never.
 	•	Cell names: “row 3, column 5” (default) or short “r3c5” (phase 3).
 	•	Hints: ask “Try it yourself first?” before showing a result (default on, phase 3).
-	•	Display (phase 3, Section 12.3):
-	•	Calibrate display: runs the calibration flow.
-	•	Display profiles: pick, rename, re-calibrate or delete a profile.
-	•	A tip that explains iOS Reduce White Point and the Accessibility Shortcut.
+	•	These controls move to the Night sheet and Journal › Display & Night in later v2 phases (Design/v2/README.md).
 	•	Stats includes:
 	•	Current streak.
 	•	Best times per difficulty.
@@ -285,7 +283,8 @@ Testing requirements:
 
 Testing requirements:
 	•	Unit tests:
-	•	Changing a setting (e.g. showTimer, theme, bedtimeMode) in the view model should persist and reload correctly.
+	•	Changing a setting (e.g. showTimer, appearance, glow) in the view model should persist and reload correctly.
+	•	Settings files from v1 (theme, bedtimeMode, sleepBrightness, display profiles, autoCheckMistakes, autoRemoveCandidates) load and map to the v2 fields (Section 7.1).
 	•	UI tests:
 	•	Navigate to settings, toggle Show timer off, go back to game and verify timer visually hidden.
 
@@ -504,46 +503,34 @@ Testing requirements:
 
 7. Theme & UI Modes
 
-7.1 Theme Settings
+7.1 Appearance
 
 Implement:
-enum AppTheme: String, Codable {
-    case system     // follow system light/dark
-    case light
-    case dark
-    case sleep      // low-blue-light mode for bedtime use
+enum Appearance: String, Codable {
+    case day          // warm paper palette
+    case night        // black canvas, warm digits, silent
+    case afterDark    // Night from sunset to sunrise; Day otherwise
+    case matchSystem  // Night when iOS is in Dark mode
 }
 
-	•	In SettingsView, allow user to choose theme.
-	•	Apply theme globally via environment and a central theme manager.
-	•	AppTheme.sleep is optimized for in-bed, partner-friendly use and is also used by Bedtime Mode (Section 12).
+	•	Default: afterDark. Without location (until the After dark scheduler lands), the window is fixed hours: 9:00 PM → 6:30 AM.
+	•	Match iPhone leaves the colour scheme to iOS; the other choices pin it (Day = light, Night = dark).
+	•	The palette (PSPalette) and type scale (PSType) are injected through the SwiftUI environment (psPalette, psType) from the app root. Views never hard-code colours.
+	•	v1 settings migrate once: theme light → Day, dark → Night, system → Match iPhone; theme sleep or bedtimeMode → Night with the Lights out preset; sleepBrightness normal / dim / extraDim → glow 55 / 30 / 18; an active display profile keeps its brightness (glow = (1 − dimness) × 60) and warmth; autoCheckMistakes true → Right away, false → When I check; autoRemoveCandidates → tidyNotes; hasCalibratedDisplay → calibrated.
 
 7.2 Visual Rules
-	•	Light Mode:
-	•	Background: light (white/off-white).
-	•	Grid lines: dark gray.
-	•	Given numbers: bold, dark.
-	•	User numbers: normal weight.
-	•	Dark Mode:
-	•	Background: dark gray or near-black.
-	•	Grid lines: light gray.
-	•	Text: off-white.
-	•	Sleep Mode (low blue light):
-	•	Background: very dark.
-	•	Use warm colors (amber/orange) for accents instead of blue.
-	•	Avoid pure white; use dim off-white or warm light text.
-	•	No bright full-screen flashes or highly contrasting popups.
-	•	Integrates with Bedtime / Partner-Friendly Mode (extra dimming, silent behavior).
-	•	Background is true black (#000), so OLED pixels are off.
-	•	From phase 3, the Sleep palette is computed from the active display profile (Section 12.3), not fixed colors:
-	•	Inputs: dimness, contrast, warmth, text scale.
-	•	Each element (given digits, player digits, candidates, grid lines, highlights) gets its own brightness from those inputs, with a readable floor for candidates and grid lines.
-	•	Warmth runs from neutral through amber to orange-red. Never deep red: it looks nearly black to some color-blind players.
+	•	Day palette (fixed): bg #F4F1E9, surface #EBE6DA, surface2 #E2DCCD, ink #1B1A17, ink2 #57534B, ink3 #8A857A, accent #9A5712, accentDim #C9A27A, line #CFC8B8 (Clarity Large/Bold: #B9B1A0), lineMajor #2E2B25, hair #D8D1C1, sel #EFD9B0, peer #ECE6D9, same #F1E2C6, err #B3261E.
+	•	Night palette (computed from glow, warmth and Clarity; never hard-coded):
+	•	K = warmth mapped 6500 → 1200 K, interpolated in mireds, rounded to 50 K. Warmth 0 / 45 / 75 / 100 = 6500 / 2200 / 1500 / 1200 K.
+	•	base = blackbody colour of K (Tanner Helland approximation). accent = blackbody of warmth × 0.55 + 52.
+	•	s = floor + (1 − floor) × (glow / 100)^1.15, with floor 0.20 / 0.30 / 0.38 for Clarity Standard / Large / Bold. Increase Contrast uses the Bold floor.
+	•	bg is always #000 (OLED pixels off). Every other token is base or accent times a fixed share of s (Design/v2/README.md, “Night palette”).
 	•	Never use a black overlay to dim; it dims everything by the same amount and makes small marks unreadable first.
-	•	Every state must show by shape or weight, not color alone (all themes):
+	•	Night rules: no filled shapes behind text; primary buttons are outlines (1.5 pt accentDim stroke, accent text); cards are transparent with a 1 pt hair border.
+	•	Every state must show by shape or weight, not hue alone (Day and Night):
 	•	Selection: a filled background plus a heavier outline.
-	•	Error: a corner marker or underline plus a brightness change. Do not rely on red; red disappears in a warm palette.
-	•	Hint roles: outlines for pattern cells, a ring for the key digit, strike-through for eliminations.
+	•	Error: an underline bar plus the err colour.
+	•	Hint roles: rings for evidence and targets, strike-through for eliminations.
 
 7.3 Grid Interaction Visuals
 	•	Selecting a cell:
@@ -551,7 +538,7 @@ enum AppTheme: String, Codable {
 	•	Selecting a number:
 	•	Highlight all cells with that number.
 	•	Duplicate entry:
-	•	With autoCheckMistakes enabled:
+	•	With Show mistakes set to Right away:
 	•	Immediately mark conflicting cells as error (error marker, see 7.2).
 	•	Hint highlights (phase 3):
 	•	Fade in slowly (about 0.3 s). Never blink or pulse.
@@ -559,11 +546,12 @@ enum AppTheme: String, Codable {
 
 Testing requirements:
 	•	Unit tests:
-	•	Theme selection is persisted and restored.
-	•	Palette (phase 3): for every profile in the allowed range, digits, candidates and grid lines stay at or above the floors in Section 9.
+	•	Appearance is persisted and restored; v1 settings migrate (Section 7.1).
+	•	Night palettes for the three presets match the Design/v2/styles.css snapshots within ±1 per channel.
+	•	Kelvin for warmth 0 / 45 / 75 / 100 is 6500 / 2200 / 1500 / 1200.
 	•	UI tests (basic):
 	•	Switch theme to Dark and verify at least that background or some key UI element changes (sanity check).
-	•	autoCheckMistakes: place a conflicting number and verify visual error (e.g., presence of an error indicator).
+	•	Show mistakes: place a conflicting number and verify visual error (e.g., presence of an error indicator).
 
 ⸻
 
@@ -579,17 +567,14 @@ Persist:
 	•	Every few seconds (debounced).
 	•	When app goes to background.
 	•	When user leaves GameView.
-	2.	Settings:
-	•	AppTheme
-	•	showTimer
-	•	autoRemoveCandidates
-	•	autoCheckMistakes
-	•	autoFillHints (until phase 3, then removed)
-	•	bedtimeMode flag
+	2.	Settings (v2, Section 7.1):
+	•	appearance, glow, warmth, clarity, glowFloor, calibrated
+	•	drift, hideStatusBarInGames, useLocationForAfterDark, afterDarkStart, afterDarkEnd
 	•	soundsEnabled, hapticsEnabled
-	•	sleepBrightness (until phase 3, then replaced by display profiles)
+	•	mistakes, tidyNotes, showTimer
+	•	cell-name style, “try it yourself first”
 	•	keepImportImages
-	•	From phase 3: display profiles (name, dimness, contrast, warmth, text scale, use system-floor brightness), the active profile, the bedtime profile, cell-name style, “try it yourself first”.
+	•	v1 keys (theme, bedtimeMode, sleepBrightness, display profiles, autoCheckMistakes, autoRemoveCandidates) are read once and mapped (Section 7.1), never written.
 	3.	Technique progress (phase 5): one TechniqueProgress per technique (Section 2.3).
 	4.	Imported games (BYOS.md).
 	5.	Stats:
@@ -638,9 +623,9 @@ Testing requirements:
 	•	Accessibility:
 	•	Support Dynamic Type, including candidate marks (with a minimum size).
 	•	Color contrast:
-	•	System, Light and Dark themes: at least 4.5:1 for digits and text, 3:1 for grid lines and large or bold text.
-	•	Sleep theme: the player chooses the dimness, and it may go below 4.5:1 (a dark room needs less contrast, and this is the player’s own choice). Fixed floors still apply: digits never darker than luminance 0.01; candidates at least 60% and grid lines at least 40% of the digit luminance.
-	•	Sleep theme with iOS Increase Contrast on: the 4.5:1 / 3:1 floors apply here too.
+	•	Day: at least 4.5:1 for digits and text, 3:1 for grid lines and large or bold text.
+	•	Night: the player chooses the glow, and it may go below 4.5:1 (a dark room needs less contrast, and this is the player’s own choice). The Clarity floor still applies (ink at least 20% / 30% / 38% of the full blackbody colour).
+	•	Night with iOS Increase Contrast on: the palette uses the Bold floor and line lift.
 	•	If iOS Bold Text or Increase Contrast is on, raise the app’s weight and contrast floors.
 	•	VoiceOver can play a full game (phase 6): each cell reads its row, column, value or candidates, and hints read their explanation.
 	•	Code organization:
@@ -670,7 +655,9 @@ Testing requirements:
 	•	SudokuPuzzle.swift
 	•	GameState.swift
 	•	Stats.swift
-	•	AppTheme.swift
+	•	Settings.swift
+	•	Theme/
+	•	NightPalette.swift (Appearance, Clarity, PSType, PSPalette, Blackbody, NightPreset)
 	•	Engine/
 	•	SudokuValidator.swift
 	•	SudokuPuzzleRepository.swift
@@ -759,45 +746,22 @@ Testing requirements:
 	•	Check / Reveal / Reset
 	•	Verify: no sound and no vibration occur.
 
-12.3 Extra-Dim Sleep Mode
+12.3 Night screen (Glow, Warmth, Clarity)
 
-Extend the existing AppTheme.sleep behavior:
-	•	In Sleep theme:
-	•	Use very dark backgrounds and warm accent colors (amber/orange).
-	•	Avoid pure white; prefer dim off-white or warm light text.
-	•	Avoid high-contrast flashes (no bright full-screen modals).
-	•	Current implementation (until phase 3): an in-app brightness limiter with three fixed steps (Normal, Dim, Extra Dim), done with a black overlay. Sleep theme and Bedtime Mode default to Extra Dim.
-
-Target (phase 3): per-person display calibration instead of fixed steps.
-Why: total light, not color, is what affects sleep, and people differ widely. The light level that halves melatonin varies more than 50-fold between people. A 60-year-old’s retina gets about a third of the light a 20-year-old’s gets, and needs more contrast at the same dimness. So dimness and contrast are separate controls, set by each player.
-	•	Calibration flow (about one minute, offered the first time Bedtime Mode is turned on, and any time from Settings › Bedtime display). One screen with a live preview grid in the palette being edited; Cancel and Save stay readable at any dimness:
-	1.	Text size: a sample grid with digits and candidates. Scale on top of Dynamic Type.
-	2.	Dimness: “Slide down until the digits are just comfortable, then go one step up.”
-	3.	Contrast: separates digits, candidates and grid lines. Sets the floor for candidate marks.
-	4.	Warmth: neutral → amber → orange-red (never deep red, Section 7.2).
-	5.	System brightness (opt-in): lower the screen to its minimum while the app is open. iOS restores it when the app leaves the foreground.
-	6.	Tip: how to turn on iOS Reduce White Point and add it to the Accessibility Shortcut (triple-click). It dims far more than any app can.
-	•	The result is a display profile. Players keep up to three named profiles (e.g. “Reading in bed”, “Night wake-up”). Two people sharing a phone can each keep one.
-	•	Settings › Bedtime display picks the profile the Sleep theme uses, and separately the profile Bedtime Mode uses (“Same as above” by default).
-	•	Text size applies to the grid in the Sleep theme, never below the system Dynamic Type size.
-	•	The palette is computed from the profile (Section 7.2). No black overlay.
-	•	Warmth is a comfort setting. The app must not claim that warm colors protect sleep.
+Night replaces the v1 Sleep theme, Bedtime Mode and display profiles.
+Why: total light, not colour, is what affects sleep, and people differ widely. So brightness (Glow) and colour (Warmth) are separate continuous controls, and Clarity trades a higher floor for readability.
+	•	Glow 0–100: how much light the screen gives off. Implemented in two layers:
+	1.	While the app is in front in Night, set UIScreen brightness to its minimum. Restore the player’s brightness when the app goes to the background. Keep it low while inactive (Control Center), so it does not flash up.
+	2.	Below the hardware minimum, the palette’s luminance scale (Section 7.2) does the rest.
+	•	Warmth 0–100: colour temperature 6500 → 1200 K. Warmth is a comfort setting. The app must not claim that warm colours protect sleep.
+	•	Clarity: Standard / Large / Bold. Bigger, heavier digits and stronger lines, and a higher Night floor.
+	•	Presets: Reading lamp (glow 55, warmth 45), Lights out (18, 75), Red light (10, 100). A preset never sets glow below glowFloor.
+	•	glowFloor and calibrated are stored for the first-night “Find my lowest glow” flow (a later v2 phase).
 	•	Limits the app must respect: it cannot go below the system brightness minimum, cannot read room light, and cannot turn on Reduce White Point.
-	•	Only if iOS offers a public API to read Reduce White Point: when it is on, do not stack the app’s own dimming so far that text drops below the Section 9 floors. Without such an API, the floors alone protect readability.
-	•	Existing sleepBrightness values migrate to a starting profile whose look matches today’s (Normal / Dim / Extra Dim → the same overall dimness). If that look breaks a Section 9 floor, the floor wins.
 
 Testing requirements:
-	•	UI tests (visual sanity checks / snapshot-ready):
-	•	Enable Sleep theme and confirm:
-	•	Background is dark.
-	•	No pure white elements dominate the screen.
-	•	Accent colors are warm (not blue).
-	•	Manual test:
-	•	With system brightness at ~25%, enable Bedtime Mode and calibrate to the dimmest readable profile.
-	•	Subjectively confirm the grid is still readable but significantly dim, and nothing on screen is pure white except the iOS status bar.
-	•	Calibration (phase 3):
-	•	Unit tests: a profile round-trips through persistence; old sleepBrightness values migrate to a profile; the computed palette keeps candidates and grid lines above their floor.
-	•	Manual test in a dark room with two testers, one near 30 and one near 60: each calibrates, then plays for 5 minutes. Both can read candidates without strain.
+	•	Unit tests: palette snapshots, Kelvin mapping, Clarity floor, v1 migration, brightness lowered only in Night and restored afterwards.
+	•	Manual test: with Night on at minimum system brightness, no filled area anywhere renders brighter than ink, including sheets and menus.
 
 12.4 Calm Visual Design (No Sudden Flashing)
 	•	Animations:
@@ -866,31 +830,19 @@ Testing requirements:
 	•	Verify the grid state and elapsedSeconds resumed correctly.
 	•	Ensure no modal dialog appears on resume unless absolutely necessary.
 
-12.7 “Bedtime Mode” Shortcut
-	•	Add a simple toggle in Settings:
-	•	Bedtime Mode (boolean).
-	•	When ON:
-	•	Force theme to AppTheme.sleep.
-	•	Force soundsEnabled == false, hapticsEnabled == false.
-	•	Set in-app brightness to minimum (via overlay). From phase 3: apply the player’s bedtime display profile instead.
-	•	Force dark appearance for every screen, including system sheets the app presents. Avoid system views that cannot be themed dark (they flash white).
-	•	The launch screen is black in every mode (iOS shows a static launch screen, so it cannot depend on Bedtime Mode).
-	•	Optionally, provide a shortcut on the main menu:
-	•	Small icon or button, e.g. “🌙 Bedtime Mode”.
-	•	Tapping it:
-	•	Turns on Bedtime Mode.
-	•	Immediately applies Sleep theme and dimming.
+12.7 Night shortcut and silence
+	•	Bedtime Mode is replaced by Night (Section 7.1). A toggle on the main menu switches between Day and Night.
+	•	When Night is active:
+	•	Sounds and haptics are off at runtime, whatever the saved settings say (the saved choice is kept for Day).
+	•	Force dark appearance for every screen, including sheets the app presents. Avoid system views that cannot be themed dark (they flash white).
+	•	Screen brightness is lowered (Section 12.3).
+	•	The launch screen is black in every mode (iOS shows a static launch screen).
 
 Testing requirements:
 	•	Unit tests:
-	•	Toggling bedtimeMode in settings forces:
-	•	theme == .sleep
-	•	soundsEnabled == false
-	•	hapticsEnabled == false
+	•	With Night active, soundsActive and hapticsActive are false, the palette is the Night palette and the colour scheme is dark.
 	•	UI tests:
-	•	Enable Bedtime Mode via settings and assert that:
-	•	Sleep theme is active.
-	•	UI re-renders with dark warm palette and dim overlay (until phase 3; from phase 3: the bedtime display profile is applied).
+	•	Turn Night on from the main menu and open a game.
 
 ⸻
 

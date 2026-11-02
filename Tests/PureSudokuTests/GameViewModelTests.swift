@@ -29,9 +29,9 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.state.cells.first(where: { $0.id == cell.id })?.candidates.contains(4) ?? true)
     }
 
-    func testAutoRemoveCandidates() {
+    func testTidyNotes() {
         var settings = Settings()
-        settings.autoRemoveCandidates = true
+        settings.tidyNotes = true
         let viewModel = makeViewModel(settings: settings)
         guard let editable = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
         viewModel.select(cell: editable)
@@ -112,7 +112,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testCheckCellNeverClearsAWrongValue() {
         var settings = Settings()
-        settings.autoCheckMistakes = false
+        settings.mistakes = .onCheck
         let viewModel = makeViewModel(settings: settings)
         guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
         let answer = Int(String(Array(TestData.puzzle.solutionGrid)[cell.index]))!
@@ -155,7 +155,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testUndoRestoresCheckResult() {
         var settings = Settings()
-        settings.autoCheckMistakes = false
+        settings.mistakes = .onCheck
         let viewModel = makeViewModel(settings: settings)
         let cell = viewModel.state.cells[2] // r1c3, answer 4
         viewModel.select(cell: cell)
@@ -170,7 +170,7 @@ final class GameViewModelTests: XCTestCase {
 
     func testSecondCheckPuzzleStillChecksNewEntries() {
         var settings = Settings()
-        settings.autoCheckMistakes = false
+        settings.mistakes = .onCheck
         let viewModel = makeViewModel(settings: settings)
         viewModel.select(cell: viewModel.state.cells[2]) // r1c3, answer 4
         viewModel.setDigit(4)

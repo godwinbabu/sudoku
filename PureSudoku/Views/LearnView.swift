@@ -3,9 +3,10 @@ import SwiftUI
 /// The curriculum (CODESPEC 13.5): every technique by tier, with the player's level and strength.
 struct LearnView: View {
     @EnvironmentObject private var controller: AppController
+    @Environment(\.psPalette) private var palette
 
     var body: some View {
-        let theme = controller.settings.themeColors
+        let theme = palette
         List {
             ForEach([TechniqueTier.basic, .intermediate, .advanced], id: \.self) { tier in
                 Section(Self.tierName(tier)) {
@@ -18,21 +19,21 @@ struct LearnView: View {
                         .accessibilityIdentifier("learn_\(technique.rawValue)")
                     }
                 }
-                .listRowBackground(theme.isSleep ? theme.cardBackground : nil)
+                .listRowBackground(theme.isNight ? theme.surface : nil)
             }
         }
-        .scrollContentBackground(theme.isSleep ? .hidden : .automatic)
-        .background(theme.background.ignoresSafeArea())
+        .scrollContentBackground(theme.isNight ? .hidden : .automatic)
+        .background(theme.bg.ignoresSafeArea())
         .themedTitle("Learn")
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("learnView")
     }
 
-    private func row(_ technique: Technique, theme: ThemeColors) -> some View {
+    private func row(_ technique: Technique, theme: PSPalette) -> some View {
         let progress = controller.progress(for: technique)
         return VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(technique.displayName).font(.body.weight(.semibold)).foregroundColor(theme.primaryText)
+                Text(technique.displayName).font(.body.weight(.semibold)).foregroundColor(theme.ink)
                 Spacer()
                 Text(Self.levelName(progress.level))
                     .font(.caption.weight(.semibold))
@@ -40,7 +41,7 @@ struct LearnView: View {
                     .overlay(Capsule().stroke(theme.accent, lineWidth: progress.level == .mastered ? 2 : 1))
                     .foregroundColor(theme.accent)
             }
-            Text(technique.definition).font(.footnote).foregroundColor(theme.secondaryText)
+            Text(technique.definition).font(.footnote).foregroundColor(theme.ink2)
             if progress.level != .new {
                 ProgressView(value: progress.strength(at: Date()))
                     .tint(theme.accent)
@@ -71,23 +72,24 @@ struct LearnView: View {
 /// One technique: a single worked example on a real board, then three practice puzzles.
 struct LessonView: View {
     @EnvironmentObject private var controller: AppController
+    @Environment(\.psPalette) private var palette
     let technique: Technique
     @State private var lesson: Lesson?
     @State private var showsResult = false
     @State private var loaded = false
 
     var body: some View {
-        let theme = controller.settings.themeColors
+        let theme = palette
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(technique.definition).font(.body).foregroundColor(theme.primaryText)
+                Text(technique.definition).font(.body).foregroundColor(theme.ink)
                 if let lesson {
                     SudokuGridView(cells: lesson.cells, selectedCellID: nil, theme: theme, highlight: shownHighlight(lesson)) { _ in }
                         .aspectRatio(1, contentMode: .fit)
                         .allowsHitTesting(false)
                         .accessibilityIdentifier("lessonBoard")
                     Text(lesson.step.reason(controller.settings.cellNameStyle))
-                        .foregroundColor(theme.primaryText)
+                        .foregroundColor(theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     if showsResult {
                         Text(lesson.step.resultText(controller.settings.cellNameStyle))
@@ -99,7 +101,7 @@ struct LessonView: View {
                         }
                         .accessibilityIdentifier("lesson_showResult")
                     }
-                    Text("Practice").font(.headline).foregroundColor(theme.primaryText).padding(.top, 8)
+                    Text("Practice").font(.headline).foregroundColor(theme.ink).padding(.top, 8)
                     ForEach(Array(lesson.practice.enumerated()), id: \.offset) { index, entry in
                         NavigationLink {
                             GameView(viewModel: controller.makePracticeGameViewModel(entry, number: index + 1), difficulty: entry.difficulty)
@@ -113,14 +115,14 @@ struct LessonView: View {
                         .accessibilityIdentifier("lesson_practice\(index + 1)")
                     }
                 } else if loaded {
-                    Text("No example puzzle for this technique yet.").foregroundColor(theme.secondaryText)
+                    Text("No example puzzle for this technique yet.").foregroundColor(theme.ink2)
                 } else {
                     ProgressView()
                 }
             }
             .padding(20)
         }
-        .background(theme.background.ignoresSafeArea())
+        .background(theme.bg.ignoresSafeArea())
         .tint(theme.accent)
         .themedTitle(technique.displayName)
         .task {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct NumberPadView: View {
-    let theme: ThemeColors
+    let theme: PSPalette
     var disabledDigits: Set<Int>
     var isCandidateMode: Bool
     var onDigit: (Int) -> Void
@@ -20,10 +20,10 @@ struct NumberPadView: View {
                         .padding(.vertical, isCandidateMode ? 7 : 10)
                         .padding(.horizontal, 4)
                         .frame(minHeight: 44)
-                        .foregroundColor(isDisabled ? theme.numberPadDisabledText : theme.primaryText)
+                        .foregroundColor(isDisabled ? theme.ink3 : theme.ink)
                         .background(
                             RoundedRectangle(cornerRadius: 12)
-                                .fill(isDisabled ? theme.numberPadDisabledBackground : buttonBackground)
+                                .fill(isDisabled ? theme.surface2 : buttonBackground)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .stroke(isCandidateMode ? theme.accent.opacity(0.6) : .clear, lineWidth: isCandidateMode ? 1 : 0)
@@ -49,6 +49,6 @@ struct NumberPadView: View {
     }
 
     private var buttonBackground: Color {
-        isCandidateMode ? theme.cardBackground : theme.accent.opacity(0.18)
+        isCandidateMode ? theme.surface : theme.accent.opacity(0.18)
     }
 }

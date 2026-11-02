@@ -9,7 +9,7 @@ struct StatsView: View {
                 Section("Streak") {
                     Text("\(viewModel.stats.streakDays) days")
                 }
-                .sleepRowBackground()
+                .paletteRowBackground()
                 Section("Best Times") {
                     ForEach(Difficulty.allCases) { difficulty in
                         HStack {
@@ -19,7 +19,7 @@ struct StatsView: View {
                         }
                     }
                 }
-                .sleepRowBackground()
+                .paletteRowBackground()
                 Section("Solved") {
                     ForEach(Difficulty.allCases) { difficulty in
                         HStack {
@@ -39,7 +39,7 @@ struct StatsView: View {
                         Text("\(viewModel.stats.totalPuzzlesSolved)")
                     }
                 }
-                .sleepRowBackground()
+                .paletteRowBackground()
                 Section("Time Spent") {
                     HStack {
                         Text("Total time")
@@ -47,7 +47,7 @@ struct StatsView: View {
                         Text(viewModel.totalTimeString())
                     }
                 }
-                .sleepRowBackground()
+                .paletteRowBackground()
             }
             .themedTitle("Stats")
         }
