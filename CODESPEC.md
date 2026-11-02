@@ -270,7 +270,7 @@ Testing requirements:
 	•	Toggles:
 	•	Show timer on/off.
 	•	Tidy notes (remove a placed digit from the notes it sees).
-	•	Show mistakes: Right away / When I check / Never.
+	•	Show mistakes: Right away / When I check. Never (no marks, even on Check) is hidden until the v2 game screen supports it.
 	•	Cell names: “row 3, column 5” (default) or short “r3c5” (phase 3).
 	•	Hints: ask “Try it yourself first?” before showing a result (default on, phase 3).
 	•	These controls move to the Night sheet and Journal › Display & Night in later v2 phases (Design/v2/README.md).
@@ -516,7 +516,7 @@ enum Appearance: String, Codable {
 	•	Default: afterDark. Without location (until the After dark scheduler lands), the window is fixed hours: 9:00 PM → 6:30 AM.
 	•	Match iPhone leaves the colour scheme to iOS; the other choices pin it (Day = light, Night = dark).
 	•	The palette (PSPalette) and type scale (PSType) are injected through the SwiftUI environment (psPalette, psType) from the app root. Views never hard-code colours.
-	•	v1 settings migrate once: theme light → Day, dark → Night, system → Match iPhone; theme sleep or bedtimeMode → Night with the Lights out preset; sleepBrightness normal / dim / extraDim → glow 55 / 30 / 18; an active display profile keeps its brightness (glow = (1 − dimness) × 60) and warmth; autoCheckMistakes true → Right away, false → When I check; autoRemoveCandidates → tidyNotes; hasCalibratedDisplay → calibrated.
+	•	v1 settings migrate once: theme light → Day, dark → Night, system → Match iPhone; sleepBrightness normal / dim / extraDim → glow 55 / 30 / 18; the active display profile (the bedtime profile when bedtimeMode is on) then sets glow = (1 − dimness) × 60 and warmth; theme sleep or bedtimeMode → Night with the Lights out preset, unless hasCalibratedDisplay, when the profile wins; autoCheckMistakes true → Right away, false → When I check; autoRemoveCandidates → tidyNotes; hasCalibratedDisplay → calibrated.
 
 7.2 Visual Rules
 	•	Day palette (fixed): bg #F4F1E9, surface #EBE6DA, surface2 #E2DCCD, ink #1B1A17, ink2 #57534B, ink3 #8A857A, accent #9A5712, accentDim #C9A27A, line #CFC8B8 (Clarity Large/Bold: #B9B1A0), lineMajor #2E2B25, hair #D8D1C1, sel #EFD9B0, peer #ECE6D9, same #F1E2C6, err #B3261E.

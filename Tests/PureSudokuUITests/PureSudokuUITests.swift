@@ -136,7 +136,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// Settings → Night preset, then a game in Night (CODESPEC 12).
-    func testPickAPresetAndPlayAtNight() {
+    func testNightToggleOpensANightGame() {
         let app = XCUIApplication()
         app.launch()
         XCTAssertTrue(app.buttons["settingsButton"].waitForExistence(timeout: 2))

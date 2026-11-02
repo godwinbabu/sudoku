@@ -8,10 +8,6 @@ extension Settings {
         return .night(glow: glow, warmth: warmth, clarity: increaseContrast ? .bold : clarity)
     }
 
-    func isNight(systemIsDark: Bool, now: Date = Date()) -> Bool {
-        isNight(now: now, systemIsDark: systemIsDark)
-    }
-
     /// Match iPhone leaves the colour scheme to iOS; the other choices pin it.
     func preferredColorScheme(isNight: Bool) -> ColorScheme? {
         appearance == .matchSystem ? nil : (isNight ? .dark : .light)

@@ -41,7 +41,7 @@ struct SettingsView: View {
                     Toggle("Show timer", isOn: Binding(get: { settings.showTimer }, set: { viewModel.setShowTimer($0) }))
                     Toggle("Tidy notes", isOn: Binding(get: { settings.tidyNotes }, set: { viewModel.setTidyNotes($0) }))
                     Picker("Show mistakes", selection: Binding(get: { settings.mistakes }, set: { viewModel.setMistakes($0) })) {
-                        ForEach(MistakeMode.allCases) { Text($0.displayName).tag($0) }
+                        ForEach(MistakeMode.offered) { Text($0.displayName).tag($0) }
                     }
                 }
                 .paletteRowBackground()

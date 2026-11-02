@@ -4,6 +4,8 @@ import Foundation
 enum MistakeMode: String, Codable, CaseIterable, Identifiable {
     case immediate, onCheck, never
     var id: String { rawValue }
+    /// shortcut: Never is hidden because Check still marks mistakes; offer it once the v2 game screen honours it.
+    static let offered: [MistakeMode] = [.immediate, .onCheck]
     var displayName: String {
         switch self {
         case .immediate: return "Right away"
@@ -101,7 +103,7 @@ struct Settings: Codable, Equatable {
 
     /// Night is active when appearance is .night, .afterDark inside the window, or .matchSystem
     /// with a dark iPhone setting.
-    func isNight(now: Date, sunset: Date? = nil, sunrise: Date? = nil, systemIsDark: Bool, calendar: Calendar = .current) -> Bool {
+    func isNight(now: Date = Date(), sunset: Date? = nil, sunrise: Date? = nil, systemIsDark: Bool, calendar: Calendar = .current) -> Bool {
         switch appearance {
         case .day: return false
         case .night: return true
@@ -128,7 +130,7 @@ struct Settings: Codable, Equatable {
         case askBeforeHintResult, cellNameStyle, keepImportImages
         // v1, read only
         case theme, bedtimeMode, sleepBrightness, autoRemoveCandidates, autoCheckMistakes
-        case hasCalibratedDisplay, displayProfiles, activeDisplayProfileID
+        case hasCalibratedDisplay, displayProfiles, activeDisplayProfileID, bedtimeDisplayProfileID
     }
 
     /// The part of a v1 display profile we carry over.
@@ -160,17 +162,22 @@ struct Settings: Codable, Equatable {
             case "dim": glow = 30
             default: glow = 18
             }
-            // A v1 display profile is the player's own tuning: keep its brightness and warmth.
-            let profiles: [LegacyProfile] = value(.displayProfiles, [])
-            let activeID: UUID? = value(.activeDisplayProfileID, nil)
-            if let profile = profiles.first(where: { $0.id == activeID }) ?? profiles.first {
-                glow = ((1 - profile.dimness) * 60).rounded()
-                warmth = (profile.warmth * 100).rounded()
-            }
-            if theme == "sleep" || value(.bedtimeMode, false) {
+            let bedtime = value(.bedtimeMode, false)
+            let sleepy = theme == "sleep" || bedtime
+            if sleepy {
                 appearance = .night
                 glow = NightPreset.lightsOut.glow
                 warmth = NightPreset.lightsOut.warmth
+            }
+            // A v1 display profile is the player's own tuning: keep its brightness and warmth. Sleep players
+            // got an untuned profile until they calibrated, so for them only a calibrated one beats Lights out.
+            let profiles: [LegacyProfile] = value(.displayProfiles, [])
+            let activeID: UUID? = value(.activeDisplayProfileID, nil)
+            let wantedID: UUID? = bedtime ? (value(.bedtimeDisplayProfileID, nil) ?? activeID) : activeID
+            if !sleepy || value(.hasCalibratedDisplay, false),
+               let profile = profiles.first(where: { $0.id == wantedID }) ?? profiles.first {
+                glow = ((1 - profile.dimness) * 60).rounded()
+                warmth = (profile.warmth * 100).rounded()
             }
         }
 

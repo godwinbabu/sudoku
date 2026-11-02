@@ -222,6 +222,7 @@ final class AppController: ObservableObject {
     var palette: PSPalette { settings.palette(isNight: isNight) }
     var preferredColorScheme: ColorScheme? { settings.preferredColorScheme(isNight: isNight) }
     /// Night always keeps sound and vibration off, whatever the saved settings say.
+    /// Any future sound or haptic must check these, never `settings.soundsEnabled` / `hapticsEnabled`.
     var soundsActive: Bool { settings.soundsEnabled && !isNight }
     var hapticsActive: Bool { settings.hapticsEnabled && !isNight }
 

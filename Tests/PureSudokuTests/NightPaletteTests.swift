@@ -114,9 +114,37 @@ final class NightPaletteTests: XCTestCase {
         let id = UUID()
         let profile: [String: Any] = ["id": id.uuidString, "name": "Mine", "dimness": 0.5, "contrast": 0.5, "warmth": 0.8,
                                       "textSize": 0.5, "lowersScreenBrightness": false]
-        let settings = try decodeV1(["theme": "dark", "displayProfiles": [profile], "activeDisplayProfileID": id.uuidString])
+        let other: [String: Any] = ["id": UUID().uuidString, "name": "Other", "dimness": 0.1, "contrast": 0.5, "warmth": 0.1,
+                                    "textSize": 0.5, "lowersScreenBrightness": false]
+        let settings = try decodeV1(["theme": "dark", "displayProfiles": [other, profile], "activeDisplayProfileID": id.uuidString])
         XCTAssertEqual(settings.glow, 30)
         XCTAssertEqual(settings.warmth, 80)
+    }
+
+    /// A Sleep player who calibrated keeps their own profile; one who never did gets Lights out.
+    func testV1SleepKeepsACalibratedProfile() throws {
+        let active = UUID(), bedtime = UUID()
+        func profile(_ id: UUID, _ dimness: Double, _ warmth: Double) -> [String: Any] {
+            ["id": id.uuidString, "name": "P", "dimness": dimness, "contrast": 0.5, "warmth": warmth,
+             "textSize": 0.5, "lowersScreenBrightness": false]
+        }
+        var json: [String: Any] = ["theme": "sleep", "displayProfiles": [profile(active, 0.2, 0.3), profile(bedtime, 0.9, 1.0)],
+                                   "activeDisplayProfileID": active.uuidString, "bedtimeDisplayProfileID": bedtime.uuidString]
+        var settings = try decodeV1(json)
+        XCTAssertEqual([settings.glow, settings.warmth], [NightPreset.lightsOut.glow, NightPreset.lightsOut.warmth])
+
+        json["hasCalibratedDisplay"] = true
+        settings = try decodeV1(json)
+        XCTAssertEqual(settings.appearance, .night)
+        XCTAssertEqual([settings.glow, settings.warmth], [48, 30])
+
+        json["bedtimeMode"] = true
+        settings = try decodeV1(json)
+        XCTAssertEqual([settings.glow, settings.warmth], [6, 100])
+    }
+
+    func testNeverIsNotOfferedYet() {
+        XCTAssertFalse(MistakeMode.offered.contains(.never), "Check still marks mistakes, so Never would do nothing")
     }
 
     func testAfterDarkFallbackHours() {
