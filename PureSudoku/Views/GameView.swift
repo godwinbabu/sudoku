@@ -8,6 +8,7 @@ struct GameView: View {
     @StateObject private var viewModel: GameViewModel
     @State private var activeSheet: Sheet?
     @State private var showCelebration: Bool = false
+    @State private var lessonTechnique: Technique?
     private let difficulty: Difficulty
     init(viewModel: GameViewModel, difficulty: Difficulty) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -54,6 +55,7 @@ struct GameView: View {
                             onToggleAfter: viewModel.hintToggleAfter,
                             onReveal: viewModel.hintRevealCell,
                             onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
+                            onLesson: { lessonTechnique = session.step?.technique },
                             onDone: { viewModel.endHint() }
                         )
                         .disabled(viewModel.isPaused)
@@ -111,7 +113,7 @@ struct GameView: View {
                     Button("Reset Puzzle", role: .destructive) {
                         viewModel.pendingAction = .reset
                     }
-                    if viewModel.state.puzzle.source != .imported {
+                    if viewModel.state.puzzle.source != .imported && !viewModel.isPractice {
                         Button("New Puzzle") {
                             viewModel.pendingAction = .newPuzzle
                         }
@@ -187,6 +189,18 @@ struct GameView: View {
             if let action = viewModel.pendingAction {
                 Text(action.message)
             }
+        }
+        .sheet(item: $lessonTechnique) { technique in
+            NavigationStack {
+                LessonView(technique: technique == .hiddenSingleLine ? .hiddenSingleBox : technique)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { lessonTechnique = nil }
+                        }
+                    }
+            }
+            .environmentObject(controller)
+            .sheetTheme(controller)
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {

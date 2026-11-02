@@ -8,7 +8,9 @@ enum TechniqueTier: Int, Codable, Comparable {
 
 /// Techniques the logical solver knows, declared in solver order (HINT_STRATEGIES.md). The solver
 /// tries them top to bottom and returns the first step it finds.
-enum Technique: String, Codable, CaseIterable {
+enum Technique: String, Codable, CaseIterable, Identifiable {
+    var id: String { rawValue }
+
     case fullHouse
     case hiddenSingleBox
     case hiddenSingleLine

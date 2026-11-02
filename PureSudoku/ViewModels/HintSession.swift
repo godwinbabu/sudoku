@@ -30,13 +30,17 @@ struct HintSession: Equatable {
     var showsAfter = false
     private(set) var deepestRung: Int
 
-    init(content: Content) {
+    /// Offer the technique's lesson (first time the player meets it, CODESPEC 13.5).
+    let offersLesson: Bool
+
+    init(content: Content, opensAtRung: Int = 1, offersLesson: Bool = false) {
         self.content = content
         switch content {
         case .mistake, .noStep: rung = 0
-        case .step: rung = 1
+        case .step: rung = min(max(opensAtRung, 1), 3)
         }
         deepestRung = rung
+        self.offersLesson = offersLesson
     }
 
     var step: TechniqueStep? {
@@ -116,6 +120,7 @@ struct HintSession: Equatable {
         case let .step(step, _):
             switch rung {
             case 1: return "A \(step.technique.displayName) is available. \(step.technique.definition)"
+            case 3 where offersLesson: return "New technique! " + step.reason(names)
             case 2: return step.whereText(names)
             case 3: return step.reason(names)
             default: return step.resultText(names)

@@ -44,6 +44,7 @@ struct MainMenuView: View {
                         topSection(theme: theme)
                         difficultyButtons(theme: theme)
                         importButton(theme: theme)
+                        learnButton(theme: theme)
                         savedImports(theme: theme)
                         statsSummary(theme: theme)
                     }
@@ -80,6 +81,9 @@ struct MainMenuView: View {
                     .onDisappear {
                         routeViewModels.removeValue(forKey: route.id)
                     }
+            }
+            .navigationDestination(for: LearnRoute.self) { _ in
+                LearnView()
             }
             .navigationDestination(for: ImportRoute.self) { _ in
                 ImportPuzzleView(viewModel: ImportPuzzleViewModel(controller: controller)) { imported in
@@ -311,6 +315,27 @@ struct MainMenuView: View {
         }
     }
 
+    /// Opens the technique curriculum (CODESPEC 13.5).
+    private func learnButton(theme: ThemeColors) -> some View {
+        Button {
+            navigationPath.append(LearnRoute())
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "graduationcap")
+                    .font(.headline)
+                Text("Learn techniques")
+                    .font(.headline.weight(.semibold))
+            }
+            .foregroundColor(theme.primaryText)
+            .padding(.vertical, 12)
+            .frame(maxWidth: 220)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.cardBackground))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(theme.gridLine.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("learnButton")
+    }
+
     private func importButton(theme: ThemeColors) -> some View {
         Button {
             navigationPath.append(ImportRoute())
@@ -360,6 +385,8 @@ private struct GameRoute: Hashable, Identifiable {
 private struct ImportRoute: Hashable, Identifiable {
     let id = UUID()
 }
+
+private struct LearnRoute: Hashable {}
 
 // A non-interactive, high-contrast switch indicator for Bedtime Mode state
 private struct BedtimeSwitch: View {

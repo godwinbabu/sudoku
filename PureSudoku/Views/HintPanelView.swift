@@ -14,6 +14,8 @@ struct HintPanelView: View {
     let onReveal: () -> Void
     /// Undo from the mistake check (CODESPEC 6.3.1); nil hides the button.
     let onUndo: (() -> Void)?
+    /// Opens the technique's lesson (first meeting, CODESPEC 13.5).
+    let onLesson: () -> Void
     let onDone: () -> Void
 
     var body: some View {
@@ -68,6 +70,9 @@ struct HintPanelView: View {
                 panelButton("I'll try", id: "hint_tryMyself", action: onDone)
                 panelButton("Show answer", id: "hint_showResult", prominent: true, action: onShowResult)
             } else {
+                if session.offersLesson {
+                    panelButton("Lesson", id: "hint_lesson", action: onLesson)
+                }
                 if case .mistake = session.content, let onUndo {
                     panelButton("Undo", id: "hint_undo", action: onUndo)
                 }

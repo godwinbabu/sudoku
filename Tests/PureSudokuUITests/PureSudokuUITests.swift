@@ -90,12 +90,13 @@ final class PureSudokuUITests: XCTestCase {
 
         app.buttons["action_Hint"].tap()
         XCTAssertTrue(element("hintPanel", in: app).waitForExistence(timeout: 2))
-        snapshot(app, "1-name")
-        app.buttons["hint_next"].tap()
-        snapshot(app, "2-where")
-        app.buttons["hint_next"].tap()
-        snapshot(app, "3-why")
-        app.buttons["hint_next"].tap()
+        // A technique the player hasn't met opens at "why" (CODESPEC 6.3.1 fading); step on to the end.
+        var rung = 1
+        while app.buttons["hint_next"].waitForExistence(timeout: 1) {
+            snapshot(app, "\(rung)")
+            app.buttons["hint_next"].tap()
+            rung += 1
+        }
         XCTAssertTrue(app.buttons["hint_showResult"].waitForExistence(timeout: 2))
         app.buttons["hint_showResult"].tap()
         XCTAssertTrue(app.buttons["hint_apply"].waitForExistence(timeout: 2))
@@ -165,6 +166,23 @@ final class PureSudokuUITests: XCTestCase {
         snapshot(app, "bedtime-game")
         app.buttons["backButton"].tap()
         if waitUntilHittable(toggle), toggle.label.hasSuffix("On") { toggle.tap() } // leave the app as found
+    }
+
+    /// Learn → a technique → its worked example and practice (CODESPEC 13.5).
+    func testLearnShowsALessonWithPractice() {
+        let app = XCUIApplication()
+        app.launch()
+        let learn = app.buttons["learnButton"]
+        for _ in 0..<3 where !learn.isHittable { app.swipeUp() }
+        learn.tap()
+        XCTAssertTrue(element("learnView", in: app).waitForExistence(timeout: 2))
+        let lesson = app.buttons["learn_pointing"]
+        for _ in 0..<4 where !lesson.isHittable { app.swipeUp() }
+        lesson.tap()
+        XCTAssertTrue(element("lessonBoard", in: app).waitForExistence(timeout: 5))
+        snapshot(app, "lesson")
+        app.buttons["lesson_showResult"].tap()
+        XCTAssertTrue(app.buttons["lesson_practice1"].waitForExistence(timeout: 2))
     }
 
     private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {

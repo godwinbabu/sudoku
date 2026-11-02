@@ -12,6 +12,18 @@ final class GameViewModel: ObservableObject {
     var onCompletion: ((GameState) -> Void)?
     var onNewGame: (() async -> GameState?)?
     var onSave: ((GameState) -> Void)?
+    /// Learning (CODESPEC 13.4): the player found a technique without a hint (technique, puzzle id).
+    var onTechniqueFound: (@MainActor (Technique, String) -> Void)?
+    var onHintShown: ((Technique) -> Void)?
+    /// How well the player knows a technique; sets where a hint opens (CODESPEC 6.3.1 fading).
+    var learningLevel: ((Technique) -> TechniqueProgress.Level)?
+    /// Practice game from a lesson: not saved, no stats, no New Puzzle (CODESPEC 13.5).
+    var isPractice = false
+    /// Techniques hinted in this puzzle (this session); with the saved hint log, finding them earns no credit.
+    private var hintedThisPuzzle: Set<Technique> = []
+    private var hintedTechniques: Set<Technique> {
+        hintedThisPuzzle.union(state.hintLog.compactMap { Technique(rawValue: $0.technique) })
+    }
 
     @Published var pendingAction: PendingAction?
     @Published private(set) var canUndo: Bool = false
@@ -225,7 +237,17 @@ final class GameViewModel: ObservableObject {
     func setDigit(_ digit: Int) {
         guard (1...9).contains(digit), let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         guard !state.cells[index].given, !state.cells[index].isRevealed else { return }
+        let before = SolverBoard(cells: state.cells)
+        let cellIndex = state.cells[index].index
+        let removesNote = inputMode == .candidate && state.cells[index].candidates.contains(digit)
         recordUndoPoint()
+        defer {
+            if inputMode == .normal {
+                judgeMove(.placed(cell: cellIndex, digit: digit), before: before)
+            } else if removesNote {
+                judgeMove(.removedCandidate(cell: cellIndex, digit: digit), before: before)
+            }
+        }
 
         var newState = self.state
         switch inputMode {
@@ -429,6 +451,7 @@ final class GameViewModel: ObservableObject {
     func load(state newState: GameState) {
         _ = calculateAndStopTimer()
         checkedWrongIDs.removeAll()
+        hintedThisPuzzle.removeAll()
 
         var finalState = newState
         finalState.cells = finalState.cells.map { cell in
@@ -663,7 +686,11 @@ extension GameViewModel {
         } else {
             let board = SolverBoard(cells: state.cells)
             if let step = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).nextStep(board) {
-                hint = HintSession(content: .step(step, board: board))
+                // Fading: a technique the player has never met opens at "why", as a worked example.
+                let isNew = learningLevel?(step.technique) == .new
+                hint = HintSession(content: .step(step, board: board), opensAtRung: isNew ? 3 : 1, offersLesson: isNew)
+                if !hintedTechniques.contains(step.technique) { onHintShown?(step.technique) } // count each once per puzzle
+                hintedThisPuzzle.insert(step.technique)
             } else {
                 hint = HintSession(content: .noStep(cell: revealTarget()))
             }
@@ -731,6 +758,30 @@ extension GameViewModel {
         endHint()
         selectedCellID = id
         revealCell()
+    }
+
+    /// Credits the technique a correct move shows (CODESPEC 13.4). Runs the detectors off the main
+    /// thread; a technique hinted since the last move earns nothing.
+    private func judgeMove(_ move: MasteryJudge.Move, before board: SolverBoard) {
+        // No credit for a technique hinted in this puzzle, or while the board has a mistake (a wrong
+        // digit can make a "single" that only looks found).
+        let hinted = hintedTechniques
+        guard let onTechniqueFound else { return }
+        let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
+        guard solution.count == 81 else { return }
+        // Cheap check first: the move itself must be right.
+        switch move {
+        case let .placed(cell, digit): guard solution[cell] == digit else { return }
+        case let .removedCandidate(cell, digit): guard solution[cell] != digit else { return }
+        }
+        guard firstMistake() == nil else { return }
+        let unique = state.puzzle.isUnique
+        let puzzleID = state.puzzle.id
+        Task.detached(priority: .utility) {
+            guard let technique = MasteryJudge.technique(for: move, on: board, allowsUniqueness: unique),
+                  !hinted.contains(technique) else { return }
+            await MainActor.run { onTechniqueFound(technique, puzzleID) }
+        }
     }
 
     /// Closes the open hint and records it in the hint log.
