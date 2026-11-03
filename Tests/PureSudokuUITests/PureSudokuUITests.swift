@@ -227,6 +227,19 @@ final class PureSudokuUITests: XCTestCase {
         if replace.waitForExistence(timeout: 1), element("confirmDialog", in: app).exists { replace.tap() }
     }
 
+    /// Sets Journal → Show timer from Home and returns to Home; returns whether it was on before.
+    private func setShowTimer(_ on: Bool, in app: XCUIApplication) -> Bool {
+        if !app.buttons["tab_journal"].exists { app.buttons["backButton"].tap() }
+        app.buttons["tab_journal"].tap()
+        let toggle = app.buttons["journal_showTimer"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 2))
+        for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
+        let wasOn = toggle.value as? String == "On"
+        if wasOn != on { toggle.tap() }
+        app.buttons["tab_play"].tap()
+        return wasOn
+    }
+
     /// Every cell's label, in reading order.
     private func boardLabels(in app: XCUIApplication) -> [String] {
         (0..<9).flatMap { row in (0..<9).map { app.buttons["cell_\(row)_\($0)"].label } }
@@ -248,10 +261,9 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["tab_play"].tap()
 
         let original = setAppearance("night", in: app)
-        let easy = app.buttons["difficulty_easy"]
-        XCTAssertTrue(waitUntilHittable(easy))
-        easy.tap()
-        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(waitUntilHittable(app.buttons["difficulty_easy"]))
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
         snapshot(app, "night-game")
         app.buttons["backButton"].tap()
         if let original { _ = setAppearance(original, in: app) } // leave the app as found
@@ -462,6 +474,8 @@ extension PureSudokuUITests {
     /// Hint → Lesson → Back returns to the same game, and its timer runs again.
     func testHintLessonReturnsToTheSameGame() {
         let app = launchApp()
+        let timerWasOn = setShowTimer(true, in: app) // an earlier test may have left it off
+        defer { if !timerWasOn { _ = setShowTimer(false, in: app) } }
         startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
         let board = boardLabels(in: app) // no entry: a wrong one would make the hint a mistake card

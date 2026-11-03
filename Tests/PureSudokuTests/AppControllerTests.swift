@@ -115,4 +115,14 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(controller.activeGames[.hard]?.isCompleted, true)
         XCTAssertEqual(controller.continueGame?.puzzle.difficulty, .easy, "a finished game is never offered")
     }
+
+    /// VoiceOver reads each Journal row as one line, with "none yet" for every dash (CODESPEC 3.3).
+    func testJournalRowLabels() {
+        let (controller, _) = makeTestController()
+        controller.updateStats { $0.recordCompletion(for: .expert, time: 252, usedReveal: false) }
+        let journal = StatsViewModel(controller: controller)
+        XCTAssertEqual(journal.rowLabel(for: .expert), "Expert: 1 solved, best 4:12, typical 4:12")
+        XCTAssertEqual(journal.rowLabel(for: .master), "Master: solved none yet, best none yet, typical none yet")
+        XCTAssertEqual(journal.week().map(\.name).first, "Monday")
+    }
 }

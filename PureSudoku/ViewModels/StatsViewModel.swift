@@ -32,7 +32,6 @@ final class StatsViewModel: ObservableObject {
 
     func streak(at date: Date = Date()) -> Int { stats.currentStreak(at: date) }
 
-    /// This week, Monday first: (initial, solved that day).
     /// One day of the Journal week: the letter shown, the full name for VoiceOver.
     struct WeekDay {
         let day: String
@@ -70,7 +69,8 @@ final class StatsViewModel: ObservableObject {
         let count = stats.solvedCount(for: difficulty)
         let best = stats.bestTime(for: difficulty).map(Self.format) ?? "none yet"
         let typical = stats.typicalTime(for: difficulty).map(Self.format) ?? "none yet"
-        return "\(difficulty.displayName): \(count == 0 ? "none" : "\(count)") solved, best \(best), typical \(typical)"
+        let solved = count == 0 ? "solved none yet" : "\(count) solved"
+        return "\(difficulty.displayName): \(solved), best \(best), typical \(typical)"
     }
 
     var assistedLine: String {
