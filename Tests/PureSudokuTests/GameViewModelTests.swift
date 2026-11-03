@@ -45,15 +45,15 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.cells.allSatisfy { $0.candidates.isEmpty })
     }
 
-    func testTechniqueCountsCoverTheGrid() async {
-        let counts = await makeViewModel().techniqueCounts()
+    func testTechniquesNeededCoverTheGrid() async {
+        let counts = await makeViewModel().techniquesNeeded()
         XCTAssertFalse(counts.isEmpty)
         XCTAssertEqual(counts.map(\.count), counts.map(\.count).sorted(by: >), "most used first")
     }
 
     /// Hidden Single (box) and Hidden Single (line) share one name; the Solved panel shows it once.
     func testTechniqueCountsMergeSharedNames() {
-        let counts = GameViewModel.countByName([.hiddenSingleBox, .hiddenSingleLine, .hiddenSingleBox, .nakedSingle])
+        let counts = LogicalSolver.countByName([.hiddenSingleBox, .hiddenSingleLine, .hiddenSingleBox, .nakedSingle])
         XCTAssertEqual(counts.map(\.name), ["Hidden Single", "Naked Single"])
         XCTAssertEqual(counts.map(\.count), [3, 1])
     }

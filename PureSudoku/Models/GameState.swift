@@ -8,10 +8,13 @@ struct GameState: Codable, Equatable {
     var usedReveal: Bool
     var lastUpdated: Date
     var hasContradiction: Bool
-    /// True once a hint's result (rung 4) was shown; the solve then skips best time (CODESPEC 6.3.1).
-    var usedHint: Bool = false
+    /// True once a hint placed a digit or removed candidates. The solve keeps the streak but sets no
+    /// best time (CODESPEC 6.3.1). Hint steps 1-3 and clearing a mistake are free.
+    var assisted: Bool = false
     /// One entry per hint session (CODESPEC 2.3).
     var hintLog: [HintLogEntry] = []
+    /// Hints opened in this puzzle (the Solved summary).
+    var hints: Int { hintLog.count }
 
     init(puzzle: SudokuPuzzle, cells: [SudokuCell], elapsedSeconds: Int = 0, isCompleted: Bool = false, usedReveal: Bool = false, lastUpdated: Date = Date(), hasContradiction: Bool = false) {
         self.puzzle = puzzle
@@ -46,7 +49,8 @@ struct GameState: Codable, Equatable {
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
-        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, usedHint, hintLog
+        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, assisted, hintLog
+        case usedHint // read only: the old name of `assisted`
     }
 
     init(from decoder: Decoder) throws {
@@ -58,7 +62,8 @@ struct GameState: Codable, Equatable {
         usedReveal = try container.decode(Bool.self, forKey: .usedReveal)
         lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
         hasContradiction = try container.decodeIfPresent(Bool.self, forKey: .hasContradiction) ?? false
-        usedHint = try container.decodeIfPresent(Bool.self, forKey: .usedHint) ?? false
+        assisted = try container.decodeIfPresent(Bool.self, forKey: .assisted)
+            ?? container.decodeIfPresent(Bool.self, forKey: .usedHint) ?? false
         hintLog = try container.decodeIfPresent([HintLogEntry].self, forKey: .hintLog) ?? []
     }
 
@@ -71,7 +76,7 @@ struct GameState: Codable, Equatable {
         try container.encode(usedReveal, forKey: .usedReveal)
         try container.encode(lastUpdated, forKey: .lastUpdated)
         try container.encode(hasContradiction, forKey: .hasContradiction)
-        try container.encode(usedHint, forKey: .usedHint)
+        try container.encode(assisted, forKey: .assisted)
         try container.encode(hintLog, forKey: .hintLog)
     }
 }
@@ -80,7 +85,7 @@ struct GameState: Codable, Equatable {
 struct HintLogEntry: Codable, Equatable {
     /// `Technique.rawValue`, or "mistake" / "noStep".
     let technique: String
-    /// Deepest rung shown (0-4).
+    /// Deepest hint step shown (1-3; saves from before the three-step card hold 0-4).
     let deepestRung: Int
     let applied: Bool
 }

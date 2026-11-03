@@ -19,6 +19,14 @@ struct LogicalSolver {
         return nil
     }
 
+    /// The step a hint shows: `nextStep`, except that a row single beats a column single, the way
+    /// people scan (box, then row, then column; CODESPEC 6.3.1). Grading and mastery keep `nextStep`.
+    func nextHintStep(_ board: SolverBoard) -> TechniqueStep? {
+        guard let step = nextStep(board) else { return nil }
+        guard step.technique == .hiddenSingleLine, step.houses.first?.house.kind == .column else { return step }
+        return SinglesDetector.hiddenSingles(board, in: House.rows, technique: .hiddenSingleLine).min(by: Self.isPreferred) ?? step
+    }
+
     struct Result {
         let steps: [TechniqueStep]
         let board: SolverBoard
@@ -34,6 +42,27 @@ struct LogicalSolver {
             steps.append(step)
         }
         return Result(steps: steps, board: board)
+    }
+
+    /// How often each technique solves `puzzle` from its givens, by display name, most used first
+    /// (the Solved summary). It replays the hint engine, so call it off the main thread (CODESPEC 9).
+    static func techniquesNeeded(for puzzle: SudokuPuzzle) -> [(name: String, count: Int)] {
+        let start = puzzle.initialGrid.map { Int(String($0)) ?? 0 }
+        guard start.count == 81 else { return [] }
+        let solver = LogicalSolver(allowsUniqueness: puzzle.isUnique)
+        var board = SolverBoard(values: start)
+        var techniques: [Technique] = []
+        while let step = solver.nextHintStep(board) {
+            board.apply(step)
+            techniques.append(step.technique)
+        }
+        return countByName(techniques)
+    }
+
+    /// Hidden Single (box) and (line) share one name, so they count as one line.
+    static func countByName(_ techniques: [Technique]) -> [(name: String, count: Int)] {
+        let counts = Dictionary(techniques.map { ($0.displayName, 1) }, uniquingKeysWith: +)
+        return counts.map { (name: $0.key, count: $0.value) }.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
     }
 
     static func steps(for technique: Technique, on board: SolverBoard) -> [TechniqueStep] {

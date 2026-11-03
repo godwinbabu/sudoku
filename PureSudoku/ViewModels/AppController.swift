@@ -125,6 +125,7 @@ final class AppController: ObservableObject {
             initialGrid: entry.initialGrid, solutionGrid: entry.solutionGrid, hasUniqueSolution: true
         )
         var state = GameState.newGame(for: puzzle, now: timeProvider.now())
+        #if DEBUG
         // UI tests only: fill all but one cell, so a test can reach the Solved panel (CODESPEC 8).
         if ProcessInfo.processInfo.arguments.contains("-uiTestNearlySolved") {
             let solution = Array(entry.solutionGrid)
@@ -132,6 +133,7 @@ final class AppController: ObservableObject {
                 state.cells[index].value = Int(String(solution[index]))
             }
         }
+        #endif
         let viewModel = GameViewModel(state: state, settings: settings,
                                       validator: validator, timeProvider: timeProvider, hintService: generatorService)
         viewModel.isPractice = true
@@ -144,7 +146,6 @@ final class AppController: ObservableObject {
     }
 
     private func connectLearning(_ viewModel: GameViewModel) {
-        viewModel.learningLevel = { [weak self] technique in self?.progress(for: technique).level ?? .new }
         viewModel.onTechniqueFound = { [weak self] technique, puzzleID in
             self?.updateProgress(technique) { $0.recordFound(puzzleID: puzzleID, at: self?.timeProvider.now() ?? Date()) }
         }
@@ -301,7 +302,7 @@ final class AppController: ObservableObject {
 
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
         updateStats { stats in
-            stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, usedHint: state.usedHint, source: state.puzzle.source, date: self.timeProvider.now())
+            stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, assisted: state.assisted, source: state.puzzle.source, date: self.timeProvider.now())
         }
         activeGames[difficulty] = state
         do {
@@ -327,7 +328,7 @@ final class AppController: ObservableObject {
         updateStats { stats in
             stats.recordCompletion(
                 for: state.puzzle.difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
-                usedHint: state.usedHint, source: state.puzzle.source, date: self.timeProvider.now()
+                assisted: state.assisted, source: state.puzzle.source, date: self.timeProvider.now()
             )
         }
         persistImported(state: state, id: id)

@@ -85,7 +85,7 @@ struct SudokuGridView: View {
         state.inFocus = !marks.spotlight || marks.focus.contains(cell.index)
         state.isPattern = highlight.patternCells.contains(cell.index)
         state.isEvidence = highlight.evidenceCells.contains(cell.index)
-        state.isTarget = highlight.ghostDigits[cell.index] != nil
+        state.isTarget = highlight.ghostDigits[cell.index] != nil || highlight.targetCells.contains(cell.index)
         state.isRuledOut = highlight.struckDigits[cell.index] != nil
         return state
     }
@@ -98,7 +98,7 @@ private struct BoardMarks {
 
     init(_ highlight: HintHighlight) {
         focus = highlight.areaCells.union(highlight.patternCells).union(highlight.evidenceCells)
-            .union(highlight.ghostDigits.keys).union(highlight.struckDigits.keys)
+            .union(highlight.ghostDigits.keys).union(highlight.struckDigits.keys).union(highlight.targetCells)
     }
 }
 
@@ -217,7 +217,6 @@ struct SudokuCellView: View {
 struct CellHintMark: Equatable {
     var ringed: Set<Int> = []
     var struck: Set<Int> = []
-    var hidden: Set<Int> = []
     var shown: Set<Int>?
     var ghost: Int?
 
@@ -226,14 +225,12 @@ struct CellHintMark: Equatable {
     init(_ highlight: HintHighlight, cell: Int) {
         ringed = highlight.ringedDigits[cell] ?? []
         struck = highlight.struckDigits[cell] ?? []
-        hidden = highlight.hiddenDigits[cell] ?? []
         shown = highlight.shownCandidates[cell]
         ghost = highlight.ghostDigits[cell]
     }
 
     /// The player's notes; a hint shows the candidates it reasons about in cells without notes.
     func candidates(_ cell: SudokuCell) -> Set<Int> {
-        let notes = cell.candidates.isEmpty ? (shown ?? []) : cell.candidates
-        return notes.subtracting(hidden)
+        cell.candidates.isEmpty ? (shown ?? []) : cell.candidates
     }
 }

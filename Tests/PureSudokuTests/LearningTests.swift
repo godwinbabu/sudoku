@@ -76,11 +76,10 @@ final class LearningTests: XCTestCase {
 
     // MARK: - Game view model wiring
 
-    private func makeViewModel(level: TechniqueProgress.Level = .learning) -> (GameViewModel, () -> [Technique]) {
+    private func makeViewModel() -> (GameViewModel, () -> [Technique]) {
         let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
         var found: [Technique] = []
         viewModel.onTechniqueFound = { technique, _ in found.append(technique) }
-        viewModel.learningLevel = { _ in level }
         return (viewModel, { found })
     }
 
@@ -192,15 +191,14 @@ final class LearningTests: XCTestCase {
         XCTAssertFalse(lesson.practice.contains(example))
     }
 
-    func testANewTechniqueOpensAtWhyWithALessonOffer() {
-        let (fresh, _) = makeViewModel(level: .new)
-        fresh.requestHint()
-        XCTAssertEqual(fresh.hint?.rung, 3)
-        XCTAssertEqual(fresh.hint?.offersLesson, true)
-        let (known, _) = makeViewModel(level: .mastered)
-        known.requestHint()
-        XCTAssertEqual(known.hint?.rung, 1)
-        XCTAssertEqual(known.hint?.offersLesson, false)
+    /// Every hint starts at step 1, and offers its lesson from step 2.
+    func testEveryHintOpensAtStepOneWithALessonLink() {
+        let (viewModel, _) = makeViewModel()
+        viewModel.requestHint()
+        XCTAssertEqual(viewModel.hint?.level, 1)
+        XCTAssertNil(viewModel.hint?.lessonTechnique)
+        viewModel.hintNext()
+        XCTAssertEqual(viewModel.hint?.lessonTechnique, viewModel.hint?.step?.technique)
     }
 
     func testProgressIsSavedAndReloaded() throws {
@@ -224,7 +222,8 @@ final class LearningTests: XCTestCase {
             let shown = lesson.step.technique == .hiddenSingleLine ? Technique.hiddenSingleBox : lesson.step.technique
             XCTAssertEqual(shown, technique)
             XCTAssertLessThanOrEqual(lesson.practice.count, 3)
-            XCTAssertFalse(lesson.highlight.patternCells.isEmpty)
+            // A single shows its answer as the dashed target; other steps fill their pattern.
+            XCTAssertFalse(lesson.highlight.patternCells.isEmpty && lesson.highlight.ghostDigits.isEmpty)
             withLesson += 1
         }
         XCTAssertGreaterThanOrEqual(withLesson, 20, "most techniques have an example in the bundle")

@@ -40,10 +40,8 @@ struct Lesson {
         }
     }
 
-    /// The example drawn like a hint at its result rung: pattern, key digits, removals.
+    /// The example drawn like a hint at its last step: pattern, key digits, removals.
     var highlight: HintHighlight {
-        var session = HintSession(content: .step(step, board: board))
-        for _ in 0..<3 { _ = session.next(askFirst: false) }
-        return session.highlight
+        HintSession(content: .step(step, board: board), level: HintSession.stepCount).highlight
     }
 }

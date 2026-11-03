@@ -9,7 +9,7 @@ struct LearnView: View {
         let theme = palette
         List {
             ForEach([TechniqueTier.basic, .intermediate, .advanced], id: \.self) { tier in
-                Section(Self.tierName(tier)) {
+                Section(tier.displayName) {
                     ForEach(Lesson.techniques.filter { $0.tier == tier }, id: \.self) { technique in
                         NavigationLink {
                             LessonView(technique: technique)
@@ -51,15 +51,6 @@ struct LearnView: View {
         .padding(.vertical, 4)
     }
 
-    static func tierName(_ tier: TechniqueTier) -> String {
-        switch tier {
-        case .basic: return "Basic"
-        case .intermediate: return "Intermediate"
-        case .advanced: return "Advanced"
-        case .expert: return "Expert"
-        }
-    }
-
     static func levelName(_ level: TechniqueProgress.Level) -> String {
         switch level {
         case .new: return "New"
@@ -88,11 +79,11 @@ struct LessonView: View {
                         .aspectRatio(1, contentMode: .fit)
                         .allowsHitTesting(false)
                         .accessibilityIdentifier("lessonBoard")
-                    Text(lesson.step.reason(controller.settings.cellNameStyle))
+                    Text(lesson.step.reason(controller.settings.notation))
                         .foregroundColor(theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     if showsResult {
-                        Text(lesson.step.resultText(controller.settings.cellNameStyle))
+                        Text(lesson.step.resultText(controller.settings.notation))
                             .font(.body.weight(.semibold))
                             .foregroundColor(theme.accent)
                     } else {

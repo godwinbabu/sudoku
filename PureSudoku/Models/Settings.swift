@@ -4,8 +4,6 @@ import Foundation
 enum MistakeMode: String, Codable, CaseIterable, Identifiable {
     case immediate, onCheck, never
     var id: String { rawValue }
-    /// shortcut: Never is hidden because Check still marks mistakes; offer it once the v2 game screen honours it.
-    static let offered: [MistakeMode] = [.immediate, .onCheck]
     var displayName: String {
         switch self {
         case .immediate: return "Right away"
@@ -50,10 +48,8 @@ struct Settings: Codable, Equatable {
     var tidyNotes: Bool
     var showTimer: Bool
     // Hints
-    /// Ask "Try it yourself first?" before a hint shows its result (CODESPEC 6.3.1).
-    var askBeforeHintResult: Bool
-    /// How hint text names cells.
-    var cellNameStyle: CellNameStyle
+    /// How hint text names cells: "row 5, column 2" or "R5C2".
+    var notation: CellNotation
     // Imports
     var keepImportImages: Bool
 
@@ -74,8 +70,7 @@ struct Settings: Codable, Equatable {
         mistakes: MistakeMode = .immediate,
         tidyNotes: Bool = true,
         showTimer: Bool = true,
-        askBeforeHintResult: Bool = true,
-        cellNameStyle: CellNameStyle = .long,
+        notation: CellNotation = .plain,
         keepImportImages: Bool = true
     ) {
         self.appearance = appearance
@@ -94,8 +89,7 @@ struct Settings: Codable, Equatable {
         self.mistakes = mistakes
         self.tidyNotes = tidyNotes
         self.showTimer = showTimer
-        self.askBeforeHintResult = askBeforeHintResult
-        self.cellNameStyle = cellNameStyle
+        self.notation = notation
         self.keepImportImages = keepImportImages
     }
 
@@ -127,8 +121,10 @@ struct Settings: Codable, Equatable {
         case appearance, glow, warmth, clarity, glowFloor, calibrated, drift, hideStatusBarInGames
         case useLocationForAfterDark, afterDarkStart, afterDarkEnd
         case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer
-        case askBeforeHintResult, cellNameStyle, keepImportImages
-        // v1, read only
+        case notation, keepImportImages
+        // Read only: v1 keys, and cellNameStyle (short/long) from before `notation`.
+        // askBeforeHintResult is no longer read: the hint card has no "Try it yourself first?" step.
+        case cellNameStyle
         case theme, bedtimeMode, sleepBrightness, autoRemoveCandidates, autoCheckMistakes
         case hasCalibratedDisplay, displayProfiles, activeDisplayProfileID, bedtimeDisplayProfileID
     }
@@ -198,8 +194,8 @@ struct Settings: Codable, Equatable {
         mistakes = value(.mistakes, legacyMistakes)
         tidyNotes = value(.tidyNotes, value(.autoRemoveCandidates, defaults.tidyNotes))
         showTimer = value(.showTimer, defaults.showTimer)
-        askBeforeHintResult = value(.askBeforeHintResult, defaults.askBeforeHintResult)
-        cellNameStyle = value(.cellNameStyle, defaults.cellNameStyle)
+        let legacyNotation: CellNotation = value(.cellNameStyle, "long") == "short" ? .grid : defaults.notation
+        notation = value(.notation, legacyNotation)
         keepImportImages = value(.keepImportImages, defaults.keepImportImages)
     }
 
@@ -221,8 +217,7 @@ struct Settings: Codable, Equatable {
         try c.encode(mistakes, forKey: .mistakes)
         try c.encode(tidyNotes, forKey: .tidyNotes)
         try c.encode(showTimer, forKey: .showTimer)
-        try c.encode(askBeforeHintResult, forKey: .askBeforeHintResult)
-        try c.encode(cellNameStyle, forKey: .cellNameStyle)
+        try c.encode(notation, forKey: .notation)
         try c.encode(keepImportImages, forKey: .keepImportImages)
     }
 }
