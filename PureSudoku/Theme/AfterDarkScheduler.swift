@@ -158,27 +158,26 @@ final class AfterDarkScheduler: NSObject {
         return SunTimes(sunrise: tomorrow.sunrise, sunset: today.sunset)
     }
 
-    /// The next moment After dark may switch between Day and Night, or nil when not in After dark.
-    /// Includes local midnight when the source changes between sun times and fixed hours.
+    /// The next moment After dark switches between Day and Night, or nil when not in After dark.
+    /// It gathers every moment a switch could happen (sunrises, sunsets, fixed-hour starts and ends,
+    /// whichever day's window they belong to, and local midnights, where a day can change source),
+    /// then returns the first where `isNight` really changes.
     func nextBoundary(after date: Date? = nil, settings: Settings) -> Date? {
         guard settings.appearance == .afterDark else { return nil }
         let date = date ?? now
         let calendar = calendar
         let today = calendar.startOfDay(for: date)
         var candidates: [Date] = []
-        var previousUsesSun: Bool?
-        for offset in -1...2 {
+        for offset in -1...3 {
             guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
-            let sun = settings.useLocationForAfterDark ? sunTimes(on: day) : nil
-            if let sun {
-                candidates += [sun.sunrise, sun.sunset]
-            } else {
-                candidates += settings.fixedWindows(startingOn: day, calendar: calendar).flatMap { [$0.lowerBound, $0.upperBound] }
-            }
-            if let previousUsesSun, previousUsesSun != (sun != nil) { candidates.append(day) }
-            previousUsesSun = sun != nil
+            candidates.append(day)
+            if settings.useLocationForAfterDark, let sun = sunTimes(on: day) { candidates += [sun.sunrise, sun.sunset] }
+            candidates += settings.fixedWindows(startingOn: day, calendar: calendar).flatMap { [$0.lowerBound, $0.upperBound] }
         }
-        return candidates.filter { $0 > date }.min()
+        let later = Set(candidates.filter { $0 > date }).sorted()
+        let current = isNight(settings, systemIsDark: false, at: date)
+        // shortcut: with no switch in the next few days (an empty fixed window), re-check at the last candidate.
+        return later.first { isNight(settings, systemIsDark: false, at: $0) != current } ?? later.last
     }
 
     /// Re-arms the one-shot timer for the next boundary. Call after any settings change.

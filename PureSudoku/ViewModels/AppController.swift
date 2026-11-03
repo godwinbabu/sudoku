@@ -286,6 +286,7 @@ final class AppController: ObservableObject {
     func updateFirstNight() {
         guard !suppressesFirstNight, !showsFirstNight, !settings.calibrated, isNight else { return }
         showsFirstNight = true
+        showsNightSheet = false // one modal at a time
     }
 
     /// "Use this" in Find my lowest glow: the pick is the floor, and glow starts 4 above it.

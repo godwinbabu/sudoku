@@ -228,6 +228,85 @@ final class NightScheduleTests: XCTestCase {
         XCTAssertFalse(scheduler.isNight(settings, systemIsDark: false, at: date(oslo, "2024-05-17 23:00")), "the sun is still up")
         XCTAssertEqual(scheduler.nextBoundary(settings: settings), date(oslo, "2024-05-18 00:00"))
         XCTAssertTrue(scheduler.isNight(settings, systemIsDark: false, at: date(oslo, "2024-05-18 00:01")), "fixed hours from midnight")
+        // The first fallback day still ends at 6:30 AM: that end belongs to the window that starts the day before.
+        XCTAssertEqual(scheduler.nextBoundary(after: date(oslo, "2024-05-18 00:12"), settings: settings), date(oslo, "2024-05-18 06:30"))
+        XCTAssertEqual(scheduler.nextBoundary(after: date(oslo, "2024-05-18 06:30"), settings: settings), date(oslo, "2024-05-18 21:00"))
+    }
+
+    /// The reverse: the last fallback day before the sun sets again. Its 9:00 PM start is a boundary,
+    /// and the night then ends at the next day's sunrise, not at the fixed 6:30 AM.
+    func testLastPolarFallbackDayHandsOverToTheSun() throws {
+        let oslo = calendar("Europe/Oslo")
+        let tromso = Coordinate(latitude: 69.65, longitude: 18.96)
+        let scheduler = scheduler(at: date(oslo, "2024-07-01 12:00"), place: tromso, calendar: oslo)
+        let settings = Settings(appearance: .afterDark)
+        var day = date(oslo, "2024-07-01 12:00")
+        while scheduler.sunTimes(on: oslo.date(byAdding: .day, value: 1, to: day)!) == nil {
+            day = oslo.date(byAdding: .day, value: 1, to: day)!
+        }
+        XCTAssertNil(scheduler.sunTimes(on: day), "the last fallback day")
+        let nextDay = oslo.date(byAdding: .day, value: 1, to: day)!
+        let sun = try XCTUnwrap(scheduler.sunTimes(on: nextDay))
+        let evening = oslo.date(bySettingHour: 20, minute: 0, second: 0, of: day)!
+        let start = oslo.date(bySettingHour: 21, minute: 0, second: 0, of: day)
+        XCTAssertEqual(scheduler.nextBoundary(after: evening, settings: settings), start)
+        let night = oslo.date(bySettingHour: 22, minute: 0, second: 0, of: day)!
+        XCTAssertTrue(scheduler.isNight(settings, systemIsDark: false, at: night))
+        let morning = try XCTUnwrap(scheduler.nextBoundary(after: night, settings: settings))
+        XCTAssertEqual(morning, sun.sunrise)
+        XCTAssertFalse(scheduler.isNight(settings, systemIsDark: false, at: morning))
+    }
+
+    /// Walks `nextBoundary` from `start` to `end`: Night must flip at every returned boundary and
+    /// hold between them (checked every 10 minutes and a second before each boundary).
+    private func walk(_ scheduler: AfterDarkScheduler, _ settings: Settings, from start: Date, to end: Date,
+                      file: StaticString = #filePath, line: UInt = #line) {
+        var time = start
+        var boundaries = 0
+        while time < end {
+            guard let next = scheduler.nextBoundary(after: time, settings: settings) else {
+                return XCTFail("no boundary after \(time)", file: file, line: line)
+            }
+            XCTAssertGreaterThan(next, time, file: file, line: line)
+            let state = scheduler.isNight(settings, systemIsDark: false, at: time)
+            var probe = time.addingTimeInterval(600)
+            while probe < next {
+                if scheduler.isNight(settings, systemIsDark: false, at: probe) != state {
+                    return XCTFail("Night changed at \(probe) before the boundary \(next)", file: file, line: line)
+                }
+                probe += 600
+            }
+            XCTAssertEqual(scheduler.isNight(settings, systemIsDark: false, at: next.addingTimeInterval(-1)), state, file: file, line: line)
+            let after = scheduler.isNight(settings, systemIsDark: false, at: next)
+            XCTAssertNotEqual(after, state, "no change at \(next)", file: file, line: line)
+            time = next
+            boundaries += 1
+        }
+        XCTAssertGreaterThan(boundaries, 0, file: file, line: line)
+    }
+
+    func testBoundariesAreExactAcrossTromsoSummer() {
+        let oslo = calendar("Europe/Oslo")
+        let scheduler = scheduler(at: Date(), place: Coordinate(latitude: 69.65, longitude: 18.96), calendar: oslo)
+        walk(scheduler, Settings(appearance: .afterDark), from: date(oslo, "2024-05-01 00:00"), to: date(oslo, "2024-08-31 00:00"))
+    }
+
+    func testBoundariesAreExactAcrossNewYorkClockChanges() {
+        let ny = calendar("America/New_York")
+        var late = Settings(appearance: .afterDark, useLocationForAfterDark: false)
+        late.afterDarkStart = ClockTime(hour: 21, minute: 0)
+        late.afterDarkEnd = ClockTime(hour: 1, minute: 30)
+        var skipped = late
+        skipped.afterDarkStart = ClockTime(hour: 2, minute: 15) // does not exist on 10 March
+        skipped.afterDarkEnd = ClockTime(hour: 7, minute: 0)
+        let withSun = scheduler(at: Date(), place: newYork, calendar: ny)
+        let noPlace = scheduler(at: Date(), place: nil, calendar: ny)
+        for (from, to) in [("2024-03-07 00:00", "2024-03-14 00:00"), ("2024-10-31 00:00", "2024-11-07 00:00")] {
+            walk(withSun, Settings(appearance: .afterDark), from: date(ny, from), to: date(ny, to))
+            walk(noPlace, Settings(appearance: .afterDark), from: date(ny, from), to: date(ny, to))
+            walk(noPlace, late, from: date(ny, from), to: date(ny, to))
+            walk(noPlace, skipped, from: date(ny, from), to: date(ny, to))
+        }
     }
 
     /// C12: tonight's sunrise is the next calendar day, also when clocks go forward overnight.
