@@ -48,6 +48,7 @@ struct HintCardView: View {
             .foregroundColor(session.level == 1 ? theme.ink : theme.ink2)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel(session.accessibilityText(names))
             .accessibilityIdentifier("hintText")
     }
 

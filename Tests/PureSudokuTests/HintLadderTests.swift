@@ -308,7 +308,11 @@ final class HintLadderTests: XCTestCase {
         XCTAssertEqual(values(viewModel), after, "a closed hint cannot be applied")
     }
 
-    // MARK: - Hint text
+}
+
+// MARK: - Hint text
+
+extension HintLadderTests {
 
     func testHiddenSingleTextAndEvidence() throws {
         let viewModel = makeViewModel()
@@ -413,7 +417,28 @@ final class HintLadderTests: XCTestCase {
         return attributed.boundingRect(with: box, options: [.usesLineFragmentOrigin], context: nil).height <= HintCardView.bodyHeight
     }
 
-    // MARK: - Mistakes: Never
+    /// Step 3 hides multi-cell removals from the visible text; VoiceOver must still hear every cell.
+    func testStepThreeAccessibilityNamesEveryRemovedCell() throws {
+        let multiCell = Lesson.techniques.compactMap(Lesson.make).first { Set($0.step.eliminations.map(\.cell)).count > 1 }
+        let lesson = try XCTUnwrap(multiCell, "a lesson removes digits from several cells")
+        let session = HintSession(content: .step(lesson.step, board: lesson.board), level: 3)
+        for names in CellNotation.allCases {
+            let spoken = session.accessibilityText(names)
+            for elimination in lesson.step.eliminations {
+                XCTAssertTrue(spoken.contains(names.cell(elimination.cell)), "\(names.cell(elimination.cell)) missing: \(spoken)")
+                XCTAssertTrue(spoken.contains("Remove \(elimination.digit) from"), spoken)
+            }
+            XCTAssertTrue(spoken.hasPrefix(session.text(names)), "the visible reason comes first")
+        }
+        XCTAssertEqual(HintSession(content: .step(lesson.step, board: lesson.board), level: 2).accessibilityText(.plain),
+                       lesson.step.technique.definition, "other steps read their visible text")
+    }
+
+}
+
+// MARK: - Mistakes: Never, stats and saved data
+
+extension HintLadderTests {
 
     func testNeverModeMarksNoErrorsButTheHintStillFindsThem() {
         let viewModel = makeViewModel(mistakes: .never)
@@ -507,7 +532,11 @@ final class HintLadderTests: XCTestCase {
         XCTAssertNil(written["cellNameStyle"])
     }
 
-    // MARK: - Fixtures
+}
+
+// MARK: - Fixtures
+
+extension HintLadderTests {
 
     private static func generated(_ predicate: (LogicalSolver.Result) -> Bool) -> (puzzle: [Int], solution: [Int])? {
         var rng = SeededRandomNumberGenerator(seed: 7)

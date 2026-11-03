@@ -120,8 +120,6 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var tierName: String { tier.displayName }
-
     /// Step score for grading (HoDoKu defaults, HINT_STRATEGIES.md).
     var score: Int {
         switch self {

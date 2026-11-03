@@ -80,7 +80,7 @@ struct HintSession: Equatable {
     }
 
     /// "· Beginner", from step 2, for technique hints.
-    var tierLabel: String? { level >= 2 ? step?.technique.tierName : nil }
+    var tierLabel: String? { level >= 2 ? step?.technique.tier.displayName : nil }
 
     /// The technique name, shown in serif above the text at step 2.
     var title: String? { level == 2 ? step?.technique.displayName : nil }
@@ -102,6 +102,14 @@ struct HintSession: Equatable {
             guard let cell, let digit else { return "There's no step I can explain here." }
             return "This step needs a technique beyond what hints explain yet. Placing \(digit) in \(names.cell(cell))."
         }
+    }
+
+    /// What VoiceOver reads for the card body. Step 3 of an elimination shows a short text (the board
+    /// strikes the removed digits through), but cell labels don't mention struck digits, so VoiceOver
+    /// gets the reason plus every removed cell and digit.
+    func accessibilityText(_ names: CellNotation) -> String {
+        guard level == Self.stepCount, let step, step.target == nil else { return text(names) }
+        return step.reason(names) + " " + step.resultText(names)
     }
 
     private func mistakeText(cell: Int?, kind: MistakeKind, names: CellNotation) -> String {
