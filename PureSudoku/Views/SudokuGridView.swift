@@ -8,6 +8,8 @@ struct SudokuGridView: View {
     let theme: PSPalette
     /// Open hint's marks (CODESPEC 7.3).
     var highlight = HintHighlight()
+    /// VoiceOver value for ringed (evidence) cells, e.g. "Unsure" on Check the grid. Nil reads nothing extra.
+    var ringedCellValue: String?
     var onSelect: (SudokuCell) -> Void
 
     @Environment(\.psType) private var type
@@ -64,12 +66,18 @@ struct SudokuGridView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
+                            .accessibilityValue(ringedText(index) ?? "")
+                            .accessibilityHint(ringedText(index) == nil ? "" : "Hard to read. Double-tap to confirm.")
                         }
                     }
                 }
             }
         }
         .background(theme.line)
+    }
+
+    private func ringedText(_ index: Int) -> String? {
+        highlight.evidenceCells.contains(index) ? ringedCellValue : nil
     }
 
     private func state(of cell: SudokuCell, selected: SudokuCell?, marks: BoardMarks) -> CellState {

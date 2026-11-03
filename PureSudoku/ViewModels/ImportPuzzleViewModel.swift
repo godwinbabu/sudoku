@@ -85,9 +85,6 @@ final class ImportPuzzleViewModel: ObservableObject {
         if filledCount < minimumClues {
             return "Add at least \(minimumClues) clues to start."
         }
-        if !conflictIndices.isEmpty {
-            return "Resolve duplicates to continue."
-        }
         switch solvableState {
         case .unknown:
             return "Checking if the puzzle is solvable."
@@ -119,6 +116,16 @@ final class ImportPuzzleViewModel: ObservableObject {
     /// "Type it in": straight to Check the grid with an empty board.
     func enterByHand() {
         isEnteringByHand = true
+    }
+
+    /// "Start over": drops the photo and every digit and goes back to Source, for a bad or wrong read.
+    func startOver() {
+        updateImage(nil)
+        gridValues = Array(repeating: nil, count: 81)
+        unsureIndices = []
+        selectedIndex = nil
+        isEnteringByHand = false
+        validate()
     }
 
     var filledCount: Int {
@@ -179,6 +186,7 @@ final class ImportPuzzleViewModel: ObservableObject {
         unsureIndices = []
         guard let image else { return }
         imageID = saveImage(image)
+        isDetecting = true // now, not inside the task, so Check the grid never flashes before Reading
         let token = requestToken
         detectionTask = Task { [weak self] in
             await self?.detectGrid(from: image, token: token)

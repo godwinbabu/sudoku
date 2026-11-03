@@ -27,6 +27,13 @@ struct SudokuImageDetector {
     /// shortcut: untuned guess from simulator screenshots only; tune with real newspaper photos.
     static let unsureConfidence: Float = 0.6
 
+    /// A recognised candidate's digit, and whether its own confidence (`VNRecognizedText.confidence`,
+    /// not the observation's) is too low to trust. Nil when the text is not one digit 1...9.
+    static func reading(text: String, confidence: Float) -> (digit: Int, unsure: Bool)? {
+        guard let value = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)), (1...9).contains(value) else { return nil }
+        return (value, confidence < unsureConfidence)
+    }
+
     func detectGrid(from image: UIImage, progress: @escaping (ReadProgress) -> Void = { _ in }) async throws -> DetectedGrid {
         // Camera photos are stored sideways with a rotation flag that `cgImage` ignores.
         guard let cgImage = Self.upright(image).cgImage else {
@@ -144,14 +151,14 @@ struct SudokuImageDetector {
             try Task.checkCancellation()
             if let read = try await recognizeDigit(in: image) {
                 grid.values[index] = read.digit
-                if read.confidence < Self.unsureConfidence { grid.unsure.insert(index) }
+                if read.unsure { grid.unsure.insert(index) }
             }
             checked(index + 1)
         }
         return grid
     }
 
-    private func recognizeDigit(in image: UIImage) async throws -> (digit: Int, confidence: Float)? {
+    private func recognizeDigit(in image: UIImage) async throws -> (digit: Int, unsure: Bool)? {
         guard let cgImage = image.cgImage else { return nil }
         return try await withCheckedThrowingContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
@@ -176,12 +183,8 @@ struct SudokuImageDetector {
                     continuation.resume(returning: nil)
                     return
                 }
-                let text = best.string.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let value = Int(text), (1...9).contains(value) {
-                    continuation.resume(returning: (value, bestObservation.confidence))
-                } else {
-                    continuation.resume(returning: nil)
-                }
+                // The candidate's own score: the observation's can be high while this read is not.
+                continuation.resume(returning: Self.reading(text: best.string, confidence: best.confidence))
             }
             request.recognitionLevel = .fast
             request.usesLanguageCorrection = false

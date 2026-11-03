@@ -582,6 +582,8 @@ extension PureSudokuUITests {
         app.buttons["importClearCell"].tap() // the second cell is still selected
         XCTAssertTrue(element("importStatus", in: app).waitForExistence(timeout: 2))
         XCTAssertFalse(conflict.exists)
+        app.buttons["importStartOver"].tap()
+        XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2), "Start over goes back to Source")
         app.buttons["importDiscard"].tap()
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))
     }

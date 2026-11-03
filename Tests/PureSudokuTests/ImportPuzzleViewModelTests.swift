@@ -74,6 +74,42 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.unsureIndices.isEmpty)
     }
 
+    /// Start over drops the photo, the digits and Type it in, and goes back to Source.
+    func testStartOverReturnsToSourceAndDeletesThePhoto() {
+        var deleted: [String] = []
+        let viewModel = ImportPuzzleViewModel(createGame: { _, _ in nil }, saveImage: { _ in "photo-1" },
+                                              deleteImage: { deleted.append($0) })
+        viewModel.updateImage(UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8)).image { _ in })
+        XCTAssertEqual(viewModel.step, .reading, "Reading shows at once, never Check the grid first")
+        var values = [Int?](repeating: nil, count: 81)
+        values[0] = 5
+        viewModel.loadGrid(values, unsure: [0])
+        viewModel.startOver()
+        XCTAssertEqual(viewModel.step, .source)
+        XCTAssertNil(viewModel.image)
+        XCTAssertEqual(viewModel.filledCount, 0)
+        XCTAssertTrue(viewModel.unsureIndices.isEmpty)
+        XCTAssertEqual(deleted, ["photo-1"])
+
+        let typed = makeViewModel()
+        typed.enterByHand()
+        typed.startOver()
+        XCTAssertEqual(typed.step, .source)
+    }
+
+    /// Unsure comes from the candidate's own confidence; 0.6 itself is sure.
+    func testDetectorReadingUsesTheCandidateConfidence() {
+        // A box Vision is sure of (observation 1.0) can still hold a doubtful read (candidate 0.3).
+        let observationConfidence: Float = 1.0, candidateConfidence: Float = 0.3
+        XCTAssertNotEqual(observationConfidence, candidateConfidence)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "7", confidence: candidateConfidence)?.unsure, true)
+        XCTAssertEqual(SudokuImageDetector.reading(text: " 4 ", confidence: 0.6)?.digit, 4)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "4", confidence: 0.6)?.unsure, false)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "4", confidence: 0.59)?.unsure, true)
+        XCTAssertNil(SudokuImageDetector.reading(text: "0", confidence: 1))
+        XCTAssertNil(SudokuImageDetector.reading(text: "12", confidence: 1))
+    }
+
     private func makeViewModel() -> ImportPuzzleViewModel {
         ImportPuzzleViewModel(
             createGame: { _, _ in nil },

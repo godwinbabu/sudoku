@@ -171,6 +171,24 @@ struct ImportPuzzleView: View {
 
     private var review: some View {
         VStack(spacing: 0) {
+            // Scrolls only when the board and legend don't fit (iPhone SE); the keypad stays put.
+            ScrollView(showsIndicators: false) {
+                reviewBoardAndLegend
+            }
+            NumberPadView(theme: theme, keyHeight: 52) { viewModel.setDigit($0) }
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("importNumberPad")
+            reviewButtons
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("importReview")
+    }
+
+    private var reviewBoardAndLegend: some View {
+        VStack(spacing: 0) {
             SudokuGridView(
                 cells: viewModel.displayCells(),
                 selectedCellID: viewModel.selectedIndex.map { viewModel.cellIDs[$0] },
@@ -178,6 +196,7 @@ struct ImportPuzzleView: View {
                 // Every cell in the area, so the rings don't spotlight-dim the rest of the board.
                 highlight: viewModel.unsureIndices.isEmpty ? HintHighlight()
                     : HintHighlight(areaCells: Set(0..<81), evidenceCells: viewModel.unsureIndices),
+                ringedCellValue: "Unsure",
                 onSelect: { cell in
                     viewModel.selectCell(id: cell.id)
                 }
@@ -189,34 +208,36 @@ struct ImportPuzzleView: View {
             legend
                 .padding(.horizontal, 16)
                 .padding(.top, 14)
-            Spacer(minLength: 8)
-            NumberPadView(theme: theme, keyHeight: 52) { viewModel.setDigit($0) }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 10)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("importNumberPad")
-            HStack(spacing: 10) {
-                Button { viewModel.clearSelected() } label: {
-                    Text("Clear cell").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 46))
-                .frame(width: 120)
-                .accessibilityIdentifier("importClearCell")
-                Button {
-                    if let game = viewModel.createImportedGame() { onStart(game) }
-                } label: {
-                    Text("Start puzzle").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(PSButtonStyle(theme: theme, height: 46))
-                .disabled(!viewModel.canStart)
-                .opacity(viewModel.canStart ? 1 : 0.4)
-                .accessibilityIdentifier("importStartPuzzle")
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 16)
+            // A bad or wrong read: back to Source with nothing kept (BYOS.md, retry and reset).
+            Button("Start over") { viewModel.startOver() }
+                .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 36))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 6)
+                .accessibilityIdentifier("importStartOver")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("importReview")
+    }
+
+    private var reviewButtons: some View {
+        HStack(spacing: 10) {
+            Button { viewModel.clearSelected() } label: {
+                Text("Clear cell").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 46))
+            .frame(width: 120)
+            .accessibilityIdentifier("importClearCell")
+            Button {
+                if let game = viewModel.createImportedGame() { onStart(game) }
+            } label: {
+                Text("Start puzzle").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PSButtonStyle(theme: theme, height: 46))
+            .disabled(!viewModel.canStart)
+            .opacity(viewModel.canStart ? 1 : 0.4)
+            .accessibilityIdentifier("importStartPuzzle")
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
     }
 
     /// Rings and underlines are shapes, so the legend never relies on hue alone.
