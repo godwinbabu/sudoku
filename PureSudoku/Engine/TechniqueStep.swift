@@ -1,18 +1,8 @@
 import Foundation
 
-/// Curriculum tiers (HINT_STRATEGIES.md).
+/// Grading tiers (HINT_STRATEGIES.md): they set puzzle levels. Learn groups by `LearnTier`.
 enum TechniqueTier: Int, Codable, Comparable {
     case basic = 1, intermediate, advanced, expert
-
-    /// Shown on hint cards and in Learn.
-    var displayName: String {
-        switch self {
-        case .basic: return "Beginner"
-        case .intermediate: return "Intermediate"
-        case .advanced: return "Advanced"
-        case .expert: return "Expert"
-        }
-    }
     static func < (lhs: TechniqueTier, rhs: TechniqueTier) -> Bool { lhs.rawValue < rhs.rawValue }
 }
 

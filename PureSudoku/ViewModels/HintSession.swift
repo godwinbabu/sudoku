@@ -80,7 +80,7 @@ struct HintSession: Equatable {
     }
 
     /// "· Beginner", from step 2, for technique hints.
-    var tierLabel: String? { level >= 2 ? step?.technique.tier.displayName : nil }
+    var tierLabel: String? { level >= 2 ? step?.technique.learnTier.displayName : nil }
 
     /// The technique name, shown in serif above the text at step 2.
     var title: String? { level == 2 ? step?.technique.displayName : nil }
