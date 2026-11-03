@@ -814,7 +814,7 @@ Testing requirements:
 	•	Hint card and lessons (phase 3 onward):
 	•	Highlights fade in slowly; nothing blinks.
 	•	The card never advances on its own. Every step waits for a tap.
-	•	Lesson steps change with a 250 ms fade (none with Reduce Motion). Next and Practise are outline buttons at night, and the lesson has no fills behind text.
+	•	Lesson steps change with a 250 ms fade (none with Reduce Motion). Next and Practise are outline buttons at night. The only fill behind text is the dim pattern tint (same) that game hints use too (Section 7.3); everything else in a lesson is lines and rings. VoiceOver announces each new step.
 	•	One or two short lines per step; the card has a fixed height and long text shrinks to fit.
 	•	At night the card has no fill, only a hairline, and its button is an outline (Section 7.2).
 	•	Puzzle completion: a slow fade, no bright burst.
@@ -933,8 +933,9 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	The last resort (Bowman’s Bingo) can return no hint.
 
 13.4 Mastery
-	•	A technique is mastered at 10 credits (redesign phase 6). Each unaided move earns one credit. A move earns a credit when, on the board just before the player’s move (a correct placement, or removing a wrong note), some step of some technique makes exactly that change, and no hint for that technique was shown in this puzzle, no hint showed that cell and digit, the move was not credited before in this session (Undo and replay earn nothing), and the board has no mistake. Moves from the hint card (Place · assisted, Remove · assisted, Apply · assisted) never earn credit. The credit goes to the simplest such technique (curriculum order). Checking every step, not only nextStep’s first, lets techniques like Naked Single earn credit even when another single comes first. The check runs off the main thread.
+	•	A technique is mastered at 10 credits (redesign phase 6). Each unaided move earns one credit. A move earns a credit when, on the board just before the player’s move (a correct placement, or removing a wrong note), some step of some technique makes exactly that change, and no hint for that technique was shown in this puzzle, no hint showed that cell and digit (GameState.hintedCells, saved with the game, kept across Restart), the move was not credited before for this puzzle (TechniqueProgress.creditedMoves, “puzzleID|kind|cell|digit”, saved; so Undo, Erase, Continue and replaying a practice puzzle earn nothing), and the board has no mistake. Each credit carries the puzzle id taken with the move, so a credit that lands after a new puzzle loads still counts for its own puzzle. Moves from the hint card (Place · assisted, Remove · assisted, Apply · assisted) never earn credit. The credit goes to the simplest such technique (curriculum order). Checking every step, not only nextStep’s first, lets techniques like Naked Single earn credit even when another single comes first. The check runs off the main thread.
 	•	Each technique has a strength value (0–1) that decays over time (half-life model). Strength rises once per puzzle where it is found unaided and falls when a hint for it is needed.
+	•	Hidden Single (line) progress is stored and shown as Hidden Single (box), one lesson; saves holding line progress on its own are merged in on read.
 	•	Saves from before credits decode: they get one credit per puzzle found, and a technique mastered under the old rule (3 puzzles on 3 days) keeps 10.
 	•	When strength falls low, the Learn screen offers an optional review drill. No streak alarms, no notifications.
 
@@ -946,6 +947,7 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	A lesson is pushed, never a sheet, with its own header: Back, “TIER · LESSON”, the title (serif 34) and an intro. Then the board (at most 342 pt wide, SudokuGridView with the hint marks), the step text (17 pt, at least 92 pt tall) and a footer: a previous-step circle, step pills, and Next, which becomes Practise on the last step.
 	•	Four lessons are written by hand, ported from Design/v2/ui_kits/puresudoku-2/Learn.jsx as data (LessonScript): Hidden Single (5 steps), Pointing (4), Naked Pair (4), X-Wing (4). Their boards are drawn for teaching, not taken from a puzzle. Their text uses plain cell names.
 	•	Every other lesson uses the template: a bundled puzzle solved up to the first step of that technique, shown as the three hint steps (where to look; why; what changes, with the removals struck and the placement as a ghost digit). Its text follows the cell-name setting.
+	•	The written lessons’ boards are real Sudoku: every note shown is a true candidate, every pattern is the digit’s full set of places, and the solver’s own detector finds the lesson’s step on that board (a unit test checks this).
 	•	Practise opens the first bundled practice puzzle that needs the technique (from the drill index; for the template, not the example puzzle).
 	•	Practice puzzles are not saved and do not count toward stats or the streak; they do count toward learning (mastery and strength).
 	•	Every hint card links to its technique’s lesson from step 2 (“Lesson →”), and shows the technique’s Learn tier.

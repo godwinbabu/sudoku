@@ -52,7 +52,6 @@ struct Lesson {
     let steps: [Step]
     /// Up to three practice puzzles that need the technique, easiest first.
     let practice: [BundledPuzzles.Entry]
-    let isScripted: Bool
 
     /// Techniques that have a lesson, in curriculum order. Hidden Single (box/line) is one lesson.
     static var techniques: [Technique] {
@@ -69,7 +68,7 @@ struct Lesson {
         if let script = LessonScript.all[technique] {
             return Lesson(technique: technique, intro: script.intro, cells: cells(script.values),
                           steps: script.steps.map { Step(text: $0.text, highlight: $0.highlight) },
-                          practice: Array(drills.prefix(3)), isScripted: true)
+                          practice: Array(drills.prefix(3)))
         }
         // The template: the solver's own step, shown as the three hint steps (where to look, why,
         // what changes).
@@ -82,7 +81,7 @@ struct Lesson {
         // Practice uses other puzzles: the example's answer is already shown.
         let practice = drills.filter { $0.initialGrid != example.puzzle.initialGrid }.prefix(3)
         return Lesson(technique: technique, intro: technique.definition, cells: cells(board.values),
-                      steps: steps, practice: Array(practice), isScripted: false)
+                      steps: steps, practice: Array(practice))
     }
 
     struct Example {
@@ -184,14 +183,17 @@ struct LessonScript {
 
     static let pointing = LessonScript(
         intro: "Your first elimination. It doesn’t place a digit on its own — it removes candidates so a single appears.",
-        givens: [0: 5, 1: 8, 10: 4, 18: 6, 19: 2, 20: 9, 6: 3, 12: 7, 14: 1, 17: 6],
+        // Row 2’s 3 stays open in r2c5, r2c7 and r2c8; r1c3 is given, so the board solves.
+        givens: [0: 5, 1: 8, 2: 7, 10: 4, 18: 6, 19: 2, 20: 9, 12: 7, 14: 5, 17: 6],
         steps: [
             Step(text: "Look at 3 in box 1. It has two possible cells — and both sit in row 2.",
                  focus: box1, notes: [9: [3: .key], 11: [3: .key]]),
             Step(text: "Whichever cell it takes, box 1’s 3 lives in row 2. That claims row 2’s 3.",
-                 focus: box1 + row(1), pattern: [9, 11], notes: [9: [3: .key], 11: [3: .key], 13: [3: .plain], 16: [3: .plain]]),
+                 focus: box1 + row(1), pattern: [9, 11],
+                 notes: [9: [3: .key], 11: [3: .key], 13: [3: .plain], 15: [3: .plain], 16: [3: .plain]]),
             Step(text: "So 3 can’t go anywhere else in row 2. Cross it off.",
-                 focus: box1 + row(1), pattern: [9, 11], notes: [9: [3: .key], 11: [3: .key], 13: [3: .struck], 16: [3: .struck]]),
+                 focus: box1 + row(1), pattern: [9, 11],
+                 notes: [9: [3: .key], 11: [3: .key], 13: [3: .struck], 15: [3: .struck], 16: [3: .struck]]),
             Step(text: "The box points along a line. Its mirror image, Claiming, is when a line confines a digit to one box.",
                  focus: box1 + row(1), pattern: [9, 11], notes: [9: [3: .key], 11: [3: .key]])
         ]
@@ -216,7 +218,9 @@ struct LessonScript {
         return LessonScript(
             intro: "When two cells in a unit can only be the same two digits, those digits are taken — "
                 + "even before you know which is which.",
-            givens: [36: 9, 39: 1, 42: 8],
+            // Enough givens that every note in row 5 is the cell's real candidates.
+            givens: [13: 4, 25: 2, 28: 3, 30: 6, 34: 7, 36: 9, 39: 1, 42: 8, 46: 6, 47: 5,
+                     61: 5, 62: 3, 64: 4, 67: 3, 68: 2, 76: 5, 79: 4],
             steps: [
                 Step(text: "Row 5, with its candidates pencilled in.", focus: row(4), notes: pencilled),
                 Step(text: "Two cells can only be 2 or 7. Between them, they’ll use both.",
@@ -235,7 +239,8 @@ struct LessonScript {
         for cell in [32, 48] { cleared[cell] = [4: .plain] }
         return LessonScript(
             intro: "Your first “fish”. One digit, two lines, and a rectangle that locks it in place.",
-            givens: [9: 6, 10: 1, 12: 8, 14: 2, 15: 9, 17: 5, 54: 3, 55: 9, 57: 5, 59: 7, 60: 1, 62: 8],
+            // r2c5 and r7c5 are given, so each row has 4 in only two cells.
+            givens: [9: 6, 10: 1, 12: 8, 13: 3, 14: 2, 15: 9, 17: 5, 54: 3, 55: 9, 57: 5, 58: 6, 59: 7, 60: 1, 62: 8],
             steps: [
                 Step(text: "Follow one digit: 4. In row 2 it has only two possible cells.",
                      focus: row(1), notes: [11: [4: .key], 16: [4: .key]]),

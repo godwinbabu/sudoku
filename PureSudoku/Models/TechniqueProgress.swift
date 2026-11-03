@@ -4,6 +4,9 @@ import Foundation
 struct TechniqueProgress: Codable, Equatable {
     /// Unaided moves this technique explains: one per correct placement or note removal (CODESPEC 13.4).
     var credits = 0
+    /// Moves credited so far, as `MasteryJudge.Move.key(puzzleID:)`: each move of each puzzle earns
+    /// once, even after Undo, Erase, Continue or a replayed practice puzzle.
+    var creditedMoves: Set<String> = []
     /// Puzzles where the player found the technique without a hint, with the day it happened.
     var foundUnaided: [Found] = []
     /// Hints shown for this technique (any rung).
@@ -37,8 +40,9 @@ struct TechniqueProgress: Codable, Equatable {
         return strength * pow(2, -days / halfLifeDays)
     }
 
-    /// One credited move.
-    mutating func recordFound(puzzleID: String, at date: Date, calendar: Calendar = .current) {
+    /// One credited move. A move credited before (same `moveKey`) changes nothing.
+    mutating func recordFound(puzzleID: String, moveKey: String? = nil, at date: Date, calendar: Calendar = .current) {
+        if let moveKey, !creditedMoves.insert(moveKey).inserted { return }
         let day = Self.dayKey(date, calendar: calendar)
         lastSeen = date
         credits += 1
@@ -65,6 +69,7 @@ struct TechniqueProgress: Codable, Equatable {
         lastSeen = try container.decodeIfPresent(Date.self, forKey: .lastSeen)
         strength = try container.decodeIfPresent(Double.self, forKey: .strength) ?? 0
         strengthDate = try container.decodeIfPresent(Date.self, forKey: .strengthDate)
+        creditedMoves = try container.decodeIfPresent(Set<String>.self, forKey: .creditedMoves) ?? []
         if let credits = try container.decodeIfPresent(Int.self, forKey: .credits) {
             self.credits = credits
         } else {
@@ -74,6 +79,21 @@ struct TechniqueProgress: Codable, Equatable {
     }
 
     init() {}
+
+    /// Two records of one technique as one (Hidden Single box and line are one lesson).
+    func merged(with other: TechniqueProgress) -> TechniqueProgress {
+        var result = self
+        result.credits += other.credits
+        result.creditedMoves.formUnion(other.creditedMoves)
+        result.foundUnaided += other.foundUnaided.filter { found in !foundUnaided.contains { $0.puzzleID == found.puzzleID } }
+        result.hintsSeen += other.hintsSeen
+        result.lastSeen = [lastSeen, other.lastSeen].compactMap { $0 }.max()
+        if (other.strengthDate ?? .distantPast) > (strengthDate ?? .distantPast) {
+            result.strength = other.strength
+            result.strengthDate = other.strengthDate
+        }
+        return result
+    }
 
     static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
@@ -87,6 +107,14 @@ enum MasteryJudge {
     enum Move: Hashable {
         case placed(cell: Int, digit: Int)
         case removedCandidate(cell: Int, digit: Int)
+
+        /// "puzzleID|kind|cell|digit", saved in `TechniqueProgress.creditedMoves`.
+        func key(puzzleID: String) -> String {
+            switch self {
+            case let .placed(cell, digit): return "\(puzzleID)|placed|\(cell)|\(digit)"
+            case let .removedCandidate(cell, digit): return "\(puzzleID)|removed|\(cell)|\(digit)"
+            }
+        }
     }
 
     static func technique(for move: Move, on board: SolverBoard, allowsUniqueness: Bool = true) -> Technique? {

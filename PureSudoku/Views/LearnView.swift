@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The curriculum (CODESPEC 13.5): Up next, then every technique in five tiers with its mastery dot.
 /// A plain stack, not a List: List rows add system chevrons, which stay grey at night (CODESPEC 12.7).
@@ -90,6 +91,7 @@ struct LearnView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text(trailing).font(.system(size: 12).monospacedDigit()).foregroundColor(theme.ink3)
+                    .accessibilityLabel(progress.credits > 0 ? "\(progress.credits) unaided uses" : trailing)
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 12)
@@ -269,5 +271,6 @@ struct LessonView: View {
     private func go(to step: Int) {
         guard let lesson, lesson.steps.indices.contains(step) else { return }
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { index = step }
+        UIAccessibility.post(notification: .announcement, argument: lesson.steps[step].text)
     }
 }

@@ -92,7 +92,7 @@ final class LearningTests: XCTestCase {
     private func makeViewModel() -> (GameViewModel, () -> [Technique]) {
         let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
         var found: [Technique] = []
-        viewModel.onTechniqueFound = { technique, _ in found.append(technique) }
+        viewModel.onTechniqueFound = { technique, _, _ in found.append(technique) }
         return (viewModel, { found })
     }
 
@@ -107,17 +107,18 @@ final class LearningTests: XCTestCase {
         let step = try XCTUnwrap(LogicalSolver().nextStep(board))
         let placement = try XCTUnwrap(step.placements.first)
         let expected = MasteryJudge.technique(for: .placed(cell: placement.cell, digit: placement.digit), on: board)
-        let cell = viewModel.state.cells.first { $0.index == placement.cell }!
-        viewModel.select(cell: cell)
+        viewModel.select(cell: viewModel.state.cells.first { $0.index == placement.cell }!)
         viewModel.setDigit(placement.digit)
         await settle(found, count: 1)
         XCTAssertEqual(found(), [try XCTUnwrap(expected)])
-        // Undo and the same move again: no second credit.
-        viewModel.undo()
-        viewModel.select(cell: cell)
-        viewModel.setDigit(placement.digit)
-        await settle(found, count: 2)
-        XCTAssertEqual(found().count, 1, "replaying a move earns nothing")
+        // Undo or Erase and the same move again: progress keeps the move's key, so no second credit.
+        var progress = TechniqueProgress()
+        let key = MasteryJudge.Move.placed(cell: placement.cell, digit: placement.digit).key(puzzleID: "test")
+        progress.recordFound(puzzleID: "test", moveKey: key, at: start)
+        progress.recordFound(puzzleID: "test", moveKey: key, at: start.addingTimeInterval(60))
+        XCTAssertEqual(progress.credits, 1, "replaying a move earns nothing")
+        let saved = try JSONDecoder().decode(TechniqueProgress.self, from: JSONEncoder().encode(progress))
+        XCTAssertEqual(saved.creditedMoves, [key], "saved")
     }
 
     /// Everything the hint card does (Place · assisted, Apply/Remove · assisted) earns no credit.
@@ -126,7 +127,7 @@ final class LearningTests: XCTestCase {
         let entry = try XCTUnwrap(BundledPuzzles.puzzles(for: .medium).first)
         let viewModel = controller.makePracticeGameViewModel(entry, number: 1)
         var found: [Technique] = []
-        viewModel.onTechniqueFound = { technique, _ in found.append(technique) }
+        viewModel.onTechniqueFound = { technique, _, _ in found.append(technique) }
         var placed = 0, removed = 0
         while placed == 0 || removed == 0, !viewModel.state.isCompleted, placed + removed < 120 {
             viewModel.requestHint()
@@ -229,7 +230,7 @@ final class LearningTests: XCTestCase {
 
     func testTemplateLessonPracticeSkipsTheExamplePuzzle() throws {
         let lesson = try XCTUnwrap(Lesson.make(for: .claiming))
-        XCTAssertFalse(lesson.isScripted)
+        XCTAssertNil(LessonScript.all[.claiming], "a template lesson")
         let values = lesson.cells.map { $0.value ?? 0 }
         let drills = BundledPuzzles.drills(for: .claiming)
         let example = try XCTUnwrap(drills.first { entry in
@@ -244,7 +245,7 @@ final class LearningTests: XCTestCase {
         let expected: [Technique: Int] = [.hiddenSingleBox: 5, .pointing: 4, .nakedPair: 4, .xWing: 4]
         for (technique, count) in expected {
             let lesson = try XCTUnwrap(Lesson.make(for: technique))
-            XCTAssertTrue(lesson.isScripted)
+            XCTAssertNotNil(LessonScript.all[technique])
             XCTAssertEqual(lesson.steps.count, count, "\(technique)")
             XCTAssertEqual(Lesson.stepCount(for: technique), count)
             XCTAssertFalse(lesson.practice.isEmpty, "\(technique) has a practice puzzle")
@@ -260,10 +261,54 @@ final class LearningTests: XCTestCase {
         XCTAssertEqual(hidden.steps.last?.highlight.ghostDigits, [2: 5], "the last step shows 5 in the top-right cell")
         XCTAssertEqual(hidden.steps[3].highlight.struckDigits.keys.sorted(), [1, 10, 11, 18, 19], "ruled-out cells")
         let pointing = try XCTUnwrap(Lesson.make(for: .pointing))
-        XCTAssertEqual(pointing.steps[2].highlight.struckDigits, [13: [3], 16: [3]], "3 crossed off in row 2")
+        XCTAssertEqual(pointing.steps[2].highlight.struckDigits, [13: [3], 15: [3], 16: [3]], "3 crossed off in the rest of row 2")
         XCTAssertEqual(pointing.steps[0].highlight.ringedDigits, [9: [3], 11: [3]])
         let xWing = try XCTUnwrap(Lesson.make(for: .xWing))
         XCTAssertEqual(xWing.steps[3].highlight.struckDigits.keys.sorted(), [25, 29, 43, 74])
+    }
+
+    /// The written lessons are real Sudoku (Learn.jsx's boards were not): a solvable board, notes that
+    /// are true candidates, patterns that are a digit's full set of places, and steps the solver's own
+    /// detector finds.
+    func testTheScriptedLessonsAreRealSudoku() throws {
+        for (technique, script) in LessonScript.all {
+            let board = SolverBoard(values: script.values)
+            XCTAssertEqual(SolutionCounter.count(script.values, limit: 1), 1, "\(technique) has a solution")
+            let candidates = { (cell: Int) in Set(SolverBoard.digits(in: board.candidates[cell])) }
+            let detected = LogicalSolver.steps(for: technique, on: board)
+            for (index, step) in script.steps.enumerated() {
+                let marks = step.highlight, label = "\(technique) step \(index + 1)"
+                for (cell, digits) in marks.shownCandidates {
+                    XCTAssertTrue(digits.isSubset(of: candidates(cell)), "\(label): note \(digits.sorted()) in cell \(cell)")
+                }
+                // A one-digit pattern (Pointing, X-Wing) is every place for that digit in a row or box.
+                let ringed = marks.ringedDigits.flatMap { cell, digits in digits.map { CellDigit(cell: cell, digit: $0) } }
+                if Set(ringed.map(\.digit)).count == 1, let digit = ringed.first?.digit {
+                    for cells in Dictionary(grouping: ringed.map(\.cell), by: { $0 / 9 }).values {
+                        let full = (0..<9).flatMap { [House(kind: .row, index: $0), House(kind: .box, index: $0)] }.contains { house in
+                            Set(house.cells.filter { candidates($0).contains(digit) }) == Set(cells)
+                        }
+                        XCTAssertTrue(full, "\(label): \(cells) is all of \(digit)'s places in a house")
+                    }
+                }
+                let struck = marks.struckDigits.flatMap { cell, digits in digits.map { CellDigit(cell: cell, digit: $0) } }
+                if !struck.isEmpty {
+                    let found = detected.contains { Set(struck).isSubset(of: Set($0.eliminations)) }
+                    XCTAssertTrue(found, "\(label): the solver makes these removals")
+                }
+                for (cell, digit) in marks.ghostDigits {
+                    // A placement after removals (Naked Pair) needs only the removals' digits gone.
+                    let left = candidates(cell).subtracting(script.steps[index - 1].highlight.struckDigits[cell] ?? [])
+                    let placed = detected.contains { $0.placements.contains(CellDigit(cell: cell, digit: digit)) }
+                    XCTAssertTrue(left == [digit] || placed, label)
+                }
+            }
+        }
+        let pencilled = try XCTUnwrap(LessonScript.nakedPair.steps.first).highlight.shownCandidates
+        let board = SolverBoard(values: LessonScript.nakedPair.values)
+        for (cell, digits) in pencilled {
+            XCTAssertEqual(digits, Set(SolverBoard.digits(in: board.candidates[cell])), "Naked Pair notes in cell \(cell) are exact")
+        }
     }
 
     func testEveryTechniqueSitsInOneOfFiveLearnTiers() {
@@ -286,13 +331,93 @@ final class LearningTests: XCTestCase {
     func testProgressIsSavedAndReloaded() throws {
         let (controller, dir) = makeTestController()
         let viewModel = controller.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
-        viewModel.onTechniqueFound?(.nakedPair, "p1")
+        viewModel.onTechniqueFound?(.nakedPair, "p1", .placed(cell: 0, digit: 1))
         viewModel.onHintShown?(.xWing)
         XCTAssertEqual(controller.progress(for: .nakedPair).foundUnaided.count, 1)
         let reloaded = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(),
                                      imageStore: ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true)))
         XCTAssertEqual(reloaded.progress(for: .nakedPair).foundUnaided.count, 1)
         XCTAssertEqual(reloaded.progress(for: .xWing).hintsSeen, 1)
+    }
+
+    /// A credited move stays credited: a second view model on the same puzzle (Continue, or the
+    /// same practice puzzle again) replays it for nothing.
+    func testACreditedMoveEarnsNothingInALaterSession() async throws {
+        let (controller, _) = makeTestController()
+        let entry = try XCTUnwrap(BundledPuzzles.puzzles(for: .easy).first)
+        var credited: Technique?
+        var keep: [GameViewModel] = []
+        for _ in 0..<2 {
+            let viewModel = controller.makePracticeGameViewModel(entry, number: 1)
+            keep.append(viewModel)
+            let board = SolverBoard(cells: viewModel.state.cells)
+            let placement = try XCTUnwrap(LogicalSolver().nextStep(board)?.placements.first)
+            credited = MasteryJudge.technique(for: .placed(cell: placement.cell, digit: placement.digit), on: board)
+            viewModel.select(cell: viewModel.state.cells.first { $0.index == placement.cell }!)
+            viewModel.setDigit(placement.digit)
+            let technique = try XCTUnwrap(credited)
+            await waitFor { controller.progress(for: technique).credits >= 1 }
+            try await Task.sleep(nanoseconds: 300_000_000)
+        }
+        XCTAssertEqual(controller.progress(for: try XCTUnwrap(credited)).credits, 1, "the replay earned nothing")
+    }
+
+    /// The cell and digit a hint showed stay excluded after the game is saved and resumed.
+    func testAHintedCellStaysExcludedAfterResuming() async throws {
+        let (viewModel, _) = makeViewModel()
+        viewModel.requestHint()
+        let placement = try XCTUnwrap(viewModel.hint?.step?.placements.first)
+        viewModel.endHint()
+        let saved = try JSONDecoder().decode(GameState.self, from: JSONEncoder().encode(viewModel.state))
+        XCTAssertTrue(saved.hintedCells.contains(placement), "saved with the game")
+        var restarted = saved
+        restarted.resetToInitial()
+        XCTAssertTrue(restarted.hintedCells.contains(placement), "kept across Restart")
+        let resumed = GameViewModel(state: saved, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        var found: [Technique] = []
+        resumed.onTechniqueFound = { technique, _, _ in found.append(technique) }
+        resumed.select(cell: resumed.state.cells.first { $0.index == placement.cell }!)
+        resumed.setDigit(placement.digit)
+        await settle({ found }, count: 0)
+        XCTAssertTrue(found.isEmpty)
+    }
+
+    /// A judgement still running when the next puzzle loads is credited to its own puzzle.
+    func testACreditLandsOnThePuzzleItWasEarnedIn() async throws {
+        let (viewModel, _) = makeViewModel()
+        var credits: [String] = []
+        viewModel.onTechniqueFound = { _, puzzleID, _ in credits.append(puzzleID) }
+        let placement = try XCTUnwrap(LogicalSolver().nextStep(SolverBoard(cells: viewModel.state.cells))?.placements.first)
+        let p = TestData.puzzle
+        let twin = SudokuPuzzle(id: "other", difficulty: p.difficulty, initialGrid: p.initialGrid, solutionGrid: p.solutionGrid)
+        let other = GameState.newGame(for: twin)
+        for state in [nil, other] {
+            if let state { viewModel.load(state: state) } // straight away: the first judgement is still running
+            viewModel.select(cell: viewModel.state.cells.first { $0.index == placement.cell }!)
+            viewModel.setDigit(placement.digit)
+        }
+        await waitFor { credits.count >= 2 }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(credits.sorted(), ["other", "test"])
+    }
+
+    /// Hidden Single (line) is one lesson with Hidden Single (box): old line-only saves count in Learn,
+    /// and new line credits land on the box record, counted once.
+    func testHiddenSingleLineProgressCountsAsHiddenSingle() throws {
+        let (_, dir) = makeTestController()
+        var line = TechniqueProgress()
+        line.recordFound(puzzleID: "a", moveKey: "a|placed|0|1", at: start)
+        try PersistenceManager(directory: dir).save([Technique.hiddenSingleLine.rawValue: line], to: "technique_progress.json")
+        let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
+        let persistence = PersistenceManager(directory: dir)
+        let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(), imageStore: images)
+        XCTAssertEqual(controller.progress(for: .hiddenSingleBox).credits, 1)
+        XCTAssertEqual(controller.progress(for: .hiddenSingleBox).level, .learning)
+        let viewModel = controller.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
+        viewModel.onTechniqueFound?(.hiddenSingleLine, "b", .placed(cell: 1, digit: 2))
+        viewModel.onTechniqueFound?(.hiddenSingleLine, "a", .placed(cell: 0, digit: 1)) // already credited
+        XCTAssertEqual(controller.progress(for: .hiddenSingleBox).credits, 2)
+        XCTAssertNil(controller.techniqueProgress[Technique.hiddenSingleLine.rawValue], "merged into the box record")
     }
 
     // MARK: - Lessons

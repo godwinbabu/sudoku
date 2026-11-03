@@ -166,13 +166,24 @@ final class AppController: ObservableObject {
         return viewModel
     }
 
+    /// Hidden Single (line) is part of the Hidden Single lesson: its progress, including saves that
+    /// stored it on its own, counts as Hidden Single (box).
     func progress(for technique: Technique) -> TechniqueProgress {
-        techniqueProgress[technique.rawValue] ?? TechniqueProgress()
+        let technique = Self.lessonTechnique(technique)
+        let own = techniqueProgress[technique.rawValue] ?? TechniqueProgress()
+        guard technique == .hiddenSingleBox, let line = techniqueProgress[Technique.hiddenSingleLine.rawValue] else { return own }
+        return own.merged(with: line)
+    }
+
+    private static func lessonTechnique(_ technique: Technique) -> Technique {
+        technique == .hiddenSingleLine ? .hiddenSingleBox : technique
     }
 
     private func connectLearning(_ viewModel: GameViewModel) {
-        viewModel.onTechniqueFound = { [weak self] technique, puzzleID in
-            self?.updateProgress(technique) { $0.recordFound(puzzleID: puzzleID, at: self?.timeProvider.now() ?? Date()) }
+        viewModel.onTechniqueFound = { [weak self] technique, puzzleID, move in
+            self?.updateProgress(technique) {
+                $0.recordFound(puzzleID: puzzleID, moveKey: move.key(puzzleID: puzzleID), at: self?.timeProvider.now() ?? Date())
+            }
         }
         viewModel.onHintShown = { [weak self] technique in
             self?.updateProgress(technique) { $0.recordHint(at: self?.timeProvider.now() ?? Date()) }
@@ -180,9 +191,12 @@ final class AppController: ObservableObject {
     }
 
     private func updateProgress(_ technique: Technique, _ change: (inout TechniqueProgress) -> Void) {
+        let technique = Self.lessonTechnique(technique)
         var progress = progress(for: technique)
         change(&progress)
         techniqueProgress[technique.rawValue] = progress
+        // The line record is merged into the box one now; keeping both would count it twice.
+        if technique == .hiddenSingleBox { techniqueProgress[Technique.hiddenSingleLine.rawValue] = nil }
         guard !techniqueProgressLoadFailed else { return }
         do {
             try persistence.save(techniqueProgress, to: File.techniqueProgress.rawValue)
