@@ -36,6 +36,21 @@ struct LogicalSolver {
         return Result(steps: steps, board: board)
     }
 
+    /// How often each technique solves `puzzle` from its givens, by display name, most used first
+    /// (the Solved summary). It replays the hint engine, so call it off the main thread (CODESPEC 9).
+    static func techniquesNeeded(for puzzle: SudokuPuzzle) -> [(name: String, count: Int)] {
+        let start = puzzle.initialGrid.map { Int(String($0)) ?? 0 }
+        guard start.count == 81 else { return [] }
+        let steps = LogicalSolver(allowsUniqueness: puzzle.isUnique).solve(SolverBoard(values: start)).steps
+        return countByName(steps.map(\.technique))
+    }
+
+    /// Hidden Single (box) and (line) share one name, so they count as one line.
+    static func countByName(_ techniques: [Technique]) -> [(name: String, count: Int)] {
+        let counts = Dictionary(techniques.map { ($0.displayName, 1) }, uniquingKeysWith: +)
+        return counts.map { (name: $0.key, count: $0.value) }.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
+    }
+
     static func steps(for technique: Technique, on board: SolverBoard) -> [TechniqueStep] {
         detectors[technique]?(board) ?? []
     }
@@ -44,7 +59,11 @@ struct LogicalSolver {
     static let detectors: [Technique: (SolverBoard) -> [TechniqueStep]] = [
         .fullHouse: SinglesDetector.fullHouses,
         .hiddenSingleBox: { SinglesDetector.hiddenSingles($0, in: House.boxes, technique: .hiddenSingleBox) },
-        .hiddenSingleLine: { SinglesDetector.hiddenSingles($0, in: House.lines, technique: .hiddenSingleLine) },
+        // Rows before columns, the way people scan (CODESPEC 6.3).
+        .hiddenSingleLine: { board in
+            let rows = SinglesDetector.hiddenSingles(board, in: House.rows, technique: .hiddenSingleLine)
+            return rows.isEmpty ? SinglesDetector.hiddenSingles(board, in: House.columns, technique: .hiddenSingleLine) : rows
+        },
         .nakedSingle: SinglesDetector.nakedSingles,
         .pointing: IntersectionDetector.pointing,
         .claiming: IntersectionDetector.claiming,

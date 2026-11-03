@@ -12,15 +12,6 @@ struct House: Hashable, Codable, Comparable {
 
     var cells: [Int] { SolverBoard.houseCells[kind.rawValue * 9 + index] }
 
-    /// "row 3", "column 5", "box 1" (1-based for players).
-    var name: String {
-        switch kind {
-        case .row: return "row \(index + 1)"
-        case .column: return "column \(index + 1)"
-        case .box: return "box \(index + 1)"
-        }
-    }
-
     static func < (lhs: House, rhs: House) -> Bool {
         (lhs.kind, lhs.index) < (rhs.kind, rhs.index)
     }
@@ -28,6 +19,8 @@ struct House: Hashable, Codable, Comparable {
     static let all: [House] = [Kind.row, .column, .box].flatMap { kind in (0..<9).map { House(kind: kind, index: $0) } }
     static let lines: [House] = all.filter { $0.kind != .box }
     static let boxes: [House] = all.filter { $0.kind == .box }
+    static let rows: [House] = all.filter { $0.kind == .row }
+    static let columns: [House] = all.filter { $0.kind == .column }
 }
 
 /// Board for the logical solver (CODESPEC 13.3): a value per cell and a 9-bit candidate mask.
@@ -143,14 +136,6 @@ struct SolverBoard: Equatable {
     static func row(of cell: Int) -> Int { cell / 9 }
     static func column(of cell: Int) -> Int { cell % 9 }
     static func box(of cell: Int) -> Int { (cell / 27) * 3 + (cell % 9) / 3 }
-
-    /// "r3c5", or "row 3, column 5" (1-based).
-    static func name(of cell: Int, _ style: CellNameStyle = .short) -> String {
-        switch style {
-        case .short: return "r\(row(of: cell) + 1)c\(column(of: cell) + 1)"
-        case .long: return "row \(row(of: cell) + 1), column \(column(of: cell) + 1)"
-        }
-    }
 
     static func sees(_ a: Int, _ b: Int) -> Bool { a != b && peerSets[a].contains(b) }
 

@@ -34,26 +34,27 @@ struct GameView: View {
                 header(theme: theme)
                 boardArea(theme: theme, side: max(side, 200))
                     .padding(.top, 6)
-                if let session = viewModel.hint, !isDone {
-                    ScrollView {
-                        hintPanel(session, theme: theme).padding(12)
+                // The hint card fills this slot; the tools and keypad below keep their place.
+                Group {
+                    if let session = viewModel.hint, !isDone {
+                        hintCard(session, theme: theme)
+                    } else {
+                        hintSlot(theme: theme)
                     }
-                } else {
-                    hintSlot(theme: theme)
-                        .frame(height: 124)
-                        .padding([.top, .horizontal], 12)
-                    Spacer(minLength: 0)
-                    tools(theme: theme)
-                        .padding(.horizontal, 18)
-                        .opacity(isDone ? 0.3 : 1)
-                    NumberPadView(theme: theme, remaining: viewModel.remaining,
-                                  isNotesMode: viewModel.inputMode == .candidate) { viewModel.setDigit($0) }
-                        .padding(.horizontal, 8)
-                        .padding(.top, 6)
-                        .padding(.bottom, 4)
-                        .opacity(isDone ? 0.3 : 1)
-                        .disabled(isDone || viewModel.isPaused)
                 }
+                .frame(height: 124)
+                .padding([.top, .horizontal], 12)
+                Spacer(minLength: 0)
+                tools(theme: theme)
+                    .padding(.horizontal, 18)
+                    .opacity(isDone ? 0.3 : 1)
+                NumberPadView(theme: theme, remaining: viewModel.remaining,
+                              isNotesMode: viewModel.inputMode == .candidate) { viewModel.setDigit($0) }
+                    .padding(.horizontal, 8)
+                    .padding(.top, 6)
+                    .padding(.bottom, 4)
+                    .opacity(isDone ? 0.3 : 1)
+                    .disabled(isDone || viewModel.isPaused)
             }
             .frame(width: geometry.size.width)
         }
@@ -184,14 +185,14 @@ struct GameView: View {
         .task(id: isDone) {
             techniqueLine = nil
             guard isDone else { return }
-            let counts = await viewModel.techniqueCounts()
+            let counts = await viewModel.techniquesNeeded()
             guard !Task.isCancelled, !counts.isEmpty else { return }
             techniqueLine = "This grid took " + counts.map { "\($0.name) ×\($0.count)" }.joined(separator: ", ") + "."
         }
     }
 
     private var solvedSummary: String {
-        let hints = viewModel.state.hintLog.count
+        let hints = viewModel.state.hints
         let hintText = hints == 0 ? "" : " · \(hints) hint\(hints == 1 ? "" : "s")"
         return "\(difficulty.displayName) · \(Self.timeString(viewModel.state.elapsedSeconds))\(hintText)"
     }
@@ -200,7 +201,7 @@ struct GameView: View {
     private var solvedNote: String? {
         if viewModel.isPractice { return "Practice · not counted in stats" }
         if viewModel.state.usedReveal { return "Revealed · not counted in stats" }
-        if viewModel.state.usedHint { return "Assisted · counts for your streak, not best times" }
+        if viewModel.state.assisted { return "Assisted · counts for your streak, not best times" }
         return nil
     }
 
@@ -218,7 +219,7 @@ struct GameView: View {
     @ViewBuilder
     private func hintSlot(theme: PSPalette) -> some View {
         VStack(spacing: 6) {
-            if viewModel.state.hasContradiction && !viewModel.state.isCompleted {
+            if viewModel.state.hasContradiction && !viewModel.state.isCompleted && controller.settings.mistakes != .never {
                 Text("Two of the same digit share a row, column or box.")
                     .foregroundColor(theme.err)
                     .accessibilityIdentifier("contradictionWarning")
@@ -245,26 +246,23 @@ struct GameView: View {
             }
             .accessibilityIdentifier("tool_notes")
             .accessibilityValue(notesOn ? "On" : "Off")
-            ToolButton(theme: theme, symbol: "lightbulb", label: "Hint") { viewModel.requestHint() }
+            ToolButton(theme: theme, symbol: "lightbulb", label: viewModel.hint == nil ? "Hint" : "Next step",
+                       isActive: viewModel.hint != nil) { viewModel.hintTool() }
                 .accessibilityIdentifier("tool_hint")
         }
         .disabled(viewModel.state.isCompleted || viewModel.isPaused)
     }
 
-    private func hintPanel(_ session: HintSession, theme: PSPalette) -> some View {
-        HintPanelView(
+    private func hintCard(_ session: HintSession, theme: PSPalette) -> some View {
+        HintCardView(
             session: session,
-            names: controller.settings.cellNameStyle,
+            names: controller.settings.notation,
             theme: theme,
-            onBack: viewModel.hintBack,
             onNext: viewModel.hintNext,
-            onShowResult: viewModel.hintShowResult,
             onApply: viewModel.applyHint,
-            onToggleAfter: viewModel.hintToggleAfter,
-            onReveal: viewModel.hintRevealCell,
             onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
-            onLesson: { lessonTechnique = session.step?.technique },
-            onDone: { viewModel.endHint() }
+            onLesson: { lessonTechnique = $0 },
+            onClose: { viewModel.endHint() }
         )
         .disabled(viewModel.isPaused)
     }
@@ -278,10 +276,14 @@ struct GameView: View {
             ZStack(alignment: .topTrailing) {
                 Color.clear.contentShape(Rectangle()).ignoresSafeArea().onTapGesture { showsMenu = false }
                 PopoverCard(theme: theme) {
-                    MenuRow(theme: theme, title: "Check puzzle", showsDivider: false) { closeMenu(viewModel.checkPuzzle) }
-                        .disabled(isDone || viewModel.isPaused)
-                        .accessibilityIdentifier("menu_check")
-                    MenuRow(theme: theme, title: "Fill all notes") { closeMenu(viewModel.fillAllNotes) }
+                    // With mistakes set to Never, Check would mark nothing, so it is not offered.
+                    let offersCheck = controller.settings.mistakes != .never
+                    if offersCheck {
+                        MenuRow(theme: theme, title: "Check puzzle", showsDivider: false) { closeMenu(viewModel.checkPuzzle) }
+                            .disabled(isDone || viewModel.isPaused)
+                            .accessibilityIdentifier("menu_check")
+                    }
+                    MenuRow(theme: theme, title: "Fill all notes", showsDivider: offersCheck) { closeMenu(viewModel.fillAllNotes) }
                         .disabled(isDone || viewModel.isPaused)
                         .accessibilityIdentifier("menu_fillNotes")
                     MenuRow(theme: theme, title: "Restart puzzle") { closeMenu { viewModel.pendingAction = .reset } }

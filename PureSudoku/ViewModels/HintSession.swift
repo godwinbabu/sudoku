@@ -1,12 +1,12 @@
 import Foundation
 
-/// One open hint (CODESPEC 6.3.1). The board never changes while a session is open, except through
-/// Apply. `rung` is the ladder step: 0 = mistake check (with narrowing), 1 = name, 2 = where,
-/// 3 = why, 4 = result.
+/// One open hint (CODESPEC 6.3.1): three free steps, then one action. 1 = where to look,
+/// 2 = technique (or "Mistake"), 3 = why. The board never changes while a session is open, except
+/// through the step-3 action.
 struct HintSession: Equatable {
     enum MistakeKind: Equatable {
         /// A placed digit is wrong.
-        case wrongDigit
+        case wrongDigit(Int)
         /// A cell's notes leave out its correct digit.
         case missingNote
         /// Imported puzzle: the entries fit no solution, and no single cell can be blamed.
@@ -17,30 +17,24 @@ struct HintSession: Equatable {
         case mistake(cell: Int?, kind: MistakeKind)
         /// `board` is the solver's view of the board when the hint opened (shows candidates).
         case step(TechniqueStep, board: SolverBoard)
-        /// No known technique applies. `cell` is the cell Reveal would fill.
-        case noStep(cell: Int?)
+        /// No known technique applies: place the answer in `cell`.
+        case noStep(cell: Int?, digit: Int?)
     }
 
+    static let stepCount = 3
+
     let content: Content
-    /// Mistake: narrowing level 0-2. Step: rung 1-4.
-    private(set) var rung: Int
-    /// Waiting for "Try it yourself first?" before rung 4.
-    private(set) var isAskingBeforeResult = false
-    /// Rung 4 toggle: show the board as it will be after Apply.
-    var showsAfter = false
-    private(set) var deepestRung: Int
+    private(set) var level: Int
+    private(set) var deepestLevel: Int
 
-    /// Offer the technique's lesson (first time the player meets it, CODESPEC 13.5).
-    let offersLesson: Bool
-
-    init(content: Content, opensAtRung: Int = 1, offersLesson: Bool = false) {
+    /// Hints with nothing to step through (no step found, entries that clash) open at step 3.
+    init(content: Content, level: Int = 1) {
         self.content = content
         switch content {
-        case .mistake, .noStep: rung = 0
-        case .step: rung = min(max(opensAtRung, 1), 3)
+        case .noStep, .mistake(cell: nil, kind: _): self.level = Self.stepCount
+        default: self.level = min(max(level, 1), Self.stepCount)
         }
-        deepestRung = rung
-        self.offersLesson = offersLesson
+        deepestLevel = self.level
     }
 
     var step: TechniqueStep? {
@@ -48,137 +42,125 @@ struct HintSession: Equatable {
         return nil
     }
 
-    var canGoBack: Bool {
-        if isAskingBeforeResult { return true }
+    var isMistake: Bool {
+        if case .mistake = content { return true }
+        return false
+    }
+
+    var canGoNext: Bool { level < Self.stepCount }
+
+    /// Step 3's action: place, remove or clear. Clashing entries offer Undo instead.
+    var canApply: Bool {
+        guard level == Self.stepCount else { return false }
         switch content {
-        case .mistake: return rung > 0
-        case .step: return rung > 1
-        case .noStep: return false
+        case .mistake(let cell, _): return cell != nil
+        case .step: return true
+        case .noStep(let cell, let digit): return cell != nil && digit != nil
         }
     }
 
-    var canGoNext: Bool {
-        guard !isAskingBeforeResult else { return false }
-        switch content {
-        case .mistake(let cell, _): return cell != nil && rung < 2
-        case .step: return rung < 4
-        case .noStep: return false
-        }
-    }
-
-    var canApply: Bool { step != nil && rung == 4 }
-
-    /// Moves one rung on. Returns true if the result (rung 4) was just shown.
-    mutating func next(askFirst: Bool) -> Bool {
-        guard canGoNext else { return false }
-        if step != nil, rung == 3, askFirst {
-            isAskingBeforeResult = true
-            return false
-        }
-        rung += 1
-        deepestRung = max(deepestRung, rung)
-        return step != nil && rung == 4
-    }
-
-    /// Answers "Show result" to "Try it yourself first?". Returns true (rung 4 is now shown).
-    mutating func showResult() -> Bool {
-        guard isAskingBeforeResult else { return false }
-        isAskingBeforeResult = false
-        rung = 4
-        deepestRung = 4
-        return true
-    }
-
-    mutating func back() {
-        if isAskingBeforeResult {
-            isAskingBeforeResult = false
-            return
-        }
-        guard canGoBack else { return }
-        rung -= 1
-        showsAfter = false
+    mutating func next() {
+        guard canGoNext else { return }
+        level += 1
+        deepestLevel = max(deepestLevel, level)
     }
 
     // MARK: - Text
 
-    var title: String {
-        switch content {
-        case .mistake: return "Check your board"
-        case .step(let step, _): return step.technique.displayName
-        case .noStep: return "No step found"
+    /// The small caps label next to the progress pills.
+    var stepLabel: String {
+        switch level {
+        case 1: return "Where to look"
+        case 2: return isMistake ? "Mistake" : "Technique"
+        default: return "Why"
         }
     }
 
-    /// Tier badge text, for technique hints.
-    var badge: String? { step?.technique.tierName }
+    /// "· Beginner", from step 2, for technique hints.
+    var tierLabel: String? { level >= 2 ? step?.technique.tierName : nil }
 
-    func text(_ names: CellNameStyle) -> String {
-        if isAskingBeforeResult { return "Try it yourself first? The highlighted cells hold the answer." }
+    /// The technique name, shown in serif above the text at step 2.
+    var title: String? { level == 2 ? step?.technique.displayName : nil }
+
+    /// The technique whose lesson "Lesson →" opens, from step 2.
+    var lessonTechnique: Technique? { level >= 2 ? step?.technique : nil }
+
+    func text(_ names: CellNotation) -> String {
         switch content {
         case let .mistake(cell, kind):
             return mistakeText(cell: cell, kind: kind, names: names)
-        case let .step(step, _):
-            switch rung {
-            case 1: return "A \(step.technique.displayName) is available. \(step.technique.definition)"
-            case 3 where offersLesson: return "New technique! " + step.reason(names)
-            case 2: return step.whereText(names)
-            case 3: return step.reason(names)
-            default: return step.resultText(names)
+        case let .step(step, board):
+            switch level {
+            case 1: return step.nudge(names)
+            case 2: return step.technique.definition
+            default: return step.why(names, on: board)
             }
-        case .noStep:
-            return "I can't find a step I can explain. Reveal this cell?"
+        case let .noStep(cell, digit):
+            guard let cell, let digit else { return "There's no step I can explain here." }
+            return "This step needs a technique beyond what hints explain yet. Placing \(digit) in \(names.cell(cell))."
         }
     }
 
-    private func mistakeText(cell: Int?, kind: MistakeKind, names: CellNameStyle) -> String {
+    private func mistakeText(cell: Int?, kind: MistakeKind, names: CellNotation) -> String {
         guard let cell else { return "Some of your entries don't fit together. Try undoing recent moves." }
-        switch rung {
-        case 0: return "There's a mistake on the board. Fix it before the next hint."
-        case 1: return "Look at \(House(kind: .box, index: SolverBoard.box(of: cell)).name)."
-        default:
-            let name = SolverBoard.name(of: cell, names)
-            return kind == .wrongDigit ? "\(name.capitalizedFirst) is wrong." : "The notes in \(name) leave out its digit."
+        if level == 1 { return "Something in \(names.box(SolverBoard.box(of: cell))) doesn't fit." }
+        if case .wrongDigit(let digit) = kind {
+            return "The \(digit) in \(names.cell(cell)) can't be right — the puzzle doesn't solve with it."
+        }
+        return "The notes in \(names.cell(cell)) leave out its digit."
+    }
+
+    /// The card's main button.
+    var actionLabel: String? {
+        switch (content, level) {
+        case (.mistake(cell: nil, kind: _), _): return nil
+        case (.mistake, 1): return "Show me"
+        case (_, 1): return "Which technique?"
+        case (_, 2): return "Show me why"
+        case (.mistake, _): return "Clear it"
+        case let (.noStep(_, digit?), _): return "Place \(digit) · assisted"
+        case (.noStep, _): return nil
+        case let (.step(step, _), _):
+            if let target = step.target { return "Place \(target.digit) · assisted" }
+            let digits = Set(step.eliminations.map(\.digit))
+            return digits.count == 1 ? "Remove \(digits.first!) · assisted" : "Apply · assisted"
         }
     }
 
     // MARK: - Highlights
 
     /// What the grid draws for this session (CODESPEC 7.3: shape, not color alone).
+    /// Step 1 spotlights the focus; 2 adds the pattern fill; 3 adds evidence rings, the dashed
+    /// target with its ghost digit, and the struck candidates.
     var highlight: HintHighlight {
         var result = HintHighlight()
         switch content {
         case let .mistake(cell, _):
             guard let cell else { return result }
-            if rung >= 1 { result.areaCells = Set(House(kind: .box, index: SolverBoard.box(of: cell)).cells) }
-            if rung >= 2 { result.patternCells = [cell] }
+            result.areaCells = Set(House(kind: .box, index: SolverBoard.box(of: cell)).cells)
+            if level >= 2 { result.targetCells = [cell] }
         case let .step(step, board):
-            let isPlacement = !step.placements.isEmpty
-            if rung >= 2 {
-                result.areaCells = Set(step.houses.flatMap(\.house.cells))
-                if result.areaCells.isEmpty, let anchor = step.cells.first { result.areaCells = [anchor.cell] }
-            }
-            // For singles the pattern cell is the answer, so it is shown only with the result.
-            if rung >= 3 && !isPlacement || rung >= 4 {
-                result.patternCells = Set(step.cells.map(\.cell))
+            result.areaCells = step.focus
+            if level >= 2 {
+                result.patternCells = step.pattern
                 for cell in result.patternCells where board.values[cell] == 0 {
                     result.shownCandidates[cell] = Set(SolverBoard.digits(in: board.candidates[cell]))
                     result.ringedDigits[cell] = Set(step.digits).intersection(result.shownCandidates[cell] ?? [])
                 }
             }
-            if rung >= 4 {
+            if level >= 3 {
+                result.evidenceCells = step.evidence(on: board)
                 for elimination in step.eliminations {
                     let shown = Set(SolverBoard.digits(in: board.candidates[elimination.cell]))
                     result.shownCandidates[elimination.cell, default: shown].formUnion(shown)
                     result.struckDigits[elimination.cell, default: []].insert(elimination.digit)
                 }
                 for placement in step.placements { result.ghostDigits[placement.cell] = placement.digit }
-                if showsAfter {
-                    result.hiddenDigits = result.struckDigits
-                    result.struckDigits = [:]
-                }
             }
-        case .noStep(let cell):
-            if let cell { result.patternCells = [cell] }
+        case let .noStep(cell, digit):
+            guard let cell else { return result }
+            result.areaCells = [cell]
+            if let digit { result.ghostDigits[cell] = digit }
         }
         return result
     }
@@ -186,26 +168,22 @@ struct HintSession: Equatable {
 
 /// Grid overlay for an open hint. Cells are 0...80.
 struct HintHighlight: Equatable {
-    /// Houses to look at (soft tint).
+    /// The spotlight: everything else fades to `focusDim`.
     var areaCells: Set<Int> = []
     /// Pattern cells (filled like same-digit cells).
     var patternCells: Set<Int> = []
-    /// Cells that prove the step (thin ring). Filled by the graduated hints.
+    /// Cells that prove the step (solid ring).
     var evidenceCells: Set<Int> = []
+    /// Dashed target ring without a ghost digit (a mistake to clear).
+    var targetCells: Set<Int> = []
     /// Candidates to draw in cells that have no notes of their own.
     var shownCandidates: [Int: Set<Int>] = [:]
     /// Key digits (ringed).
     var ringedDigits: [Int: Set<Int>] = [:]
     /// Candidates the step removes (struck through).
     var struckDigits: [Int: Set<Int>] = [:]
-    /// Candidates to hide, whatever their source ("Show after" view of eliminations).
-    var hiddenDigits: [Int: Set<Int>] = [:]
-    /// Digits the step places (shown faint).
+    /// Digits the step places (dashed target, faint ghost digit).
     var ghostDigits: [Int: Int] = [:]
 
     var isEmpty: Bool { self == HintHighlight() }
-}
-
-private extension String {
-    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }

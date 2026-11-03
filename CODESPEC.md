@@ -181,15 +181,16 @@ Additions for teaching (added in the phase that first needs them, Section 13.6):
 	•	hasUniqueSolution: Bool (Section 2.1). Default when missing from a saved file: source == .generated. An imported puzzle saved without it gets its solutions counted (stopping at 2) the first time it loads, and the result is saved.
 	•	grade: PuzzleGrade? (hardestTier, score, techniques; Section 2.2). Nil for puzzles saved before grading existed.
 	•	GameState:
-	•	hintLog: [HintLogEntry] — one entry per hint: technique, deepest rung shown (0–4), whether it was applied.
-	•	usedHint: Bool — true once a hint’s result (rung 4) has been shown (Section 6.3.1).
+	•	hintLog: [HintLogEntry] — one entry per hint: technique, deepest step shown (1–3; older saves hold rungs 0–4), whether its action was used.
+	•	hints: Int — hints opened in this puzzle (hintLog.count), for the Solved summary.
+	•	assisted: Bool — true once a hint placed a digit or removed candidates (Section 6.3.1). Saves from before this field decode the old usedHint key into it.
 	•	TechniqueProgress (new model, one per technique):
 	•	foundUnaidedCount: Int, foundUnaidedDays: Set<day>, lastSeen: Date?, strength: Double (0–1, decays over time).
 	•	All new fields decode with defaults (decodeIfPresent), so older save files still load. This applies to every persisted model: SudokuPuzzle, GameState, Settings, Stats and TechniqueProgress. A strict decode of a new field would make the old file fail to load and be moved aside, losing the player’s settings.
 
 Testing requirements:
 	•	Unit tests:
-	•	Decode a GameState and SudokuPuzzle saved without the new fields; verify defaults (empty hintLog, usedHint == false, grade == nil, hasUniqueSolution == true for generated).
+	•	Decode a GameState and SudokuPuzzle saved without the new fields; verify defaults (empty hintLog, assisted == false; an old usedHint == true becomes assisted, grade == nil, hasUniqueSolution == true for generated).
 	•	An imported two-solution puzzle saved without hasUniqueSolution loads as false.
 	•	Settings and Stats files saved by the previous version load without errors, with defaults for new fields.
 	•	Construct a GameState from initialGrid and solutionGrid and verify:
@@ -229,15 +230,15 @@ Testing requirements:
 	•	From top to bottom:
 	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (switches Day and Night until the Night sheet ships); More.
 	•	Board: 3×3 boxes on a lineMajor ground, each 3×3 cells on a line ground. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
-	•	Hint slot (124 pt): always reserved, so nothing moves. It says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house.
-	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint.
+	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never).
+	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
 	•	Keypad: 1×9. Each key shows how many of its digit are left. A digit with none left fades to 28% and is disabled. In Notes mode each key shows its digit small, at its pencil-mark position.
-	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen.
+	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen. Check puzzle is left out when mistakes are set to Never, since it would mark nothing.
 	•	Fill all notes writes, in every empty cell, the digits its row, column and box still allow. One Undo reverts it.
 	•	Restart puzzle asks first, with a custom confirmation styled like the menu.
 	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops.
 	•	Hush: a two-finger tap anywhere, or the More menu, pauses the game and shows pure black. “Tap anywhere to return” fades out after about 3.5 s. Any tap returns and resumes.
-	•	Solved: the board fades to 30% over 600 ms. Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: streak, not best times), and the techniques the grid needs, by name (from the logical solver, computed once off the main thread). Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
+	•	Solved: the board fades to 30% over 600 ms. Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: “Assisted · counts for your streak, not best times”), and the techniques the grid needs, by name: “This grid took Hidden Single ×38, Naked Single ×9.” They come from LogicalSolver.techniquesNeeded(for:), which replays the hint engine from the givens once, off the main thread. Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
 	•	Goodnight: pure black with “Sleep well.” fading out. A tap returns to the main menu.
 	•	In a Night game the status bar is hidden (hideStatusBarInGames) and the home indicator auto-hides.
 	•	Interaction:
@@ -245,9 +246,7 @@ Testing requirements:
 	•	Tap a number to either:
 	•	Fill value (Notes off).
 	•	Toggle candidate (Notes on).
-	•	Hint panel (phase 3):
-	•	Until the graduated hint card ships, the hint panel replaces the hint slot, tools and keypad while it is open. The whole grid stays visible above it.
-	•	While it is open, the grid shows the hint’s marks (Section 7.3).
+	•	Hint card (Section 6.3.1): it fills the hint slot. The board, tools and keypad keep their place. While it is open the grid shows the hint’s marks (Section 7.3) and no selection.
 	•	Check Cell, Reveal Puzzle and the in-game New Puzzle button are not on the v2 game screen. Their GameViewModel behaviour (Sections 6.1, 6.4, 6.6) stays.
 
 Testing requirements:
@@ -269,9 +268,9 @@ Testing requirements:
 	•	Toggles:
 	•	Show timer on/off.
 	•	Tidy notes (remove a placed digit from the notes it sees).
-	•	Show mistakes: Right away / When I check. Never (no marks, even on Check) is hidden until the v2 game screen supports it.
-	•	Cell names: “row 3, column 5” (default) or short “r3c5” (phase 3).
-	•	Hints: ask “Try it yourself first?” before showing a result (default on, phase 3).
+	•	Show mistakes: Right away / When I check / Never. Never means no automatic marks and no Check; the hint still points at a mistake first.
+	•	Cell names (notation): “row 5, column 2” (plain, default) or “R5C2” (grid). Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
+	•	Migration: the old cellNameStyle key maps short → grid and long → plain. The old askBeforeHintResult key is ignored: the card has no “Try it yourself first?” step.
 	•	These controls move to the Night sheet and Journal › Display & Night in later v2 phases (Design/v2/README.md).
 	•	Stats includes:
 	•	Current streak.
@@ -284,6 +283,8 @@ Testing requirements:
 	•	Unit tests:
 	•	Changing a setting (e.g. showTimer, appearance, glow) in the view model should persist and reload correctly.
 	•	Settings files from v1 (theme, bedtimeMode, sleepBrightness, display profiles, autoCheckMistakes, autoRemoveCandidates) load and map to the v2 fields (Section 7.1).
+	•	cellNameStyle migrates to notation; askBeforeHintResult is ignored and not written back.
+	•	Notation strings in both modes, including “an 8”.
 	•	UI tests:
 	•	Navigate to settings, toggle Show timer off, go back to game and verify timer visually hidden.
 
@@ -381,42 +382,29 @@ Testing requirements:
 6.3 Hint and Reveal Cell
 
 Hint and Reveal Cell are two separate actions. Hint teaches; Reveal Cell fills a cell.
-Until phase 3 ships, the current behavior stays: Hint finds a placement and, with autoFillHints on, fills it.
 
-6.3.1 Hint (the hint ladder, phase 3)
-	•	Tapping Hint opens the hint panel at the first rung that applies. Each further tap (Next) shows the next rung.
-	•	The board never changes until the player taps Apply.
-	•	Rungs:
-	•	Rung 0 – Check (automatic, always first):
-	•	Narrowing uses the cell’s box: “Look at box 5”, then the cell.
-	•	If the board has a wrong digit, or a cell that has notes leaves out its correct digit: “There’s a mistake on the board.”
-	•	Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored, not reported.
-	•	Next narrows it: first the house (row, column or box), then the cell.
-	•	No technique hint is given until the mistake is fixed. The panel offers Undo.
-	•	Rung 1 – Name: “A Hidden Single is available.” Shows the tier badge and a one-line definition.
-	•	For a technique the player has never seen: also offers a short lesson (Section 13.5).
-	•	Rung 2 – Where: soft outlines on the house or houses to look at. “Look at box 5.”
-	•	Rung 3 – Why: the pattern cells are outlined and the key digit is ringed. Chains show strong links solid and weak links dashed.
-	•	A step with several parts splits into numbered sub-steps with Back and Next.
-	•	Rung 4 – Result: eliminated candidates are struck through, or the placed digit appears as a ghost.
-	•	A Before / After toggle stays until the player taps Apply or Done.
-	•	If “Try it yourself first?” is on, ask once before showing this rung.
-	•	Apply makes the change as one undoable edit (Section 6.7). An elimination in a cell without notes first writes that cell’s candidates as notes, then removes the digit, so the deduction is kept and the next hint moves on.
-	•	For singles (placement steps), the target cell is outlined only at rung 4: at rung 3 it would give the answer away.
-	•	Done closes the panel without changing the board.
-	•	Hint content:
-	•	The hint comes from the logical solver (Section 13.3): the simplest step available on the player’s current board.
-	•	The hint uses the player’s own notes where they exist. If a step needs notes the player has not written, the step shows the candidates it relies on.
-	•	The same board always gives the same hint.
-	•	If the solver finds no step it can explain: “I can’t find a step I can explain. Reveal this cell?” This links to Reveal Cell. It never returns nothing.
-	•	Fading (phase 5):
-	•	A technique the player has mastered (Section 13.4) opens at rung 1 and stops there unless the player taps Next.
-	•	A technique the player has never seen opens at rung 3, as a worked example, and the panel also offers its lesson.
+6.3.1 Hint (graduated hint card, phase 3)
+	•	Tapping Hint opens the hint card in the hint slot (Section 3.2) at step 1. The card’s button, or the Hint tool (“Next step”), moves one step on. × closes it without changing anything.
+	•	Steps 1–3 are free: they never change the board or stats.
+	•	Order (matches the design’s engine.js): mistakes first, then Full House, Hidden Single (box before row before column), Naked Single, Pointing, Claiming, then the rest of Section 13.2 in curriculum order.
+	•	Mistake first (always checked, whatever Show mistakes is set to):
+	•	A wrong digit, or a cell whose notes leave out its correct digit. Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored.
+	•	Step 1 “Where to look”: “Something in box 4 doesn’t fit.” (the box is spotlit). Button: Show me.
+	•	Step 2 “Mistake”: “The 7 in row 3, column 4 can’t be right — the puzzle doesn’t solve with it.” (dashed ring on the cell). Button: Show me why.
+	•	Step 3 “Why”: the same sentence. Button: Clear it. It clears the digit (or the notes) as one undoable edit and does not mark the solve assisted.
+	•	Imports whose entries fit no solution: one card, “Some of your entries don’t fit together. Try undoing recent moves.”, with Undo.
+	•	Technique steps (from the logical solver, Section 13.3: the simplest step on the player’s board, using their notes where they exist; the same board always gives the same hint):
+	•	Step 1 “Where to look”: the nudge, with a spotlight on the focus cells. “Look at box 4. Where can 5 go?”
+	•	Step 2 “Technique” · tier: the technique name (serif) and its one-line definition. The pattern cells are filled and, in cells without notes, the candidates it relies on are shown.
+	•	Step 3 “Why”: evidence rings, the dashed target with its ghost digit, struck-through eliminations. “Every other empty cell in box 4 already sees a 5. So 5 can only go in row 5, column 2.” If the player’s notes, not placed digits, rule a cell out, it reads “sees or has ruled out”.
+	•	Step 3 button: “Place 5 · assisted”, or for eliminations “Remove 5 · assisted” (one digit) / “Apply · assisted”. It makes the change as one undoable edit (Section 6.7). An elimination in a cell without notes first writes that cell’s candidates as notes, so the deduction is kept and the next hint moves on.
+	•	“Lesson →” (from step 2) opens the technique’s lesson (Section 13.5).
+	•	Each hint carries: nudge, technique, tier, short (definition), why, focus, evidence, pattern, elim and target (TechniqueStep and HintSession).
+	•	If the solver finds no step it can explain, the card opens at step 3: “This step needs a technique beyond what hints explain yet. Placing 5 in row 5, column 2.” with “Place 5 · assisted”. It never returns nothing.
+	•	Every hint opens at step 1 (the earlier fading plan, which opened new techniques at the “why” rung, is dropped).
 	•	Stats:
-	•	Rungs 0–3 do not affect stats.
-	•	Showing rung 4 (the result) sets usedHint = true, whether or not the player taps Apply. Undo never clears it (same as usedReveal). The solve still counts toward puzzles solved, total time and the streak, but not toward best time.
-	•	Reveal Cell and Reveal Puzzle keep their current rule (usedReveal: the solve does not count).
-	•	The autoFillHints setting is removed when the ladder ships. Older settings files that contain it still load.
+	•	Using the step-3 button to place or remove sets assisted = true. Undo never clears it (same as usedReveal). An assisted solve counts toward puzzles solved, total time and the streak, but not toward best (or, later, typical) times.
+	•	Reveal Cell and Reveal Puzzle keep their rule (usedReveal: the solve does not count at all).
 
 6.3.2 Reveal Cell
 	•	If a selected cell is empty (value == nil, not given, not isRevealed):
@@ -430,17 +418,18 @@ Testing requirements:
 	•	Verify that value matches solutionGrid.
 	•	isRevealed == true.
 	•	usedReveal == true.
-	•	Hint ladder (phase 3):
-	•	With a wrong digit on the board, Hint returns rung 0 and no technique.
-	•	With no notes anywhere, Hint returns a technique (not rung 0).
-	•	With stale notes only (Auto-remove off), Hint returns a technique.
-	•	Rungs 1–3 never change the board.
-	•	Showing rung 4 sets usedHint; Apply changes the board as the step says, and one Undo reverts the board but leaves usedHint set.
-	•	A solve with usedHint counts in puzzles solved and the streak but not in best time.
+	•	Hint card (phase 3):
+	•	A wrong entry is the first hint; Clear it empties the cell and does not set assisted.
+	•	With no notes anywhere, or stale notes only (Tidy notes off), Hint returns a technique.
+	•	Each step advances the level by one, up to 3, with its label, button and marks; steps 1–3 never change the board.
+	•	Placing from a hint sets assisted; one Undo reverts the board but leaves assisted set.
+	•	An assisted solve updates the streak and counts but not best time.
 	•	The same board gives the same hint twice.
-	•	When the solver finds no step, Hint offers Reveal Cell instead of returning nothing.
+	•	When the solver finds no step, the hint places the answer as assisted (not a reveal).
+	•	Hidden singles come box, then row, then column.
 	•	UI tests:
-	•	Tap Hint, step through each rung, tap Apply; verify the board changed and Undo restores it.
+	•	Tap Hint, step through the three steps (the keypad does not move), tap Place; verify the board changed and Undo restores it.
+	•	A digit repeated in its row is the first hint; Clear it empties the cell.
 
 6.4 Reveal Puzzle
 	•	Confirmation dialog.
@@ -539,15 +528,17 @@ enum Appearance: String, Codable {
 	•	Duplicate entry:
 	•	With Show mistakes set to Right away:
 	•	Immediately mark conflicting cells as error (error marker, see 7.2).
+	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks.
 	•	Cell states (Design/v2/README.md, “Cell states”):
 	•	Given: ink, given weight. Entered: accent, entered weight.
 	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill.
 	•	Mistake: err digit plus a 2 pt err bar under it (120% of its width).
 	•	Notes: 3×3 at cell × 0.25; a note matching the selected digit is bold accent.
-	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit on the target, a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
-	•	Hint highlights (phase 3):
+	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
+	•	By step: 1 spotlight; 2 adds the pattern fill; 3 adds evidence rings, the target and struck eliminations.
+	•	Hint highlights:
 	•	Fade in (about 0.15 s). Never blink or pulse.
-	•	Stay until the player moves to another rung or closes the panel.
+	•	Stay until the player moves to another step or closes the card.
 
 Testing requirements:
 	•	Unit tests:
@@ -595,7 +586,7 @@ struct Stats: Codable {
 Streak rules:
 	•	Puzzle completed without usedReveal:
 	•	Update counts.
-	•	Update best time, only if usedHint is also false (Section 6.3).
+	•	Update best time, only if assisted is also false (Section 6.3).
 	•	Add to totalSecondsPlayed.
 	•	Streak logic based on lastSolvedDate vs. today.
 
@@ -606,7 +597,7 @@ Testing requirements:
 	•	Solve again on day N+1: streak = 2.
 	•	Skip day N+2, solve on N+3: streak resets to 1.
 	•	Best time logic: solving faster updates best; slower does not.
-	•	A faster solve with usedHint does not update best time, but does update counts and streak.
+	•	A faster assisted solve does not update best time, but does update counts and streak.
 	•	Persistence:
 	•	Save a GameState and Stats to storage and reload; verify equality.
 	•	UI tests:
@@ -669,7 +660,8 @@ Testing requirements:
 	•	(Optional) SudokuGenerator.swift
 	•	Logical solver (phase 2 onward, Section 13.3), in the Engine group:
 	•	SolverBoard.swift (bitset board, House)
-	•	TechniqueStep.swift (Technique, TechniqueStep, explanation text)
+	•	TechniqueStep.swift (Technique, TechniqueStep, explanation text, graduated hint fields)
+	•	CellNotation.swift (cell and house names in hint text: plain or grid, articles)
 	•	LogicalSolver.swift (nextStep / solve loop, tie-break)
 	•	Detector files by family: SinglesAndIntersections.swift, SubsetDetector.swift, FishAndWings.swift (phase 2); later phases add SingleDigitPatterns, Coloring, Uniqueness, Chains, ALS
 	•	PuzzleGrader.swift (phase 4)
@@ -687,7 +679,7 @@ Testing requirements:
 	•	GameChrome.swift (tools, More menu, Solved panel, Hush and Goodnight)
 	•	SettingsView.swift
 	•	StatsView.swift
-	•	HintPanelView.swift (phase 3)
+	•	HintCardView.swift (the three-step hint card, phase 3)
 	•	LearnView.swift, LessonView.swift (phase 5)
 	•	Persistence/
 	•	PersistenceManager.swift (or similar).
@@ -778,10 +770,11 @@ Testing requirements:
 	•	No rapid blinking.
 	•	Dialogs:
 	•	Confirmations (Restart) are custom popovers in the app palette, never system dialogs, so they cannot render light at night.
-	•	Hint panel and lessons (phase 3 onward):
+	•	Hint card and lessons (phase 3 onward):
 	•	Highlights fade in slowly; nothing blinks.
-	•	The panel never advances on its own. Every step waits for a tap.
-	•	One or two short lines per step, with “More” for detail.
+	•	The card never advances on its own. Every step waits for a tap.
+	•	One or two short lines per step; the card has a fixed height and long text shrinks to fit.
+	•	At night the card has no fill, only a hairline, and its button is an outline (Section 7.2).
 	•	Puzzle completion: a slow fade, no bright burst.
 
 Testing requirements:
@@ -801,7 +794,7 @@ Design with thumb-only use in mind:
 	•	Keypad at the bottom edge.
 	•	Tools (Undo, Erase, Notes, Hint) just above it.
 	•	Less common actions (Check puzzle, Fill all notes, Restart, Hush) in the More menu.
-	•	Hint panel buttons (Back, Next, Apply, Done) in the bottom thumb zone.
+	•	The hint card sits just above the tools; its button (and the Hint tool, “Next step”) are in the thumb zone. Every card control has a 44 pt target.
 	•	Tap targets:
 	•	Minimum hit size ~44×44 points for all interactive elements (Apple HIG).
 	•	Exception: the 1×9 keypad keys are about 38 pt wide on a 390 pt phone, but 64 pt tall. The single row is a design decision (Design/v2).
@@ -880,10 +873,10 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	Deterministic: within a technique, prefer the instance with fewest pattern cells, then most eliminations, then lowest cell index. Never depend on Set or Dictionary order.
 	•	Steps stack: after each step, the next search starts from the updated candidates.
 	•	Uniqueness techniques run only when hasUniqueSolution is true (Section 2.1).
-	•	If no technique applies, return nil. The hint then offers Reveal Cell (Section 6.3); it never guesses.
+	•	If no technique applies, return nil. The hint then places the answer as an assisted step (Section 6.3.1); the solver never guesses.
 	•	Which engine feeds hints:
 	•	Phases 1–2: the current SudokuHintEngine (current behavior).
-	•	From phase 3: the logical solver. By then it covers every technique the old engine handles correctly (phase 2). The old engine’s XY-Chain (buggy) and Bowman’s Bingo (trial and error) are dropped; boards that needed them get the honest “Reveal this cell?” fallback until phase 6.
+	•	From phase 3: the logical solver. By then it covers every technique the old engine handles correctly (phase 2). The old engine’s XY-Chain (buggy) and Bowman’s Bingo (trial and error) are dropped; boards that needed them get the honest “beyond what hints explain yet” fallback until phase 6.
 	•	SudokuHintEngine is deleted in phase 3.
 	•	Known issues in the current engine that the new solver must not repeat:
 	•	Each technique starts again from the original candidates, so steps do not stack.
@@ -902,13 +895,13 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	Each lesson ends with three practice puzzles that need that technique (from the drill index).
 	•	Practice puzzles are not saved and do not count toward stats or the streak; they do count toward learning (mastery and strength).
 	•	The example board is a bundled puzzle solved up to the first step of that technique, drawn like a hint: pattern first, then the result on “Show the result”.
-	•	The first time a puzzle needs a technique the player has not seen, the hint offers that lesson.
+	•	Every hint card links to its technique’s lesson from step 2 (“Lesson →”).
 
 13.6 Build phases
 Each phase ships on its own and keeps the app working.
 	1.	Spec (this section, CODESPEC updates, HINT_STRATEGIES.md, BYOS.md uniqueness rule).
 	2.	Engine core: SolverBoard, TechniqueStep, LogicalSolver; Basic and Intermediate tiers including hidden subsets; X-Wing, Swordfish and XY-Wing (ported from the old engine, so nothing it does correctly is lost); deterministic order; honest last resort; correctness oracle and latency benchmark in the test suite.
-	3.	Hint ladder and display calibration: Section 6.3 rungs 0–4, Apply with Undo, Reveal Cell separate, autoFillHints removed; Section 12.3 calibration and profiles.
+	3.	Hint card and display calibration: Section 6.3.1 three steps with Place · assisted, Reveal Cell separate, autoFillHints removed; Section 12.3 calibration and profiles.
 	4.	Grading and drills: logical grade per puzzle (Section 2.2), technique lines under difficulty buttons, no silent fallback, bundled pre-graded puzzles and drill index, solution count on import.
 	5.	Advanced tier and Learn: the rest of the Advanced tier (single-digit patterns, XYZ-Wing, W-Wing, simple coloring, uniqueness techniques, gated); Learn screen, lessons, mastery and fading.
 	6.	Expert tier and polish: chain link graph, X-Chain, AIC, grouped AIC, ALS-XZ, ALS-XY-Wing, Sue de Coq; optional Expert difficulty; full VoiceOver play.
@@ -919,4 +912,4 @@ Testing requirements:
 	•	Correctness oracle: over a seeded corpus of generated puzzles (400 in phase 2; bundled pre-graded puzzles from phase 4), every step agrees with the known solution and its pattern is re-checked against the board.
 	•	Same board, same step, every run.
 	•	A board needing two techniques in a row (e.g. pointing, then a naked pair) yields both steps in order.
-	•	Unit tests (phase 5): mastery rule (3 puzzles, 3 days), strength decay, fading opens a mastered technique at rung 1.
+	•	Unit tests (phase 5): mastery rule (3 puzzles, 3 days), strength decay.

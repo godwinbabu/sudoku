@@ -84,14 +84,14 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         [.uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne].contains(self)
     }
 
-    /// One-line definition shown at rung 1.
+    /// One-line definition, shown at hint step 2 ("short").
     var definition: String {
         switch self {
         case .fullHouse: return "A row, column or box with one empty cell left."
-        case .hiddenSingleBox, .hiddenSingleLine: return "A digit that fits in only one cell of a row, column or box."
-        case .nakedSingle: return "A cell with only one candidate left."
-        case .pointing: return "In a box, a digit is confined to one row or column, so it leaves the rest of that line."
-        case .claiming: return "In a row or column, a digit is confined to one box, so it leaves the rest of that box."
+        case .hiddenSingleBox, .hiddenSingleLine: return "A digit with only one possible home in a row, column or box."
+        case .nakedSingle: return "A cell that can only hold one digit."
+        case .pointing: return "In a box, a digit is confined to one line, so it leaves the rest of that line."
+        case .claiming: return "In a line, a digit is confined to one box, so it leaves the rest of that box."
         case .lockedPair, .lockedTriple: return "A naked pair or triple inside one box and one line: it clears both."
         case .nakedPair, .nakedTriple, .nakedQuad: return "Some cells hold only the same few digits, so those digits leave the rest of the house."
         case .hiddenPair, .hiddenTriple, .hiddenQuad: return "Some digits fit only in the same few cells, so those cells drop their other candidates."
@@ -112,7 +112,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
 
     var tierName: String {
         switch tier {
-        case .basic: return "Basic"
+        case .basic: return "Beginner"
         case .intermediate: return "Intermediate"
         case .advanced: return "Advanced"
         case .expert: return "Expert"
@@ -152,7 +152,7 @@ struct CellDigit: Hashable, Codable, Comparable {
 }
 
 /// One solving step as data (CODESPEC 13.3): what it changes and the pattern that justifies it.
-/// The hint panel draws from this; the text comes from `explanation`, one template per technique.
+/// The hint card draws from this (see the graduated hint fields below); one text template per technique.
 struct TechniqueStep: Equatable, Codable {
     enum HouseRole: String, Codable { case base, cover }
     enum CellRole: String, Codable { case defining, pivot, pincer }
@@ -189,21 +189,21 @@ struct TechniqueStep: Equatable, Codable {
 
     var changeCount: Int { placements.count + eliminations.count }
 
-    /// Rung 2: where to look.
-    func whereText(_ names: CellNameStyle = .short) -> String {
-        let looked = houses.map(\.house.name)
+    /// Where to look, for techniques without their own nudge.
+    func whereText(_ names: CellNotation = .plain) -> String {
+        let looked = houses.map { names.house($0.house) }
         if !looked.isEmpty { return "Look at \(Self.list(looked))." }
         let anchor = cells.first { $0.role == .pivot } ?? cells.first
         guard let anchor else { return "" }
         let suffix = technique == .xyWing ? " and the cells it sees" : ""
-        return "Look at \(SolverBoard.name(of: anchor.cell, names))\(suffix)."
+        return "Look at \(names.cell(anchor.cell))\(suffix)."
     }
 
-    /// Rung 3: why the step works, without giving the result away.
-    func reason(_ names: CellNameStyle = .short) -> String {
-        let cellNames = Self.list(cells.map { SolverBoard.name(of: $0.cell, names) })
-        let baseNames = Self.list(houses.filter { $0.role == .base }.map(\.house.name))
-        let coverNames = Self.list(houses.filter { $0.role == .cover }.map(\.house.name))
+    /// Why the step works, without giving the result away.
+    func reason(_ names: CellNotation = .plain) -> String {
+        let cellNames = Self.list(cells.map { names.cell($0.cell) })
+        let baseNames = Self.list(houses.filter { $0.role == .base }.map { names.house($0.house) })
+        let coverNames = Self.list(houses.filter { $0.role == .cover }.map { names.house($0.house) })
         let digitList = Self.list(digits.map(String.init))
         switch technique {
         case .fullHouse:
@@ -222,8 +222,8 @@ struct TechniqueStep: Equatable, Codable {
             return "In \(baseNames), \(digitList) fit only in \(cellNames). "
                 + "Those cells must hold them, so their other candidates can go."
         case .xyWing, .xyzWing:
-            let pivot = cells.first { $0.role == .pivot }.map { SolverBoard.name(of: $0.cell, names) } ?? ""
-            let pincers = Self.list(cells.filter { $0.role == .pincer }.map { SolverBoard.name(of: $0.cell, names) })
+            let pivot = cells.first { $0.role == .pivot }.map { names.cell($0.cell) } ?? ""
+            let pincers = Self.list(cells.filter { $0.role == .pincer }.map { names.cell($0.cell) })
             let z = digits.last.map(String.init) ?? ""
             let seers = technique == .xyzWing ? "all three" : "both"
             return "Whatever \(pivot) turns out to be, one of \(technique == .xyzWing ? pivot + ", " : "")\(pincers) must be \(z). "
@@ -235,10 +235,12 @@ struct TechniqueStep: Equatable, Codable {
             return "In \(baseNames), \(digitList) has only two places each, and the two links meet in \(coverNames). "
                 + "So one of the far ends is \(digitList), and the cell where their lines cross can't be."
         case .emptyRectangle:
-            return "In \(houses.first.map(\.house.name) ?? ""), \(digitList) sits only on one row and one column. "
-                + "Together with the strong link in \(houses.dropFirst().first.map(\.house.name) ?? ""), that rules out one cell."
+            let box = houses.first.map { names.house($0.house) } ?? ""
+            let link = houses.dropFirst().first.map { names.house($0.house) } ?? ""
+            return "In \(box), \(digitList) sits only on one row and one column. "
+                + "Together with the strong link in \(link), that rules out one cell."
         case .wWing:
-            let ends = Self.list(cells.filter { $0.role == .pincer }.map { SolverBoard.name(of: $0.cell, names) })
+            let ends = Self.list(cells.filter { $0.role == .pincer }.map { names.cell($0.cell) })
             let (link, other) = (digits.first.map(String.init) ?? "", digits.last.map(String.init) ?? "")
             return "\(ends.capitalizedFirst) both hold only \(link) and \(other). A strong link on \(link) in \(baseNames) "
                 + "means one of them is \(other), so a cell that sees both can't be \(other)."
@@ -253,15 +255,15 @@ struct TechniqueStep: Equatable, Codable {
         }
     }
 
-    /// Rung 4: what the step changes.
-    func resultText(_ names: CellNameStyle = .short) -> String {
+    /// What the step changes.
+    func resultText(_ names: CellNotation = .plain) -> String {
         var parts: [String] = []
         for placement in placements {
-            parts.append("Place \(placement.digit) in \(SolverBoard.name(of: placement.cell, names)).")
+            parts.append("Place \(placement.digit) in \(names.cell(placement.cell)).")
         }
         let byDigit = Dictionary(grouping: eliminations, by: \.digit)
         for digit in byDigit.keys.sorted() {
-            let cellsText = Self.list(byDigit[digit]!.map { SolverBoard.name(of: $0.cell, names) })
+            let cellsText = Self.list(byDigit[digit]!.map { names.cell($0.cell) })
             parts.append("Remove \(digit) from \(cellsText).")
         }
         return parts.joined(separator: " ")
@@ -271,12 +273,90 @@ struct TechniqueStep: Equatable, Codable {
     var explanation: String { reason() + " " + resultText() }
 }
 
-/// How cells are named in hint text (CODESPEC 3.3).
-enum CellNameStyle: String, Codable {
-    /// "r3c5"
-    case short
-    /// "row 3, column 5"
-    case long
+// MARK: - Graduated hint fields (CODESPEC 6.3, matching the design's engine.js)
+
+extension TechniqueStep {
+    /// The cell and digit the step places, if it places one (the dashed target at step 3).
+    var target: CellDigit? { placements.first }
+
+    /// Step 1 spotlight: the houses to look at (a Naked Single lights its row, column and box).
+    var focus: Set<Int> {
+        if technique == .nakedSingle, let cell = cells.first?.cell { return Set(SolverBoard.peers[cell]).union([cell]) }
+        let houseCells = Set(houses.flatMap(\.house.cells))
+        if !houseCells.isEmpty { return houseCells }
+        return Set((cells.first { $0.role == .pivot } ?? cells.first).map { [$0.cell] } ?? [])
+    }
+
+    /// Step 2 fill. For a single the pattern cell is the answer, so it waits for the target at step 3.
+    var pattern: Set<Int> { placements.isEmpty ? Set(cells.map(\.cell)) : [] }
+
+    /// Step 3 rings: the placed digits that prove a single. Empty for other techniques.
+    func evidence(on board: SolverBoard) -> Set<Int> {
+        guard let target else { return [] }
+        switch technique {
+        case .hiddenSingleBox, .hiddenSingleLine:
+            let others = houses.first.map(\.house.cells)?.filter { $0 != target.cell && board.values[$0] == 0 } ?? []
+            return Set(others.compactMap { Self.blocker(of: $0, digit: target.digit, on: board) })
+        case .nakedSingle:
+            return Set(Self.seenDigits(from: target.cell, on: board).values)
+        default:
+            return []
+        }
+    }
+
+    /// Step 1 text.
+    func nudge(_ names: CellNotation) -> String {
+        guard let target, let house = houses.first?.house else {
+            if technique == .nakedSingle, let target {
+                return "One cell in \(names.box(SolverBoard.box(of: target.cell))) is nearly decided."
+            }
+            return whereText(names)
+        }
+        switch technique {
+        case .fullHouse: return "Look at \(names.house(house))."
+        case .hiddenSingleBox, .hiddenSingleLine: return "Look at \(names.house(house)). Where can \(target.digit) go?"
+        default: return whereText(names)
+        }
+    }
+
+    /// Step 3 text: why the step works and what it changes.
+    func why(_ names: CellNotation, on board: SolverBoard) -> String {
+        guard let target else { return reason(names) + " " + resultText(names) }
+        let digit = target.digit, cell = names.cell(target.cell)
+        let house = houses.first.map { names.house($0.house) } ?? ""
+        switch technique {
+        case .fullHouse:
+            return "\(CellNotation.capitalized(house)) has one empty cell left, and the only digit missing is \(digit)."
+        case .hiddenSingleBox, .hiddenSingleLine:
+            let others = houses.first.map(\.house.cells)?.filter { $0 != target.cell && board.values[$0] == 0 } ?? []
+            let allSee = others.allSatisfy { Self.blocker(of: $0, digit: digit, on: board) != nil }
+            let sees = allSee ? "already sees" : "sees or has ruled out"
+            return "Every other empty cell in \(house) \(sees) \(CellNotation.withArticle(digit)). So \(digit) can only go in \(cell)."
+        case .nakedSingle:
+            let seen = Self.seenDigits(from: target.cell, on: board).keys.sorted()
+            guard seen.count == 8 else {
+                return "\(CellNotation.capitalized(cell)) has every digit but \(digit) ruled out. Only \(digit) is left."
+            }
+            return "\(CellNotation.capitalized(cell)) already sees \(Self.list(seen.map(String.init))) in its row, column and box. "
+                + "Only \(digit) is left."
+        default:
+            return reason(names) + " " + resultText(names)
+        }
+    }
+
+    /// The first peer of `cell` that holds `digit`.
+    private static func blocker(of cell: Int, digit: Int, on board: SolverBoard) -> Int? {
+        SolverBoard.peers[cell].first { board.values[$0] == digit }
+    }
+
+    /// For each digit placed in a peer of `cell`, the first peer holding it.
+    private static func seenDigits(from cell: Int, on board: SolverBoard) -> [Int: Int] {
+        var seen: [Int: Int] = [:]
+        for peer in SolverBoard.peers[cell] where board.values[peer] != 0 && seen[board.values[peer]] == nil {
+            seen[board.values[peer]] = peer
+        }
+        return seen
+    }
 }
 
 extension TechniqueStep {

@@ -15,8 +15,6 @@ final class GameViewModel: ObservableObject {
     /// Learning (CODESPEC 13.4): the player found a technique without a hint (technique, puzzle id).
     var onTechniqueFound: (@MainActor (Technique, String) -> Void)?
     var onHintShown: ((Technique) -> Void)?
-    /// How well the player knows a technique; sets where a hint opens (CODESPEC 6.3.1 fading).
-    var learningLevel: ((Technique) -> TechniqueProgress.Level)?
     /// Practice game from a lesson: not saved, no stats, no New Puzzle (CODESPEC 13.5).
     var isPractice = false
     /// Techniques hinted in this puzzle (this session); with the saved hint log, finding them earns no credit.
@@ -112,7 +110,7 @@ final class GameViewModel: ObservableObject {
             newState.cells = newState.cells.map { cell in
                 var mutable = cell
                 if !mutable.given {
-                    mutable.isError = checkedWrongIDs.contains(cell.id) && cell.value != nil
+                    mutable.isError = newValue.mistakes == .onCheck && checkedWrongIDs.contains(cell.id) && cell.value != nil
                 }
                 return mutable
             }
@@ -300,8 +298,10 @@ final class GameViewModel: ObservableObject {
         inputMode.toggle()
     }
 
+    /// Check marks nothing when mistakes are set to Never (CODESPEC 7.3); the hint still finds them.
     func checkCell() {
-        guard let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
+        guard settings.mistakes != .never,
+              let cellID = selectedCellID, let index = state.cells.firstIndex(where: { $0.id == cellID }) else { return }
         // Ignore givens and empty cells
         guard !state.cells[index].given, let value = state.cells[index].value else { return }
 
@@ -329,6 +329,7 @@ final class GameViewModel: ObservableObject {
     }
 
     func checkPuzzle() {
+        guard settings.mistakes != .never else { return }
         var newState = self.state
         // A second tap with nothing new to check hides the green "correct" marks. Any unchecked entry
         // is checked instead, so new mistakes are never skipped. Wrong values stay flagged (CODESPEC 6.2).
@@ -519,7 +520,7 @@ final class GameViewModel: ObservableObject {
         // Undo restores the board, not the clock or the fact that a reveal happened.
         previous.elapsedSeconds = state.elapsedSeconds
         previous.usedReveal = previous.usedReveal || state.usedReveal
-        previous.usedHint = previous.usedHint || state.usedHint
+        previous.assisted = previous.assisted || state.assisted
         previous.hintLog = state.hintLog
         state = previous
         selectedCellID = nil
@@ -559,7 +560,7 @@ final class GameViewModel: ObservableObject {
                 newState.cells[idx].isVerifiedCorrect = false
             } else if !newState.cells[idx].given {
                 let cell = newState.cells[idx]
-                newState.cells[idx].isError = checkedWrongIDs.contains(cell.id) && cell.value != nil
+                newState.cells[idx].isError = settings.mistakes != .never && checkedWrongIDs.contains(cell.id) && cell.value != nil
             }
         }
         updateContradictionFlag(on: &newState)
@@ -650,21 +651,10 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    /// How often each technique solves this grid from the start, by display name, most used first
-    /// (the Solved panel). A full solve, so it runs off the main thread (CODESPEC 9).
-    func techniqueCounts() async -> [(name: String, count: Int)] {
-        let start = state.puzzle.initialGrid.map { Int(String($0)) ?? 0 }
-        let allowsUniqueness = state.puzzle.isUnique
-        return await Task.detached(priority: .userInitiated) {
-            let steps = LogicalSolver(allowsUniqueness: allowsUniqueness).solve(SolverBoard(values: start)).steps
-            return GameViewModel.countByName(steps.map(\.technique))
-        }.value
-    }
-
-    /// Hidden Single (box) and (line) share one name, so they count as one line.
-    nonisolated static func countByName(_ techniques: [Technique]) -> [(name: String, count: Int)] {
-        let counts = Dictionary(techniques.map { ($0.displayName, 1) }, uniquingKeysWith: +)
-        return counts.map { (name: $0.key, count: $0.value) }.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
+    /// The Solved summary's technique counts (`LogicalSolver.techniquesNeeded`), off the main thread.
+    func techniquesNeeded() async -> [(name: String, count: Int)] {
+        let puzzle = state.puzzle
+        return await Task.detached(priority: .userInitiated) { LogicalSolver.techniquesNeeded(for: puzzle) }.value
     }
 }
 
@@ -688,77 +678,93 @@ extension GameViewModel {
         } else {
             let board = SolverBoard(cells: state.cells)
             if let step = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).nextStep(board) {
-                // Fading: a technique the player has never met opens at "why", as a worked example.
-                let isNew = learningLevel?(step.technique) == .new
-                hint = HintSession(content: .step(step, board: board), opensAtRung: isNew ? 3 : 1, offersLesson: isNew)
+                hint = HintSession(content: .step(step, board: board))
                 if !hintedTechniques.contains(step.technique) { onHintShown?(step.technique) } // count each once per puzzle
                 hintedThisPuzzle.insert(step.technique)
             } else {
-                hint = HintSession(content: .noStep(cell: revealTarget()))
+                let cell = revealTarget()
+                hint = HintSession(content: .noStep(cell: cell, digit: cell.flatMap { solutionDigit(at: $0) }))
             }
         }
     }
 
+    /// Steps 1 → 2 → 3. Free: nothing on the board or in stats changes.
     func hintNext() {
-        guard var session = hint else { return }
-        if session.next(askFirst: settings.askBeforeHintResult) { markHintResultShown() }
-        hint = session
-        if case let .mistake(cell?, _) = session.content, session.rung == 2 { selectedCellID = cellID(at: cell) }
+        hint?.next()
     }
 
-    func hintShowResult() {
-        guard var session = hint, session.showResult() else { return }
-        hint = session
-        markHintResultShown()
+    /// The Hint tool: opens a hint, then reads "Next step" and does what the card's button does.
+    func hintTool() {
+        guard let session = hint else { return requestHint() }
+        if session.canGoNext { hintNext() } else { applyHint() }
     }
 
-    func hintBack() {
-        hint?.back()
-    }
-
-    func hintToggleAfter() {
-        hint?.showsAfter.toggle()
-    }
-
-    /// Applies the hinted step as one undoable edit. Eliminations in cells without notes write the
-    /// cell's candidates first, so the deduction is kept and the next hint moves on.
+    /// Step 3's action, as one undoable edit. Placing or removing marks the solve assisted; clearing a
+    /// mistake does not. Eliminations in cells without notes write the cell's candidates first, so the
+    /// deduction is kept and the next hint moves on.
     func applyHint() {
-        guard let session = hint, session.canApply, case let .step(step, board) = session.content else { return }
+        guard let session = hint, session.canApply else { return }
         recordUndoPoint()
         var newState = state
         let indexOf = Dictionary(uniqueKeysWithValues: newState.cells.indices.map { (newState.cells[$0].index, $0) })
-        for elimination in step.eliminations {
-            guard let index = indexOf[elimination.cell], newState.cells[index].value == nil else { continue }
-            if newState.cells[index].candidates.isEmpty {
-                newState.cells[index].candidates = Set(SolverBoard.digits(in: board.candidates[elimination.cell]))
-            }
-            newState.cells[index].candidates.remove(elimination.digit)
-        }
-        for placement in step.placements {
-            guard let index = indexOf[placement.cell], newState.cells[index].value == nil else { continue }
-            newState.cells[index].value = placement.digit
+        var placements: [CellDigit] = []
+        var focusCell: Int?
+        switch session.content {
+        case let .step(step, board):
+            Self.remove(step.eliminations, from: &newState, indexOf: indexOf, board: board)
+            placements = step.placements
+            focusCell = step.target?.cell
+            newState.assisted = true
+        case let .noStep(cell?, digit?):
+            placements = [CellDigit(cell: cell, digit: digit)]
+            focusCell = cell
+            newState.assisted = true
+        case let .mistake(cell?, kind):
+            guard let index = indexOf[cell] else { break }
+            if case .wrongDigit = kind { newState.cells[index].value = nil }
             newState.cells[index].candidates.removeAll()
-            newState.cells[index].isError = false
-            newState.cells[index].isVerifiedCorrect = false
-            checkedWrongIDs.remove(newState.cells[index].id)
-            if settings.tidyNotes {
-                newState.cells = removeCandidate(placement.digit, relatedTo: newState.cells[index], from: newState.cells)
-            }
+            clearMarks(at: index, in: &newState)
+            focusCell = cell
+        default:
+            break
         }
+        place(placements, in: &newState, indexOf: indexOf)
         state = newState
         endHint(applied: true)
+        if let focusCell { selectedCellID = cellID(at: focusCell) }
         updateAutoCheckHighlights()
         checkIfSolved()
         updateCanUndo()
         scheduleSave()
     }
 
-    /// From the "no step found" hint: reveal the suggested cell.
-    func hintRevealCell() {
-        guard case let .noStep(cell?) = hint?.content, let id = cellID(at: cell) else { return }
-        endHint()
-        selectedCellID = id
-        revealCell()
+    /// Removes candidates. A cell without notes gets the board's candidates first, so the removal is kept.
+    private static func remove(_ eliminations: [CellDigit], from state: inout GameState, indexOf: [Int: Int], board: SolverBoard) {
+        for elimination in eliminations {
+            guard let index = indexOf[elimination.cell], state.cells[index].value == nil else { continue }
+            if state.cells[index].candidates.isEmpty {
+                state.cells[index].candidates = Set(SolverBoard.digits(in: board.candidates[elimination.cell]))
+            }
+            state.cells[index].candidates.remove(elimination.digit)
+        }
+    }
+
+    private func place(_ placements: [CellDigit], in state: inout GameState, indexOf: [Int: Int]) {
+        for placement in placements {
+            guard let index = indexOf[placement.cell], state.cells[index].value == nil else { continue }
+            state.cells[index].value = placement.digit
+            state.cells[index].candidates.removeAll()
+            clearMarks(at: index, in: &state)
+            if settings.tidyNotes {
+                state.cells = removeCandidate(placement.digit, relatedTo: state.cells[index], from: state.cells)
+            }
+        }
+    }
+
+    private func clearMarks(at index: Int, in state: inout GameState) {
+        state.cells[index].isError = false
+        state.cells[index].isVerifiedCorrect = false
+        checkedWrongIDs.remove(state.cells[index].id)
     }
 
     /// Credits the technique a correct move shows (CODESPEC 13.4). Runs the detectors off the main
@@ -795,23 +801,17 @@ extension GameViewModel {
         case .step(let step, _): name = step.technique.rawValue
         case .noStep: name = "noStep"
         }
-        state.hintLog.append(HintLogEntry(technique: name, deepestRung: session.deepestRung, applied: applied))
+        state.hintLog.append(HintLogEntry(technique: name, deepestRung: session.deepestLevel, applied: applied))
     }
 
-    private func markHintResultShown() {
-        guard !state.usedHint else { return }
-        state.usedHint = true
-        scheduleSave()
-    }
-
-    /// Rung 0: a wrong digit, or notes that leave out the cell's digit. Empty cells without notes
+    /// Checked before any technique: a wrong digit, or notes that leave out the cell's digit. Empty cells without notes
     /// and stale notes (digits already placed in a peer) are never mistakes.
     private func firstMistake() -> (cell: Int, kind: HintSession.MistakeKind)? {
         let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
         guard solution.count == 81 else { return nil }
         let cells = state.cells.sorted { $0.index < $1.index }
         if let wrong = cells.first(where: { !$0.given && $0.value != nil && $0.value != solution[$0.index] }) {
-            return (wrong.index, .wrongDigit)
+            return (wrong.index, .wrongDigit(wrong.value ?? 0))
         }
         let suspects = cells.filter { $0.value == nil && !$0.candidates.isEmpty && !$0.candidates.contains(solution[$0.index]) }
         // An import may have several solutions: a note is only wrong if none of its digits can work.
@@ -831,6 +831,11 @@ extension GameViewModel {
     private func revealTarget() -> Int? {
         if let id = selectedCellID, let cell = state.cells.first(where: { $0.id == id }), cell.value == nil { return cell.index }
         return state.cells.filter { $0.value == nil }.map(\.index).min()
+    }
+
+    private func solutionDigit(at cell: Int) -> Int? {
+        let solution = Array(state.puzzle.solutionGrid)
+        return solution.count == 81 ? Int(String(solution[cell])) : nil
     }
 
     private func cellID(at index: Int) -> UUID? {

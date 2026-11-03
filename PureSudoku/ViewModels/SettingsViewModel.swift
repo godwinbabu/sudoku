@@ -57,12 +57,8 @@ final class SettingsViewModel: ObservableObject {
         controller.updateSettings { $0.mistakes = value }
     }
 
-    func setAskBeforeHintResult(_ value: Bool) {
-        controller.updateSettings { $0.askBeforeHintResult = value }
-    }
-
-    func setShortCellNames(_ value: Bool) {
-        controller.updateSettings { $0.cellNameStyle = value ? .short : .long }
+    func setNotation(_ value: CellNotation) {
+        controller.updateSettings { $0.notation = value }
     }
 
     func setKeepImportImages(_ value: Bool) {

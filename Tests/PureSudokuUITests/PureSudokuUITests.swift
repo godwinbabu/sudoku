@@ -108,7 +108,8 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertEqual(notes.value as? String, "Off")
     }
 
-    /// Hint ladder end to end: name → where → why → ask → result → Apply → Undo (CODESPEC 6.3.1).
+    /// Hint card end to end: where to look → technique → why → Place · assisted → Undo (CODESPEC 6.3.1).
+    /// The tools and keypad stay in place while the card is open.
     func testHintLadderAppliesAndUndoes() {
         let app = XCUIApplication()
         app.launch()
@@ -116,31 +117,37 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         let filled = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' value '"))
         let filledBefore = filled.count
+        let keyFrame = app.buttons["number_1"].frame
 
         app.buttons["tool_hint"].tap()
         XCTAssertTrue(element("hintPanel", in: app).waitForExistence(timeout: 2))
-        // A technique the player hasn't met opens at "why" (CODESPEC 6.3.1 fading); step on to the end.
-        var rung = 1
-        while app.buttons["hint_next"].waitForExistence(timeout: 1) {
-            snapshot(app, "\(rung)")
-            app.buttons["hint_next"].tap()
-            rung += 1
+        XCTAssertEqual(app.buttons["number_1"].frame, keyFrame, "the keypad does not move")
+        XCTAssertTrue(app.buttons["tool_hint"].label.contains("Next step"), app.buttons["tool_hint"].label)
+        let stepLabel = element("hintStep", in: app)
+        let labels = ["Step 1 of 3", "Step 2 of 3", "Step 3 of 3"]
+        for (index, label) in labels.enumerated() {
+            XCTAssertTrue(stepLabel.label.hasPrefix(label), stepLabel.label)
+            if index == 1 { XCTAssertTrue(app.buttons["hint_lesson"].exists, "the lesson link shows from step 2") }
+            if index < 2 {
+                XCTAssertFalse(app.buttons["hint_apply"].exists)
+                app.buttons["hint_next"].tap()
+            }
         }
-        XCTAssertTrue(app.buttons["hint_showResult"].waitForExistence(timeout: 2))
-        app.buttons["hint_showResult"].tap()
-        XCTAssertTrue(app.buttons["hint_apply"].waitForExistence(timeout: 2))
-        snapshot(app, "4-result")
-        XCTAssertEqual(filled.count, filledBefore, "nothing changes before Apply")
-        app.buttons["hint_apply"].tap()
+        XCTAssertFalse(app.buttons["hint_next"].exists, "three steps only")
+        let apply = app.buttons["hint_apply"]
+        XCTAssertTrue(apply.waitForExistence(timeout: 2))
+        XCTAssertTrue(apply.label.hasSuffix("· assisted"), apply.label)
+        XCTAssertEqual(filled.count, filledBefore, "nothing changes before Place")
+        apply.tap()
 
         XCTAssertFalse(element("hintPanel", in: app).exists)
-        XCTAssertGreaterThan(filled.count, filledBefore, "Apply placed the hinted digit")
+        XCTAssertGreaterThan(filled.count, filledBefore, "Place put in the hinted digit")
         app.buttons["tool_undo"].tap()
         XCTAssertEqual(filled.count, filledBefore, "one Undo reverts the hint")
     }
 
-    /// A digit that repeats in the row is always wrong; the hint must report it and offer Undo.
-    func testMistakePanelOffersUndo() {
+    /// A digit that repeats in the row is always wrong; the hint must point at it first and clear it.
+    func testMistakeHintClearsTheWrongDigit() {
         let app = XCUIApplication()
         app.launch()
         app.buttons["difficulty_easy"].tap()
@@ -158,8 +165,14 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "value \(digit)", in: app))
 
         app.buttons["tool_hint"].tap()
-        XCTAssertTrue(app.buttons["hint_undo"].waitForExistence(timeout: 2))
-        app.buttons["hint_undo"].tap()
+        XCTAssertTrue(app.buttons["hint_next"].waitForExistence(timeout: 2))
+        app.buttons["hint_next"].tap()
+        XCTAssertTrue(element("hintStep", in: app).label.hasSuffix("Mistake"), element("hintStep", in: app).label)
+        app.buttons["hint_next"].tap()
+        let clear = app.buttons["hint_apply"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 2))
+        XCTAssertEqual(clear.label, "Clear it")
+        clear.tap()
         XCTAssertFalse(element("hintPanel", in: app).exists)
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
@@ -190,13 +203,7 @@ final class PureSudokuUITests: XCTestCase {
     func testLearnShowsALessonWithPractice() {
         let app = XCUIApplication()
         app.launch()
-        let learn = app.buttons["learnButton"]
-        for _ in 0..<3 where !learn.isHittable { app.swipeUp() }
-        learn.tap()
-        XCTAssertTrue(element("learnView", in: app).waitForExistence(timeout: 2))
-        let lesson = app.buttons["learn_pointing"]
-        for _ in 0..<4 where !lesson.isHittable { app.swipeUp() }
-        lesson.tap()
+        openPointingLesson(in: app)
         XCTAssertTrue(element("lessonBoard", in: app).waitForExistence(timeout: 5))
         snapshot(app, "lesson")
         app.buttons["lesson_showResult"].tap()
@@ -208,13 +215,7 @@ final class PureSudokuUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestNearlySolved"]
         app.launch()
-        let learn = app.buttons["learnButton"]
-        for _ in 0..<3 where !learn.isHittable { app.swipeUp() }
-        learn.tap()
-        let lesson = app.buttons["learn_pointing"]
-        XCTAssertTrue(lesson.waitForExistence(timeout: 2))
-        for _ in 0..<4 where !lesson.isHittable { app.swipeUp() }
-        lesson.tap()
+        openPointingLesson(in: app)
         let practice = app.buttons["lesson_practice1"]
         XCTAssertTrue(practice.waitForExistence(timeout: 5))
         for _ in 0..<4 where !practice.isHittable { app.swipeUp() }
@@ -229,6 +230,18 @@ final class PureSudokuUITests: XCTestCase {
         goodnight.tap()
         XCTAssertTrue(app.buttons["difficulty_easy"].waitForExistence(timeout: 3), "back on the main menu")
         XCTAssertFalse(app.buttons["lesson_practice1"].exists, "not the lesson")
+    }
+
+    /// Main menu → Learn → the Pointing lesson.
+    private func openPointingLesson(in app: XCUIApplication) {
+        let learn = app.buttons["learnButton"]
+        for _ in 0..<3 where !learn.isHittable { app.swipeUp() }
+        learn.tap()
+        XCTAssertTrue(element("learnView", in: app).waitForExistence(timeout: 2))
+        let lesson = app.buttons["learn_pointing"]
+        XCTAssertTrue(lesson.waitForExistence(timeout: 2))
+        for _ in 0..<4 where !lesson.isHittable { app.swipeUp() }
+        lesson.tap()
     }
 
     private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {

@@ -143,10 +143,6 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertEqual([settings.glow, settings.warmth], [6, 100])
     }
 
-    func testNeverIsNotOfferedYet() {
-        XCTAssertFalse(MistakeMode.offered.contains(.never), "Check still marks mistakes, so Never would do nothing")
-    }
-
     func testAfterDarkFallbackHours() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!

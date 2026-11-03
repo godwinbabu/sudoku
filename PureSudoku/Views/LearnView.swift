@@ -53,7 +53,7 @@ struct LearnView: View {
 
     static func tierName(_ tier: TechniqueTier) -> String {
         switch tier {
-        case .basic: return "Basic"
+        case .basic: return "Beginner"
         case .intermediate: return "Intermediate"
         case .advanced: return "Advanced"
         case .expert: return "Expert"
@@ -88,11 +88,11 @@ struct LessonView: View {
                         .aspectRatio(1, contentMode: .fit)
                         .allowsHitTesting(false)
                         .accessibilityIdentifier("lessonBoard")
-                    Text(lesson.step.reason(controller.settings.cellNameStyle))
+                    Text(lesson.step.reason(controller.settings.notation))
                         .foregroundColor(theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     if showsResult {
-                        Text(lesson.step.resultText(controller.settings.cellNameStyle))
+                        Text(lesson.step.resultText(controller.settings.notation))
                             .font(.body.weight(.semibold))
                             .foregroundColor(theme.accent)
                     } else {

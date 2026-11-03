@@ -26,6 +26,7 @@
 		0000000000000000000000D9 /* BundledPuzzles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D8 /* BundledPuzzles.swift */; };
 		0000000000000000000000D7 /* PuzzleGrader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D6 /* PuzzleGrader.swift */; };
 		0000000000000000000000B5 /* TechniqueStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B4 /* TechniqueStep.swift */; };
+		0000000000000000000000E9 /* CellNotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E8 /* CellNotation.swift */; };
 		0000000000000000000000B3 /* SolverBoard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B2 /* SolverBoard.swift */; };
 		000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001B /* SudokuPuzzleRepository.swift */; };
 		000000000000000000000051 /* TimeProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000001C /* TimeProvider.swift */; };
@@ -40,7 +41,7 @@
 		000000000000000000000059 /* Settings+Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Settings+Theme.swift */; };
 		00000000000000000000005A /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* MainMenuView.swift */; };
 		00000000000000000000005B /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000026 /* GameView.swift */; };
-		0000000000000000000000C7 /* HintPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C6 /* HintPanelView.swift */; };
+		0000000000000000000000C7 /* HintCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C6 /* HintCardView.swift */; };
 		0000000000000000000000E3 /* LearnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E2 /* LearnView.swift */; };
 		00000000000000000000005C /* SudokuGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000027 /* SudokuGridView.swift */; };
 		00000000000000000000005D /* NumberPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* NumberPadView.swift */; };
@@ -124,6 +125,7 @@
 		0000000000000000000000D8 /* BundledPuzzles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledPuzzles.swift; sourceTree = "<group>"; };
 		0000000000000000000000D6 /* PuzzleGrader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleGrader.swift; sourceTree = "<group>"; };
 		0000000000000000000000B4 /* TechniqueStep.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TechniqueStep.swift; sourceTree = "<group>"; };
+		0000000000000000000000E8 /* CellNotation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CellNotation.swift; sourceTree = "<group>"; };
 		0000000000000000000000B2 /* SolverBoard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolverBoard.swift; sourceTree = "<group>"; };
 		00000000000000000000001B /* SudokuPuzzleRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuPuzzleRepository.swift; sourceTree = "<group>"; };
 		00000000000000000000001C /* TimeProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeProvider.swift; sourceTree = "<group>"; };
@@ -138,7 +140,7 @@
 		000000000000000000000024 /* Settings+Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Settings+Theme.swift"; sourceTree = "<group>"; };
 		000000000000000000000025 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
 		000000000000000000000026 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
-		0000000000000000000000C6 /* HintPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintPanelView.swift; sourceTree = "<group>"; };
+		0000000000000000000000C6 /* HintCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintCardView.swift; sourceTree = "<group>"; };
 		0000000000000000000000E2 /* LearnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearnView.swift; sourceTree = "<group>"; };
 		000000000000000000000027 /* SudokuGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGridView.swift; sourceTree = "<group>"; };
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
@@ -271,6 +273,7 @@
 				0000000000000000000000D8 /* BundledPuzzles.swift */,
 				0000000000000000000000D6 /* PuzzleGrader.swift */,
 				0000000000000000000000B4 /* TechniqueStep.swift */,
+				0000000000000000000000E8 /* CellNotation.swift */,
 				0000000000000000000000B2 /* SolverBoard.swift */,
 				00000000000000000000001B /* SudokuPuzzleRepository.swift */,
 				00000000000000000000001C /* TimeProvider.swift */,
@@ -308,7 +311,7 @@
 				000000000000000000000024 /* Settings+Theme.swift */,
 				000000000000000000000025 /* MainMenuView.swift */,
 				000000000000000000000026 /* GameView.swift */,
-				0000000000000000000000C6 /* HintPanelView.swift */,
+				0000000000000000000000C6 /* HintCardView.swift */,
 				0000000000000000000000E2 /* LearnView.swift */,
 				000000000000000000000027 /* SudokuGridView.swift */,
 				000000000000000000000028 /* NumberPadView.swift */,
@@ -571,6 +574,7 @@
 				0000000000000000000000D9 /* BundledPuzzles.swift in Sources */,
 				0000000000000000000000D7 /* PuzzleGrader.swift in Sources */,
 				0000000000000000000000B5 /* TechniqueStep.swift in Sources */,
+				0000000000000000000000E9 /* CellNotation.swift in Sources */,
 				0000000000000000000000B3 /* SolverBoard.swift in Sources */,
 				000000000000000000000050 /* SudokuPuzzleRepository.swift in Sources */,
 				000000000000000000000051 /* TimeProvider.swift in Sources */,
@@ -590,7 +594,7 @@
 				000000000000000000000059 /* Settings+Theme.swift in Sources */,
 				00000000000000000000005A /* MainMenuView.swift in Sources */,
 				00000000000000000000005B /* GameView.swift in Sources */,
-				0000000000000000000000C7 /* HintPanelView.swift in Sources */,
+				0000000000000000000000C7 /* HintCardView.swift in Sources */,
 				0000000000000000000000E3 /* LearnView.swift in Sources */,
 				00000000000000000000005C /* SudokuGridView.swift in Sources */,
 				00000000000000000000005D /* NumberPadView.swift in Sources */,
@@ -693,6 +697,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
