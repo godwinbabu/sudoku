@@ -19,6 +19,14 @@ struct LogicalSolver {
         return nil
     }
 
+    /// The step a hint shows: `nextStep`, except that a row single beats a column single, the way
+    /// people scan (box, then row, then column; CODESPEC 6.3.1). Grading and mastery keep `nextStep`.
+    func nextHintStep(_ board: SolverBoard) -> TechniqueStep? {
+        guard let step = nextStep(board) else { return nil }
+        guard step.technique == .hiddenSingleLine, step.houses.first?.house.kind == .column else { return step }
+        return SinglesDetector.hiddenSingles(board, in: House.rows, technique: .hiddenSingleLine).min(by: Self.isPreferred) ?? step
+    }
+
     struct Result {
         let steps: [TechniqueStep]
         let board: SolverBoard
@@ -41,8 +49,14 @@ struct LogicalSolver {
     static func techniquesNeeded(for puzzle: SudokuPuzzle) -> [(name: String, count: Int)] {
         let start = puzzle.initialGrid.map { Int(String($0)) ?? 0 }
         guard start.count == 81 else { return [] }
-        let steps = LogicalSolver(allowsUniqueness: puzzle.isUnique).solve(SolverBoard(values: start)).steps
-        return countByName(steps.map(\.technique))
+        let solver = LogicalSolver(allowsUniqueness: puzzle.isUnique)
+        var board = SolverBoard(values: start)
+        var techniques: [Technique] = []
+        while let step = solver.nextHintStep(board) {
+            board.apply(step)
+            techniques.append(step.technique)
+        }
+        return countByName(techniques)
     }
 
     /// Hidden Single (box) and (line) share one name, so they count as one line.
@@ -59,11 +73,7 @@ struct LogicalSolver {
     static let detectors: [Technique: (SolverBoard) -> [TechniqueStep]] = [
         .fullHouse: SinglesDetector.fullHouses,
         .hiddenSingleBox: { SinglesDetector.hiddenSingles($0, in: House.boxes, technique: .hiddenSingleBox) },
-        // Rows before columns, the way people scan (CODESPEC 6.3).
-        .hiddenSingleLine: { board in
-            let rows = SinglesDetector.hiddenSingles(board, in: House.rows, technique: .hiddenSingleLine)
-            return rows.isEmpty ? SinglesDetector.hiddenSingles(board, in: House.columns, technique: .hiddenSingleLine) : rows
-        },
+        .hiddenSingleLine: { SinglesDetector.hiddenSingles($0, in: House.lines, technique: .hiddenSingleLine) },
         .nakedSingle: SinglesDetector.nakedSingles,
         .pointing: IntersectionDetector.pointing,
         .claiming: IntersectionDetector.claiming,

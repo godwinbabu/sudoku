@@ -3,6 +3,16 @@ import Foundation
 /// Curriculum tiers (HINT_STRATEGIES.md).
 enum TechniqueTier: Int, Codable, Comparable {
     case basic = 1, intermediate, advanced, expert
+
+    /// Shown on hint cards and in Learn.
+    var displayName: String {
+        switch self {
+        case .basic: return "Beginner"
+        case .intermediate: return "Intermediate"
+        case .advanced: return "Advanced"
+        case .expert: return "Expert"
+        }
+    }
     static func < (lhs: TechniqueTier, rhs: TechniqueTier) -> Bool { lhs.rawValue < rhs.rawValue }
 }
 
@@ -110,14 +120,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    var tierName: String {
-        switch tier {
-        case .basic: return "Beginner"
-        case .intermediate: return "Intermediate"
-        case .advanced: return "Advanced"
-        case .expert: return "Expert"
-        }
-    }
+    var tierName: String { tier.displayName }
 
     /// Step score for grading (HoDoKu defaults, HINT_STRATEGIES.md).
     var score: Int {
@@ -319,14 +322,18 @@ extension TechniqueStep {
         }
     }
 
-    /// Step 3 text: why the step works and what it changes.
+    /// Step 3 text: why the step works and what it changes. Removals from several cells are not
+    /// listed: the reason already says where the digit goes, and the board strikes them through
+    /// (the card is 124 pt tall).
     func why(_ names: CellNotation, on board: SolverBoard) -> String {
-        guard let target else { return reason(names) + " " + resultText(names) }
+        guard let target else {
+            return Set(eliminations.map(\.cell)).count > 1 ? reason(names) : reason(names) + " " + resultText(names)
+        }
         let digit = target.digit, cell = names.cell(target.cell)
         let house = houses.first.map { names.house($0.house) } ?? ""
         switch technique {
         case .fullHouse:
-            return "\(CellNotation.capitalized(house)) has one empty cell left, and the only digit missing is \(digit)."
+            return "\(house.capitalizedFirst) has one empty cell left, and the only digit missing is \(digit)."
         case .hiddenSingleBox, .hiddenSingleLine:
             let others = houses.first.map(\.house.cells)?.filter { $0 != target.cell && board.values[$0] == 0 } ?? []
             let allSee = others.allSatisfy { Self.blocker(of: $0, digit: digit, on: board) != nil }
@@ -335,9 +342,9 @@ extension TechniqueStep {
         case .nakedSingle:
             let seen = Self.seenDigits(from: target.cell, on: board).keys.sorted()
             guard seen.count == 8 else {
-                return "\(CellNotation.capitalized(cell)) has every digit but \(digit) ruled out. Only \(digit) is left."
+                return "\(cell.capitalizedFirst) has every digit but \(digit) ruled out. Only \(digit) is left."
             }
-            return "\(CellNotation.capitalized(cell)) already sees \(Self.list(seen.map(String.init))) in its row, column and box. "
+            return "\(cell.capitalizedFirst) already sees \(Self.list(seen.map(String.init))) in its row, column and box. "
                 + "Only \(digit) is left."
         default:
             return reason(names) + " " + resultText(names)

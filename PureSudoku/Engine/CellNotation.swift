@@ -42,7 +42,4 @@ enum CellNotation: String, Codable, CaseIterable, Identifiable {
 
     /// "a 5", "an 8".
     static func withArticle(_ digit: Int) -> String { "\(digit == 8 ? "an" : "a") \(digit)" }
-
-    /// For the start of a sentence: "Row 5, column 2". Grid names are already capitalised.
-    static func capitalized(_ text: String) -> String { text.prefix(1).uppercased() + text.dropFirst() }
 }

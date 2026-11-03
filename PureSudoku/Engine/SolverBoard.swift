@@ -20,7 +20,6 @@ struct House: Hashable, Codable, Comparable {
     static let lines: [House] = all.filter { $0.kind != .box }
     static let boxes: [House] = all.filter { $0.kind == .box }
     static let rows: [House] = all.filter { $0.kind == .row }
-    static let columns: [House] = all.filter { $0.kind == .column }
 }
 
 /// Board for the logical solver (CODESPEC 13.3): a value per cell and a 9-bit candidate mask.

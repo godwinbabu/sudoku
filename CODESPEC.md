@@ -385,8 +385,11 @@ Hint and Reveal Cell are two separate actions. Hint teaches; Reveal Cell fills a
 
 6.3.1 Hint (graduated hint card, phase 3)
 	•	Tapping Hint opens the hint card in the hint slot (Section 3.2) at step 1. The card’s button, or the Hint tool (“Next step”), moves one step on. × closes it without changing anything.
+	•	On a card with no step-3 action, “Next step” does what the card offers: Undo on the clashing-entries card, otherwise it closes the card.
+	•	Opening a hint clears the selection, and tapping a cell closes the hint, so the keypad never types into a cell the card hides.
 	•	Steps 1–3 are free: they never change the board or stats.
-	•	Order (matches the design’s engine.js): mistakes first, then Full House, Hidden Single (box before row before column), Naked Single, Pointing, Claiming, then the rest of Section 13.2 in curriculum order.
+	•	Order: the technique order follows the design’s engine.js: mistakes first, then Full House, Hidden Single (box, then row, then column), Naked Single, Pointing, Claiming, then the rest of Section 13.2 in curriculum order. Within one technique, the lowest cell wins (Section 13.3), not engine.js’s first house and lowest digit.
+	•	Only the hint applies “row before column” (LogicalSolver.nextHintStep). Grading and mastery keep every step of nextStep, so a column single still earns credit.
 	•	Mistake first (always checked, whatever Show mistakes is set to):
 	•	A wrong digit, or a cell whose notes leave out its correct digit. Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored.
 	•	Step 1 “Where to look”: “Something in box 4 doesn’t fit.” (the box is spotlit). Button: Show me.

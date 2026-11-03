@@ -59,6 +59,9 @@ struct HintSession: Equatable {
         }
     }
 
+    /// Imported entries that fit no solution: the card offers Undo instead of an action.
+    var offersUndo: Bool { content == .mistake(cell: nil, kind: .entriesConflict) }
+
     mutating func next() {
         guard canGoNext else { return }
         level += 1

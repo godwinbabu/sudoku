@@ -222,7 +222,10 @@ final class GameViewModel: ObservableObject {
         scheduleSave()
     }
 
+    /// Tapping a cell closes an open hint: the card hides the selection, so typing must not go
+    /// into a cell the player cannot see.
     func select(cell: SudokuCell) {
+        endHint()
         guard !cell.given else {
             selectedCellID = cell.id
             return
@@ -667,6 +670,7 @@ extension GameViewModel {
     func requestHint() {
         guard !state.isCompleted else { return }
         endHint()
+        selectedCellID = nil // the card hides the selection; the keypad must not type into it
         var aligned = state
         let entriesFit = alignImportedSolution(&aligned)
         state = aligned
@@ -677,7 +681,7 @@ extension GameViewModel {
             hint = HintSession(content: .mistake(cell: mistake.cell, kind: mistake.kind))
         } else {
             let board = SolverBoard(cells: state.cells)
-            if let step = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).nextStep(board) {
+            if let step = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).nextHintStep(board) {
                 hint = HintSession(content: .step(step, board: board))
                 if !hintedTechniques.contains(step.technique) { onHintShown?(step.technique) } // count each once per puzzle
                 hintedThisPuzzle.insert(step.technique)
@@ -694,9 +698,18 @@ extension GameViewModel {
     }
 
     /// The Hint tool: opens a hint, then reads "Next step" and does what the card's button does.
+    /// A card with no action (no step, or clashing entries with nothing to undo) just closes.
     func hintTool() {
         guard let session = hint else { return requestHint() }
-        if session.canGoNext { hintNext() } else { applyHint() }
+        if session.canGoNext {
+            hintNext()
+        } else if session.canApply {
+            applyHint()
+        } else if session.offersUndo && canUndo {
+            undo()
+        } else {
+            endHint()
+        }
     }
 
     /// Step 3's action, as one undoable edit. Placing or removing marks the solve assisted; clearing a

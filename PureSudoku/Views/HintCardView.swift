@@ -13,22 +13,21 @@ struct HintCardView: View {
     let onLesson: (Technique) -> Void
     let onClose: () -> Void
 
+    /// Text sizes and the room the text gets inside the 124 pt slot: 124 − 24 padding − 20 top row
+    /// − 34 footer − 2 × 4 spacing.
+    static let bodyHeight: CGFloat = 38
+    static let lineSpacing: CGFloat = 2
+    static let bodySize: CGFloat = 14
+    static let smallBodySize: CGFloat = 12
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             topRow
-            VStack(alignment: .leading, spacing: 2) {
-                if let title = session.title {
-                    Text(title)
-                        .font(.system(size: 21, weight: .medium, design: .serif))
-                        .foregroundColor(theme.ink)
-                        .accessibilityIdentifier("hintTechnique")
-                }
-                Text(session.text(names))
-                    .font(.system(size: session.level == 1 ? 16 : 14))
-                    .lineSpacing(session.level == 1 ? 2 : 3)
-                    .foregroundColor(session.level == 1 ? theme.ink : theme.ink2)
-                    .minimumScaleFactor(0.7)
-                    .accessibilityIdentifier("hintText")
+            // Full size, then one size smaller; text that still doesn't fit scrolls, never truncates.
+            ViewThatFits(in: .vertical) {
+                bodyText(size: session.level == 1 ? 16 : Self.bodySize)
+                bodyText(size: Self.smallBodySize)
+                ScrollView { bodyText(size: Self.smallBodySize) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             footer
@@ -42,6 +41,18 @@ struct HintCardView: View {
         .accessibilityIdentifier("hintPanel")
     }
 
+    private func bodyText(size: CGFloat) -> some View {
+        Text(session.text(names))
+            .font(.system(size: size))
+            .lineSpacing(Self.lineSpacing)
+            .foregroundColor(session.level == 1 ? theme.ink : theme.ink2)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("hintText")
+    }
+
+    /// Pills, the step label, and the tier. At step 2 the technique name takes the label's place,
+    /// so the definition below gets two full lines.
     private var topRow: some View {
         HStack(spacing: 8) {
             HStack(spacing: 4) {
@@ -52,14 +63,24 @@ struct HintCardView: View {
                 }
             }
             .accessibilityHidden(true)
-            Text(session.stepLabel.uppercased())
-                .font(.system(size: 11, weight: .semibold))
-                .tracking(0.9)
-                .foregroundColor(theme.ink3)
-                .accessibilityIdentifier("hintStep")
-                .accessibilityLabel("Step \(session.level) of \(HintSession.stepCount): \(session.stepLabel)")
+            Group {
+                if let title = session.title {
+                    Text(title)
+                        .font(.system(size: 18, weight: .medium, design: .serif))
+                        .foregroundColor(theme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                } else {
+                    Text(session.stepLabel.uppercased())
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(0.9)
+                        .foregroundColor(theme.ink3)
+                }
+            }
+            .accessibilityIdentifier("hintStep")
+            .accessibilityLabel("Step \(session.level) of \(HintSession.stepCount): \(session.title ?? session.stepLabel)")
             if let tier = session.tierLabel {
-                Text("· \(tier)").font(.system(size: 11)).foregroundColor(theme.ink3)
+                Text("· \(tier)").font(.system(size: 11)).foregroundColor(theme.ink3).fixedSize()
             }
             Spacer(minLength: 0)
             Button(action: onClose) {
@@ -70,11 +91,11 @@ struct HintCardView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(-15) // a 44 pt target that takes no more room than the 14 pt row
+            .padding(-12) // a 44 pt target that takes no more room than the 20 pt row
             .accessibilityLabel("Close hint")
             .accessibilityIdentifier("hint_close")
         }
-        .frame(height: 14)
+        .frame(height: 20)
     }
 
     private var footer: some View {
@@ -93,7 +114,7 @@ struct HintCardView: View {
                 primary(label, id: "hint_next", action: onNext)
             } else if session.canApply, let label = session.actionLabel {
                 primary(label, id: "hint_apply", action: onApply)
-            } else if let onUndo {
+            } else if session.offersUndo, let onUndo {
                 primary("Undo", id: "hint_undo", action: onUndo)
             }
         }

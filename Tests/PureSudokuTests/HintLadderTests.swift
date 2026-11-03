@@ -153,6 +153,56 @@ final class HintLadderTests: XCTestCase {
         XCTAssertTrue(viewModel.state.assisted)
     }
 
+    /// The card hides the selection, so the keypad must not type into a cell the player can't see.
+    func testKeypadDoesNotTypeIntoAHiddenSelection() {
+        let viewModel = makeViewModel()
+        let cell = emptyCell(viewModel)
+        viewModel.select(cell: cell)
+        viewModel.requestHint()
+        XCTAssertNil(viewModel.selectedCellID)
+        let before = values(viewModel)
+        viewModel.setDigit(solution[cell.index])
+        XCTAssertEqual(values(viewModel), before)
+        XCTAssertNotNil(viewModel.hint, "typing with nothing selected leaves the card open")
+    }
+
+    func testTappingACellClosesTheHint() {
+        let viewModel = makeViewModel()
+        viewModel.requestHint()
+        viewModel.select(cell: emptyCell(viewModel))
+        XCTAssertNil(viewModel.hint)
+    }
+
+    func testEntriesConflictCardOffersUndoOnly() {
+        let session = HintSession(content: .mistake(cell: nil, kind: .entriesConflict))
+        XCTAssertEqual(session.level, 3)
+        XCTAssertFalse(session.canGoNext)
+        XCTAssertFalse(session.canApply)
+        XCTAssertTrue(session.offersUndo)
+        XCTAssertNil(session.actionLabel, "the card shows Undo instead")
+        let noStep = HintSession(content: .noStep(cell: nil, digit: nil))
+        XCTAssertEqual(noStep.level, 3)
+        XCTAssertFalse(noStep.canApply)
+        XCTAssertFalse(noStep.offersUndo)
+        XCTAssertNil(noStep.actionLabel)
+    }
+
+    /// "Next step" on the clashing-entries card runs its Undo, like the card's own button.
+    func testHintToolUndoesOnTheEntriesConflictCard() throws {
+        let givens = String(TestData.puzzle.solutionGrid.prefix(9)) + String(repeating: "0", count: 72)
+        let stored = try XCTUnwrap(SudokuGeneratorService().solve(initialGrid: givens))
+        let puzzle = SudokuPuzzle(id: "import", difficulty: .hard, initialGrid: givens, solutionGrid: stored, source: .imported)
+        let viewModel = makeViewModel(state: GameState.newGame(for: puzzle))
+        let below = viewModel.state.cells.first { $0.index == 9 }!
+        viewModel.select(cell: below)
+        viewModel.setDigit(Int(String(givens.first!))!) // same digit as the given above it: no solution fits
+        viewModel.requestHint()
+        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: nil, kind: .entriesConflict))
+        viewModel.hintTool()
+        XCTAssertNil(viewModel.hint)
+        XCTAssertNil(viewModel.state.cells.first { $0.index == 9 }?.value, "Next step ran the card's Undo")
+    }
+
     func testApplyBeforeStepThreeDoesNothing() {
         let viewModel = makeViewModel()
         let before = values(viewModel)
@@ -275,12 +325,12 @@ final class HintLadderTests: XCTestCase {
         XCTAssertEqual(viewModel.hintHighlight.evidenceCells, evidence)
     }
 
-    /// Singles go box, then row, then column, the way people scan (engine.js order).
-    func testHiddenSinglesScanBoxesThenRowsThenColumns() {
+    /// Hints show singles box, then row, then column, the way people scan (engine.js order).
+    func testHintSinglesScanBoxesThenRowsThenColumns() {
         var lineSteps = 0
         for entry in BundledPuzzles.puzzles(for: .hard).prefix(5) {
             var board = SolverBoard(values: entry.initialGrid.map { Int(String($0)) ?? 0 })
-            while let step = LogicalSolver().nextStep(board) {
+            while let step = LogicalSolver().nextHintStep(board) {
                 if step.technique == .hiddenSingleLine {
                     lineSteps += 1
                     XCTAssertTrue(SinglesDetector.hiddenSingles(board, in: House.boxes, technique: .hiddenSingleBox).isEmpty)
@@ -291,6 +341,17 @@ final class HintLadderTests: XCTestCase {
             }
         }
         XCTAssertGreaterThan(lineSteps, 0, "the fixtures exercise line singles")
+    }
+
+    /// The hint order must not hide column singles from mastery or grading.
+    func testColumnSinglesStillEarnLearningCredit() throws {
+        let entry = BundledPuzzles.puzzles(for: .easy)[0]
+        let board = SolverBoard(values: entry.initialGrid.map { Int(String($0)) ?? 0 })
+        let digit = try XCTUnwrap(Int(String(entry.solutionGrid.first!)))
+        XCTAssertEqual(digit, 2)
+        XCTAssertEqual(MasteryJudge.technique(for: .placed(cell: 0, digit: digit), on: board), .hiddenSingleLine)
+        let columnSingles = LogicalSolver.steps(for: .hiddenSingleLine, on: board).filter { $0.houses.first?.house.kind == .column }
+        XCTAssertTrue(columnSingles.contains { $0.placements == [CellDigit(cell: 0, digit: 2)] })
     }
 
     func testAnEightTakesAn() {
@@ -325,6 +386,31 @@ final class HintLadderTests: XCTestCase {
                        "Every other empty cell in box 4 already sees an 8. So 8 can only go in row 5, column 2.")
         XCTAssertEqual(step.why(.grid, on: board), "Every other empty cell in B4 already sees an 8. So 8 can only go in R5C2.")
         XCTAssertEqual(step.evidence(on: board), [11, 32, 52, 54])
+    }
+
+    /// On a 390 pt wide phone (336 pt of text), every step-2 definition fits the card at full size,
+    /// and step 3 of the Beginner and Intermediate intersection techniques fits without scrolling.
+    /// Longer step-3 texts (subsets, wings, uniqueness) scroll inside the card.
+    func testHintTextsFitTheCard() throws {
+        let unscrolled: Set<Technique> = [.fullHouse, .hiddenSingleBox, .hiddenSingleLine, .nakedSingle, .pointing, .claiming]
+        for technique in Lesson.techniques {
+            guard let lesson = Lesson.make(for: technique) else { continue }
+            let session = { HintSession(content: .step(lesson.step, board: lesson.board), level: $0) }
+            let definition = session(2).text(.plain)
+            XCTAssertTrue(Self.fits(definition, size: HintCardView.bodySize), "step 2 of \(technique): \(definition)")
+            let why = session(3).text(.plain)
+            if unscrolled.contains(technique) {
+                XCTAssertTrue(Self.fits(why, size: HintCardView.smallBodySize), "step 3 of \(technique): \(why)")
+            }
+        }
+    }
+
+    private static func fits(_ text: String, size: CGFloat) -> Bool {
+        let style = NSMutableParagraphStyle()
+        style.lineSpacing = HintCardView.lineSpacing
+        let attributed = NSAttributedString(string: text, attributes: [.font: UIFont.systemFont(ofSize: size), .paragraphStyle: style])
+        let box = CGSize(width: 336, height: CGFloat.greatestFiniteMagnitude)
+        return attributed.boundingRect(with: box, options: [.usesLineFragmentOrigin], context: nil).height <= HintCardView.bodyHeight
     }
 
     // MARK: - Mistakes: Never

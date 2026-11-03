@@ -9,7 +9,7 @@ struct LearnView: View {
         let theme = palette
         List {
             ForEach([TechniqueTier.basic, .intermediate, .advanced], id: \.self) { tier in
-                Section(Self.tierName(tier)) {
+                Section(tier.displayName) {
                     ForEach(Lesson.techniques.filter { $0.tier == tier }, id: \.self) { technique in
                         NavigationLink {
                             LessonView(technique: technique)
@@ -49,15 +49,6 @@ struct LearnView: View {
             }
         }
         .padding(.vertical, 4)
-    }
-
-    static func tierName(_ tier: TechniqueTier) -> String {
-        switch tier {
-        case .basic: return "Beginner"
-        case .intermediate: return "Intermediate"
-        case .advanced: return "Advanced"
-        case .expert: return "Expert"
-        }
     }
 
     static func levelName(_ level: TechniqueProgress.Level) -> String {
