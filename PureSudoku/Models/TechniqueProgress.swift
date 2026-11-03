@@ -139,7 +139,7 @@ enum MasteryJudge {
 }
 
 /// Which moves may still earn learning credit (CODESPEC 13.4). One store, owned by AppController and
-/// saved beside the technique progress, so Undo, Restart, Continue and reopening a practice puzzle
+/// saved in the same file as the technique progress (`LearningFile`), so Undo, Restart, Continue and reopening a practice puzzle
 /// can't lose a hint or replay a credit. Keys start with the puzzle id; ids never contain "|".
 struct LearningLedger: Codable, Equatable {
     /// "puzzle|kind|cell|digit": moves already credited, under any technique.
@@ -185,4 +185,28 @@ struct LearningLedger: Codable, Equatable {
     }
 
     private static func key(_ puzzle: String, _ change: CellDigit) -> String { "\(puzzle)|\(change.cell)|\(change.digit)" }
+}
+
+/// technique_progress.json: progress and the ledger in one atomic file, so they are kept or lost
+/// together and a lost ledger can never let a credited move earn again (CODESPEC 13.4).
+struct LearningFile: Codable {
+    var progress: [String: TechniqueProgress] = [:]
+    var ledger = LearningLedger()
+
+    enum CodingKeys: String, CodingKey { case progress, ledger }
+
+    init(progress: [String: TechniqueProgress] = [:], ledger: LearningLedger = LearningLedger()) {
+        self.progress = progress
+        self.ledger = ledger
+    }
+
+    /// Saves before the ledger hold only the progress dictionary (no technique is named "progress").
+    init(from decoder: Decoder) throws {
+        if let container = try? decoder.container(keyedBy: CodingKeys.self), container.contains(.progress) {
+            progress = try container.decode([String: TechniqueProgress].self, forKey: .progress)
+            ledger = try container.decodeIfPresent(LearningLedger.self, forKey: .ledger) ?? LearningLedger()
+        } else {
+            progress = try decoder.singleValueContainer().decode([String: TechniqueProgress].self)
+        }
+    }
 }

@@ -10,15 +10,11 @@ final class AppController: ObservableObject {
     @Published private(set) var importedGames: [ImportedGame]
     /// Per-technique learning progress (CODESPEC 13.4), keyed by `Technique.rawValue`.
     @Published private(set) var techniqueProgress: [String: TechniqueProgress]
-    /// True when technique_progress.json could not be loaded: never overwrite it this session.
+    /// True when technique_progress.json could not be loaded: never overwrite it this session, and
+    /// credit nothing (hints are still noted in memory).
     private var techniqueProgressLoadFailed = false
-    /// Which moves may still earn credit (CODESPEC 13.4), saved in learning_ledger.json.
+    /// Which moves may still earn credit (CODESPEC 13.4), saved with the progress (`LearningFile`).
     private(set) var learningLedger = LearningLedger()
-    private var learningLedgerLoadFailed = false
-    /// Credit needs both learning files: without the ledger a move could be credited twice, and
-    /// without progress the ledger would use up a move whose credit is never saved. Until both
-    /// load, nothing durable about learning changes (hints are still noted in memory).
-    private var learningStoresLoaded: Bool { !learningLedgerLoadFailed && !techniqueProgressLoadFailed }
     @Published var lastPersistenceError: (any Error)?
     /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
     @Published var showsNightSheet = false
@@ -91,24 +87,23 @@ final class AppController: ObservableObject {
             self.lastPersistenceError = error
         }
         do {
-            self.techniqueProgress = try persistence.load([String: TechniqueProgress].self, from: File.techniqueProgress.rawValue) ?? [:]
+            let learning = try persistence.load(LearningFile.self, from: File.techniqueProgress.rawValue) ?? LearningFile()
+            self.techniqueProgress = learning.progress
+            self.learningLedger = learning.ledger
         } catch {
             self.techniqueProgress = [:]
             self.techniqueProgressLoadFailed = true
             self.lastPersistenceError = error
         }
-        do {
-            learningLedger = try persistence.load(LearningLedger.self, from: File.learningLedger.rawValue) ?? LearningLedger()
-            // Keys of finished or replaced games can't matter again: keep the file small. Only when
-            // every saved game loaded: a game we couldn't read may still come back.
-            if !gameLoadFailed && !importedGamesLoadFailed {
-                let before = learningLedger
-                learningLedger.prune(keeping: Set(activeGames.values.map(\.puzzle.id) + importedGames.map(\.gameState.puzzle.id)))
-                if learningLedger != before { saveLedger() }
-            }
-        } catch {
-            learningLedgerLoadFailed = true
-            self.lastPersistenceError = error
+        // Keys of finished or replaced games can't matter again: keep the file small. Only when every
+        // saved game loaded and none was set aside as unreadable: that game may still be restored,
+        // on this launch or a later one.
+        let gameFiles = Difficulty.allCases.map { File.game($0).rawValue } + [File.importedGames.rawValue]
+        let gamesMayReturn = gameLoadFailed || importedGamesLoadFailed || gameFiles.contains(where: persistence.hasSetAsideCopy)
+        if !techniqueProgressLoadFailed && !gamesMayReturn {
+            let before = learningLedger
+            learningLedger.prune(keeping: Set(activeGames.values.map(\.puzzle.id) + importedGames.map(\.gameState.puzzle.id)))
+            if learningLedger != before { saveLearning() }
         }
         countSolutionsOfOldImports()
         #if DEBUG
@@ -214,30 +209,32 @@ final class AppController: ObservableObject {
         }
         if seeded != learningLedger {
             learningLedger = seeded
-            saveLedger()
+            saveLearning()
         }
         viewModel.onTechniqueFound = { [weak self] technique, puzzleID, move in
-            guard let self, learningStoresLoaded else { return }
+            guard let self, !techniqueProgressLoadFailed else { return }
             let technique = Self.lessonTechnique(technique)
             guard learningLedger.credit(move, technique: technique, puzzle: puzzleID) else { return }
-            saveLedger()
             updateProgress(technique) { $0.recordFound(puzzleID: puzzleID, at: self.timeProvider.now()) }
         }
         viewModel.onHintShown = { [weak self] technique, changes, puzzleID in
             guard let self else { return }
             let technique = technique.map(Self.lessonTechnique)
             let first = learningLedger.recordHint(puzzle: puzzleID, technique: technique, changes: changes)
-            guard learningStoresLoaded else { return }
-            saveLedger()
             // hintsSeen counts each technique once per puzzle.
-            if let technique, first { updateProgress(technique) { $0.recordHint(at: self.timeProvider.now()) } }
+            if let technique, first {
+                updateProgress(technique) { $0.recordHint(at: self.timeProvider.now()) }
+            } else {
+                saveLearning()
+            }
         }
     }
 
-    private func saveLedger() {
-        guard learningStoresLoaded else { return }
+    /// Progress and ledger in one atomic write.
+    private func saveLearning() {
+        guard !techniqueProgressLoadFailed else { return }
         do {
-            try persistence.save(learningLedger, to: File.learningLedger.rawValue)
+            try persistence.save(LearningFile(progress: techniqueProgress, ledger: learningLedger), to: File.techniqueProgress.rawValue)
         } catch {
             lastPersistenceError = error
         }
@@ -250,12 +247,7 @@ final class AppController: ObservableObject {
         techniqueProgress[technique.rawValue] = progress
         // The line record is merged into the box one now; keeping both would count it twice.
         if technique == .hiddenSingleBox { techniqueProgress[Technique.hiddenSingleLine.rawValue] = nil }
-        guard !techniqueProgressLoadFailed else { return }
-        do {
-            try persistence.save(techniqueProgress, to: File.techniqueProgress.rawValue)
-        } catch {
-            lastPersistenceError = error
-        }
+        saveLearning()
     }
 
     func makeImportedGameViewModel(id: String) -> GameViewModel? {
@@ -496,7 +488,6 @@ private enum File: RawRepresentable {
     case game(Difficulty)
     case importedGames
     case techniqueProgress
-    case learningLedger
 
     var rawValue: String {
         switch self {
@@ -505,7 +496,6 @@ private enum File: RawRepresentable {
         case let .game(difficulty): return "game_\(difficulty.rawValue).json"
         case .importedGames: return "imported_games.json"
         case .techniqueProgress: return "technique_progress.json"
-        case .learningLedger: return "learning_ledger.json"
         }
     }
 

@@ -448,7 +448,7 @@ final class LearningTests: XCTestCase {
         ledger.credited = ["gone|placed|0|1", "practice-123|placed|0|1", "\(active)|placed|0|1"]
         ledger.hintedMoves = ["gone|0|1", "\(active)|0|1"]
         ledger.hintedTechniques = ["gone|pointing", "practice-123|pointing"]
-        try PersistenceManager(directory: dir).save(ledger, to: "learning_ledger.json")
+        try PersistenceManager(directory: dir).save(LearningFile(ledger: ledger), to: "technique_progress.json")
         let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
         let reloaded = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: images)
         XCTAssertEqual(reloaded.learningLedger.credited, ["practice-123|placed|0|1", "\(active)|placed|0|1"])
@@ -532,51 +532,55 @@ final class LearningTests: XCTestCase {
         game.onHintShown?(.pointing, [CellDigit(cell: 4, digit: 4)], puzzle)
     }
 
-    func testNoCreditWhileTheLedgerCannotBeRead() throws {
+    /// Progress and ledger share one file. Corrupt it and launch twice before any restore: the loss
+    /// takes both, so replaying the credited move never goes past the count from before.
+    func testALostLearningFileCanNotGiveADuplicateCredit() throws {
         let (dir, puzzle) = try creditOnce()
-        let ledger = try XCTUnwrap(bytes("learning_ledger.json", in: dir)), progress = bytes("technique_progress.json", in: dir)
-        let ledgerURL = try url(of: "learning_ledger.json", in: dir)
-        try Data("not json".utf8).write(to: ledgerURL)
-        let broken = reload(dir)
-        tryLearning(broken, puzzle: puzzle)
-        XCTAssertEqual(broken.progress(for: .nakedSingle).credits, 1, "no duplicate credit")
-        XCTAssertEqual(broken.progress(for: .fullHouse).credits, 0)
-        XCTAssertEqual(bytes("technique_progress.json", in: dir), progress, "progress untouched on disk")
-        XCTAssertNil(bytes("learning_ledger.json", in: dir), "the unreadable ledger was set aside, not rewritten")
-        try ledger.write(to: ledgerURL) // readable again
-        let fixed = reload(dir)
-        XCTAssertEqual(fixed.progress(for: .nakedSingle).credits, 1)
-        XCTAssertEqual(fixed.progress(for: .pointing).hintsSeen, 0)
-        XCTAssertEqual(fixed.learningLedger.credited, [MasteryJudge.Move.placed(cell: 0, digit: 1).key(puzzleID: puzzle)])
+        let saved = try PersistenceManager(directory: dir).load(LearningFile.self, from: "technique_progress.json")
+        XCTAssertEqual(saved?.ledger.credited.count, 1, "the ledger is saved in the progress file")
+        try Data("not json".utf8).write(to: try url(of: "technique_progress.json", in: dir))
+        let first = reload(dir)
+        tryLearning(first, puzzle: puzzle)
+        XCTAssertEqual(first.progress(for: .nakedSingle).credits, 0)
+        XCTAssertNil(bytes("technique_progress.json", in: dir), "set aside and not rewritten on the failed launch")
+        let second = reload(dir) // the file is just missing now
+        tryLearning(second, puzzle: puzzle)
+        XCTAssertLessThanOrEqual(second.progress(for: .nakedSingle).credits, 1, "no more than before the corruption")
+        XCTAssertEqual(second.learningLedger.credited.count, 2, "credits and exclusions were lost together and start again")
     }
 
-    func testNoCreditWhileProgressCannotBeRead() throws {
-        let (dir, puzzle) = try creditOnce()
-        let progress = try XCTUnwrap(bytes("technique_progress.json", in: dir)), ledger = bytes("learning_ledger.json", in: dir)
-        let progressURL = try url(of: "technique_progress.json", in: dir)
-        try Data("not json".utf8).write(to: progressURL)
-        let broken = reload(dir)
-        tryLearning(broken, puzzle: puzzle)
-        XCTAssertEqual(bytes("learning_ledger.json", in: dir), ledger, "the ledger did not use up the move")
-        XCTAssertNil(bytes("technique_progress.json", in: dir), "the unreadable progress was set aside, not rewritten")
-        try progress.write(to: progressURL) // readable again
-        let fixed = reload(dir)
-        XCTAssertEqual(fixed.progress(for: .nakedSingle).credits, 1)
-        let game = fixed.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
-        game.onTechniqueFound?(.fullHouse, puzzle, .placed(cell: 2, digit: 3))
-        XCTAssertEqual(fixed.progress(for: .fullHouse).credits, 1, "the move can still earn its credit")
+    /// Saves before the ledger hold only the progress dictionary; they load with an empty ledger.
+    func testAnOldProgressFileLoads() throws {
+        let old = [Technique.pointing.rawValue: TechniqueProgress()]
+        let decoded = try JSONDecoder().decode(LearningFile.self, from: JSONEncoder().encode(old))
+        XCTAssertEqual(decoded.progress, old)
+        XCTAssertEqual(decoded.ledger, LearningLedger())
     }
 
-    /// An unreadable imports file may still hold games: their ledger keys stay.
+    /// A set-aside game file may be restored, even on a later launch: its ledger keys stay.
+    func testPruningWaitsWhileAGameFileIsSetAside() async throws {
+        let (controller, dir) = makeTestController()
+        let id = await controller.startNewGame(for: .easy).puzzle.id
+        var ledger = LearningLedger()
+        ledger.credited = ["\(id)|placed|0|1"]
+        try PersistenceManager(directory: dir).save(LearningFile(ledger: ledger), to: "technique_progress.json")
+        try Data("not json".utf8).write(to: try url(of: "game_easy.json", in: dir))
+        _ = reload(dir)
+        let second = reload(dir) // game_easy.json is missing now; its corrupt copy is on disk
+        XCTAssertEqual(second.learningLedger, ledger)
+    }
+
+    /// An unreadable imports file may still hold games: their ledger keys stay, also on the launch after.
     func testPruningWaitsWhenImportsCannotBeRead() throws {
         let (_, dir) = makeTestController()
         var ledger = LearningLedger()
         ledger.credited = ["import-1|placed|0|1"]
-        try PersistenceManager(directory: dir).save(ledger, to: "learning_ledger.json")
+        try PersistenceManager(directory: dir).save(LearningFile(ledger: ledger), to: "technique_progress.json")
         try Data("not json".utf8).write(to: try url(of: "imported_games.json", in: dir))
-        let controller = reload(dir)
-        XCTAssertEqual(controller.learningLedger, ledger)
-        XCTAssertEqual(try PersistenceManager(directory: dir).load(LearningLedger.self, from: "learning_ledger.json"), ledger)
+        XCTAssertEqual(reload(dir).learningLedger, ledger)
+        XCTAssertEqual(reload(dir).learningLedger, ledger, "second launch: the imports file is missing, its copy is set aside")
+        let onDisk = try PersistenceManager(directory: dir).load(LearningFile.self, from: "technique_progress.json")
+        XCTAssertEqual(onDisk?.ledger, ledger)
     }
 
     /// Games saved before the ledger name their hinted techniques only in the hint log.
