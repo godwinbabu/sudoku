@@ -97,7 +97,8 @@ struct LogicalSolver {
         .uniqueRectangle1: { UniquenessDetector.uniqueRectangles($0, type: 1) },
         .uniqueRectangle2: { UniquenessDetector.uniqueRectangles($0, type: 2) },
         .uniqueRectangle4: { UniquenessDetector.uniqueRectangles($0, type: 4) },
-        .bugPlusOne: UniquenessDetector.bugPlusOne
+        .bugPlusOne: UniquenessDetector.bugPlusOne,
+        .xyChain: ChainDetector.xyChains
     ]
 
     /// Deterministic choice between steps of one technique: fewest pattern cells, then most changes,

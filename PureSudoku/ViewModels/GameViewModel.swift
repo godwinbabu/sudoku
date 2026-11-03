@@ -13,15 +13,13 @@ final class GameViewModel: ObservableObject {
     var onNewGame: (() async -> GameState?)?
     var onSave: ((GameState) -> Void)?
     /// Learning (CODESPEC 13.4): the player found a technique without a hint (technique, puzzle id).
-    var onTechniqueFound: (@MainActor (Technique, String) -> Void)?
-    var onHintShown: ((Technique) -> Void)?
+    /// The move comes along so progress can credit each move of each puzzle once, across sessions.
+    var onTechniqueFound: (@MainActor (Technique, String, MasteryJudge.Move) -> Void)?
+    /// A hint opened (technique if it shows one, the cells and digits it shows, puzzle id). The
+    /// learning ledger records it at once, so no later edit can take it back (CODESPEC 13.4).
+    var onHintShown: ((Technique?, [CellDigit], String) -> Void)?
     /// Practice game from a lesson: not saved, no stats, no New Puzzle (CODESPEC 13.5).
     var isPractice = false
-    /// Techniques hinted in this puzzle (this session); with the saved hint log, finding them earns no credit.
-    private var hintedThisPuzzle: Set<Technique> = []
-    private var hintedTechniques: Set<Technique> {
-        hintedThisPuzzle.union(state.hintLog.compactMap { Technique(rawValue: $0.technique) })
-    }
 
     @Published var pendingAction: PendingAction?
     @Published private(set) var canUndo: Bool = false
@@ -75,6 +73,8 @@ final class GameViewModel: ObservableObject {
     private var lastTickDate: Date?
     private var isManuallyPaused = false
     private var isBackgroundPaused = false
+    /// False while the game screen is off screen (a pushed lesson): the timer never runs then.
+    private var isSceneVisible = true
     /// Cells that Check Cell / Check Puzzle found wrong. Kept apart from duplicate (auto-check) errors
     /// so later moves do not erase them; cleared when the cell is edited.
     private var checkedWrongIDs: Set<UUID> = []
@@ -121,10 +121,12 @@ final class GameViewModel: ObservableObject {
     }
 
     func handleSceneDidAppear() {
+        isSceneVisible = true
         startTimerIfNeeded()
     }
 
     func handleSceneDidDisappear() {
+        isSceneVisible = false
         let elapsed = calculateAndStopTimer()
         var newState = self.state
         newState.elapsedSeconds += elapsed
@@ -178,7 +180,7 @@ final class GameViewModel: ObservableObject {
     }
 
     private func startTimerIfNeeded() {
-        guard !state.isCompleted, timer == nil, !isManuallyPaused, !isBackgroundPaused else { return }
+        guard !state.isCompleted, timer == nil, !isManuallyPaused, !isBackgroundPaused, isSceneVisible else { return }
         lastTickDate = timeProvider.now()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { await self?.tick() }
@@ -461,7 +463,6 @@ final class GameViewModel: ObservableObject {
     func load(state newState: GameState) {
         _ = calculateAndStopTimer()
         checkedWrongIDs.removeAll()
-        hintedThisPuzzle.removeAll()
 
         var finalState = newState
         finalState.cells = finalState.cells.map { cell in
@@ -683,10 +684,12 @@ extension GameViewModel {
             let board = SolverBoard(cells: state.cells)
             if let step = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).nextHintStep(board) {
                 hint = HintSession(content: .step(step, board: board))
-                if !hintedTechniques.contains(step.technique) { onHintShown?(step.technique) } // count each once per puzzle
-                hintedThisPuzzle.insert(step.technique)
+                onHintShown?(step.technique, step.placements + step.eliminations, state.puzzle.id)
             } else {
                 let cell = revealTarget()
+                if let cell, let digit = solutionDigit(at: cell) {
+                    onHintShown?(nil, [CellDigit(cell: cell, digit: digit)], state.puzzle.id)
+                }
                 hint = HintSession(content: .noStep(cell: cell, digit: cell.flatMap { solutionDigit(at: $0) }))
             }
         }
@@ -780,27 +783,28 @@ extension GameViewModel {
         checkedWrongIDs.remove(state.cells[index].id)
     }
 
-    /// Credits the technique a correct move shows (CODESPEC 13.4). Runs the detectors off the main
-    /// thread; a technique hinted since the last move earns nothing.
+    /// Reports the technique a correct manual move shows (CODESPEC 13.4). Runs the detectors off the
+    /// main thread. Moves from the hint card never get here (`applyHint`). The learning ledger then
+    /// drops hinted and already-credited moves.
     private func judgeMove(_ move: MasteryJudge.Move, before board: SolverBoard) {
-        // No credit for a technique hinted in this puzzle, or while the board has a mistake (a wrong
-        // digit can make a "single" that only looks found).
-        let hinted = hintedTechniques
+        // No credit while the board has a mistake: a wrong digit can make a "single" that only looks found.
         guard let onTechniqueFound else { return }
         let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
         guard solution.count == 81 else { return }
         // Cheap check first: the move itself must be right.
         switch move {
-        case let .placed(cell, digit): guard solution[cell] == digit else { return }
-        case let .removedCandidate(cell, digit): guard solution[cell] != digit else { return }
+        case let .placed(cell, digit):
+            guard solution[cell] == digit else { return }
+        case let .removedCandidate(cell, digit):
+            guard solution[cell] != digit else { return }
         }
         guard firstMistake() == nil else { return }
         let unique = state.puzzle.isUnique
         let puzzleID = state.puzzle.id
         Task.detached(priority: .utility) {
-            guard let technique = MasteryJudge.technique(for: move, on: board, allowsUniqueness: unique),
-                  !hinted.contains(technique) else { return }
-            await MainActor.run { onTechniqueFound(technique, puzzleID) }
+            guard let technique = MasteryJudge.technique(for: move, on: board, allowsUniqueness: unique) else { return }
+            // The puzzle id was taken with the move, so a credit never lands on a puzzle loaded since.
+            await MainActor.run { onTechniqueFound(technique, puzzleID, move) }
         }
     }
 

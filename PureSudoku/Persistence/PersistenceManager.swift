@@ -86,6 +86,15 @@ final class PersistenceManager {
         }
     }
 
+    /// True while a copy of `fileName` set aside by `load` (`name.corrupt-<time>.json`) is on disk:
+    /// the data may still be restored, even on a later launch where the file itself is missing.
+    func hasSetAsideCopy(of fileName: String) -> Bool {
+        guard let directory = try? baseURL(),
+              let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return false }
+        let prefix = (fileName as NSString).deletingPathExtension + ".corrupt-"
+        return names.contains { $0.hasPrefix(prefix) }
+    }
+
     func delete(_ fileName: String) {
         guard let url = try? baseURL().appendingPathComponent(fileName) else { return }
         try? fileManager.removeItem(at: url)

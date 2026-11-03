@@ -39,7 +39,9 @@ struct ImportPuzzleView: View {
                 }
                 .accessibilityIdentifier("importDiscard")
             }
+            ToolbarItem(placement: .navigationBarTrailing) { NightButton() }
         }
+        .statusBarHidden(controller.isNight)
         .onChange(of: selectedPhoto) { newItem in
             guard let newItem else { return }
             let token = viewModel.beginPhotoRequest()

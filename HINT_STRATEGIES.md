@@ -65,7 +65,7 @@ Rules:
 |---|---|---|---|---|---|
 | 25 | Finned / Sashimi X-Wing | 130 / 150 | 6 | An X-Wing with extra candidates (a fin) in one box; eliminates only where the fin is also seen. | No |
 | 26 | X-Chain | 260 | 6 | An alternating chain of strong and weak links on one digit; cells that see both ends lose it. Generalizes Skyscraper, Kite and coloring. | No |
-| 27 | XY-Chain | 260 | 6 | A chain of bivalue cells; cells that see **both ends** lose the shared digit. | No (the old engine's buggy version was removed) |
+| 27 | XY-Chain | 260 | 6 | A chain of bivalue cells; cells that see **both ends** lose the shared digit. | Yes (ChainDetector, redesign phase 5; runs after every Advanced technique) |
 | 28 | AIC / Nice Loop | 280 | 6 | Alternating inference chain mixing digits and cells. Generalizes X-Chain and XY-Chain. | No |
 | 29 | Grouped AIC | 300 | 6 | An AIC whose links may use groups of cells in one box line. | No |
 | 30 | Multi-Coloring | 200 | 6 | Simple coloring across two linked clusters. (3D Medusa is the many-digit version; teach one, not both.) | No |

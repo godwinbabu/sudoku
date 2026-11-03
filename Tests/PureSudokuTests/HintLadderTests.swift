@@ -398,8 +398,8 @@ extension HintLadderTests {
     func testHintTextsFitTheCard() throws {
         let unscrolled: Set<Technique> = [.fullHouse, .hiddenSingleBox, .hiddenSingleLine, .nakedSingle, .pointing, .claiming]
         for technique in Lesson.techniques {
-            guard let lesson = Lesson.make(for: technique) else { continue }
-            let session = { HintSession(content: .step(lesson.step, board: lesson.board), level: $0) }
+            guard let example = Lesson.example(for: technique) else { continue }
+            let session = { HintSession(content: .step(example.step, board: example.board), level: $0) }
             let definition = session(2).text(.plain)
             XCTAssertTrue(Self.fits(definition, size: HintCardView.bodySize), "step 2 of \(technique): \(definition)")
             let why = session(3).text(.plain)
@@ -419,7 +419,7 @@ extension HintLadderTests {
 
     /// Step 3 hides multi-cell removals from the visible text; VoiceOver must still hear every cell.
     func testStepThreeAccessibilityNamesEveryRemovedCell() throws {
-        let multiCell = Lesson.techniques.compactMap(Lesson.make).first { Set($0.step.eliminations.map(\.cell)).count > 1 }
+        let multiCell = Lesson.techniques.compactMap { Lesson.example(for: $0) }.first { Set($0.step.eliminations.map(\.cell)).count > 1 }
         let lesson = try XCTUnwrap(multiCell, "a lesson removes digits from several cells")
         let session = HintSession(content: .step(lesson.step, board: lesson.board), level: 3)
         for names in CellNotation.allCases {

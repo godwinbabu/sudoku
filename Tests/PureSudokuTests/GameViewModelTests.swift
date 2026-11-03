@@ -242,6 +242,26 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state.elapsedSeconds, 8)
     }
 
+    /// Hint → Lesson pushes over the game; going to the background and back must not restart the
+    /// hidden game's timer. It runs again only when the game is back on screen.
+    func testBackgroundWhileALessonIsOpenKeepsTheTimerStopped() {
+        let clock = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)
+        viewModel.handleSceneDidAppear()
+        clock.advance(5)
+        viewModel.handleSceneDidDisappear() // the lesson is pushed
+        viewModel.pauseForBackground()
+        clock.advance(100)
+        viewModel.resumeFromBackground()
+        XCTAssertFalse(viewModel.isTimerRunning, "the game is not visible")
+        clock.advance(60) // reading the lesson
+        viewModel.handleSceneDidAppear() // back to the game
+        XCTAssertTrue(viewModel.isTimerRunning)
+        clock.advance(2)
+        viewModel.pauseTimer()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 7)
+    }
+
     func testResetRestartsTimerFromZero() {
         let clock = AdvancingTimeProvider()
         let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)

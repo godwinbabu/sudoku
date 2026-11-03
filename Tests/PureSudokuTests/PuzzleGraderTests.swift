@@ -42,7 +42,7 @@ final class PuzzleGraderTests: XCTestCase {
     }
 
     func testBundledPuzzlesAreValidUniqueAndCorrectlyGraded() {
-        XCTAssertEqual(BundledPuzzles.all.count, 360)
+        XCTAssertEqual(BundledPuzzles.all.count, 600)
         for difficulty in Difficulty.allCases {
             XCTAssertEqual(BundledPuzzles.puzzles(for: difficulty).count, 120)
         }
@@ -57,8 +57,38 @@ final class PuzzleGraderTests: XCTestCase {
         }
     }
 
+    /// Expert needs wings or fish (the Advanced tier) and Master needs a chain, both in the bundled
+    /// sets and from the generator (CODESPEC 2.2).
+    func testExpertAndTopLevelNeedTheirHardestTechnique() {
+        func check(_ techniques: [Technique], _ level: Difficulty, _ label: String) {
+            XCTAssertEqual(techniques.map(\.level).max(), level, label)
+            switch level {
+            case .expert:
+                XCTAssertTrue(techniques.contains { $0.tier == .advanced }, "\(label): needs wings or fish")
+                XCTAssertFalse(techniques.contains(.xyChain), label)
+            case .master:
+                XCTAssertTrue(techniques.contains(.xyChain), "\(label): needs a chain")
+            default:
+                XCTFail("not an Expert or Master check")
+            }
+        }
+        for level in [Difficulty.expert, .master] {
+            for entry in BundledPuzzles.puzzles(for: level) { check(entry.techniques, level, entry.initialGrid) }
+            let service = SudokuGeneratorService()
+            for seed in UInt64(11)...UInt64(16) {
+                let result = service.generatePuzzle(for: level, seed: seed)
+                let grade = PuzzleGrader.grade(values(result.puzzle.initialGrid))?.grade
+                check(grade?.techniques ?? [], level, "seed \(seed) bundled \(result.isBundled)")
+            }
+        }
+        XCTAssertEqual(Technique.xyChain.level, .master)
+        XCTAssertEqual(Technique.xWing.level, .expert)
+        XCTAssertEqual(Technique.nakedPair.level, .hard)
+        XCTAssertEqual(Technique.pointing.level, .medium)
+    }
+
     func testDrillsFindPuzzlesForEachPhaseTwoTechnique() {
-        for technique in [Technique.pointing, .claiming, .nakedPair, .hiddenPair, .xWing, .xyWing] {
+        for technique in [Technique.pointing, .claiming, .nakedPair, .hiddenPair, .xWing, .xyWing, .xyChain] {
             let drills = BundledPuzzles.drills(for: technique)
             XCTAssertFalse(drills.isEmpty, "\(technique)")
             XCTAssertEqual(drills.map(\.score), drills.map(\.score).sorted(), "easiest first")

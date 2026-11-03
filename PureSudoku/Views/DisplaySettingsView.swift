@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// Display & Night (CODESPEC 3.3, 12): the full page behind the Night sheet. Pushed from Settings
-/// until the Journal tab lands.
+/// Display & Night (CODESPEC 3.3, 12): the full page behind the Night sheet. Pushed from Journal.
 struct DisplaySettingsView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
@@ -46,6 +45,7 @@ struct DisplaySettingsView: View {
         }
         .background(theme.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        .statusBarHidden(controller.isNight)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("displaySettings")
     }
