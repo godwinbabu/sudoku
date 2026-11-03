@@ -84,12 +84,6 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.buttons[id].label.hasSuffix("value 1"), "the same game, with its entry")
     }
 
-    func testImportButtonOpensImportScreen() {
-        let app = launchApp()
-        app.buttons["importPuzzleButton"].tap()
-        XCTAssertTrue(element("importPuzzleView", in: app).waitForExistence(timeout: 2))
-    }
-
     func testStartingGameShowsGridAndAllowsEntry() {
         let app = launchApp()
         startLevel("easy", in: app)
@@ -196,13 +190,15 @@ final class PureSudokuUITests: XCTestCase {
         startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         let cell = firstEmptyCell(in: app)
-        let row = cell.identifier.split(separator: "_")[1]
-        let rowValue = (0..<9).lazy.compactMap { col -> String? in
-            let label = app.buttons["cell_\(row)_\(col)"].label
+        let parts = cell.identifier.split(separator: "_")
+        // A digit already in the cell's row, or its column if the row is empty (puzzles are random).
+        let peers = (0..<9).map { "cell_\(parts[1])_\($0)" } + (0..<9).map { "cell_\($0)_\(parts[2])" }
+        let peerValue = peers.lazy.compactMap { id -> String? in
+            let label = app.buttons[id].label
             guard let range = label.range(of: " value ") else { return nil }
             return String(label[range.upperBound...])
         }.first
-        guard let digit = rowValue else { return XCTFail("row has no filled cell") }
+        guard let digit = peerValue else { return XCTFail("row and column have no filled cell") }
         cell.tap()
         app.buttons["number_\(digit)"].tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "value \(digit)", in: app))
@@ -549,5 +545,46 @@ extension PureSudokuUITests {
         XCTAssertTrue(gameShowsTimer(in: app), "Show timer on: the game shows it")
         _ = setShowTimer(false, in: app) // checks the toggle reads "Off"
         XCTAssertFalse(gameShowsTimer(in: app), "Show timer off: no timer")
+    }
+}
+
+/// Import (CODESPEC 3.4).
+extension PureSudokuUITests {
+    func testImportButtonOpensImportScreen() {
+        let app = launchApp()
+        app.buttons["importPuzzleButton"].tap()
+        XCTAssertTrue(element("importPuzzleView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(element("importSource", in: app).exists, "import starts on Source")
+        XCTAssertTrue(app.buttons["importChoosePhoto"].exists)
+        XCTAssertTrue(app.buttons["importTypeItIn"].exists)
+    }
+
+    /// Type it in → Check the grid: a repeated digit is named and blocks Start; clearing it lifts that.
+    func testImportCheckTheGridFlagsAConflict() {
+        let app = launchApp()
+        app.buttons["importPuzzleButton"].tap()
+        app.buttons["importTypeItIn"].tap()
+        XCTAssertTrue(element("importReview", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["CHECK THE GRID"].exists)
+        let start = app.buttons["importStartPuzzle"]
+        XCTAssertFalse(start.isEnabled, "an empty grid can't start")
+        let first = app.buttons.matching(NSPredicate(format: "label == 'Row 4 column 1 empty'")).firstMatch
+        let second = app.buttons.matching(NSPredicate(format: "label == 'Row 4 column 5 empty'")).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 2))
+        first.tap()
+        app.buttons["number_4"].tap()
+        second.tap()
+        app.buttons["number_4"].tap()
+        let conflict = element("importConflictLegend", in: app)
+        XCTAssertTrue(conflict.waitForExistence(timeout: 2))
+        XCTAssertTrue(conflict.label.contains("Two 4s in"), conflict.label)
+        XCTAssertFalse(start.isEnabled)
+        app.buttons["importClearCell"].tap() // the second cell is still selected
+        XCTAssertTrue(element("importStatus", in: app).waitForExistence(timeout: 2))
+        XCTAssertFalse(conflict.exists)
+        app.buttons["importStartOver"].tap()
+        XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2), "Start over goes back to Source")
+        app.buttons["importDiscard"].tap()
+        XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))
     }
 }

@@ -99,6 +99,7 @@ final class AppController: ObservableObject {
         // saved game loaded and none was set aside as unreadable: that game may still be restored,
         // on this launch or a later one.
         let gameFiles = Difficulty.allCases.map { File.game($0).rawValue } + [File.importedGames.rawValue]
+        // shortcut: a set-aside copy stops pruning until it is deleted; expire copies after 30 days if the file grows.
         let gamesMayReturn = gameLoadFailed || importedGamesLoadFailed || gameFiles.contains(where: persistence.hasSetAsideCopy)
         if !techniqueProgressLoadFailed && !gamesMayReturn {
             let before = learningLedger
@@ -220,11 +221,12 @@ final class AppController: ObservableObject {
         viewModel.onHintShown = { [weak self] technique, changes, puzzleID in
             guard let self else { return }
             let technique = technique.map(Self.lessonTechnique)
+            let before = learningLedger
             let first = learningLedger.recordHint(puzzle: puzzleID, technique: technique, changes: changes)
             // hintsSeen counts each technique once per puzzle.
             if let technique, first {
                 updateProgress(technique) { $0.recordHint(at: self.timeProvider.now()) }
-            } else {
+            } else if learningLedger != before {
                 saveLearning()
             }
         }
