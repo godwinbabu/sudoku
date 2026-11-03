@@ -227,7 +227,8 @@ final class PureSudokuUITests: XCTestCase {
         if replace.waitForExistence(timeout: 1), element("confirmDialog", in: app).exists { replace.tap() }
     }
 
-    /// Sets Journal → Show timer from Home and returns to Home; returns whether it was on before.
+    /// Sets Journal → Show timer and returns to Home (from a game, it goes back first); returns
+    /// whether it was on before.
     private func setShowTimer(_ on: Bool, in app: XCUIApplication) -> Bool {
         if !app.buttons["tab_journal"].exists { app.buttons["backButton"].tap() }
         app.buttons["tab_journal"].tap()
@@ -236,6 +237,7 @@ final class PureSudokuUITests: XCTestCase {
         for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
         let wasOn = toggle.value as? String == "On"
         if wasOn != on { toggle.tap() }
+        XCTAssertEqual(toggle.value as? String, on ? "On" : "Off")
         app.buttons["tab_play"].tap()
         return wasOn
     }
@@ -374,24 +376,56 @@ final class PureSudokuUITests: XCTestCase {
         day.tap() // leave the app in Day
     }
 
-    /// Learn → a technique → its worked example and practice (CODESPEC 13.5).
+    /// Learn: Up next, then five tiers of techniques (CODESPEC 13.5).
+    func testLearnShowsTheTiers() {
+        let app = launchApp()
+        app.buttons["tab_learn"].tap()
+        XCTAssertTrue(element("learnView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["learn_fullHouse"].exists)
+        for tier in ["beginner", "intermediate", "advanced", "expert", "esoteric"] {
+            let label = element("learn_tier_\(tier)", in: app)
+            for _ in 0..<6 where !label.exists || !label.isHittable { app.swipeUp() }
+            XCTAssertTrue(label.exists, tier)
+        }
+        XCTAssertTrue(app.buttons["learn_bugPlusOne"].exists, "the last tier has its techniques")
+    }
+
+    /// Learn → a scripted lesson → step through it → Practise (CODESPEC 13.5).
     func testLearnShowsALessonWithPractice() {
         let app = launchApp()
         openPointingLesson(in: app)
         XCTAssertTrue(element("lessonBoard", in: app).waitForExistence(timeout: 5))
+        let progress = element("lesson_progress", in: app)
+        XCTAssertEqual(progress.label, "Step 1 of 4")
+        XCTAssertFalse(app.buttons["lesson_previous"].isEnabled, "no step before the first")
+        let first = element("lesson_stepText", in: app).label
+        app.buttons["lesson_next"].tap()
+        XCTAssertEqual(progress.label, "Step 2 of 4")
+        XCTAssertNotEqual(element("lesson_stepText", in: app).label, first)
+        app.buttons["lesson_previous"].tap()
+        XCTAssertEqual(element("lesson_stepText", in: app).label, first, "back one step")
         snapshot(app, "lesson")
-        app.buttons["lesson_showResult"].tap()
-        XCTAssertTrue(app.buttons["lesson_practice1"].waitForExistence(timeout: 2))
+        stepToPractise(in: app)
+        XCTAssertEqual(progress.label, "Step 4 of 4")
+        XCTAssertFalse(app.buttons["lesson_next"].exists, "Next becomes Practise")
+        app.buttons["lesson_practise"].tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5), "Practise opens a puzzle")
+    }
+
+    /// Taps Next until the lesson's last step shows Practise.
+    private func stepToPractise(in app: XCUIApplication) {
+        let next = app.buttons["lesson_next"]
+        XCTAssertTrue(next.waitForExistence(timeout: 5))
+        for _ in 0..<8 where next.exists { next.tap() }
+        XCTAssertTrue(app.buttons["lesson_practise"].waitForExistence(timeout: 2))
     }
 
     /// Goodnight after a practice solve goes back to the main menu, not the lesson (CODESPEC 3.2).
     func testGoodnightFromPracticeReturnsToMenu() {
         let app = launchApp(["-uiTestNearlySolved"])
         openPointingLesson(in: app)
-        let practice = app.buttons["lesson_practice1"]
-        XCTAssertTrue(practice.waitForExistence(timeout: 5))
-        for _ in 0..<4 where !practice.isHittable { app.swipeUp() }
-        practice.tap()
+        stepToPractise(in: app)
+        app.buttons["lesson_practise"].tap()
         firstEmptyCell(in: app).tap()
         // One cell is left, so only its digit's key is still enabled.
         app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'number_' AND isEnabled == true")).firstMatch.tap()
@@ -401,7 +435,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(goodnight.waitForExistence(timeout: 2))
         goodnight.tap()
         XCTAssertTrue(app.buttons["difficulty_easy"].waitForExistence(timeout: 3), "back on Home")
-        XCTAssertFalse(app.buttons["lesson_practice1"].exists, "not the lesson")
+        XCTAssertFalse(element("lessonView", in: app).exists, "not the lesson")
     }
 
     /// Learn tab → the Pointing lesson.
@@ -471,11 +505,11 @@ extension PureSudokuUITests {
         XCTAssertFalse(dialog.exists)
     }
 
-    /// Hint → Lesson → Back returns to the same game, and its timer runs again.
-    func testHintLessonReturnsToTheSameGame() {
+    /// Hint → Lesson → that technique's lesson; Back returns to the same game, and its timer runs again.
+    func testHintLessonReturnsToTheSameGame() throws {
         let app = launchApp()
         let timerWasOn = setShowTimer(true, in: app) // an earlier test may have left it off
-        defer { if !timerWasOn { _ = setShowTimer(false, in: app) } }
+        addTeardownBlock { _ = self.setShowTimer(timerWasOn, in: app) } // runs even if the test fails
         startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
         let board = boardLabels(in: app) // no entry: a wrong one would make the hint a mistake card
@@ -484,9 +518,12 @@ extension PureSudokuUITests {
         app.buttons["hint_next"].tap()
         let lesson = app.buttons["hint_lesson"]
         XCTAssertTrue(lesson.waitForExistence(timeout: 2))
+        // "Step 2 of 3: Hidden Single" names the technique.
+        let technique = try XCTUnwrap(element("hintStep", in: app).label.components(separatedBy: ": ").last)
         lesson.tap()
         XCTAssertTrue(element("lessonBoard", in: app).waitForExistence(timeout: 5), "the lesson is pushed")
-        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertEqual(element("lesson_title", in: app).label, technique, "the hint's technique")
+        app.buttons["lesson_back"].tap()
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 3))
         app.buttons["hint_close"].tap()
         XCTAssertEqual(boardLabels(in: app), board, "the same game")
@@ -507,18 +544,10 @@ extension PureSudokuUITests {
         for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
         XCTAssertTrue(app.buttons["journal_mistakes_never"].exists)
         XCTAssertTrue(app.buttons["journal_notation_grid"].exists)
-        let wasOn = timer.value as? String == "On"
-        if !wasOn { timer.tap() }
+        let wasOn = setShowTimer(true, in: app)
+        addTeardownBlock { _ = self.setShowTimer(wasOn, in: app) } // leave the app as found
         XCTAssertTrue(gameShowsTimer(in: app), "Show timer on: the game shows it")
-        app.buttons["tab_journal"].tap()
-        for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
-        timer.tap()
-        XCTAssertEqual(timer.value as? String, "Off")
+        _ = setShowTimer(false, in: app) // checks the toggle reads "Off"
         XCTAssertFalse(gameShowsTimer(in: app), "Show timer off: no timer")
-        if wasOn {
-            app.buttons["tab_journal"].tap()
-            for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
-            timer.tap() // leave the app as found
-        }
     }
 }

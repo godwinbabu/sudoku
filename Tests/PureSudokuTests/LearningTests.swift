@@ -9,17 +9,30 @@ final class LearningTests: XCTestCase {
 
     // MARK: - Mastery rule
 
-    func testMasteredAfterThreePuzzlesOnThreeDays() {
+    // swiftlint:disable:next inclusive_language
+    func testMasteredAtTenCredits() {
         var progress = TechniqueProgress()
         XCTAssertEqual(progress.level, .new)
-        progress.recordFound(puzzleID: "a", at: start)
-        progress.recordFound(puzzleID: "b", at: start.addingTimeInterval(60)) // same day
-        progress.recordFound(puzzleID: "a", at: start.addingTimeInterval(2 * day)) // same puzzle again
-        XCTAssertEqual(progress.level, .learning, "two days, and a repeated puzzle doesn't count twice")
-        progress.recordFound(puzzleID: "c", at: start.addingTimeInterval(3 * day))
-        XCTAssertEqual(progress.level, .learning)
-        progress.recordFound(puzzleID: "d", at: start.addingTimeInterval(4 * day))
-        XCTAssertEqual(progress.level, .mastered)
+        for move in 0..<9 { progress.recordFound(puzzleID: "a", at: start.addingTimeInterval(Double(move))) }
+        XCTAssertEqual(progress.credits, 9)
+        XCTAssertEqual(progress.level, .learning, "nine is not enough")
+        progress.recordFound(puzzleID: "a", at: start.addingTimeInterval(10))
+        XCTAssertEqual(progress.level, .mastered, "every credited move counts, even in one puzzle")
+        XCTAssertEqual(progress.foundUnaided.count, 1, "strength still grows once per puzzle")
+    }
+
+    /// Saves from before credits: one credit per puzzle found, and mastery earned the old way stays.
+    func testOldProgressDecodes() throws {
+        let old = #"{"foundUnaided":[{"puzzleID":"a","day":"2026-01-01"}],"hintsSeen":2,"strength":0.3}"#
+        let one = try JSONDecoder().decode(TechniqueProgress.self, from: Data(old.utf8))
+        XCTAssertEqual(one.credits, 1)
+        XCTAssertEqual(one.hintsSeen, 2)
+        XCTAssertEqual(one.level, .learning)
+        let found = (1...3).map { #"{"puzzleID":"p\#($0)","day":"2026-01-0\#($0)"}"# }.joined(separator: ",")
+        let threeDays = #"{"foundUnaided":[\#(found)],"hintsSeen":0,"strength":1}"#
+        let earned = try JSONDecoder().decode(TechniqueProgress.self, from: Data(threeDays.utf8))
+        XCTAssertEqual(earned.level, .mastered, "mastery under the old rule is kept")
+        XCTAssertEqual(try JSONDecoder().decode(TechniqueProgress.self, from: JSONEncoder().encode(one)), one, "round trip")
     }
 
     func testSeeingAHintMakesATechniqueLearningAndHalvesStrength() {
@@ -87,15 +100,47 @@ final class LearningTests: XCTestCase {
         for _ in 0..<100 where !condition() { try? await Task.sleep(nanoseconds: 20_000_000) }
     }
 
+    /// A manual placement credits the technique the engine would use for that cell and digit, once.
     func testFindingAStepWithoutAHintIsCredited() async throws {
         let (viewModel, found) = makeViewModel()
-        let step = try XCTUnwrap(LogicalSolver().nextStep(SolverBoard(cells: viewModel.state.cells)))
+        let board = SolverBoard(cells: viewModel.state.cells)
+        let step = try XCTUnwrap(LogicalSolver().nextStep(board))
         let placement = try XCTUnwrap(step.placements.first)
-        viewModel.select(cell: viewModel.state.cells.first { $0.index == placement.cell }!)
+        let expected = MasteryJudge.technique(for: .placed(cell: placement.cell, digit: placement.digit), on: board)
+        let cell = viewModel.state.cells.first { $0.index == placement.cell }!
+        viewModel.select(cell: cell)
         viewModel.setDigit(placement.digit)
-        await waitFor { !found().isEmpty }
-        XCTAssertEqual(found().count, 1)
-        XCTAssertTrue([Technique.fullHouse, .hiddenSingleBox, .hiddenSingleLine, .nakedSingle].contains(found()[0]))
+        await settle(found, count: 1)
+        XCTAssertEqual(found(), [try XCTUnwrap(expected)])
+        // Undo and the same move again: no second credit.
+        viewModel.undo()
+        viewModel.select(cell: cell)
+        viewModel.setDigit(placement.digit)
+        await settle(found, count: 2)
+        XCTAssertEqual(found().count, 1, "replaying a move earns nothing")
+    }
+
+    /// Everything the hint card does (Place · assisted, Apply/Remove · assisted) earns no credit.
+    func testMovesFromTheHintCardEarnNoCredit() async throws {
+        let (controller, _) = makeTestController()
+        let entry = try XCTUnwrap(BundledPuzzles.puzzles(for: .medium).first)
+        let viewModel = controller.makePracticeGameViewModel(entry, number: 1)
+        var found: [Technique] = []
+        viewModel.onTechniqueFound = { technique, _ in found.append(technique) }
+        var placed = 0, removed = 0
+        while placed == 0 || removed == 0, !viewModel.state.isCompleted, placed + removed < 120 {
+            viewModel.requestHint()
+            let step = try XCTUnwrap(viewModel.hint?.step, "a medium puzzle needs no mistake or reveal hint")
+            if step.placements.isEmpty { removed += 1 } else { placed += 1 }
+            viewModel.hintNext()
+            viewModel.hintNext()
+            viewModel.applyHint()
+        }
+        XCTAssertGreaterThan(placed, 0)
+        XCTAssertGreaterThan(removed, 0, "an elimination was applied too")
+        await settle({ found }, count: 1)
+        XCTAssertTrue(found.isEmpty)
+        XCTAssertTrue(viewModel.state.assisted)
     }
 
     /// Places the solver's next single (a correct move nobody hinted) as a positive control.
@@ -126,6 +171,7 @@ final class LearningTests: XCTestCase {
         viewModel.select(cell: target)
         viewModel.setDigit(placement.digit)
         await settle(found, count: 0)
+        XCTAssertTrue(found().isEmpty, "the cell and digit the hint showed earn nothing, by any technique")
         XCTAssertFalse(found().contains(hinted))
         // Positive control: an unhinted single of another kind is still credited.
         var control = 0
@@ -181,14 +227,50 @@ final class LearningTests: XCTestCase {
         XCTAssertEqual(controller.activeGames, games)
     }
 
-    func testLessonPracticeSkipsTheExamplePuzzle() throws {
-        let lesson = try XCTUnwrap(Lesson.make(for: .pointing))
-        let drills = BundledPuzzles.drills(for: .pointing)
+    func testTemplateLessonPracticeSkipsTheExamplePuzzle() throws {
+        let lesson = try XCTUnwrap(Lesson.make(for: .claiming))
+        XCTAssertFalse(lesson.isScripted)
+        let values = lesson.cells.map { $0.value ?? 0 }
+        let drills = BundledPuzzles.drills(for: .claiming)
         let example = try XCTUnwrap(drills.first { entry in
             let start = entry.initialGrid.map { Int(String($0)) ?? 0 }
-            return zip(start, lesson.board.values).allSatisfy { $0 == 0 || $0 == $1 }
+            return zip(start, values).allSatisfy { $0 == 0 || $0 == $1 }
         })
         XCTAssertFalse(lesson.practice.contains(example))
+    }
+
+    /// Hidden Single, Pointing, Naked Pair and X-Wing are written by hand (Design/v2 Learn.jsx).
+    func testTheFourScriptedLessonsLoadAndStep() throws {
+        let expected: [Technique: Int] = [.hiddenSingleBox: 5, .pointing: 4, .nakedPair: 4, .xWing: 4]
+        for (technique, count) in expected {
+            let lesson = try XCTUnwrap(Lesson.make(for: technique))
+            XCTAssertTrue(lesson.isScripted)
+            XCTAssertEqual(lesson.steps.count, count, "\(technique)")
+            XCTAssertEqual(Lesson.stepCount(for: technique), count)
+            XCTAssertFalse(lesson.practice.isEmpty, "\(technique) has a practice puzzle")
+            XCTAssertTrue(lesson.practice.allSatisfy { $0.techniques.contains(technique) })
+            // Givens are a legal board, and every step marks something different from the last.
+            XCTAssertFalse(SolverBoard(values: lesson.cells.map { $0.value ?? 0 }).hasContradiction, "\(technique)")
+            for (previous, step) in zip(lesson.steps, lesson.steps.dropFirst()) {
+                XCTAssertFalse(step.highlight.isEmpty)
+                XCTAssertNotEqual(previous, step)
+            }
+        }
+        let hidden = try XCTUnwrap(Lesson.make(for: .hiddenSingleBox))
+        XCTAssertEqual(hidden.steps.last?.highlight.ghostDigits, [2: 5], "the last step shows 5 in the top-right cell")
+        XCTAssertEqual(hidden.steps[3].highlight.struckDigits.keys.sorted(), [1, 10, 11, 18, 19], "ruled-out cells")
+        let pointing = try XCTUnwrap(Lesson.make(for: .pointing))
+        XCTAssertEqual(pointing.steps[2].highlight.struckDigits, [13: [3], 16: [3]], "3 crossed off in row 2")
+        XCTAssertEqual(pointing.steps[0].highlight.ringedDigits, [9: [3], 11: [3]])
+        let xWing = try XCTUnwrap(Lesson.make(for: .xWing))
+        XCTAssertEqual(xWing.steps[3].highlight.struckDigits.keys.sorted(), [25, 29, 43, 74])
+    }
+
+    func testEveryTechniqueSitsInOneOfFiveLearnTiers() {
+        XCTAssertEqual(Set(Lesson.techniques.map(\.learnTier)), Set(LearnTier.allCases))
+        XCTAssertEqual(Technique.pointing.learnTier, .intermediate)
+        XCTAssertEqual(Technique.xyChain.learnTier, .expert)
+        XCTAssertEqual(Technique.bugPlusOne.learnTier, .esoteric)
     }
 
     /// Every hint starts at step 1, and offers its lesson from step 2.
@@ -215,15 +297,15 @@ final class LearningTests: XCTestCase {
 
     // MARK: - Lessons
 
-    func testEveryTechniqueWithADrillHasAWorkedExample() {
+    func testEveryTechniqueWithADrillHasAWorkedExample() throws {
         var withLesson = 0
         for technique in Lesson.techniques where !BundledPuzzles.drills(for: technique).isEmpty {
             guard let lesson = Lesson.make(for: technique) else { return XCTFail("\(technique) has drills but no lesson") }
-            let shown = lesson.step.technique == .hiddenSingleLine ? Technique.hiddenSingleBox : lesson.step.technique
-            XCTAssertEqual(shown, technique)
+            XCTAssertEqual(lesson.steps.count, Lesson.stepCount(for: technique))
             XCTAssertLessThanOrEqual(lesson.practice.count, 3)
             // A single shows its answer as the dashed target; other steps fill their pattern.
-            XCTAssertFalse(lesson.highlight.patternCells.isEmpty && lesson.highlight.ghostDigits.isEmpty)
+            let last = try XCTUnwrap(lesson.steps.last).highlight
+            XCTAssertFalse(last.patternCells.isEmpty && last.ghostDigits.isEmpty, "\(technique)")
             withLesson += 1
         }
         XCTAssertGreaterThanOrEqual(withLesson, 20, "most techniques have an example in the bundle")

@@ -22,6 +22,10 @@ final class GameViewModel: ObservableObject {
     private var hintedTechniques: Set<Technique> {
         hintedThisPuzzle.union(state.hintLog.compactMap { Technique(rawValue: $0.technique) })
     }
+    /// Cells and digits a hint has shown this session: playing them earns no credit for any technique.
+    private var hintedChanges: Set<CellDigit> = []
+    /// Moves already credited this session, so Undo and replay can't farm credits.
+    private var creditedMoves: Set<MasteryJudge.Move> = []
 
     @Published var pendingAction: PendingAction?
     @Published private(set) var canUndo: Bool = false
@@ -466,6 +470,8 @@ final class GameViewModel: ObservableObject {
         _ = calculateAndStopTimer()
         checkedWrongIDs.removeAll()
         hintedThisPuzzle.removeAll()
+        hintedChanges.removeAll()
+        creditedMoves.removeAll()
 
         var finalState = newState
         finalState.cells = finalState.cells.map { cell in
@@ -689,8 +695,10 @@ extension GameViewModel {
                 hint = HintSession(content: .step(step, board: board))
                 if !hintedTechniques.contains(step.technique) { onHintShown?(step.technique) } // count each once per puzzle
                 hintedThisPuzzle.insert(step.technique)
+                hintedChanges.formUnion(step.placements + step.eliminations)
             } else {
                 let cell = revealTarget()
+                if let cell, let digit = solutionDigit(at: cell) { hintedChanges.insert(CellDigit(cell: cell, digit: digit)) }
                 hint = HintSession(content: .noStep(cell: cell, digit: cell.flatMap { solutionDigit(at: $0) }))
             }
         }
@@ -784,19 +792,22 @@ extension GameViewModel {
         checkedWrongIDs.remove(state.cells[index].id)
     }
 
-    /// Credits the technique a correct move shows (CODESPEC 13.4). Runs the detectors off the main
-    /// thread; a technique hinted since the last move earns nothing.
+    /// Credits the technique a correct manual move shows (CODESPEC 13.4). Runs the detectors off the
+    /// main thread. Moves from the hint card never get here (`applyHint`).
     private func judgeMove(_ move: MasteryJudge.Move, before board: SolverBoard) {
-        // No credit for a technique hinted in this puzzle, or while the board has a mistake (a wrong
-        // digit can make a "single" that only looks found).
+        // No credit for a technique hinted in this puzzle, a cell and digit a hint showed, a move
+        // already credited, or while the board has a mistake (a wrong digit can make a "single" that
+        // only looks found).
         let hinted = hintedTechniques
-        guard let onTechniqueFound else { return }
+        guard let onTechniqueFound, !creditedMoves.contains(move) else { return }
         let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
         guard solution.count == 81 else { return }
         // Cheap check first: the move itself must be right.
         switch move {
-        case let .placed(cell, digit): guard solution[cell] == digit else { return }
-        case let .removedCandidate(cell, digit): guard solution[cell] != digit else { return }
+        case let .placed(cell, digit):
+            guard solution[cell] == digit, !hintedChanges.contains(CellDigit(cell: cell, digit: digit)) else { return }
+        case let .removedCandidate(cell, digit):
+            guard solution[cell] != digit, !hintedChanges.contains(CellDigit(cell: cell, digit: digit)) else { return }
         }
         guard firstMistake() == nil else { return }
         let unique = state.puzzle.isUnique
@@ -804,7 +815,10 @@ extension GameViewModel {
         Task.detached(priority: .utility) {
             guard let technique = MasteryJudge.technique(for: move, on: board, allowsUniqueness: unique),
                   !hinted.contains(technique) else { return }
-            await MainActor.run { onTechniqueFound(technique, puzzleID) }
+            await MainActor.run { [weak self] in
+                guard let self, self.creditedMoves.insert(move).inserted else { return }
+                onTechniqueFound(technique, puzzleID)
+            }
         }
     }
 

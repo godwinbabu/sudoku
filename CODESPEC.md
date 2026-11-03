@@ -224,6 +224,7 @@ Testing requirements:
 	•	Tapping a level always starts a new puzzle at that level. If an unfinished game with player entries (digits or notes) is saved at that level, a custom confirmation asks first: “Replace your unfinished Hard game?” with Continue (resume it) and New. Only one game per level is saved, so this is the player’s way back to older games too.
 	•	The Continue card opens the saved game as it was.
 	•	Goodnight from any game returns to Home.
+	•	Learn (Section 13.5) is a plain scroll view, not a List, so no system chevrons or separators show. Disclosure chevrons are drawn in palette colours.
 
 Testing requirements:
 	•	UI tests:
@@ -544,6 +545,7 @@ enum Appearance: String, Codable {
 	•	Selection: a filled background plus a heavier outline.
 	•	Error: an underline bar plus the err colour.
 	•	Hint roles: rings for evidence and targets, strike-through for eliminations.
+	•	Learn mastery dots: mastered is a filled dot, learning a half-filled ring, new an empty ink3 ring. VoiceOver reads the level.
 
 7.3 Grid Interaction Visuals
 	•	Selecting a cell:
@@ -701,6 +703,7 @@ Testing requirements:
 	•	DrillIndex.swift (phase 4)
 	•	ViewModels/
 	•	GameViewModel.swift
+	•	Lesson.swift (Lesson, LearnTier, LessonScript: the four written lessons)
 	•	MainMenuViewModel.swift
 	•	SettingsViewModel.swift
 	•	StatsViewModel.swift (the Journal’s numbers)
@@ -715,7 +718,7 @@ Testing requirements:
 	•	HintCardView.swift (the three-step hint card, phase 3)
 	•	NightControls.swift (segments, switch, slider, presets, rows, card, sample strip, CalibrateView)
 	•	NightSheetView.swift, DisplaySettingsView.swift, FirstNightView.swift
-	•	LearnView.swift (LearnView and LessonView)
+	•	LearnView.swift (LearnView, LessonView, StatusDot, Chevron)
 	•	Persistence/
 	•	PersistenceManager.swift (or similar).
 	•	Tests/
@@ -811,6 +814,7 @@ Testing requirements:
 	•	Hint card and lessons (phase 3 onward):
 	•	Highlights fade in slowly; nothing blinks.
 	•	The card never advances on its own. Every step waits for a tap.
+	•	Lesson steps change with a 250 ms fade (none with Reduce Motion). Next and Practise are outline buttons at night, and the lesson has no fills behind text.
 	•	One or two short lines per step; the card has a fixed height and long text shrinks to fit.
 	•	At night the card has no fill, only a hairline, and its button is an outline (Section 7.2).
 	•	Puzzle completion: a slow fade, no bright burst.
@@ -897,8 +901,9 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	All teaching content follows the bedtime rules of Section 12.
 
 13.2 Curriculum
-	•	Four tiers: Basic, Intermediate, Advanced, Expert. The full ordered list, with a short definition and score for each technique, is in HINT_STRATEGIES.md. That file is the source of truth for technique order.
+	•	Four grading tiers: Basic, Intermediate, Advanced, Expert (TechniqueTier; they set puzzle levels, Section 2.2). The full ordered list, with a short definition and score for each technique, is in HINT_STRATEGIES.md. That file is the source of truth for technique order.
 	•	The solver tries techniques in that order, so the simplest available step is always found first.
+	•	Learn and the hint card group techniques into five Learn tiers (LearnTier), named as in Design/v2/README.md: Beginner (singles), Intermediate (intersections and subsets), Advanced (fish, wings, single-digit patterns), Expert (XY-Chain, Simple Coloring) and Esoteric (Unique Rectangle types and BUG+1, which work only because the puzzle has one solution). The design’s Exocet, Sue de Coq, 3D Medusa and Bowman’s Bingo are not in the app, so Learn lists the 27 techniques the solver knows (Hidden Single box and line are one lesson). Learn tiers never change grading.
 	•	Some ideas are taught as short concept lessons before the techniques that need them: candidates, strong link, bivalue cell, almost locked set.
 	•	Out of scope: Exocet, Franken/Mutant/Kraken fish, templates, Nishio, Bowman’s Bingo, brute force.
 
@@ -928,17 +933,22 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	The last resort (Bowman’s Bingo) can return no hint.
 
 13.4 Mastery
-	•	A technique is mastered when the player has found it without a hint in 3 different puzzles on 3 different days. “Found” means: on the board just before the player’s move (a correct placement, or removing a wrong note), some step of some technique makes exactly that change, and no hint for that technique was shown in this puzzle, and the board has no mistake. The credit goes to the simplest such technique (curriculum order). Checking every step, not only nextStep’s first, lets techniques like Naked Single earn credit even when another single comes first. The check runs off the main thread.
-	•	Each technique has a strength value (0–1) that decays over time (half-life model). Strength rises when found unaided and falls when a hint for it is needed.
+	•	A technique is mastered at 10 credits (redesign phase 6). Each unaided move earns one credit. A move earns a credit when, on the board just before the player’s move (a correct placement, or removing a wrong note), some step of some technique makes exactly that change, and no hint for that technique was shown in this puzzle, no hint showed that cell and digit, the move was not credited before in this session (Undo and replay earn nothing), and the board has no mistake. Moves from the hint card (Place · assisted, Remove · assisted, Apply · assisted) never earn credit. The credit goes to the simplest such technique (curriculum order). Checking every step, not only nextStep’s first, lets techniques like Naked Single earn credit even when another single comes first. The check runs off the main thread.
+	•	Each technique has a strength value (0–1) that decays over time (half-life model). Strength rises once per puzzle where it is found unaided and falls when a hint for it is needed.
+	•	Saves from before credits decode: they get one credit per puzzle found, and a technique mastered under the old rule (3 puzzles on 3 days) keeps 10.
 	•	When strength falls low, the Learn screen offers an optional review drill. No streak alarms, no notifications.
 
-13.5 Learn screen (phase 5)
-	•	The Learn tab. Shows the four tiers and each technique’s state (new, learning, mastered).
-	•	One lesson per technique, built on a single example on a real board. No catalogs of variants.
-	•	Each lesson ends with three practice puzzles that need that technique (from the drill index).
+13.5 Learn screen (phase 5, redesigned in phase 6)
+	•	The Learn tab, top to bottom (Design/v2/README.md, “Learn”):
+	•	“Learn” and the moon; the sub-line “N of 27 techniques in your hands” (techniques that are learning or mastered).
+	•	Up next card: the first technique in curriculum order that is not mastered. “UP NEXT · N STEPS”, the name (serif 24), and a reason: the level that needs it, then the player’s credits (“4 of 10 unaided uses so far”) or the hints they met it in. An accent chevron. No card once everything is mastered.
+	•	The five Learn tiers (Section 13.2), each a section label and rows: the mastery dot (Section 7.2), the name, its one-line definition, and the credit count (“12×”), or “Lesson” for the four written lessons.
+	•	A lesson is pushed, never a sheet, with its own header: Back, “TIER · LESSON”, the title (serif 34) and an intro. Then the board (at most 342 pt wide, SudokuGridView with the hint marks), the step text (17 pt, at least 92 pt tall) and a footer: a previous-step circle, step pills, and Next, which becomes Practise on the last step.
+	•	Four lessons are written by hand, ported from Design/v2/ui_kits/puresudoku-2/Learn.jsx as data (LessonScript): Hidden Single (5 steps), Pointing (4), Naked Pair (4), X-Wing (4). Their boards are drawn for teaching, not taken from a puzzle. Their text uses plain cell names.
+	•	Every other lesson uses the template: a bundled puzzle solved up to the first step of that technique, shown as the three hint steps (where to look; why; what changes, with the removals struck and the placement as a ghost digit). Its text follows the cell-name setting.
+	•	Practise opens the first bundled practice puzzle that needs the technique (from the drill index; for the template, not the example puzzle).
 	•	Practice puzzles are not saved and do not count toward stats or the streak; they do count toward learning (mastery and strength).
-	•	The example board is a bundled puzzle solved up to the first step of that technique, drawn like a hint: pattern first, then the result on “Show the result”.
-	•	Every hint card links to its technique’s lesson from step 2 (“Lesson →”).
+	•	Every hint card links to its technique’s lesson from step 2 (“Lesson →”), and shows the technique’s Learn tier.
 
 13.6 Build phases
 Each phase ships on its own and keeps the app working.
@@ -956,5 +966,7 @@ Testing requirements:
 	•	Correctness oracle: over a seeded corpus of generated puzzles (400 in phase 2; bundled pre-graded puzzles from phase 4), every step agrees with the known solution and its pattern is re-checked against the board.
 	•	Same board, same step, every run.
 	•	A board needing two techniques in a row (e.g. pointing, then a naked pair) yields both steps in order.
-	•	Unit tests (phase 5): mastery rule (3 puzzles, 3 days), strength decay.
+	•	Unit tests (phase 5): strength decay.
+	•	Unit tests (redesign phase 6): mastered at 10 credits; old progress decodes (and keeps old mastery); a manual placement credits the technique the engine would use for it, once; hint card moves (placements and eliminations) and the cell a hint showed earn nothing; the four written lessons load with 5, 4, 4 and 4 steps and the expected marks; every technique sits in one of the five Learn tiers.
+	•	UI tests (redesign phase 6): Learn shows the five tiers; a lesson steps forward and back, and Practise on the last step opens a puzzle; “Lesson →” opens that technique’s lesson, and Back returns to the same game.
 	•	Unit tests (XY-Chain): a hand-made four-cell chain gives exactly the eliminations seen by both ends; the corpus oracle walks every XY-Chain step link by link.

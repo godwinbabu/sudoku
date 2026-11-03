@@ -2,6 +2,8 @@ import Foundation
 
 /// What the player knows about one technique (CODESPEC 13.4).
 struct TechniqueProgress: Codable, Equatable {
+    /// Unaided moves this technique explains: one per correct placement or note removal (CODESPEC 13.4).
+    var credits = 0
     /// Puzzles where the player found the technique without a hint, with the day it happened.
     var foundUnaided: [Found] = []
     /// Hints shown for this technique (any rung).
@@ -19,10 +21,12 @@ struct TechniqueProgress: Codable, Equatable {
 
     enum Level: String { case new, learning, mastered }
 
-    /// Mastered after finding it unaided in 3 different puzzles on 3 different days.
+    static let creditsNeeded = 10
+
+    /// Mastered after 10 unaided uses.
     var level: Level {
-        if Set(foundUnaided.map(\.day)).count >= 3 && Set(foundUnaided.map(\.puzzleID)).count >= 3 { return .mastered }
-        return foundUnaided.isEmpty && hintsSeen == 0 ? .new : .learning
+        if credits >= Self.creditsNeeded { return .mastered }
+        return credits == 0 && hintsSeen == 0 ? .new : .learning
     }
 
     /// Strength right now: halves every `halfLifeDays`, which grows as the player finds it more.
@@ -33,9 +37,11 @@ struct TechniqueProgress: Codable, Equatable {
         return strength * pow(2, -days / halfLifeDays)
     }
 
+    /// One credited move.
     mutating func recordFound(puzzleID: String, at date: Date, calendar: Calendar = .current) {
         let day = Self.dayKey(date, calendar: calendar)
         lastSeen = date
+        credits += 1
         // Once per puzzle: replaying a move (e.g. after Undo) doesn't add strength.
         guard !foundUnaided.contains(where: { $0.puzzleID == puzzleID }) else { return }
         foundUnaided.append(Found(puzzleID: puzzleID, day: day))
@@ -50,6 +56,25 @@ struct TechniqueProgress: Codable, Equatable {
         lastSeen = date
     }
 
+    /// Saves from before credits have none: count one per puzzle found, and keep mastery earned
+    /// under the old rule (3 puzzles on 3 days).
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        foundUnaided = try container.decodeIfPresent([Found].self, forKey: .foundUnaided) ?? []
+        hintsSeen = try container.decodeIfPresent(Int.self, forKey: .hintsSeen) ?? 0
+        lastSeen = try container.decodeIfPresent(Date.self, forKey: .lastSeen)
+        strength = try container.decodeIfPresent(Double.self, forKey: .strength) ?? 0
+        strengthDate = try container.decodeIfPresent(Date.self, forKey: .strengthDate)
+        if let credits = try container.decodeIfPresent(Int.self, forKey: .credits) {
+            self.credits = credits
+        } else {
+            let earnedTheOldWay = Set(foundUnaided.map(\.day)).count >= 3 && Set(foundUnaided.map(\.puzzleID)).count >= 3
+            credits = earnedTheOldWay ? max(foundUnaided.count, Self.creditsNeeded) : foundUnaided.count
+        }
+    }
+
+    init() {}
+
     static func dayKey(_ date: Date, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
@@ -59,7 +84,7 @@ struct TechniqueProgress: Codable, Equatable {
 /// Which technique, if any, a player's move shows they found (CODESPEC 13.4). Credit goes to the
 /// simplest technique that has a step making exactly this change on the board before the move.
 enum MasteryJudge {
-    enum Move: Equatable {
+    enum Move: Hashable {
         case placed(cell: Int, digit: Int)
         case removedCandidate(cell: Int, digit: Int)
     }
