@@ -31,7 +31,8 @@ struct LearnView: View {
                     // System headers and separators are grey, brighter than ink at night.
                     SectionLabel(theme: theme, title: tier.displayName).padding(.horizontal, -22).padding(.bottom, -8)
                 }
-                .listRowBackground(theme.surface)
+                // Night: no fill behind text, only hairlines (CODESPEC 12.7).
+                .listRowBackground(theme.isNight ? Color.clear : theme.surface)
                 .listRowSeparatorTint(theme.hair)
             }
         }

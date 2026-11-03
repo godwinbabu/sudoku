@@ -227,6 +227,8 @@ final class AppController: ObservableObject {
         guard initialGrid.count == 81 else { return nil }
         guard let solution = generatorService.solve(initialGrid: initialGrid) else { return nil }
         let values = initialGrid.map { Int(String($0)) ?? 0 }
+        // shortcut: counting and grading run on the main thread (about 20 ms on a Mac at worst, more on
+        // old phones now that XY-Chain is tried); make this async like startNewGame if imports feel slow.
         // Level from the techniques needed; an import the solver can't finish is Master (CODESPEC 2.2).
         let unique = SolutionCounter.count(values, limit: 2) == 1
         let grade = PuzzleGrader.grade(values, allowsUniqueness: unique)?.grade

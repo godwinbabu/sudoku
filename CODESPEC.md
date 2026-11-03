@@ -221,7 +221,7 @@ Testing requirements:
 	•	“Import a puzzle from a photo” (44 pt).
 	•	Saved imports: unfinished imports, most recently played first. A trash button asks first, with a custom confirmation.
 	•	Behavior:
-	•	Tapping a level always starts a new puzzle at that level. It replaces any unfinished game saved at that level.
+	•	Tapping a level always starts a new puzzle at that level. If an unfinished game with player entries (digits or notes) is saved at that level, a custom confirmation asks first: “Replace your unfinished Hard game?” with Continue (resume it) and New. Only one game per level is saved, so this is the player’s way back to older games too.
 	•	The Continue card opens the saved game as it was.
 	•	Goodnight from any game returns to Home.
 
@@ -230,6 +230,7 @@ Testing requirements:
 	•	Launch shows the five level rows, each with its technique line; there is no Night bar.
 	•	The tabs switch, and each tab has the moon.
 	•	Home starts an Expert game; back on Home, the Continue card resumes it with its entry.
+	•	A level with an unfinished game asks first; Continue resumes it, New starts a different puzzle; a level with no entries does not ask.
 	•	Unit tests:
 	•	The Continue card picks the unfinished game played last, never a finished one; a level always starts a new puzzle.
 
@@ -271,7 +272,7 @@ Testing requirements:
 
 3.3 Journal (stats and settings)
 	•	SwiftUI view: JournalView (Design/v2/README.md, “Journal”). It replaces the old SettingsView and StatsView.
-	•	Streak: the current streak (NY 56, zero once a whole day passes without a solve) over “nights in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled dot; other days are rings, so shape carries it, not hue.
+	•	Streak: the current streak (NY 56, zero once a whole day passes without a solve) over “nights in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled dot; other days are rings, so shape carries it, not hue. VoiceOver reads the full weekday (“Tuesday, solved”). Stats files from before the week seed it with the last solve day.
 	•	SOLVED: a table of level, Solved, Best and Typical. Typical is the median of the last 50 unassisted solve times at that level. A dash means none yet. Under it: “N assisted solves kept your streak but don’t set best times.” and “N solved in all · N imported · h:mm:ss played”.
 	•	SETTINGS: a Display & Night row that pushes DisplaySettingsView. Display & Night holds, top to bottom:
 	•	A live preview strip: five 52 pt cells (given 5, entered 3, selected 7, mistake 4, notes).
@@ -285,7 +286,8 @@ Testing requirements:
 	•	Tidy notes (remove a placed digit from the notes it sees).
 	•	Cell names in hints (notation): “row 5, column 2” (plain, default) or “R5C2” (grid), with a line explaining the choice. Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
 	•	Show timer on/off.
-	•	IMPORTS (kept from the old Settings screen): Keep import photos, and Clear imported photos.
+	•	IMPORTS (kept from the old Settings screen): Keep import photos, and Clear imported photos, which asks first with a custom confirmation.
+	•	VoiceOver reads each table row as one line: “Expert: 3 solved, best 4:12, typical 5:00”, with “none yet” for a dash.
 	•	PRIVACY: “Everything stays on this iPhone. No account, no network, no analytics. Silent by design — no sounds or vibration unless you turn them on.”
 	•	Migration: the old cellNameStyle key maps short → grid and long → plain. The old askBeforeHintResult key is ignored: the card has no “Try it yourself first?” step.
 
@@ -413,7 +415,7 @@ Hint and Reveal Cell are two separate actions. Hint teaches; Reveal Cell fills a
 	•	Step 2 “Technique” · tier: the technique name (serif) and its one-line definition. The pattern cells are filled and, in cells without notes, the candidates it relies on are shown.
 	•	Step 3 “Why”: evidence rings, the dashed target with its ghost digit, struck-through eliminations. “Every other empty cell in box 4 already sees a 5. So 5 can only go in row 5, column 2.” If the player’s notes, not placed digits, rule a cell out, it reads “sees or has ruled out”.
 	•	Step 3 button: “Place 5 · assisted”, or for eliminations “Remove 5 · assisted” (one digit) / “Apply · assisted”. It makes the change as one undoable edit (Section 6.7). An elimination in a cell without notes first writes that cell’s candidates as notes, so the deduction is kept and the next hint moves on.
-	•	“Lesson →” (from step 2) pushes the technique’s lesson (Section 13.5); Back returns to the game. The timer pauses while it is open.
+	•	“Lesson →” (from step 2) pushes the technique’s lesson (Section 13.5); Back returns to the game. The timer stops while the game is off screen, also across a trip to the background, and runs again when the game shows.
 	•	Each hint carries: nudge, technique, tier, short (definition), why, focus, evidence, pattern, elim and target (TechniqueStep and HintSession).
 	•	If the solver finds no step it can explain, the card opens at step 3: “This step needs a technique beyond what hints explain yet. Placing 5 in row 5, column 2.” with “Place 5 · assisted”. It never returns nothing.
 	•	Every hint opens at step 1 (the earlier fading plan, which opened new techniques at the “why” rung, is dropped).

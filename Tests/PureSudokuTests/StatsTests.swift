@@ -92,7 +92,10 @@ final class StatsTests: XCTestCase {
         XCTAssertEqual(stats.solvedCount(for: .medium), 2)
         XCTAssertEqual(stats.solveTimes, [:])
         XCTAssertEqual(stats.assistedSolves, 0)
-        XCTAssertEqual(stats.solvedDays, [])
+        XCTAssertEqual(stats.solvedDays, [], "no last solve day, nothing to seed")
+        let withLast = oldStats.replacingOccurrences(of: "\"streakDays\":3,", with: "\"streakDays\":3,\"lastCompletionDate\":0,")
+        let seeded = try JSONDecoder().decode(Stats.self, from: Data(withLast.utf8))
+        XCTAssertEqual(seeded.solvedDays, [Date(timeIntervalSinceReferenceDate: 0)], "the last solve day starts the week")
 
         for level in ["easy", "medium", "hard"] {
             XCTAssertEqual(try JSONDecoder().decode(Difficulty.self, from: Data("\"\(level)\"".utf8)).rawValue, level)

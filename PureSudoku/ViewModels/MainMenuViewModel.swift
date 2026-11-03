@@ -33,6 +33,13 @@ final class MainMenuViewModel: ObservableObject {
     /// The game the Continue card resumes.
     var continueGame: GameState? { controller.continueGame }
 
+    /// True if the saved game at `level` is unfinished and the player has entered something, so a
+    /// new puzzle would replace real progress (CODESPEC 3.1).
+    func hasUnfinishedEntries(at level: Difficulty) -> Bool {
+        guard let game = controller.activeGames[level], !game.isCompleted else { return false }
+        return game.cells.contains { !$0.given && ($0.value != nil || !$0.candidates.isEmpty) }
+    }
+
     /// A level always starts a new puzzle (Design/v2/README.md, Home).
     func startNewGame(for difficulty: Difficulty) async -> GameViewModel {
         await controller.startNewGame(for: difficulty)

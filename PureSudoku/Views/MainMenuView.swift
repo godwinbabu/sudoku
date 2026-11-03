@@ -16,7 +16,8 @@ struct MainMenuView: View {
         switch tab {
         case .play: PlayTab(viewModel: viewModel, tab: $tab)
         case .learn: RootStack(tab: $tab) { LearnView().tabBar($tab) }
-        case .journal: RootStack(tab: $tab) { JournalView(viewModel: StatsViewModel(controller: controller)).tabBar($tab) }
+        case .journal: RootStack(tab: $tab) { JournalView(viewModel: StatsViewModel(controller: controller),
+                                                            settings: SettingsViewModel(controller: controller)).tabBar($tab) }
         }
     }
 }
@@ -150,6 +151,7 @@ struct PSTabBar: View {
                 Button { selection = item } label: {
                     VStack(spacing: 4) {
                         Image(systemName: item.symbol).font(.system(size: 21, weight: on ? .semibold : .regular))
+                            .accessibilityHidden(true) // the label names the tab once
                         Text(item.title).font(.system(size: 11, weight: on ? .semibold : .medium))
                     }
                     .foregroundColor(on ? theme.accent : theme.ink3)

@@ -33,14 +33,22 @@ final class StatsViewModel: ObservableObject {
     func streak(at date: Date = Date()) -> Int { stats.currentStreak(at: date) }
 
     /// This week, Monday first: (initial, solved that day).
-    func week(at date: Date = Date(), calendar: Calendar = .current) -> [(day: String, solved: Bool)] {
+    /// One day of the Journal week: the letter shown, the full name for VoiceOver.
+    struct WeekDay {
+        let day: String
+        let name: String
+        let solved: Bool
+    }
+
+    func week(at date: Date = Date(), calendar: Calendar = .current) -> [WeekDay] {
         var monday = Calendar(identifier: .gregorian)
         monday.timeZone = calendar.timeZone
         monday.firstWeekday = 2
         guard let start = monday.dateInterval(of: .weekOfYear, for: date)?.start else { return [] }
-        return ["M", "T", "W", "T", "F", "S", "S"].enumerated().map { offset, initial in
+        let names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        return names.enumerated().map { offset, name in
             let day = monday.date(byAdding: .day, value: offset, to: start) ?? start
-            return (initial, stats.solved(on: day, calendar: calendar))
+            return WeekDay(day: String(name.prefix(1)), name: name, solved: stats.solved(on: day, calendar: calendar))
         }
     }
 
@@ -55,6 +63,14 @@ final class StatsViewModel: ObservableObject {
     func solvedText(for difficulty: Difficulty) -> String {
         let count = stats.solvedCount(for: difficulty)
         return count == 0 ? "—" : "\(count)"
+    }
+
+    /// "Expert: 3 solved, best 4:12, typical 5:00", with "none yet" for missing values.
+    func rowLabel(for difficulty: Difficulty) -> String {
+        let count = stats.solvedCount(for: difficulty)
+        let best = stats.bestTime(for: difficulty).map(Self.format) ?? "none yet"
+        let typical = stats.typicalTime(for: difficulty).map(Self.format) ?? "none yet"
+        return "\(difficulty.displayName): \(count == 0 ? "none" : "\(count)") solved, best \(best), typical \(typical)"
     }
 
     var assistedLine: String {

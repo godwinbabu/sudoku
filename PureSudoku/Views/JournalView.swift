@@ -6,13 +6,16 @@ struct JournalView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
     @StateObject private var viewModel: StatsViewModel
+    @StateObject private var settingsModel: SettingsViewModel
+    @State private var confirmsClear = false
 
-    init(viewModel: StatsViewModel) {
+    init(viewModel: StatsViewModel, settings: SettingsViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
+        _settingsModel = StateObject(wrappedValue: settings)
     }
 
     var body: some View {
-        let settings = controller.settings
+        let settings = settingsModel.settings
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
                 ScreenHead(title: "Journal")
@@ -48,6 +51,16 @@ struct JournalView: View {
             }
             .padding(.bottom, 24)
         }
+        .overlay {
+            if confirmsClear {
+                ConfirmPanel(theme: theme, title: "Clear all import photos?",
+                             message: "Your imported puzzles stay; only their photos are removed from this iPhone.",
+                             cancel: "Cancel", confirm: "Clear", onCancel: { confirmsClear = false }, onDismiss: { confirmsClear = false }, onConfirm: {
+                    settingsModel.clearImportedImages()
+                    confirmsClear = false
+                })
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("journalView")
     }
@@ -74,7 +87,7 @@ struct JournalView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(item.day) \(item.solved ? "solved" : "not solved")")
+                    .accessibilityLabel("\(item.name), \(item.solved ? "solved" : "not solved")")
                 }
             }
             .padding(.bottom, 4)
@@ -90,6 +103,7 @@ struct JournalView: View {
             ForEach(Difficulty.allCases) { level in
                 tableRow(level.displayName, viewModel.solvedText(for: level),
                          viewModel.formattedBestTime(for: level), viewModel.formattedTypicalTime(for: level))
+                    .accessibilityLabel(viewModel.rowLabel(for: level))
                     .accessibilityIdentifier("journal_row_\(level.rawValue)")
             }
             VStack(alignment: .leading, spacing: 4) {
@@ -125,21 +139,19 @@ struct JournalView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Show mistakes").font(.system(size: 16)).foregroundColor(theme.ink)
                 PSSegmented(theme: theme, options: MistakeMode.allCases.map { ($0, $0.displayName) }, selection: settings.mistakes,
-                            idPrefix: "journal_mistakes_") { mode in controller.updateSettings { $0.mistakes = mode } }
+                            idPrefix: "journal_mistakes_", onSelect: settingsModel.setMistakes)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
             SettingRow(theme: theme, label: "Tidy notes", sub: "Placing a digit removes it from notes in the same row, column and box.") {
-                PSToggle(theme: theme, isOn: settings.tidyNotes, label: "Tidy notes") { on in
-                    controller.updateSettings { $0.tidyNotes = on }
-                }
+                PSToggle(theme: theme, isOn: settings.tidyNotes, label: "Tidy notes", onChange: settingsModel.setTidyNotes)
                     .accessibilityIdentifier("journal_tidyNotes")
             }
             VStack(alignment: .leading, spacing: 10) {
                 Text("Cell names in hints").font(.system(size: 16)).foregroundColor(theme.ink)
                 PSSegmented(theme: theme, options: CellNotation.allCases.map { ($0, $0.displayName) }, selection: settings.notation,
-                            idPrefix: "journal_notation_") { names in controller.updateSettings { $0.notation = names } }
+                            idPrefix: "journal_notation_", onSelect: settingsModel.setNotation)
                 Text(settings.notation == .grid ? "Short grid codes: R for row, C for column, B for box." : "Written out in words.")
                     .font(.system(size: 13)).foregroundColor(theme.ink3)
             }
@@ -147,9 +159,7 @@ struct JournalView: View {
             .padding(.vertical, 12)
             .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
             SettingRow(theme: theme, label: "Show timer", last: true) {
-                PSToggle(theme: theme, isOn: settings.showTimer, label: "Show timer") { on in
-                    controller.updateSettings { $0.showTimer = on }
-                }
+                PSToggle(theme: theme, isOn: settings.showTimer, label: "Show timer", onChange: settingsModel.setShowTimer)
                     .accessibilityIdentifier("journal_showTimer")
             }
         }
@@ -159,13 +169,12 @@ struct JournalView: View {
     private func imports(_ settings: Settings) -> some View {
         PSCard(theme: theme) {
             SettingRow(theme: theme, label: "Keep import photos", sub: "Saved on this iPhone with the puzzle.") {
-                PSToggle(theme: theme, isOn: settings.keepImportImages, label: "Keep import photos") { on in
-                    controller.updateSettings { $0.keepImportImages = on }
-                }
+                PSToggle(theme: theme, isOn: settings.keepImportImages, label: "Keep import photos",
+                         onChange: settingsModel.setKeepImportImages)
                 .accessibilityIdentifier("journal_keepImages")
             }
             SettingRow(theme: theme, label: "Imported photos", last: true) {
-                LinkButton(theme: theme, title: "Clear") { controller.clearImportedImages() }
+                LinkButton(theme: theme, title: "Clear") { confirmsClear = true }
                     .accessibilityIdentifier("journal_clearImages")
             }
         }

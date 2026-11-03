@@ -120,7 +120,8 @@ struct Stats: Codable, Equatable {
         totalTimeSeconds = try container.decode(Int.self, forKey: .totalTimeSeconds)
         solveTimes = try container.decodeIfPresent([Difficulty: [Int]].self, forKey: .solveTimes) ?? [:]
         assistedSolves = try container.decodeIfPresent(Int.self, forKey: .assistedSolves) ?? 0
-        solvedDays = try container.decodeIfPresent([Date].self, forKey: .solvedDays) ?? []
+        // Files from before the Journal week know only the last solve day; start the week from it.
+        solvedDays = try container.decodeIfPresent([Date].self, forKey: .solvedDays) ?? (lastCompletionDate.map { [$0] } ?? [])
     }
 
     func encode(to encoder: Encoder) throws {

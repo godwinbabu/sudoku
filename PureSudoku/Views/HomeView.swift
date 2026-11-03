@@ -11,6 +11,7 @@ struct HomeView: View {
     let onImport: () -> Void
     let onOpenImport: (ImportedGame) -> Void
     @State private var deleting: ImportedGame?
+    @State private var replacing: Difficulty?
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -31,7 +32,7 @@ struct HomeView: View {
             }
             .padding(.bottom, 24)
         }
-        .overlay { deleteConfirmation }
+        .overlay { confirmation }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("homeView")
     }
@@ -78,7 +79,10 @@ struct HomeView: View {
     private var levels: some View {
         VStack(spacing: 0) {
             ForEach(Difficulty.allCases) { level in
-                Button { onNew(level) } label: {
+                Button {
+                    // A level starts a new puzzle; an unfinished game there is never replaced silently.
+                    if viewModel.hasUnfinishedEntries(at: level) { replacing = level } else { onNew(level) }
+                } label: {
                     HStack(spacing: 14) {
                         TierGlyph(lit: level.rank, theme: theme)
                         VStack(alignment: .leading, spacing: 2) {
@@ -162,38 +166,67 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private var deleteConfirmation: some View {
+    private var confirmation: some View {
         if let imported = deleting {
-            ZStack {
-                Color.black.opacity(theme.isNight ? 0.55 : 0.18)
-                    .ignoresSafeArea()
-                    .onTapGesture { deleting = nil }
-                PopoverCard(theme: theme) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Delete this import?").font(.system(size: 17, weight: .semibold)).foregroundColor(theme.ink)
-                        Text("Its progress and photo are removed from this iPhone.").font(.system(size: 15)).foregroundColor(theme.ink2)
-                        HStack(spacing: 10) {
-                            Spacer()
-                            Button("Cancel") { deleting = nil }
-                                .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
-                                .accessibilityIdentifier("confirm_cancel")
-                            Button("Delete") {
-                                controller.deleteImportedGame(id: imported.id)
-                                deleting = nil
-                            }
+            ConfirmPanel(theme: theme, title: "Delete this import?", message: "Its progress and photo are removed from this iPhone.",
+                         cancel: "Cancel", confirm: "Delete", onCancel: { deleting = nil }, onDismiss: { deleting = nil }, onConfirm: {
+                controller.deleteImportedGame(id: imported.id)
+                deleting = nil
+            })
+        } else if let level = replacing {
+            ConfirmPanel(theme: theme, title: "Replace your unfinished \(level.displayName) game?",
+                         message: "A new puzzle takes its place. Continue to finish it first.",
+                         cancel: "Continue", confirm: "New", cancelID: "confirm_continue",
+                         onCancel: { replacing = nil; onContinue(level) }, onDismiss: { replacing = nil }, onConfirm: {
+                replacing = nil
+                onNew(level)
+            })
+        }
+    }
+}
+
+/// A custom confirmation over a dimmed screen, never a system alert, which could render light at
+/// night (CODESPEC 12.4). Tapping the backdrop dismisses it.
+struct ConfirmPanel: View {
+    let theme: PSPalette
+    let title: String
+    let message: String
+    let cancel: String
+    let confirm: String
+    var cancelID = "confirm_cancel"
+    let onCancel: () -> Void
+    let onDismiss: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(theme.isNight ? 0.55 : 0.18)
+                .ignoresSafeArea()
+                .onTapGesture(perform: onDismiss)
+            PopoverCard(theme: theme) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(.system(size: 17, weight: .semibold)).foregroundColor(theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(message).font(.system(size: 15)).foregroundColor(theme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 10) {
+                        Spacer()
+                        Button(cancel, action: onCancel)
+                            .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
+                            .accessibilityIdentifier(cancelID)
+                        Button(confirm, action: onConfirm)
                             .buttonStyle(PSButtonStyle(theme: theme))
                             .accessibilityIdentifier("confirm_action")
-                        }
-                        .padding(.top, 10)
                     }
-                    .padding(16)
+                    .padding(.top, 10)
                 }
-                .frame(maxWidth: 320)
-                .padding(.horizontal, 24)
-                .accessibilityElement(children: .contain)
-                .accessibilityAddTraits(.isModal)
-                .accessibilityIdentifier("confirmDialog")
+                .padding(16)
             }
+            .frame(maxWidth: 320)
+            .padding(.horizontal, 24)
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
+            .accessibilityIdentifier("confirmDialog")
         }
     }
 }

@@ -67,7 +67,7 @@ final class PureSudokuUITests: XCTestCase {
         let app = launchApp()
         let expert = app.buttons["difficulty_expert"]
         XCTAssertTrue(expert.waitForExistence(timeout: 2))
-        expert.tap()
+        startLevel("expert", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["EXPERT"].exists, "the header names the level")
         XCTAssertFalse(app.buttons["tab_play"].exists, "the game covers the tab bar")
@@ -92,7 +92,7 @@ final class PureSudokuUITests: XCTestCase {
 
     func testStartingGameShowsGridAndAllowsEntry() {
         let app = launchApp()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         let cell = firstEmptyCell(in: app)
         cell.tap()
@@ -102,7 +102,7 @@ final class PureSudokuUITests: XCTestCase {
 
     func testCandidateModeAndReset() {
         let app = launchApp()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         let cell = firstEmptyCell(in: app)
         cell.tap()
         app.buttons["tool_notes"].tap()
@@ -116,7 +116,7 @@ final class PureSudokuUITests: XCTestCase {
 
     func testPauseAndResumeShowsOverlay() {
         let app = launchApp()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         app.buttons["timerToggle"].tap()
         XCTAssertTrue(element("pauseOverlay", in: app).waitForExistence(timeout: 2))
@@ -129,7 +129,7 @@ final class PureSudokuUITests: XCTestCase {
     /// A two-finger tap anywhere in a game hushes the screen; a tap brings it back (CODESPEC 12.7).
     func testTwoFingerTapShowsHush() {
         let app = launchApp()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         let game = element("gameView", in: app)
         XCTAssertTrue(game.waitForExistence(timeout: 2))
         game.twoFingerTap()
@@ -142,7 +142,7 @@ final class PureSudokuUITests: XCTestCase {
 
     func testNotesBadgeToggles() {
         let app = launchApp()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         let notes = app.buttons["tool_notes"]
         XCTAssertTrue(notes.waitForExistence(timeout: 2))
         XCTAssertEqual(notes.value as? String, "Off")
@@ -157,7 +157,7 @@ final class PureSudokuUITests: XCTestCase {
     /// The tools and keypad stay in place while the card is open.
     func testHintLadderAppliesAndUndoes() {
         let app = launchApp()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         let filled = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' value '"))
         let filledBefore = filled.count
@@ -193,7 +193,7 @@ final class PureSudokuUITests: XCTestCase {
     /// A digit that repeats in the row is always wrong; the hint must point at it first and clear it.
     func testMistakeHintClearsTheWrongDigit() {
         let app = launchApp()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         let cell = firstEmptyCell(in: app)
         let row = cell.identifier.split(separator: "_")[1]
@@ -218,6 +218,18 @@ final class PureSudokuUITests: XCTestCase {
         clear.tap()
         XCTAssertFalse(element("hintPanel", in: app).exists)
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
+    }
+
+    /// Taps a level on Home. A game left unfinished by an earlier test asks first; take New.
+    private func startLevel(_ level: String, in app: XCUIApplication) {
+        app.buttons["difficulty_\(level)"].tap()
+        let replace = app.buttons["confirm_action"]
+        if replace.waitForExistence(timeout: 1), element("confirmDialog", in: app).exists { replace.tap() }
+    }
+
+    /// Every cell's label, in reading order.
+    private func boardLabels(in app: XCUIApplication) -> [String] {
+        (0..<9).flatMap { row in (0..<9).map { app.buttons["cell_\(row)_\($0)"].label } }
     }
 
     /// Journal → Display & Night, then Night from the moon and a game in Night (CODESPEC 12).
@@ -245,34 +257,10 @@ final class PureSudokuUITests: XCTestCase {
         if let original { _ = setAppearance(original, in: app) } // leave the app as found
     }
 
-    /// The Assists settings live in Journal; Show timer off hides the game timer (CODESPEC 3.3).
-    func testJournalShowTimerHidesTheTimer() {
-        let app = launchApp()
-        app.buttons["tab_journal"].tap()
-        let timer = app.buttons["journal_showTimer"]
-        XCTAssertTrue(timer.waitForExistence(timeout: 2))
-        for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
-        XCTAssertTrue(app.buttons["journal_mistakes_never"].exists)
-        XCTAssertTrue(app.buttons["journal_notation_grid"].exists)
-        let wasOn = timer.value as? String == "On"
-        if !wasOn { timer.tap() }
-        XCTAssertTrue(gameShowsTimer(in: app), "Show timer on: the game shows it")
-        app.buttons["tab_journal"].tap()
-        for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
-        timer.tap()
-        XCTAssertEqual(timer.value as? String, "Off")
-        XCTAssertFalse(gameShowsTimer(in: app), "Show timer off: no timer")
-        if wasOn {
-            app.buttons["tab_journal"].tap()
-            for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
-            timer.tap() // leave the app as found
-        }
-    }
-
     /// Opens an Easy game from Home, checks for the timer, and goes back.
     private func gameShowsTimer(in app: XCUIApplication) -> Bool {
         app.buttons["tab_play"].tap()
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
         let shows = element("timerLabel", in: app).waitForExistence(timeout: 1)
         app.buttons["backButton"].tap()
@@ -304,7 +292,7 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["night_close"].tap()
         XCTAssertTrue(waitForAbsence(sheet), "× closes the sheet")
 
-        app.buttons["difficulty_easy"].tap()
+        startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         let gameMoon = app.buttons["nightButton"]
         XCTAssertTrue(waitUntilHittable(gameMoon))
@@ -433,5 +421,90 @@ final class PureSudokuUITests: XCTestCase {
         attachment.name = "hint-" + name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+}
+
+// Phase 5 flows: replace, lesson round trip, Journal timer.
+extension PureSudokuUITests {
+    /// A level with an unfinished game asks before replacing it: Continue resumes it, New starts over.
+    func testLevelAsksBeforeReplacingAnUnfinishedGame() {
+        let app = launchApp()
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        let cell = firstEmptyCell(in: app)
+        let id = cell.identifier
+        cell.tap()
+        app.buttons["number_1"].tap()
+        let board = boardLabels(in: app)
+        app.buttons["backButton"].tap()
+
+        app.buttons["difficulty_easy"].tap()
+        let dialog = element("confirmDialog", in: app)
+        XCTAssertTrue(dialog.waitForExistence(timeout: 2), "asks first")
+        XCTAssertTrue(app.staticTexts["Replace your unfinished Easy game?"].exists)
+        app.buttons["confirm_continue"].tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons[id].label.hasSuffix("value 1"), "Continue resumes the same game")
+        app.buttons["backButton"].tap()
+
+        app.buttons["difficulty_easy"].tap()
+        XCTAssertTrue(dialog.waitForExistence(timeout: 2))
+        app.buttons["confirm_action"].tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        XCTAssertNotEqual(boardLabels(in: app), board, "New starts a different puzzle")
+        app.buttons["backButton"].tap()
+
+        app.buttons["difficulty_easy"].tap() // nothing entered yet: no question
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        XCTAssertFalse(dialog.exists)
+    }
+
+    /// Hint → Lesson → Back returns to the same game, and its timer runs again.
+    func testHintLessonReturnsToTheSameGame() {
+        let app = launchApp()
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        let board = boardLabels(in: app) // no entry: a wrong one would make the hint a mistake card
+        app.buttons["tool_hint"].tap()
+        XCTAssertTrue(app.buttons["hint_next"].waitForExistence(timeout: 2))
+        app.buttons["hint_next"].tap()
+        let lesson = app.buttons["hint_lesson"]
+        XCTAssertTrue(lesson.waitForExistence(timeout: 2))
+        lesson.tap()
+        XCTAssertTrue(element("lessonBoard", in: app).waitForExistence(timeout: 5), "the lesson is pushed")
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 3))
+        app.buttons["hint_close"].tap()
+        XCTAssertEqual(boardLabels(in: app), board, "the same game")
+        let timer = element("timerLabel", in: app)
+        XCTAssertTrue(timer.waitForExistence(timeout: 2))
+        let before = timer.label
+        let ticked = NSPredicate(format: "label != %@", before)
+        XCTAssertEqual(XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: ticked, object: timer)], timeout: 4), .completed,
+                       "the timer runs again")
+    }
+
+    /// The Assists settings live in Journal; Show timer off hides the game timer (CODESPEC 3.3).
+    func testJournalShowTimerHidesTheTimer() {
+        let app = launchApp()
+        app.buttons["tab_journal"].tap()
+        let timer = app.buttons["journal_showTimer"]
+        XCTAssertTrue(timer.waitForExistence(timeout: 2))
+        for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
+        XCTAssertTrue(app.buttons["journal_mistakes_never"].exists)
+        XCTAssertTrue(app.buttons["journal_notation_grid"].exists)
+        let wasOn = timer.value as? String == "On"
+        if !wasOn { timer.tap() }
+        XCTAssertTrue(gameShowsTimer(in: app), "Show timer on: the game shows it")
+        app.buttons["tab_journal"].tap()
+        for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
+        timer.tap()
+        XCTAssertEqual(timer.value as? String, "Off")
+        XCTAssertFalse(gameShowsTimer(in: app), "Show timer off: no timer")
+        if wasOn {
+            app.buttons["tab_journal"].tap()
+            for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
+            timer.tap() // leave the app as found
+        }
     }
 }
