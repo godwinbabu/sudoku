@@ -44,6 +44,7 @@
 		0000000000000000000000E3 /* LearnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E2 /* LearnView.swift */; };
 		00000000000000000000005C /* SudokuGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000027 /* SudokuGridView.swift */; };
 		00000000000000000000005D /* NumberPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* NumberPadView.swift */; };
+		0000000000000000000000E7 /* GameChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E6 /* GameChrome.swift */; };
 		00000000000000000000005E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SettingsView.swift */; };
 		00000000000000000000005F /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* StatsView.swift */; };
 		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
@@ -141,6 +142,7 @@
 		0000000000000000000000E2 /* LearnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearnView.swift; sourceTree = "<group>"; };
 		000000000000000000000027 /* SudokuGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGridView.swift; sourceTree = "<group>"; };
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
+		0000000000000000000000E6 /* GameChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameChrome.swift; sourceTree = "<group>"; };
 		000000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		00000000000000000000002A /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
@@ -310,6 +312,7 @@
 				0000000000000000000000E2 /* LearnView.swift */,
 				000000000000000000000027 /* SudokuGridView.swift */,
 				000000000000000000000028 /* NumberPadView.swift */,
+				0000000000000000000000E6 /* GameChrome.swift */,
 				000000000000000000000029 /* SettingsView.swift */,
 				00000000000000000000002A /* StatsView.swift */,
 				0000000000000000000000A5 /* ImportPuzzleView.swift */,
@@ -591,6 +594,7 @@
 				0000000000000000000000E3 /* LearnView.swift in Sources */,
 				00000000000000000000005C /* SudokuGridView.swift in Sources */,
 				00000000000000000000005D /* NumberPadView.swift in Sources */,
+				0000000000000000000000E7 /* GameChrome.swift in Sources */,
 				00000000000000000000005E /* SettingsView.swift in Sources */,
 				00000000000000000000005F /* StatsView.swift in Sources */,
 				00000000000000000000009C /* ImportPuzzleView.swift in Sources */,

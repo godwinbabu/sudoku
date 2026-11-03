@@ -18,6 +18,41 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.cells.first(where: { $0.id == cell.id })?.candidates.isEmpty ?? false)
     }
 
+    /// The keypad count drops as a digit is placed; at zero its key is disabled.
+    func testCompletedDigitKeyIsDisabled() {
+        let viewModel = makeViewModel()
+        let solution = Array(viewModel.state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
+        let digit = 5
+        let missing = viewModel.state.cells.filter { !$0.given && solution[$0.index] == digit }
+        XCTAssertEqual(viewModel.remaining[digit], missing.count)
+        XCTAssertFalse(viewModel.disabledDigits.contains(digit))
+        for cell in missing {
+            viewModel.select(cell: cell)
+            viewModel.setDigit(digit)
+        }
+        XCTAssertEqual(viewModel.remaining[digit], 0)
+        XCTAssertEqual(viewModel.disabledDigits, [digit])
+    }
+
+    func testFillAllNotesIsOneUndo() {
+        let viewModel = makeViewModel()
+        viewModel.fillAllNotes()
+        let solution = Array(viewModel.state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
+        for cell in viewModel.state.cells where cell.value == nil {
+            XCTAssertTrue(cell.candidates.contains(solution[cell.index]), "notes keep the answer")
+            let peerValues = Set(Board.peers[cell.index].compactMap { viewModel.state.cells[$0].value })
+            XCTAssertTrue(cell.candidates.isDisjoint(with: peerValues), "notes skip digits a peer holds")
+        }
+        viewModel.undo()
+        XCTAssertTrue(viewModel.state.cells.allSatisfy { $0.candidates.isEmpty })
+    }
+
+    func testTechniqueCountsCoverTheGrid() {
+        let counts = makeViewModel().techniqueCounts()
+        XCTAssertFalse(counts.isEmpty)
+        XCTAssertEqual(counts.map(\.count), counts.map(\.count).sorted(by: >), "most used first")
+    }
+
     func testCandidateModeToggles() {
         let viewModel = makeViewModel()
         guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }

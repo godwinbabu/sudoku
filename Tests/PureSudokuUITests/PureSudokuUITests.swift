@@ -57,12 +57,12 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["difficulty_easy"].tap()
         let cell = firstEmptyCell(in: app)
         cell.tap()
-        app.buttons["mode_candidate"].tap()
+        app.buttons["tool_notes"].tap()
         app.buttons["number_2"].tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "candidates 2", in: app), cell.label)
-        app.buttons["gameMenuButton"].tap()
-        app.buttons["Reset Puzzle"].tap()
-        app.buttons["Confirm"].tap()
+        app.buttons["moreButton"].tap()
+        app.buttons["menu_restart"].tap()
+        app.buttons["confirm_action"].tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
 
@@ -79,6 +79,35 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(element("pauseOverlay", in: app).waitForExistence(timeout: 2))
     }
 
+    /// A two-finger tap anywhere in a game hushes the screen; a tap brings it back (CODESPEC 12.7).
+    func testTwoFingerTapShowsHush() {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons["difficulty_easy"].tap()
+        let game = element("gameView", in: app)
+        XCTAssertTrue(game.waitForExistence(timeout: 2))
+        game.twoFingerTap()
+        let hush = element("hushView", in: app)
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        hush.tap()
+        XCTAssertTrue(app.buttons["tool_notes"].waitForExistence(timeout: 2))
+        XCTAssertFalse(hush.exists)
+    }
+
+    func testNotesBadgeToggles() {
+        let app = XCUIApplication()
+        app.launch()
+        app.buttons["difficulty_easy"].tap()
+        let notes = app.buttons["tool_notes"]
+        XCTAssertTrue(notes.waitForExistence(timeout: 2))
+        XCTAssertEqual(notes.value as? String, "Off")
+        notes.tap()
+        XCTAssertEqual(notes.value as? String, "On")
+        XCTAssertTrue(app.staticTexts["Notes on — digits go in as pencil marks"].exists)
+        notes.tap()
+        XCTAssertEqual(notes.value as? String, "Off")
+    }
+
     /// Hint ladder end to end: name → where → why → ask → result → Apply → Undo (CODESPEC 6.3.1).
     func testHintLadderAppliesAndUndoes() {
         let app = XCUIApplication()
@@ -88,7 +117,7 @@ final class PureSudokuUITests: XCTestCase {
         let filled = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' value '"))
         let filledBefore = filled.count
 
-        app.buttons["action_Hint"].tap()
+        app.buttons["tool_hint"].tap()
         XCTAssertTrue(element("hintPanel", in: app).waitForExistence(timeout: 2))
         // A technique the player hasn't met opens at "why" (CODESPEC 6.3.1 fading); step on to the end.
         var rung = 1
@@ -106,7 +135,7 @@ final class PureSudokuUITests: XCTestCase {
 
         XCTAssertFalse(element("hintPanel", in: app).exists)
         XCTAssertGreaterThan(filled.count, filledBefore, "Apply placed the hinted digit")
-        app.buttons["mode_undo"].tap()
+        app.buttons["tool_undo"].tap()
         XCTAssertEqual(filled.count, filledBefore, "one Undo reverts the hint")
     }
 
@@ -128,7 +157,7 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["number_\(digit)"].tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "value \(digit)", in: app))
 
-        app.buttons["action_Hint"].tap()
+        app.buttons["tool_hint"].tap()
         XCTAssertTrue(app.buttons["hint_undo"].waitForExistence(timeout: 2))
         app.buttons["hint_undo"].tap()
         XCTAssertFalse(element("hintPanel", in: app).exists)

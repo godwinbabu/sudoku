@@ -225,42 +225,41 @@ Testing requirements:
 	•	Tap Easy and verify that a game view appears and shows a grid of 9×9 cells.
 
 3.2 Game Screen
-	•	SwiftUI view: GameView
-	•	Shows:
-	•	Top bar:
-	•	Back button (to main).
-	•	Difficulty label.
-	•	Timer display.
-	•	Sudoku grid (9×9), with:
-	•	Bold lines between 3×3 blocks.
-	•	Cells:
-	•	Given numbers in one style.
-	•	User-entered numbers in another.
-	•	Number pad (digits 1–9) at bottom (thumb-friendly).
-	•	Mode toggle: Normal / Notes (Candidate mode).
-	•	Action buttons (can be toolbar or menu, preferably near bottom for ergonomics):
-	•	Hint (opens the hint panel, Section 6.3)
-	•	Check Cell
-	•	Check Puzzle
-	•	Reveal Cell
-	•	Reveal Puzzle
-	•	Reset Puzzle
-	•	New Puzzle
+	•	SwiftUI view: GameView. Layout and sizes: Design/v2/README.md, “Game”.
+	•	From top to bottom:
+	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (switches Day and Night until the Night sheet ships); More.
+	•	Board: 3×3 boxes on a lineMajor ground, each 3×3 cells on a line ground. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
+	•	Hint slot (124 pt): always reserved, so nothing moves. It says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house.
+	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint.
+	•	Keypad: 1×9. Each key shows how many of its digit are left. A digit with none left fades to 28% and is disabled. In Notes mode each key shows its digit small, at its pencil-mark position.
+	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen.
+	•	Fill all notes writes, in every empty cell, the digits its row, column and box still allow. One Undo reverts it.
+	•	Restart puzzle asks first, with a custom confirmation styled like the menu.
+	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops.
+	•	Hush: a two-finger tap anywhere, or the More menu, pauses the game and shows pure black. “Tap anywhere to return” fades out after about 3.5 s. Any tap returns and resumes.
+	•	Solved: the board fades to 30% over 600 ms. Over it: “Solved.”, the level, time and hint count, an “Assisted” note when a hint showed its result, and the techniques the grid needs (from the logical solver). Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
+	•	Goodnight: pure black with “Sleep well.” fading out. A tap returns to the main menu.
+	•	In a Night game the status bar is hidden (hideStatusBarInGames) and the home indicator auto-hides.
 	•	Interaction:
 	•	Tap a cell to select it.
 	•	Tap a number to either:
-	•	Fill value (Normal mode).
-	•	Toggle candidate (Notes mode).
+	•	Fill value (Notes off).
+	•	Toggle candidate (Notes on).
 	•	Hint panel (phase 3):
-	•	A bottom sheet over the number pad. The whole grid stays visible above it.
-	•	Its buttons (Back, Next, Apply, Done) sit in thumb reach at the bottom.
-	•	While it is open, the grid shows the hint’s highlights (Section 7.3).
+	•	Until the graduated hint card ships, the hint panel replaces the hint slot, tools and keypad while it is open. The whole grid stays visible above it.
+	•	While it is open, the grid shows the hint’s marks (Section 7.3).
+	•	Check Cell, Reveal Puzzle and the in-game New Puzzle button are not on the v2 game screen. Their GameViewModel behaviour (Sections 6.1, 6.4, 6.6) stays.
 
 Testing requirements:
 	•	UI tests:
 	•	Start an Easy game, tap a cell, tap a number; verify the cell displays that number.
 	•	Toggle Notes mode, tap another cell, tap a number; verify smaller candidate text appears in that cell.
-	•	Tap Reset Puzzle and verify that user-entered values and candidates are cleared.
+	•	Restart the puzzle from the More menu and verify that user-entered values and candidates are cleared.
+	•	The Notes badge reads Off, then On, then Off.
+	•	A two-finger tap shows Hush; a tap returns.
+	•	Unit tests:
+	•	A digit's keypad count drops as it is placed; at zero its key is disabled.
+	•	Fill all notes keeps each cell's answer, skips digits a peer holds, and is one Undo.
 
 3.3 Settings & Stats Screen
 	•	SwiftUI view: SettingsView and StatsView (can be separate or combined).
@@ -459,7 +458,7 @@ Testing requirements:
 	•	usedReveal == true, isCompleted == true.
 
 6.5 Reset Puzzle (Restart Same Puzzle)
-	•	Confirmation dialog.
+	•	“Restart puzzle” in the More menu. A custom confirmation, never a system dialog (Section 12.4).
 	•	On confirm:
 	•	Reset cells to initial puzzle state.
 	•	elapsedSeconds = 0.
@@ -474,7 +473,7 @@ Testing requirements:
 	•	Timer reset.
 
 6.6 New Puzzle (Same Difficulty)
-	•	Confirmation dialog.
+	•	“Another” on the Solved panel. The puzzle is already solved, so it does not ask first.
 	•	On confirm:
 	•	Load a new SudokuPuzzle of the same difficulty.
 	•	Create fresh GameState.
@@ -540,8 +539,14 @@ enum Appearance: String, Codable {
 	•	Duplicate entry:
 	•	With Show mistakes set to Right away:
 	•	Immediately mark conflicting cells as error (error marker, see 7.2).
+	•	Cell states (Design/v2/README.md, “Cell states”):
+	•	Given: ink, given weight. Entered: accent, entered weight.
+	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill.
+	•	Mistake: err digit plus a 2 pt err bar under it (120% of its width).
+	•	Notes: 3×3 at cell × 0.25; a note matching the selected digit is bold accent.
+	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit on the target, a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
 	•	Hint highlights (phase 3):
-	•	Fade in slowly (about 0.3 s). Never blink or pulse.
+	•	Fade in (about 0.15 s). Never blink or pulse.
 	•	Stay until the player moves to another rung or closes the panel.
 
 Testing requirements:
@@ -678,12 +683,11 @@ Testing requirements:
 	•	MainMenuView.swift
 	•	GameView.swift
 	•	SudokuGridView.swift
-	•	CellView.swift
 	•	NumberPadView.swift
+	•	GameChrome.swift (tools, More menu, Solved panel, Hush and Goodnight)
 	•	SettingsView.swift
 	•	StatsView.swift
 	•	HintPanelView.swift (phase 3)
-	•	DisplayCalibrationView.swift (phase 3)
 	•	LearnView.swift, LessonView.swift (phase 5)
 	•	Persistence/
 	•	PersistenceManager.swift (or similar).
@@ -769,13 +773,11 @@ Testing requirements:
 	•	Use only subtle fades/scale where necessary (e.g. presenting menus).
 	•	Errors / conflicts:
 	•	Error indication must be subtle:
-	•	Use a small red outline or corner marker.
+	•	Use the err colour plus an underline bar under the digit.
 	•	No large full-screen flashes.
 	•	No rapid blinking.
 	•	Dialogs:
-	•	Confirmation dialogs (Reset, New Puzzle, Reveal Puzzle) should:
-	•	Reuse a dark/sleep palette in Sleep mode.
-	•	Not flash bright backgrounds.
+	•	Confirmations (Restart) are custom popovers in the app palette, never system dialogs, so they cannot render light at night.
 	•	Hint panel and lessons (phase 3 onward):
 	•	Highlights fade in slowly; nothing blinks.
 	•	The panel never advances on its own. Every step waits for a tap.
@@ -796,9 +798,9 @@ Testing requirements:
 Design with thumb-only use in mind:
 	•	Layout:
 	•	Sudoku grid centered, but main controls near the bottom of the screen:
-	•	Number pad at bottom edge.
-	•	Mode toggle (Normal / Notes) adjacent to number pad.
-	•	Common actions (Hint, Check, Reset) in a bottom toolbar or easily reachable area.
+	•	Keypad at the bottom edge.
+	•	Tools (Undo, Erase, Notes, Hint) just above it.
+	•	Less common actions (Check puzzle, Fill all notes, Restart, Hush) in the More menu.
 	•	Hint panel buttons (Back, Next, Apply, Done) in the bottom thumb zone.
 	•	Tap targets:
 	•	Minimum hit size ~44×44 points for all interactive elements (Apple HIG).
@@ -831,7 +833,8 @@ Testing requirements:
 	•	Ensure no modal dialog appears on resume unless absolutely necessary.
 
 12.7 Night shortcut and silence
-	•	Bedtime Mode is replaced by Night (Section 7.1). A toggle on the main menu switches between Day and Night.
+	•	Bedtime Mode is replaced by Night (Section 7.1). A toggle on the main menu, and the moon in the game header, switch between Day and Night.
+	•	Hush and Goodnight (Section 3.2) go to pure black in one tap.
 	•	When Night is active:
 	•	Sounds and haptics are off at runtime, whatever the saved settings say (the saved choice is kept for Day).
 	•	Force dark appearance for every screen, including sheets the app presents. Avoid system views that cannot be themed dark (they flash white).

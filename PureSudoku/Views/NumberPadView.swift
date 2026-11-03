@@ -1,54 +1,71 @@
 import SwiftUI
 
+/// The 1×9 keypad. Each key shows how many of its digit are left; a used-up digit fades and is
+/// disabled. In Notes mode each key shows its digit small, at its pencil-mark position.
 struct NumberPadView: View {
     let theme: PSPalette
-    var disabledDigits: Set<Int>
-    var isCandidateMode: Bool
+    /// Digits left to place; nil hides the counts and keeps every key on (import review).
+    var remaining: [Int: Int]?
+    var isNotesMode = false
+    var keyHeight: CGFloat = 64
     var onDigit: (Int) -> Void
-    var onClear: () -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
+    @Environment(\.psType) private var type
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 8) {
+        HStack(spacing: 4) {
             ForEach(1...9, id: \.self) { digit in
-                let isDisabled = disabledDigits.contains(digit)
-                Button(action: { onDigit(digit) }) {
-                    Text("\(digit)")
-                        .font(isCandidateMode ? .subheadline.weight(.semibold) : .title3.bold())
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, isCandidateMode ? 7 : 10)
-                        .padding(.horizontal, 4)
-                        .frame(minHeight: 44)
-                        .foregroundColor(isDisabled ? theme.ink3 : theme.ink)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(isDisabled ? theme.surface2 : buttonBackground)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(isCandidateMode ? theme.accent.opacity(0.6) : .clear, lineWidth: isCandidateMode ? 1 : 0)
-                                )
-                        )
+                let left = remaining?[digit]
+                let isDone = left.map { $0 <= 0 } ?? false
+                Button { onDigit(digit) } label: {
+                    VStack(spacing: 3) {
+                        if isNotesMode {
+                            notesFace(digit)
+                        } else {
+                            Text("\(digit)")
+                                .font(.system(size: 30 * type.uiScale, weight: .regular).monospacedDigit())
+                                .foregroundColor(theme.ink)
+                                .frame(height: 30)
+                        }
+                        if remaining != nil {
+                            Text(isDone ? " " : "\(left ?? 0)")
+                                .font(.system(size: 10.5, weight: .medium).monospacedDigit())
+                                .foregroundColor(theme.ink3)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: keyHeight)
+                    .contentShape(Rectangle())
                 }
-                .disabled(isDisabled)
+                .buttonStyle(PressFillStyle(theme: theme))
+                .opacity(isDone ? 0.28 : 1)
+                .disabled(isDone)
                 .accessibilityIdentifier("number_\(digit)")
+                .accessibilityLabel("\(digit)")
+                .accessibilityValue(left.map { isDone ? "none left" : "\($0) left" } ?? "")
             }
-            Button(action: onClear) {
-                Label("", systemImage: "delete.left")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .foregroundColor(theme.accent)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(theme.accent.opacity(0.7), lineWidth: 1)
-                    )
-            }
-            .accessibilityIdentifier("number_clear")
         }
     }
 
-    private var buttonBackground: Color {
-        isCandidateMode ? theme.surface : theme.accent.opacity(0.18)
+    private func notesFace(_ digit: Int) -> some View {
+        let row = (digit - 1) / 3, col = (digit - 1) % 3
+        return Text("\(digit)")
+            .font(.system(size: 13 * type.candidateScale, weight: .bold).monospacedDigit())
+            .foregroundColor(theme.accent)
+            .frame(width: 10, height: 10)
+            .offset(x: CGFloat(col - 1) * 10, y: CGFloat(row - 1) * 10)
+            .frame(width: 30, height: 30)
+    }
+}
+
+/// Pressed keys and tools get a `surface2` fill in Day; at night nothing lights up (CODESPEC 12).
+struct PressFillStyle: ButtonStyle {
+    let theme: PSPalette
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(configuration.isPressed && !theme.isNight ? theme.surface2 : .clear)
+            )
     }
 }

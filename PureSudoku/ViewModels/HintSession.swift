@@ -188,8 +188,10 @@ struct HintSession: Equatable {
 struct HintHighlight: Equatable {
     /// Houses to look at (soft tint).
     var areaCells: Set<Int> = []
-    /// Pattern cells (heavy outline).
+    /// Pattern cells (filled like same-digit cells).
     var patternCells: Set<Int> = []
+    /// Cells that prove the step (thin ring). Filled by the graduated hints.
+    var evidenceCells: Set<Int> = []
     /// Candidates to draw in cells that have no notes of their own.
     var shownCandidates: [Int: Set<Int>] = [:]
     /// Key digits (ringed).

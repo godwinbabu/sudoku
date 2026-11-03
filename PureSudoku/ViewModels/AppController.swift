@@ -226,6 +226,12 @@ final class AppController: ObservableObject {
     var soundsActive: Bool { settings.soundsEnabled && !isNight }
     var hapticsActive: Bool { settings.hapticsEnabled && !isNight }
 
+    /// Until the Night sheet lands (CODESPEC 12.2), the moon flips between Day and Night.
+    func toggleNight() {
+        let night = !isNight
+        updateSettings { $0.appearance = night ? .night : .day }
+    }
+
     func updateSettings(_ block: (inout Settings) -> Void) {
         block(&settings)
         do {
