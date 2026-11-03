@@ -12,6 +12,9 @@ final class AppController: ObservableObject {
     @Published private(set) var techniqueProgress: [String: TechniqueProgress]
     /// True when technique_progress.json could not be loaded: never overwrite it this session.
     private var techniqueProgressLoadFailed = false
+    /// Which moves may still earn credit (CODESPEC 13.4), saved in learning_ledger.json.
+    private(set) var learningLedger = LearningLedger()
+    private var learningLedgerLoadFailed = false
     @Published var lastPersistenceError: (any Error)?
     /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
     @Published var showsNightSheet = false
@@ -88,6 +91,16 @@ final class AppController: ObservableObject {
             self.techniqueProgressLoadFailed = true
             self.lastPersistenceError = error
         }
+        do {
+            learningLedger = try persistence.load(LearningLedger.self, from: File.learningLedger.rawValue) ?? LearningLedger()
+            // Keys of finished or replaced games can't matter again: keep the file small.
+            let before = learningLedger
+            learningLedger.prune(keeping: Set(activeGames.values.map(\.puzzle.id) + importedGames.map(\.gameState.puzzle.id)))
+            if learningLedger != before { saveLedger() }
+        } catch {
+            learningLedgerLoadFailed = true
+            self.lastPersistenceError = error
+        }
         countSolutionsOfOldImports()
         #if DEBUG
         // UI tests start past the first-night flow, whatever the simulator clock says.
@@ -146,7 +159,8 @@ final class AppController: ObservableObject {
     /// toward learning (CODESPEC 13.5).
     func makePracticeGameViewModel(_ entry: BundledPuzzles.Entry, number: Int) -> GameViewModel {
         let puzzle = SudokuPuzzle(
-            id: "practice-\(entry.initialGrid.prefix(12))", difficulty: entry.difficulty,
+            // The whole grid: bundled puzzles can share a long prefix, and the id keys learning credit.
+            id: "practice-\(entry.initialGrid)", difficulty: entry.difficulty,
             initialGrid: entry.initialGrid, solutionGrid: entry.solutionGrid, hasUniqueSolution: true
         )
         var state = GameState.newGame(for: puzzle, now: timeProvider.now())
@@ -180,13 +194,39 @@ final class AppController: ObservableObject {
     }
 
     private func connectLearning(_ viewModel: GameViewModel) {
-        viewModel.onTechniqueFound = { [weak self] technique, puzzleID, move in
-            self?.updateProgress(technique) {
-                $0.recordFound(puzzleID: puzzleID, moveKey: move.key(puzzleID: puzzleID), at: self?.timeProvider.now() ?? Date())
-            }
+        // Games saved before the ledger name their hinted techniques only in the hint log.
+        let puzzle = viewModel.state.puzzle.id
+        var seeded = learningLedger
+        for technique in viewModel.state.hintLog.compactMap({ Technique(rawValue: $0.technique) }) {
+            seeded.recordHint(puzzle: puzzle, technique: Self.lessonTechnique(technique), changes: [])
         }
-        viewModel.onHintShown = { [weak self] technique in
-            self?.updateProgress(technique) { $0.recordHint(at: self?.timeProvider.now() ?? Date()) }
+        if seeded != learningLedger {
+            learningLedger = seeded
+            saveLedger()
+        }
+        viewModel.onTechniqueFound = { [weak self] technique, puzzleID, move in
+            guard let self else { return }
+            let technique = Self.lessonTechnique(technique)
+            guard learningLedger.credit(move, technique: technique, puzzle: puzzleID) else { return }
+            saveLedger()
+            updateProgress(technique) { $0.recordFound(puzzleID: puzzleID, at: self.timeProvider.now()) }
+        }
+        viewModel.onHintShown = { [weak self] technique, changes, puzzleID in
+            guard let self else { return }
+            let technique = technique.map(Self.lessonTechnique)
+            let first = learningLedger.recordHint(puzzle: puzzleID, technique: technique, changes: changes)
+            saveLedger()
+            // hintsSeen counts each technique once per puzzle.
+            if let technique, first { updateProgress(technique) { $0.recordHint(at: self.timeProvider.now()) } }
+        }
+    }
+
+    private func saveLedger() {
+        guard !learningLedgerLoadFailed else { return }
+        do {
+            try persistence.save(learningLedger, to: File.learningLedger.rawValue)
+        } catch {
+            lastPersistenceError = error
         }
     }
 
@@ -443,6 +483,7 @@ private enum File: RawRepresentable {
     case game(Difficulty)
     case importedGames
     case techniqueProgress
+    case learningLedger
 
     var rawValue: String {
         switch self {
@@ -451,6 +492,7 @@ private enum File: RawRepresentable {
         case let .game(difficulty): return "game_\(difficulty.rawValue).json"
         case .importedGames: return "imported_games.json"
         case .techniqueProgress: return "technique_progress.json"
+        case .learningLedger: return "learning_ledger.json"
         }
     }
 

@@ -33,6 +33,13 @@ final class LearningTests: XCTestCase {
         let earned = try JSONDecoder().decode(TechniqueProgress.self, from: Data(threeDays.utf8))
         XCTAssertEqual(earned.level, .mastered, "mastery under the old rule is kept")
         XCTAssertEqual(try JSONDecoder().decode(TechniqueProgress.self, from: JSONEncoder().encode(one)), one, "round trip")
+        // Fields from earlier builds of this phase are ignored; a ledger without fields is empty.
+        let extra = #"{"foundUnaided":[],"hintsSeen":0,"strength":0,"credits":2,"creditedMoves":["p|placed|0|1"]}"#
+        XCTAssertEqual(try JSONDecoder().decode(TechniqueProgress.self, from: Data(extra.utf8)).credits, 2)
+        XCTAssertEqual(try JSONDecoder().decode(LearningLedger.self, from: Data("{}".utf8)), LearningLedger())
+        var game = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(TestData.newGameState())) as? [String: Any])
+        game["hintedCells"] = [["cell": 0, "digit": 1]]
+        XCTAssertNoThrow(try JSONDecoder().decode(GameState.self, from: JSONSerialization.data(withJSONObject: game)))
     }
 
     func testSeeingAHintMakesATechniqueLearningAndHalvesStrength() {
@@ -111,14 +118,14 @@ final class LearningTests: XCTestCase {
         viewModel.setDigit(placement.digit)
         await settle(found, count: 1)
         XCTAssertEqual(found(), [try XCTUnwrap(expected)])
-        // Undo or Erase and the same move again: progress keeps the move's key, so no second credit.
-        var progress = TechniqueProgress()
-        let key = MasteryJudge.Move.placed(cell: placement.cell, digit: placement.digit).key(puzzleID: "test")
-        progress.recordFound(puzzleID: "test", moveKey: key, at: start)
-        progress.recordFound(puzzleID: "test", moveKey: key, at: start.addingTimeInterval(60))
-        XCTAssertEqual(progress.credits, 1, "replaying a move earns nothing")
-        let saved = try JSONDecoder().decode(TechniqueProgress.self, from: JSONEncoder().encode(progress))
-        XCTAssertEqual(saved.creditedMoves, [key], "saved")
+        // The ledger credits a move once per puzzle, under any technique.
+        var ledger = LearningLedger()
+        let move = MasteryJudge.Move.placed(cell: placement.cell, digit: placement.digit)
+        XCTAssertTrue(ledger.credit(move, technique: .hiddenSingleBox, puzzle: "test"))
+        XCTAssertFalse(ledger.credit(move, technique: .hiddenSingleBox, puzzle: "test"), "Undo or Erase and replay")
+        XCTAssertFalse(ledger.credit(move, technique: .fullHouse, puzzle: "test"), "the same move under another technique")
+        XCTAssertTrue(ledger.credit(move, technique: .fullHouse, puzzle: "other"), "another puzzle")
+        XCTAssertEqual(try JSONDecoder().decode(LearningLedger.self, from: JSONEncoder().encode(ledger)), ledger, "saved")
     }
 
     /// Everything the hint card does (Place · assisted, Apply/Remove · assisted) earns no credit.
@@ -158,31 +165,41 @@ final class LearningTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 300_000_000)
     }
 
+    /// TestData's puzzle as a practice entry, played through a controller so the ledger applies.
+    private func makeLearningGame() -> (controller: AppController, game: GameViewModel) {
+        let (controller, _) = makeTestController()
+        let p = TestData.puzzle
+        let entry = BundledPuzzles.Entry(difficulty: .easy, initialGrid: p.initialGrid, solutionGrid: p.solutionGrid,
+                                         score: 0, techniques: [])
+        return (controller, controller.makePracticeGameViewModel(entry, number: 1))
+    }
+
+    private func pause() async { try? await Task.sleep(nanoseconds: 400_000_000) }
+
     func testAHintedTechniqueEarnsNoCreditForTheRestOfThePuzzle() async throws {
-        let (viewModel, found) = makeViewModel()
+        let (controller, viewModel) = makeLearningGame()
         viewModel.requestHint()
         let placement = try XCTUnwrap(viewModel.hint?.step?.placements.first)
         let hinted = try XCTUnwrap(viewModel.hint?.step?.technique)
         viewModel.endHint()
         let target = viewModel.state.cells.first { $0.index == placement.cell }!
-        // A wrong digit, Undo, then the hinted move: none of this may earn credit for the hint.
+        // A wrong digit, Undo, then the hinted move: none of this may earn credit.
         viewModel.select(cell: target)
         viewModel.setDigit(placement.digit % 9 + 1)
         viewModel.undo()
         viewModel.select(cell: target)
         viewModel.setDigit(placement.digit)
-        await settle(found, count: 0)
-        XCTAssertTrue(found().isEmpty, "the cell and digit the hint showed earn nothing, by any technique")
-        XCTAssertFalse(found().contains(hinted))
+        await pause()
+        XCTAssertTrue(controller.learningLedger.credited.isEmpty, "the cell and digit the hint showed earn nothing, by any technique")
         // Positive control: an unhinted single of another kind is still credited.
         var control = 0
-        while control < 30, found().isEmpty {
+        while control < 30, controller.learningLedger.credited.isEmpty {
             try placeNextSingle(viewModel)
-            await settle(found, count: 0)
+            await pause()
             control += 1
         }
-        XCTAssertFalse(found().isEmpty, "crediting works at all")
-        XCTAssertFalse(found().contains(hinted), "the hinted technique stays uncredited in this puzzle")
+        XCTAssertFalse(controller.learningLedger.credited.isEmpty, "crediting works at all")
+        XCTAssertEqual(controller.progress(for: hinted).credits, 0, "the hinted technique stays uncredited in this puzzle")
     }
 
     func testAWrongButPossibleDigitEarnsNothing() async throws {
@@ -332,7 +349,7 @@ final class LearningTests: XCTestCase {
         let (controller, dir) = makeTestController()
         let viewModel = controller.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
         viewModel.onTechniqueFound?(.nakedPair, "p1", .placed(cell: 0, digit: 1))
-        viewModel.onHintShown?(.xWing)
+        viewModel.onHintShown?(.xWing, [], "p1")
         XCTAssertEqual(controller.progress(for: .nakedPair).foundUnaided.count, 1)
         let reloaded = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(),
                                      imageStore: ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true)))
@@ -362,24 +379,81 @@ final class LearningTests: XCTestCase {
         XCTAssertEqual(controller.progress(for: try XCTUnwrap(credited)).credits, 1, "the replay earned nothing")
     }
 
-    /// The cell and digit a hint showed stay excluded after the game is saved and resumed.
-    func testAHintedCellStaysExcludedAfterResuming() async throws {
-        let (viewModel, _) = makeViewModel()
+    /// Fill notes, hint, Undo, then save and resume: the hinted cell still earns nothing.
+    func testUndoAndResumeKeepAHintExcluded() async throws {
+        let (controller, dir) = makeTestController()
+        await controller.startNewGame(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)
+        viewModel.fillAllNotes()
         viewModel.requestHint()
         let placement = try XCTUnwrap(viewModel.hint?.step?.placements.first)
         viewModel.endHint()
-        let saved = try JSONDecoder().decode(GameState.self, from: JSONEncoder().encode(viewModel.state))
-        XCTAssertTrue(saved.hintedCells.contains(placement), "saved with the game")
-        var restarted = saved
-        restarted.resetToInitial()
-        XCTAssertTrue(restarted.hintedCells.contains(placement), "kept across Restart")
-        let resumed = GameViewModel(state: saved, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
-        var found: [Technique] = []
-        resumed.onTechniqueFound = { technique, _, _ in found.append(technique) }
+        viewModel.undo() // takes back Fill all notes; the game no longer holds anything about the hint
+        let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
+        let reloaded = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: images)
+        let resumed = reloaded.makeGameViewModel(for: .easy)
         resumed.select(cell: resumed.state.cells.first { $0.index == placement.cell }!)
         resumed.setDigit(placement.digit)
-        await settle({ found }, count: 0)
-        XCTAssertTrue(found.isEmpty)
+        await pause()
+        XCTAssertTrue(reloaded.learningLedger.credited.isEmpty)
+    }
+
+    /// A practice hint holds when the same practice puzzle is opened again.
+    func testAPracticeHintHoldsWhenReopened() async throws {
+        let (controller, _) = makeTestController()
+        let entry = BundledPuzzles.puzzles(for: .easy)[0]
+        let first = controller.makePracticeGameViewModel(entry, number: 1)
+        first.requestHint()
+        let placement = try XCTUnwrap(first.hint?.step?.placements.first)
+        first.endHint()
+        let again = controller.makePracticeGameViewModel(entry, number: 1)
+        again.select(cell: again.state.cells.first { $0.index == placement.cell }!)
+        again.setDigit(placement.digit)
+        await pause()
+        XCTAssertTrue(controller.learningLedger.credited.isEmpty)
+    }
+
+    /// Bundled puzzles that share a long prefix are different practice puzzles, each with its own credit.
+    func testPracticePuzzlesWithTheSamePrefixAreKeptApart() async throws {
+        let (controller, _) = makeTestController()
+        let twins = try XCTUnwrap(Dictionary(grouping: BundledPuzzles.all) { $0.initialGrid.prefix(12) }.values.first { $0.count > 1 })
+        var games: [GameViewModel] = []
+        for entry in twins.prefix(2) {
+            let viewModel = controller.makePracticeGameViewModel(entry, number: 1)
+            games.append(viewModel)
+            try placeNextSingle(viewModel)
+        }
+        XCTAssertNotEqual(games[0].state.puzzle.id, games[1].state.puzzle.id)
+        await waitFor { controller.learningLedger.credited.count >= 2 }
+        XCTAssertEqual(controller.learningLedger.credited.count, 2)
+    }
+
+    /// A Hidden Single box hint also blocks line credit in that puzzle, and one move earns once.
+    func testABoxHintBlocksLineCredit() {
+        let (controller, viewModel) = makeLearningGame()
+        let puzzle = viewModel.state.puzzle.id
+        viewModel.onHintShown?(.hiddenSingleBox, [], puzzle)
+        viewModel.onTechniqueFound?(.hiddenSingleLine, puzzle, .placed(cell: 5, digit: 5))
+        XCTAssertEqual(controller.progress(for: .hiddenSingleBox).credits, 0)
+        viewModel.onTechniqueFound?(.fullHouse, puzzle, .placed(cell: 6, digit: 9))
+        viewModel.onTechniqueFound?(.nakedSingle, puzzle, .placed(cell: 6, digit: 9)) // erased and replayed
+        XCTAssertEqual(controller.learningLedger.credited.count, 1, "one move, one credit")
+    }
+
+    /// At launch the ledger keeps practice keys and keys of saved games, and drops the rest.
+    func testTheLedgerIsPrunedAtLaunch() async throws {
+        let (controller, dir) = makeTestController()
+        let active = await controller.startNewGame(for: .easy).puzzle.id
+        var ledger = LearningLedger()
+        ledger.credited = ["gone|placed|0|1", "practice-123|placed|0|1", "\(active)|placed|0|1"]
+        ledger.hintedMoves = ["gone|0|1", "\(active)|0|1"]
+        ledger.hintedTechniques = ["gone|pointing", "practice-123|pointing"]
+        try PersistenceManager(directory: dir).save(ledger, to: "learning_ledger.json")
+        let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
+        let reloaded = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: images)
+        XCTAssertEqual(reloaded.learningLedger.credited, ["practice-123|placed|0|1", "\(active)|placed|0|1"])
+        XCTAssertEqual(reloaded.learningLedger.hintedMoves, ["\(active)|0|1"])
+        XCTAssertEqual(reloaded.learningLedger.hintedTechniques, ["practice-123|pointing"])
     }
 
     /// A judgement still running when the next puzzle loads is credited to its own puzzle.
@@ -406,7 +480,7 @@ final class LearningTests: XCTestCase {
     func testHiddenSingleLineProgressCountsAsHiddenSingle() throws {
         let (_, dir) = makeTestController()
         var line = TechniqueProgress()
-        line.recordFound(puzzleID: "a", moveKey: "a|placed|0|1", at: start)
+        line.recordFound(puzzleID: "a", at: start)
         try PersistenceManager(directory: dir).save([Technique.hiddenSingleLine.rawValue: line], to: "technique_progress.json")
         let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
         let persistence = PersistenceManager(directory: dir)
@@ -415,7 +489,7 @@ final class LearningTests: XCTestCase {
         XCTAssertEqual(controller.progress(for: .hiddenSingleBox).level, .learning)
         let viewModel = controller.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
         viewModel.onTechniqueFound?(.hiddenSingleLine, "b", .placed(cell: 1, digit: 2))
-        viewModel.onTechniqueFound?(.hiddenSingleLine, "a", .placed(cell: 0, digit: 1)) // already credited
+        viewModel.onTechniqueFound?(.hiddenSingleLine, "b", .placed(cell: 1, digit: 2)) // already credited
         XCTAssertEqual(controller.progress(for: .hiddenSingleBox).credits, 2)
         XCTAssertNil(controller.techniqueProgress[Technique.hiddenSingleLine.rawValue], "merged into the box record")
     }

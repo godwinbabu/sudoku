@@ -4,9 +4,6 @@ import Foundation
 struct TechniqueProgress: Codable, Equatable {
     /// Unaided moves this technique explains: one per correct placement or note removal (CODESPEC 13.4).
     var credits = 0
-    /// Moves credited so far, as `MasteryJudge.Move.key(puzzleID:)`: each move of each puzzle earns
-    /// once, even after Undo, Erase, Continue or a replayed practice puzzle.
-    var creditedMoves: Set<String> = []
     /// Puzzles where the player found the technique without a hint, with the day it happened.
     var foundUnaided: [Found] = []
     /// Hints shown for this technique (any rung).
@@ -40,9 +37,8 @@ struct TechniqueProgress: Codable, Equatable {
         return strength * pow(2, -days / halfLifeDays)
     }
 
-    /// One credited move. A move credited before (same `moveKey`) changes nothing.
-    mutating func recordFound(puzzleID: String, moveKey: String? = nil, at date: Date, calendar: Calendar = .current) {
-        if let moveKey, !creditedMoves.insert(moveKey).inserted { return }
+    /// One credited move (`LearningLedger` decides which moves earn one).
+    mutating func recordFound(puzzleID: String, at date: Date, calendar: Calendar = .current) {
         let day = Self.dayKey(date, calendar: calendar)
         lastSeen = date
         credits += 1
@@ -69,7 +65,6 @@ struct TechniqueProgress: Codable, Equatable {
         lastSeen = try container.decodeIfPresent(Date.self, forKey: .lastSeen)
         strength = try container.decodeIfPresent(Double.self, forKey: .strength) ?? 0
         strengthDate = try container.decodeIfPresent(Date.self, forKey: .strengthDate)
-        creditedMoves = try container.decodeIfPresent(Set<String>.self, forKey: .creditedMoves) ?? []
         if let credits = try container.decodeIfPresent(Int.self, forKey: .credits) {
             self.credits = credits
         } else {
@@ -84,7 +79,6 @@ struct TechniqueProgress: Codable, Equatable {
     func merged(with other: TechniqueProgress) -> TechniqueProgress {
         var result = self
         result.credits += other.credits
-        result.creditedMoves.formUnion(other.creditedMoves)
         result.foundUnaided += other.foundUnaided.filter { found in !foundUnaided.contains { $0.puzzleID == found.puzzleID } }
         result.hintsSeen += other.hintsSeen
         result.lastSeen = [lastSeen, other.lastSeen].compactMap { $0 }.max()
@@ -108,7 +102,13 @@ enum MasteryJudge {
         case placed(cell: Int, digit: Int)
         case removedCandidate(cell: Int, digit: Int)
 
-        /// "puzzleID|kind|cell|digit", saved in `TechniqueProgress.creditedMoves`.
+        var change: CellDigit {
+            switch self {
+            case let .placed(cell, digit), let .removedCandidate(cell, digit): return CellDigit(cell: cell, digit: digit)
+            }
+        }
+
+        /// "puzzleKey|kind|cell|digit", as kept in `LearningLedger.credited`.
         func key(puzzleID: String) -> String {
             switch self {
             case let .placed(cell, digit): return "\(puzzleID)|placed|\(cell)|\(digit)"
@@ -136,4 +136,53 @@ enum MasteryJudge {
         }
         return nil
     }
+}
+
+/// Which moves may still earn learning credit (CODESPEC 13.4). One store, owned by AppController and
+/// saved beside the technique progress, so Undo, Restart, Continue and reopening a practice puzzle
+/// can't lose a hint or replay a credit. Keys start with the puzzle id; ids never contain "|".
+struct LearningLedger: Codable, Equatable {
+    /// "puzzle|kind|cell|digit": moves already credited, under any technique.
+    var credited: Set<String> = []
+    /// "puzzle|cell|digit": cells and digits a hint showed.
+    var hintedMoves: Set<String> = []
+    /// "puzzle|technique": lesson techniques hinted in a puzzle (Hidden Single line counts as box).
+    var hintedTechniques: Set<String> = []
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        credited = try container.decodeIfPresent(Set<String>.self, forKey: .credited) ?? []
+        hintedMoves = try container.decodeIfPresent(Set<String>.self, forKey: .hintedMoves) ?? []
+        hintedTechniques = try container.decodeIfPresent(Set<String>.self, forKey: .hintedTechniques) ?? []
+    }
+
+    /// Records a hint; true the first time this puzzle hints this technique.
+    @discardableResult
+    mutating func recordHint(puzzle: String, technique: Technique?, changes: [CellDigit]) -> Bool {
+        for change in changes { hintedMoves.insert(Self.key(puzzle, change)) }
+        guard let technique else { return false }
+        return hintedTechniques.insert("\(puzzle)|\(technique.rawValue)").inserted
+    }
+
+    /// Whether `move` earns a credit for `technique` (a lesson technique), recording it if so.
+    mutating func credit(_ move: MasteryJudge.Move, technique: Technique, puzzle: String) -> Bool {
+        guard !hintedMoves.contains(Self.key(puzzle, move.change)),
+              !hintedTechniques.contains("\(puzzle)|\(technique.rawValue)") else { return false }
+        return credited.insert(move.key(puzzleID: puzzle)).inserted
+    }
+
+    /// Keeps practice puzzles (bundled, so they come back) and the given saved games; drops finished ones.
+    mutating func prune(keeping puzzles: Set<String>) {
+        let keep = { (key: String) in
+            let puzzle = String(key.prefix { $0 != "|" })
+            return puzzle.hasPrefix("practice-") || puzzles.contains(puzzle)
+        }
+        credited = credited.filter(keep)
+        hintedMoves = hintedMoves.filter(keep)
+        hintedTechniques = hintedTechniques.filter(keep)
+    }
+
+    private static func key(_ puzzle: String, _ change: CellDigit) -> String { "\(puzzle)|\(change.cell)|\(change.digit)" }
 }

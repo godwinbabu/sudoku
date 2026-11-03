@@ -13,8 +13,6 @@ struct GameState: Codable, Equatable {
     var assisted: Bool = false
     /// One entry per hint session (CODESPEC 2.3).
     var hintLog: [HintLogEntry] = []
-    /// Cells and digits a hint has shown: playing them earns no learning credit (CODESPEC 13.4).
-    var hintedCells: Set<CellDigit> = []
     /// Hints opened in this puzzle (the Solved summary).
     var hints: Int { hintLog.count }
 
@@ -44,17 +42,14 @@ struct GameState: Codable, Equatable {
         return GameState(puzzle: puzzle, cells: cells, elapsedSeconds: 0, isCompleted: false, usedReveal: false, lastUpdated: now, hasContradiction: false)
     }
 
-    /// Restart: the answers a hint showed stay shown, so they stay excluded from credit.
     mutating func resetToInitial(now: Date = Date()) {
-        let hinted = hintedCells
         self = GameState.newGame(for: puzzle, now: now)
-        hintedCells = hinted
     }
 
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
-        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, assisted, hintLog, hintedCells
+        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, assisted, hintLog
         case usedHint // read only: the old name of `assisted`
     }
 
@@ -70,7 +65,6 @@ struct GameState: Codable, Equatable {
         assisted = try container.decodeIfPresent(Bool.self, forKey: .assisted)
             ?? container.decodeIfPresent(Bool.self, forKey: .usedHint) ?? false
         hintLog = try container.decodeIfPresent([HintLogEntry].self, forKey: .hintLog) ?? []
-        hintedCells = try container.decodeIfPresent(Set<CellDigit>.self, forKey: .hintedCells) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -84,7 +78,6 @@ struct GameState: Codable, Equatable {
         try container.encode(hasContradiction, forKey: .hasContradiction)
         try container.encode(assisted, forKey: .assisted)
         try container.encode(hintLog, forKey: .hintLog)
-        try container.encode(hintedCells.sorted(), forKey: .hintedCells)
     }
 }
 

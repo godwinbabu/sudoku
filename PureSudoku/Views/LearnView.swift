@@ -91,7 +91,7 @@ struct LearnView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text(trailing).font(.system(size: 12).monospacedDigit()).foregroundColor(theme.ink3)
-                    .accessibilityLabel(progress.credits > 0 ? "\(progress.credits) unaided uses" : trailing)
+                    .accessibilityLabel(Self.creditsLabel(progress.credits, otherwise: trailing))
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 12)
@@ -103,6 +103,12 @@ struct LearnView: View {
         .accessibilityElement(children: .combine)
         .accessibilityValue(Self.levelName(progress.level))
         .accessibilityIdentifier("learn_\(technique.rawValue)")
+    }
+
+    /// "1 unaided use", "12 unaided uses".
+    static func creditsLabel(_ credits: Int, otherwise: String) -> String {
+        guard credits > 0 else { return otherwise }
+        return credits == 1 ? "1 unaided use" : "\(credits) unaided uses"
     }
 
     static func levelName(_ level: TechniqueProgress.Level) -> String {
