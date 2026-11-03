@@ -212,7 +212,7 @@ Testing requirements:
 	•	The tab bar is drawn by the app (PSTabBar), not the system, so it stays dark at night: bg fill, 1 pt hair top border, Play (square.grid.3x3), Learn (book), Journal (chart.bar). The active tab is accent with a semibold label; the others are ink3. The selected tab also carries the selected trait.
 	•	The tab bar belongs to each tab’s root screen, so anything pushed (a game, a lesson, Import, Display & Night) covers it.
 	•	Each tab’s header has the serif title and the moon, which opens the Night sheet (Section 12.7). Import has the moon in its bar.
-	•	No system sheets, alerts, context menus or confirmation dialogs: Display & Night and lessons are pushed; confirmations are custom popovers. The camera picker on Import is the one system screen left.
+	•	No system sheets, alerts, context menus or confirmation dialogs: Display & Night and lessons are pushed; confirmations are custom popovers. The camera and the Photos picker on Import are the only system screens left, and each opens only after an explicit tap (Section 3.4).
 	•	At night the status bar is hidden on every screen but the game, which follows Hide status bar in games (Section 3.2).
 	•	Home, top to bottom (Design/v2/README.md, “Play tab”):
 	•	“Pure Sudoku” and the moon; the sub-line “Saturday night · 6-night streak” (the part of the day; the streak only when it is above zero).
@@ -304,6 +304,20 @@ Testing requirements:
 	•	Journal → Display & Night shows the presets and After dark.
 
 ⸻
+
+3.4 Import (Bring Your Own Sudoku)
+	•	ImportPuzzleView is pushed from Home and covers the tab bar. It hides the navigation bar and draws its own 48 pt header: close (xmark, “Discard”) on the left, the moon on the right. It has three steps (ImportPuzzleViewModel.step), which change with a 300 ms fade (none with Reduce Motion). The flow and its rules are in BYOS.md; the look is Design/v2/README.md, “Import (BYOS)”.
+	•	Source: “Import a puzzle” (serif 32) and “From a newspaper, a book or a screenshot. The photo is read on this iPhone and never uploaded.” Three option cards: Take a photo (Camera; disabled with “No camera on this device” when there is none), Choose from Photos (Screenshots work best), Type it in (Enter the givens by hand). Then “FOR A CLEAN READ” and the tips line. Cards have the surface fill in Day and only a hairline at night.
+	•	Take a photo opens the camera (UIImagePickerController in a sheet). Choose from Photos opens .photosPicker(isPresented:selection:matching:). Both close when the first-night screen appears, since it is drawn at the app root and a system screen would sit above it.
+	•	Reading: while the detector runs. The photo with the found grid outlined in accent, its inner box lines in accentDim, and the area outside dimmed; “Reading digits…” (serif 26); “Looking for the grid…”, then “Grid found · N of 81 cells checked”; a 3 pt progress bar (hair track, accentDim fill). At night the photo is multiplied by ink3, so it stays under ink and under its accent outline.
+	•	Check the grid: after reading (even a failed read, which shows “Could not detect a clear grid. You can fill it manually.”) or Type it in. The header says “CHECK THE GRID”. The board shows every entered digit as a given. Digits read with Vision confidence below 0.6 are unsure and ringed (the evidence ring); tapping a ringed cell confirms it, and changing or clearing it does too. Conflicts get the err underline bar.
+	•	Legend lines under the board: “N unsure. Ringed cells were hard to read — tap to confirm or fix.” (with a ring swatch), and for the first house with a repeated digit “Two 4s in row 4. Fix one before starting.” (with an underline swatch; the house is named in the player’s cell-name style). Without a conflict, the status line shows instead: “Add at least 10 clues to start.”, “Checking if the puzzle is solvable.”, “Puzzle is solvable.” or “This puzzle has no solution.”
+	•	Then a 1×9 keypad (52 pt keys, no counts), Clear cell (ghost) and Start puzzle (primary). Start is disabled, at 40% opacity, until there are at least 10 clues, no conflicts and a solution.
+	•	No text fields: givens are typed with the keypad, so the system keyboard never shows.
+
+Testing requirements:
+	•	Unit tests: the steps go Source → Check the grid on Type it in or a loaded grid; the conflict line names the first repeated digit and house in both cell-name styles; unsure cells clear when tapped or fixed; conflicts block Start; the minimum clue count.
+	•	UI tests: Import opens on Source with its options; Type it in → Check the grid, where two 4s in a row show the conflict line and keep Start disabled, and Clear cell removes it.
 
 4. Timer Behavior
 
@@ -545,6 +559,7 @@ enum Appearance: String, Codable {
 	•	Selection: a filled background plus a heavier outline.
 	•	Error: an underline bar plus the err colour.
 	•	Hint roles: rings for evidence and targets, strike-through for eliminations.
+	•	Import: unsure cells are ringed, conflicts underlined, and each legend line has a matching ring or underline swatch (Section 3.4).
 	•	Learn mastery dots: mastered is a filled dot, learning a half-filled ring, new an empty ink3 ring. VoiceOver reads the level.
 
 7.3 Grid Interaction Visuals
@@ -719,6 +734,8 @@ Testing requirements:
 	•	NightControls.swift (segments, switch, slider, presets, rows, card, sample strip, CalibrateView)
 	•	NightSheetView.swift, DisplaySettingsView.swift, FirstNightView.swift
 	•	LearnView.swift (LearnView, LessonView, StatusDot, Chevron)
+	•	ImportPuzzleView.swift (Source, Reading and Check the grid; OptionCard, GridPhoto), ImagePicker.swift (camera)
+	•	Assets: AppIcon is “The hint”, three single-size 1024 px images: Any (light), Dark and Tinted (luminosity appearances, iOS 18). There is no LandingIcon.
 	•	Persistence/
 	•	PersistenceManager.swift (or similar).
 	•	Tests/
@@ -818,6 +835,7 @@ Testing requirements:
 	•	One or two short lines per step; the card has a fixed height and long text shrinks to fit.
 	•	At night the card has no fill, only a hairline, and its button is an outline (Section 7.2).
 	•	Puzzle completion: a slow fade, no bright burst.
+	•	Import (Section 3.4): steps change with a 300 ms fade; the photo is capped at ink3 at night; the only fills are the dim outside the found grid (black) and the progress bar, neither behind text.
 
 Testing requirements:
 	•	Manual test:

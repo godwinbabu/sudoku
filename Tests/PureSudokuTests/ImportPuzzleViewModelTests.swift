@@ -38,6 +38,42 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.canStart)
     }
 
+    /// Source until a photo or "Type it in"; then Check the grid (CODESPEC 3.4).
+    func testStepsFromSourceToCheckTheGrid() {
+        let viewModel = makeViewModel()
+        XCTAssertEqual(viewModel.step, .source)
+        viewModel.enterByHand()
+        XCTAssertEqual(viewModel.step, .review)
+        let loaded = makeViewModel()
+        loaded.loadGrid(Array(repeating: nil, count: 80) + [5])
+        XCTAssertEqual(loaded.step, .review, "a read grid goes straight to the check")
+    }
+
+    func testConflictSummaryNamesTheFirstRepeatedDigit() {
+        let viewModel = makeViewModel()
+        XCTAssertNil(viewModel.conflictSummary(names: .plain))
+        var values = [Int?](repeating: nil, count: 81)
+        values[27] = 4 // row 4
+        values[31] = 4
+        viewModel.loadGrid(values)
+        XCTAssertEqual(viewModel.conflictSummary(names: .plain), "Two 4s in row 4.")
+        XCTAssertEqual(viewModel.conflictSummary(names: .grid), "Two 4s in R4.")
+    }
+
+    /// Ringed cells clear when tapped (confirmed) or fixed.
+    func testUnsureCellsClearWhenTappedOrFixed() {
+        let viewModel = makeViewModel()
+        var values = [Int?](repeating: nil, count: 81)
+        values[5] = 3
+        values[47] = 8
+        viewModel.loadGrid(values, unsure: [5, 47])
+        viewModel.selectCell(id: viewModel.cellIDs[5])
+        XCTAssertEqual(viewModel.unsureIndices, [47])
+        viewModel.selectedIndex = 47
+        viewModel.setDigit(6)
+        XCTAssertTrue(viewModel.unsureIndices.isEmpty)
+    }
+
     private func makeViewModel() -> ImportPuzzleViewModel {
         ImportPuzzleViewModel(
             createGame: { _, _ in nil },

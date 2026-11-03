@@ -10,16 +10,35 @@ struct SudokuImageDetector {
         case processingFailed
     }
 
-    func detectGrid(from image: UIImage) async throws -> [Int?] {
+    struct DetectedGrid: Equatable {
+        var values: [Int?]
+        /// Cells whose digit was read with low confidence (ringed on Check the grid).
+        var unsure: Set<Int>
+    }
+
+    /// Where reading is: the grid's corners (normalised, origin bottom left, on the upright image)
+    /// and how many of the 81 cells have been read.
+    struct ReadProgress: Equatable {
+        var corners: [CGPoint]
+        var cellsChecked: Int
+    }
+
+    /// Below this Vision confidence a read digit counts as unsure.
+    /// shortcut: untuned guess from simulator screenshots only; tune with real newspaper photos.
+    static let unsureConfidence: Float = 0.6
+
+    func detectGrid(from image: UIImage, progress: @escaping (ReadProgress) -> Void = { _ in }) async throws -> DetectedGrid {
         // Camera photos are stored sideways with a rotation flag that `cgImage` ignores.
         guard let cgImage = Self.upright(image).cgImage else {
             throw DetectionError.invalidImage
         }
 
         let gridObservation = try await detectGridObservation(in: cgImage)
+        let corners = [gridObservation.topLeft, gridObservation.topRight, gridObservation.bottomRight, gridObservation.bottomLeft]
+        progress(ReadProgress(corners: corners, cellsChecked: 0))
         let warped = try warpGrid(from: cgImage, observation: gridObservation)
         let cellImages = splitIntoCells(image: warped)
-        return try await recognizeDigits(in: cellImages)
+        return try await recognizeDigits(in: cellImages) { progress(ReadProgress(corners: corners, cellsChecked: $0)) }
     }
 
     /// Redraws the image so its pixels are upright (orientation `.up`, mirroring applied).
@@ -119,20 +138,20 @@ struct SudokuImageDetector {
         return cells
     }
 
-    private func recognizeDigits(in cells: [UIImage]) async throws -> [Int?] {
-        var results: [Int?] = Array(repeating: nil, count: 81)
-        let requests = cells.enumerated().map { index, image in
-            return (index, image)
+    private func recognizeDigits(in cells: [UIImage], checked: (Int) -> Void) async throws -> DetectedGrid {
+        var grid = DetectedGrid(values: Array(repeating: nil, count: 81), unsure: [])
+        for (index, image) in cells.enumerated() {
+            try Task.checkCancellation()
+            if let read = try await recognizeDigit(in: image) {
+                grid.values[index] = read.digit
+                if read.confidence < Self.unsureConfidence { grid.unsure.insert(index) }
+            }
+            checked(index + 1)
         }
-
-        for (index, image) in requests {
-            let digit = try await recognizeDigit(in: image)
-            results[index] = digit
-        }
-        return results
+        return grid
     }
 
-    private func recognizeDigit(in image: UIImage) async throws -> Int? {
+    private func recognizeDigit(in image: UIImage) async throws -> (digit: Int, confidence: Float)? {
         guard let cgImage = image.cgImage else { return nil }
         return try await withCheckedThrowingContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
@@ -159,7 +178,7 @@ struct SudokuImageDetector {
                 }
                 let text = best.string.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let value = Int(text), (1...9).contains(value) {
-                    continuation.resume(returning: value)
+                    continuation.resume(returning: (value, bestObservation.confidence))
                 } else {
                     continuation.resume(returning: nil)
                 }

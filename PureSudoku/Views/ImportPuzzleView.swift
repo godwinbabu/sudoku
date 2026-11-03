@@ -2,13 +2,16 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
+/// Import (BYOS, CODESPEC 3.4): Source, Reading, then Check the grid. Pushed from Home, never a sheet.
 struct ImportPuzzleView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var controller: AppController
-    @Environment(\.psPalette) private var palette
+    @Environment(\.psPalette) private var theme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel: ImportPuzzleViewModel
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showCamera = false
+    @State private var showPhotos = false
     let onStart: (ImportedGame) -> Void
 
     init(viewModel: ImportPuzzleViewModel, onStart: @escaping (ImportedGame) -> Void) {
@@ -17,30 +20,17 @@ struct ImportPuzzleView: View {
     }
 
     var body: some View {
-        let theme = palette
-        ScrollView {
-            VStack(spacing: 18) {
-                imageSection(theme: theme)
-                gridSection(theme: theme)
-                numberPadSection(theme: theme)
-                validationSection(theme: theme)
-                actionSection(theme: theme)
+        VStack(spacing: 0) {
+            header
+            switch viewModel.step {
+            case .source: source.transition(.opacity)
+            case .reading: reading.transition(.opacity)
+            case .review: review.transition(.opacity)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
         }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: viewModel.step)
         .background(theme.bg.ignoresSafeArea())
-        .themedTitle("Import Puzzle")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button("Discard") {
-                    dismiss()
-                }
-                .accessibilityIdentifier("importDiscard")
-            }
-            ToolbarItem(placement: .navigationBarTrailing) { NightButton() }
-        }
+        .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(controller.isNight)
         .onChange(of: selectedPhoto) { newItem in
             guard let newItem else { return }
@@ -55,6 +45,8 @@ struct ImportPuzzleView: View {
                 await MainActor.run { selectedPhoto = nil }
             }
         }
+        // Both pickers are system screens: shown only after an explicit tap.
+        .photosPicker(isPresented: $showPhotos, selection: $selectedPhoto, matching: .images)
         .sheet(isPresented: $showCamera) {
             ImagePicker(sourceType: .camera) { image in
                 viewModel.updateImage(image)
@@ -63,135 +55,291 @@ struct ImportPuzzleView: View {
         .onDisappear {
             viewModel.discardIfUnused()
         }
-        // The first-night screen is drawn from the app root; a system sheet would sit above it.
-        .onChange(of: controller.showsFirstNight) { if $0 { showCamera = false } }
+        // The first-night screen is drawn from the app root; a system screen would sit above it.
+        .onChange(of: controller.showsFirstNight) { shows in
+            if shows {
+                showCamera = false
+                showPhotos = false
+            }
+        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("importPuzzleView")
     }
 
-    @ViewBuilder
-    private func imageSection(theme: PSPalette) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Puzzle Photo")
-                .font(.headline)
-                .foregroundColor(theme.ink)
-            if let image = viewModel.image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 220)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(theme.lineMajor.opacity(0.4), lineWidth: 1)
-                    )
-                if viewModel.isDetecting {
-                    Text("Detecting grid…")
-                        .font(.footnote)
-                        .foregroundColor(theme.ink2)
-                }
-            } else {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(theme.surface)
-                    .frame(height: 160)
-                    .overlay(
-                        Text("Add a photo or screenshot")
-                            .foregroundColor(theme.ink2)
-                    )
-            }
-            HStack(spacing: 12) {
-                Button("Take Photo") {
-                    showCamera = true
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.accent)
-                .disabled(!UIImagePickerController.isSourceTypeAvailable(.camera))
-                PhotosPicker(selection: $selectedPhoto, matching: .images) {
-                    Text("Choose Photo")
-                }
-                .buttonStyle(.bordered)
-                if viewModel.image != nil {
-                    Button("Remove", role: .destructive) {
-                        viewModel.updateImage(nil)
-                    }
-                }
-            }
+    private var header: some View {
+        HStack(spacing: 0) {
+            HeaderIconButton(theme: theme, symbol: "xmark", label: "Discard") { dismiss() }
+                .accessibilityIdentifier("importDiscard")
+            Text(viewModel.step == .review ? "CHECK THE GRID" : "")
+                .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink3)
+                .frame(maxWidth: .infinity)
+                .accessibilityAddTraits(.isHeader)
+            NightButton()
         }
+        .padding(.horizontal, 10)
+        .frame(height: 48)
     }
 
-    @ViewBuilder
-    private func gridSection(theme: PSPalette) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Review & Edit")
-                .font(.headline)
-                .foregroundColor(theme.ink)
+    // MARK: Source
+
+    private var source: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Import a puzzle")
+                        .font(.system(size: 32, weight: .medium, design: .serif))
+                        .foregroundColor(theme.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("From a newspaper, a book or a screenshot. The photo is read on this iPhone and never uploaded.")
+                        .font(.system(size: 15)).lineSpacing(3).foregroundColor(theme.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 6)
+                .padding(.bottom, 22)
+                VStack(spacing: 10) {
+                    let hasCamera = UIImagePickerController.isSourceTypeAvailable(.camera)
+                    optionCard("camera", "Take a photo", hasCamera ? "Camera" : "No camera on this device", id: "importTakePhoto") {
+                        showCamera = true
+                    }
+                    .disabled(!hasCamera)
+                    optionCard("photo.on.rectangle", "Choose from Photos", "Screenshots work best", id: "importChoosePhoto") {
+                        showPhotos = true
+                    }
+                    optionCard("pencil", "Type it in", "Enter the givens by hand", id: "importTypeItIn") {
+                        viewModel.enterByHand()
+                    }
+                }
+                SectionLabel(theme: theme, title: "For a clean read") // pads itself to 22
+                    .padding(.top, 26)
+                Text("Fill the frame with the grid · Good light, no glare · Pencil marks are ignored")
+                    .font(.system(size: 13)).lineSpacing(4).foregroundColor(theme.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 22)
+            }
+            .padding(.bottom, 24)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("importSource")
+    }
+
+    private func optionCard(_ symbol: String, _ title: String, _ subtitle: String, id: String,
+                            action: @escaping () -> Void) -> some View {
+        OptionCard(theme: theme, symbol: symbol, title: title, subtitle: subtitle, action: action)
+            .accessibilityIdentifier(id)
+    }
+
+    // MARK: Reading
+
+    private var reading: some View {
+        let progress = viewModel.readProgress
+        let checked = progress?.cellsChecked ?? 0
+        return VStack(alignment: .leading, spacing: 0) {
+            if let image = viewModel.image {
+                GridPhoto(theme: theme, image: image, corners: progress?.corners)
+                    .frame(maxWidth: .infinity, maxHeight: 420)
+                    .padding(.horizontal, 24)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Reading digits…")
+                    .font(.system(size: 26, weight: .medium, design: .serif))
+                    .foregroundColor(theme.ink)
+                Text(progress == nil ? "Looking for the grid…" : "Grid found · \(checked) of 81 cells checked")
+                    .font(.system(size: 15).monospacedDigit())
+                    .foregroundColor(theme.ink2)
+                    .padding(.top, 6)
+                    .accessibilityIdentifier("importReadProgress")
+                GeometryReader { geometry in
+                    Capsule().fill(theme.hair)
+                        .overlay(alignment: .leading) {
+                            Capsule().fill(theme.accentDim).frame(width: geometry.size.width * CGFloat(checked) / 81)
+                        }
+                }
+                .frame(height: 3)
+                .padding(.top, 16)
+                .accessibilityHidden(true)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 28)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("importReading")
+    }
+
+    // MARK: Check the grid
+
+    private var review: some View {
+        VStack(spacing: 0) {
             SudokuGridView(
                 cells: viewModel.displayCells(),
                 selectedCellID: viewModel.selectedIndex.map { viewModel.cellIDs[$0] },
                 theme: theme,
+                // Every cell in the area, so the rings don't spotlight-dim the rest of the board.
+                highlight: viewModel.unsureIndices.isEmpty ? HintHighlight()
+                    : HintHighlight(areaCells: Set(0..<81), evidenceCells: viewModel.unsureIndices),
                 onSelect: { cell in
                     viewModel.selectCell(id: cell.id)
                 }
             )
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .accessibilityIdentifier("importGrid")
-        }
-    }
-
-    @ViewBuilder
-    private func numberPadSection(theme: PSPalette) -> some View {
-        NumberPadView(theme: theme, keyHeight: 52) { viewModel.setDigit($0) }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
             .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("importNumberPad")
+            .accessibilityIdentifier("importGrid")
+            legend
+                .padding(.horizontal, 16)
+                .padding(.top, 14)
+            Spacer(minLength: 8)
+            NumberPadView(theme: theme, keyHeight: 52) { viewModel.setDigit($0) }
+                .padding(.horizontal, 8)
+                .padding(.bottom, 10)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("importNumberPad")
+            HStack(spacing: 10) {
+                Button { viewModel.clearSelected() } label: {
+                    Text("Clear cell").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 46))
+                .frame(width: 120)
+                .accessibilityIdentifier("importClearCell")
+                Button {
+                    if let game = viewModel.createImportedGame() { onStart(game) }
+                } label: {
+                    Text("Start puzzle").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(PSButtonStyle(theme: theme, height: 46))
+                .disabled(!viewModel.canStart)
+                .opacity(viewModel.canStart ? 1 : 0.4)
+                .accessibilityIdentifier("importStartPuzzle")
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("importReview")
     }
 
-    @ViewBuilder
-    private func validationSection(theme: PSPalette) -> some View {
+    /// Rings and underlines are shapes, so the legend never relies on hue alone.
+    private var legend: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if let message = viewModel.detectionMessage {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundColor(theme.ink2)
+            if !viewModel.unsureIndices.isEmpty {
+                legendLine(bold: "\(viewModel.unsureIndices.count) unsure.",
+                           rest: "Ringed cells were hard to read — tap to confirm or fix.") {
+                    RoundedRectangle(cornerRadius: 3).strokeBorder(theme.accent, lineWidth: 1.5)
+                        .frame(width: 14, height: 14).padding(.top, 2)
+                }
+                .accessibilityIdentifier("importUnsureLegend")
             }
-            Text(viewModel.validationMessage)
-                .font(.footnote)
-                .foregroundColor(viewModel.canStart ? theme.ink2 : theme.err)
-            if !viewModel.conflictIndices.isEmpty {
-                Text("Tap a cell to correct duplicates.")
-                    .font(.footnote)
-                    .foregroundColor(theme.ink2)
+            if let conflict = viewModel.conflictSummary(names: controller.settings.notation) {
+                legendLine(bold: conflict, rest: "Fix one before starting.") {
+                    Rectangle().fill(theme.err).frame(width: 14, height: 2).padding(.top, 9)
+                }
+                .accessibilityIdentifier("importConflictLegend")
+            } else {
+                if let message = viewModel.detectionMessage {
+                    Text(message).font(.system(size: 14)).foregroundColor(theme.ink2)
+                }
+                Text(viewModel.validationMessage)
+                    .font(.system(size: 14)).foregroundColor(theme.ink2)
+                    .accessibilityIdentifier("importStatus")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
-    private func actionSection(theme: PSPalette) -> some View {
-        HStack(spacing: 12) {
-            Button("Clear cell") {
-                viewModel.clearSelected()
-            }
-            .buttonStyle(.bordered)
-            .tint(theme.ink2)
-            .accessibilityIdentifier("importClearCell")
+    private func legendLine<Swatch: View>(bold: String, rest: String, @ViewBuilder swatch: () -> Swatch) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            swatch().accessibilityHidden(true)
+            (Text(bold).fontWeight(.semibold).foregroundColor(theme.ink) + Text(" " + rest))
+                .font(.system(size: 14)).lineSpacing(2).foregroundColor(theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
 
-            Button("Clear All") {
-                viewModel.clearAll()
-            }
-            .buttonStyle(.bordered)
-            .tint(theme.ink2)
+/// A Source option: symbol, title and subtitle, chevron. A plain outline at night.
+private struct OptionCard: View {
+    let theme: PSPalette
+    let symbol: String
+    let title: String
+    let subtitle: String
+    let action: () -> Void
+    @Environment(\.isEnabled) private var isEnabled
 
-            Button("Start Puzzle") {
-                if let game = viewModel.createImportedGame() {
-                    onStart(game)
+    var body: some View {
+        Button(action: action) {
+            PSCard(theme: theme) {
+                HStack(spacing: 16) {
+                    Image(systemName: symbol)
+                        .font(.system(size: 24, weight: .regular))
+                        .foregroundColor(theme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title).font(.system(size: 17)).foregroundColor(theme.ink)
+                        Text(subtitle).font(.system(size: 13)).foregroundColor(theme.ink3)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(theme.ink3)
+                }
+                .padding(18)
+                .contentShape(Rectangle())
+            }
+            .opacity(isEnabled ? 1 : 0.35)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// The photo with the found grid outlined in `accent` and the area outside dimmed.
+private struct GridPhoto: View {
+    let theme: PSPalette
+    let image: UIImage
+    /// Vision's corners (normalised, origin bottom left): top left, top right, bottom right, bottom left.
+    let corners: [CGPoint]?
+
+    var body: some View {
+        Image(uiImage: image)
+            .resizable()
+            .scaledToFit()
+            // At night a lit photo would be the brightest thing on screen: cap it at `ink3`, under the outline.
+            .colorMultiply(theme.isNight ? theme.ink3 : .white)
+            .overlay {
+                GeometryReader { geometry in
+                    if let corners, corners.count == 4 {
+                        let size = geometry.size
+                        let points = corners.map { CGPoint(x: $0.x * size.width, y: (1 - $0.y) * size.height) }
+                        let outline = Path { $0.addLines(points); $0.closeSubpath() }
+                        Path { path in
+                            path.addRect(CGRect(origin: .zero, size: size))
+                            path.addPath(outline)
+                        }
+                        .fill(Color.black.opacity(0.35), style: FillStyle(eoFill: true))
+                        boxLines(points).stroke(theme.accentDim, lineWidth: 1.5)
+                        outline.stroke(theme.accent, lineWidth: 2)
+                    }
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .tint(theme.accent)
-            .disabled(!viewModel.canStart)
-            .accessibilityIdentifier("importStartPuzzle")
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(theme.hair, lineWidth: 1))
+            .accessibilityLabel("Your photo")
+    }
+
+    /// The two inner box lines each way, between matching points on opposite edges.
+    private func boxLines(_ quad: [CGPoint]) -> Path {
+        func lerp(_ from: CGPoint, _ to: CGPoint, _ t: CGFloat) -> CGPoint {
+            CGPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t)
         }
-        .controlSize(.large) // ~50 pt tall: a 44 pt hit area (CODESPEC 9)
+        let (topLeft, topRight, bottomRight, bottomLeft) = (quad[0], quad[1], quad[2], quad[3])
+        return Path { path in
+            for t in [CGFloat(1) / 3, CGFloat(2) / 3] {
+                path.move(to: lerp(topLeft, topRight, t))
+                path.addLine(to: lerp(bottomLeft, bottomRight, t))
+                path.move(to: lerp(topLeft, bottomLeft, t))
+                path.addLine(to: lerp(topRight, bottomRight, t))
+            }
+        }
     }
 }

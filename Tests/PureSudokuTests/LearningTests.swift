@@ -545,7 +545,7 @@ final class LearningTests: XCTestCase {
         XCTAssertNil(bytes("technique_progress.json", in: dir), "set aside and not rewritten on the failed launch")
         let second = reload(dir) // the file is just missing now
         tryLearning(second, puzzle: puzzle)
-        XCTAssertLessThanOrEqual(second.progress(for: .nakedSingle).credits, 1, "no more than before the corruption")
+        XCTAssertEqual(second.progress(for: .nakedSingle).credits, 1, "no more than before the corruption")
         XCTAssertEqual(second.learningLedger.credited.count, 2, "credits and exclusions were lost together and start again")
     }
 

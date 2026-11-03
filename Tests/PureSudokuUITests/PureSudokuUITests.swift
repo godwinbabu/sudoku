@@ -84,12 +84,6 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.buttons[id].label.hasSuffix("value 1"), "the same game, with its entry")
     }
 
-    func testImportButtonOpensImportScreen() {
-        let app = launchApp()
-        app.buttons["importPuzzleButton"].tap()
-        XCTAssertTrue(element("importPuzzleView", in: app).waitForExistence(timeout: 2))
-    }
-
     func testStartingGameShowsGridAndAllowsEntry() {
         let app = launchApp()
         startLevel("easy", in: app)
@@ -549,5 +543,44 @@ extension PureSudokuUITests {
         XCTAssertTrue(gameShowsTimer(in: app), "Show timer on: the game shows it")
         _ = setShowTimer(false, in: app) // checks the toggle reads "Off"
         XCTAssertFalse(gameShowsTimer(in: app), "Show timer off: no timer")
+    }
+}
+
+/// Import (CODESPEC 3.4).
+extension PureSudokuUITests {
+    func testImportButtonOpensImportScreen() {
+        let app = launchApp()
+        app.buttons["importPuzzleButton"].tap()
+        XCTAssertTrue(element("importPuzzleView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(element("importSource", in: app).exists, "import starts on Source")
+        XCTAssertTrue(app.buttons["importChoosePhoto"].exists)
+        XCTAssertTrue(app.buttons["importTypeItIn"].exists)
+    }
+
+    /// Type it in → Check the grid: a repeated digit is named and blocks Start; clearing it lifts that.
+    func testImportCheckTheGridFlagsAConflict() {
+        let app = launchApp()
+        app.buttons["importPuzzleButton"].tap()
+        app.buttons["importTypeItIn"].tap()
+        XCTAssertTrue(element("importReview", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["CHECK THE GRID"].exists)
+        let start = app.buttons["importStartPuzzle"]
+        XCTAssertFalse(start.isEnabled, "an empty grid can't start")
+        let first = app.buttons.matching(NSPredicate(format: "label == 'Row 4 column 1 empty'")).firstMatch
+        let second = app.buttons.matching(NSPredicate(format: "label == 'Row 4 column 5 empty'")).firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 2))
+        first.tap()
+        app.buttons["number_4"].tap()
+        second.tap()
+        app.buttons["number_4"].tap()
+        let conflict = element("importConflictLegend", in: app)
+        XCTAssertTrue(conflict.waitForExistence(timeout: 2))
+        XCTAssertTrue(conflict.label.contains("Two 4s in"), conflict.label)
+        XCTAssertFalse(start.isEnabled)
+        app.buttons["importClearCell"].tap() // the second cell is still selected
+        XCTAssertTrue(element("importStatus", in: app).waitForExistence(timeout: 2))
+        XCTAssertFalse(conflict.exists)
+        app.buttons["importDiscard"].tap()
+        XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))
     }
 }

@@ -9,6 +9,11 @@ final class ImportPuzzleViewModel: ObservableObject {
         case unsolvable
     }
 
+    /// The three import screens (CODESPEC 3.4): pick a source, read the photo, check the grid.
+    enum Step: Equatable {
+        case source, reading, review
+    }
+
     @Published private(set) var gridValues: [Int?]
     @Published private(set) var conflictIndices: Set<Int> = []
     @Published private(set) var solvableState: SolvableState = .unknown
@@ -17,6 +22,10 @@ final class ImportPuzzleViewModel: ObservableObject {
     @Published private(set) var imageID: String?
     @Published private(set) var detectionMessage: String?
     @Published private(set) var isDetecting: Bool = false
+    /// Read digits the detector was unsure of; confirmed by tapping or fixing the cell.
+    @Published private(set) var unsureIndices: Set<Int> = []
+    @Published private(set) var readProgress: SudokuImageDetector.ReadProgress?
+    @Published private(set) var isEnteringByHand = false
 
     private let generatorService: SudokuGeneratorService
     private let imageDetector: SudokuImageDetector
@@ -89,20 +98,46 @@ final class ImportPuzzleViewModel: ObservableObject {
         }
     }
 
+    var step: Step {
+        if isDetecting { return .reading }
+        return image != nil || isEnteringByHand || filledCount > 0 ? .review : .source
+    }
+
+    /// "Two 4s in row 4." for the first house with a repeated digit, or nil.
+    func conflictSummary(names: CellNotation) -> String? {
+        let words = ["Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
+        for house in House.all {
+            let digits = house.cells.compactMap { gridValues[$0] }
+            for digit in 1...9 {
+                let count = digits.filter { $0 == digit }.count
+                if count >= 2 { return "\(words[count - 2]) \(digit)s in \(names.house(house))." }
+            }
+        }
+        return nil
+    }
+
+    /// "Type it in": straight to Check the grid with an empty board.
+    func enterByHand() {
+        isEnteringByHand = true
+    }
+
     var filledCount: Int {
         gridValues.compactMap { $0 }.count
     }
 
     private let minimumClues = 10
 
+    /// Tapping a ringed cell confirms it.
     func selectCell(id: UUID) {
         selectedIndex = idToIndex[id]
+        if let index = selectedIndex { unsureIndices.remove(index) }
     }
 
     func setDigit(_ digit: Int) {
         guard (1...9).contains(digit), let index = selectedIndex else { return }
         stopPendingDetection()
         gridValues[index] = digit
+        unsureIndices.remove(index)
         validate()
     }
 
@@ -110,18 +145,14 @@ final class ImportPuzzleViewModel: ObservableObject {
         guard let index = selectedIndex else { return }
         stopPendingDetection()
         gridValues[index] = nil
+        unsureIndices.remove(index)
         validate()
     }
 
-    func clearAll() {
-        stopPendingDetection()
-        gridValues = Array(repeating: nil, count: 81)
-        validate()
-    }
-
-    func loadGrid(_ values: [Int?]) {
+    func loadGrid(_ values: [Int?], unsure: Set<Int> = []) {
         guard values.count == 81 else { return }
         gridValues = values
+        unsureIndices = unsure
         validate()
     }
 
@@ -145,6 +176,7 @@ final class ImportPuzzleViewModel: ObservableObject {
         }
         self.image = image
         detectionMessage = nil
+        unsureIndices = []
         guard let image else { return }
         imageID = saveImage(image)
         let token = requestToken
@@ -173,6 +205,7 @@ final class ImportPuzzleViewModel: ObservableObject {
         detectionTask = nil
         if isDetecting { detectionMessage = nil }
         isDetecting = false
+        readProgress = nil
     }
 
     func displayCells() -> [SudokuCell] {
@@ -181,7 +214,7 @@ final class ImportPuzzleViewModel: ObservableObject {
                 id: cellIDs[index],
                 row: index / 9,
                 col: index % 9,
-                given: false,
+                given: value != nil, // drawn as givens: that is what they become
                 value: value,
                 candidates: [],
                 isError: conflictIndices.contains(index),
@@ -198,17 +231,24 @@ final class ImportPuzzleViewModel: ObservableObject {
 
     private func detectGrid(from image: UIImage, token: Int) async {
         isDetecting = true
+        readProgress = nil
         detectionMessage = "Detecting grid…"
-        let result: Result<[Int?], Error>
+        let result: Result<SudokuImageDetector.DetectedGrid, Error>
         do {
-            result = .success(try await imageDetector.detectGrid(from: image))
+            result = .success(try await imageDetector.detectGrid(from: image) { [weak self] progress in
+                Task { @MainActor in
+                    guard let self, token == self.requestToken, self.isDetecting else { return }
+                    self.readProgress = progress
+                }
+            })
         } catch {
             result = .failure(error)
         }
         guard token == requestToken, !Task.isCancelled else { return }
+        readProgress = nil
         switch result {
-        case let .success(values):
-            gridValues = values
+        case let .success(grid):
+            loadGrid(grid.values, unsure: grid.unsure)
             detectionMessage = nil
         case .failure:
             detectionMessage = "Could not detect a clear grid. You can fill it manually."
