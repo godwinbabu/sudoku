@@ -190,13 +190,15 @@ final class PureSudokuUITests: XCTestCase {
         startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         let cell = firstEmptyCell(in: app)
-        let row = cell.identifier.split(separator: "_")[1]
-        let rowValue = (0..<9).lazy.compactMap { col -> String? in
-            let label = app.buttons["cell_\(row)_\(col)"].label
+        let parts = cell.identifier.split(separator: "_")
+        // A digit already in the cell's row, or its column if the row is empty (puzzles are random).
+        let peers = (0..<9).map { "cell_\(parts[1])_\($0)" } + (0..<9).map { "cell_\($0)_\(parts[2])" }
+        let peerValue = peers.lazy.compactMap { id -> String? in
+            let label = app.buttons[id].label
             guard let range = label.range(of: " value ") else { return nil }
             return String(label[range.upperBound...])
         }.first
-        guard let digit = rowValue else { return XCTFail("row has no filled cell") }
+        guard let digit = peerValue else { return XCTFail("row and column have no filled cell") }
         cell.tap()
         app.buttons["number_\(digit)"].tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "value \(digit)", in: app))
