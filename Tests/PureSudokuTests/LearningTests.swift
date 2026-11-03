@@ -494,6 +494,113 @@ final class LearningTests: XCTestCase {
         XCTAssertNil(controller.techniqueProgress[Technique.hiddenSingleLine.rawValue], "merged into the box record")
     }
 
+    // MARK: - Learning files that fail to load
+
+    private func reload(_ dir: URL) -> AppController {
+        let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
+        return AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: images)
+    }
+
+    /// Where PersistenceManager keeps `name` (saving it first if needed).
+    private func url(of name: String, in dir: URL) throws -> URL {
+        let files = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []
+        if let found = files.first(where: { $0.lastPathComponent == name }) { return found }
+        try PersistenceManager(directory: dir).save([String](), to: name)
+        return try url(of: name, in: dir)
+    }
+
+    private func bytes(_ name: String, in dir: URL) -> Data? {
+        let files = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)?.allObjects as? [URL] ?? []
+        return files.first { $0.lastPathComponent == name }.flatMap { try? Data(contentsOf: $0) }
+    }
+
+    /// Credits one move in a practice puzzle; returns the controller's folder and the puzzle id.
+    private func creditOnce() throws -> (dir: URL, puzzle: String) {
+        let (controller, dir) = makeTestController()
+        let game = controller.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
+        let puzzle = game.state.puzzle.id
+        game.onTechniqueFound?(.nakedSingle, puzzle, .placed(cell: 0, digit: 1))
+        XCTAssertEqual(controller.progress(for: .nakedSingle).credits, 1)
+        return (dir, puzzle)
+    }
+
+    /// Tries a credit and a hint on a controller whose learning file is unreadable.
+    private func tryLearning(_ controller: AppController, puzzle: String) {
+        let game = controller.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
+        game.onTechniqueFound?(.nakedSingle, puzzle, .placed(cell: 0, digit: 1)) // credited before
+        game.onTechniqueFound?(.fullHouse, puzzle, .placed(cell: 2, digit: 3))
+        game.onHintShown?(.pointing, [CellDigit(cell: 4, digit: 4)], puzzle)
+    }
+
+    func testNoCreditWhileTheLedgerCannotBeRead() throws {
+        let (dir, puzzle) = try creditOnce()
+        let ledger = try XCTUnwrap(bytes("learning_ledger.json", in: dir)), progress = bytes("technique_progress.json", in: dir)
+        let ledgerURL = try url(of: "learning_ledger.json", in: dir)
+        try Data("not json".utf8).write(to: ledgerURL)
+        let broken = reload(dir)
+        tryLearning(broken, puzzle: puzzle)
+        XCTAssertEqual(broken.progress(for: .nakedSingle).credits, 1, "no duplicate credit")
+        XCTAssertEqual(broken.progress(for: .fullHouse).credits, 0)
+        XCTAssertEqual(bytes("technique_progress.json", in: dir), progress, "progress untouched on disk")
+        XCTAssertNil(bytes("learning_ledger.json", in: dir), "the unreadable ledger was set aside, not rewritten")
+        try ledger.write(to: ledgerURL) // readable again
+        let fixed = reload(dir)
+        XCTAssertEqual(fixed.progress(for: .nakedSingle).credits, 1)
+        XCTAssertEqual(fixed.progress(for: .pointing).hintsSeen, 0)
+        XCTAssertEqual(fixed.learningLedger.credited, [MasteryJudge.Move.placed(cell: 0, digit: 1).key(puzzleID: puzzle)])
+    }
+
+    func testNoCreditWhileProgressCannotBeRead() throws {
+        let (dir, puzzle) = try creditOnce()
+        let progress = try XCTUnwrap(bytes("technique_progress.json", in: dir)), ledger = bytes("learning_ledger.json", in: dir)
+        let progressURL = try url(of: "technique_progress.json", in: dir)
+        try Data("not json".utf8).write(to: progressURL)
+        let broken = reload(dir)
+        tryLearning(broken, puzzle: puzzle)
+        XCTAssertEqual(bytes("learning_ledger.json", in: dir), ledger, "the ledger did not use up the move")
+        XCTAssertNil(bytes("technique_progress.json", in: dir), "the unreadable progress was set aside, not rewritten")
+        try progress.write(to: progressURL) // readable again
+        let fixed = reload(dir)
+        XCTAssertEqual(fixed.progress(for: .nakedSingle).credits, 1)
+        let game = fixed.makePracticeGameViewModel(BundledPuzzles.puzzles(for: .easy)[0], number: 1)
+        game.onTechniqueFound?(.fullHouse, puzzle, .placed(cell: 2, digit: 3))
+        XCTAssertEqual(fixed.progress(for: .fullHouse).credits, 1, "the move can still earn its credit")
+    }
+
+    /// An unreadable imports file may still hold games: their ledger keys stay.
+    func testPruningWaitsWhenImportsCannotBeRead() throws {
+        let (_, dir) = makeTestController()
+        var ledger = LearningLedger()
+        ledger.credited = ["import-1|placed|0|1"]
+        try PersistenceManager(directory: dir).save(ledger, to: "learning_ledger.json")
+        try Data("not json".utf8).write(to: try url(of: "imported_games.json", in: dir))
+        let controller = reload(dir)
+        XCTAssertEqual(controller.learningLedger, ledger)
+        XCTAssertEqual(try PersistenceManager(directory: dir).load(LearningLedger.self, from: "learning_ledger.json"), ledger)
+    }
+
+    /// Games saved before the ledger name their hinted techniques only in the hint log.
+    func testOldGamesSeedHintedTechniquesFromTheirHintLog() async throws {
+        let (controller, dir) = makeTestController()
+        var state = await controller.startNewGame(for: .easy)
+        state.hintLog = [HintLogEntry(technique: "hiddenSingleLine", deepestRung: 2, applied: false),
+                         HintLogEntry(technique: "pointing", deepestRung: 1, applied: false),
+                         HintLogEntry(technique: "mistake", deepestRung: 3, applied: true)]
+        try PersistenceManager(directory: dir).save(state, to: "game_easy.json")
+        let reloaded = reload(dir)
+        let game = reloaded.makeGameViewModel(for: .easy)
+        let id = state.puzzle.id
+        XCTAssertEqual(reloaded.learningLedger.hintedTechniques, ["\(id)|hiddenSingleBox", "\(id)|pointing"])
+        game.onTechniqueFound?(.hiddenSingleBox, id, .placed(cell: 0, digit: 1))
+        XCTAssertEqual(reloaded.progress(for: .hiddenSingleBox).credits, 0, "the line hint blocks box credit too")
+    }
+
+    func testCreditsLabelCountsUses() {
+        XCTAssertEqual(LearnView.creditsLabel(1, otherwise: ""), "1 unaided use")
+        XCTAssertEqual(LearnView.creditsLabel(12, otherwise: ""), "12 unaided uses")
+        XCTAssertEqual(LearnView.creditsLabel(0, otherwise: "Lesson"), "Lesson")
+    }
+
     // MARK: - Lessons
 
     func testEveryTechniqueWithADrillHasAWorkedExample() throws {

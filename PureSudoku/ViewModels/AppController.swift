@@ -15,6 +15,10 @@ final class AppController: ObservableObject {
     /// Which moves may still earn credit (CODESPEC 13.4), saved in learning_ledger.json.
     private(set) var learningLedger = LearningLedger()
     private var learningLedgerLoadFailed = false
+    /// Credit needs both learning files: without the ledger a move could be credited twice, and
+    /// without progress the ledger would use up a move whose credit is never saved. Until both
+    /// load, nothing durable about learning changes (hints are still noted in memory).
+    private var learningStoresLoaded: Bool { !learningLedgerLoadFailed && !techniqueProgressLoadFailed }
     @Published var lastPersistenceError: (any Error)?
     /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
     @Published var showsNightSheet = false
@@ -66,12 +70,14 @@ final class AppController: ObservableObject {
         }
 
         var games: [Difficulty: GameState] = [:]
+        var gameLoadFailed = false
         for difficulty in Difficulty.allCases {
             do {
                 if let state = try persistence.load(GameState.self, from: File.game(difficulty).rawValue) {
                     games[difficulty] = state
                 }
             } catch {
+                gameLoadFailed = true
                 self.lastPersistenceError = error
             }
         }
@@ -93,10 +99,13 @@ final class AppController: ObservableObject {
         }
         do {
             learningLedger = try persistence.load(LearningLedger.self, from: File.learningLedger.rawValue) ?? LearningLedger()
-            // Keys of finished or replaced games can't matter again: keep the file small.
-            let before = learningLedger
-            learningLedger.prune(keeping: Set(activeGames.values.map(\.puzzle.id) + importedGames.map(\.gameState.puzzle.id)))
-            if learningLedger != before { saveLedger() }
+            // Keys of finished or replaced games can't matter again: keep the file small. Only when
+            // every saved game loaded: a game we couldn't read may still come back.
+            if !gameLoadFailed && !importedGamesLoadFailed {
+                let before = learningLedger
+                learningLedger.prune(keeping: Set(activeGames.values.map(\.puzzle.id) + importedGames.map(\.gameState.puzzle.id)))
+                if learningLedger != before { saveLedger() }
+            }
         } catch {
             learningLedgerLoadFailed = true
             self.lastPersistenceError = error
@@ -160,6 +169,9 @@ final class AppController: ObservableObject {
     func makePracticeGameViewModel(_ entry: BundledPuzzles.Entry, number: Int) -> GameViewModel {
         let puzzle = SudokuPuzzle(
             // The whole grid: bundled puzzles can share a long prefix, and the id keys learning credit.
+            // shortcut: these ledger keys are ~105 bytes and never pruned (practice comes back), so the
+            // ledger nears 1 MB after ~100 practice puzzles fully played; upgrade to a short stable key
+            // such as practice-<level>-<index> if that starts to matter.
             id: "practice-\(entry.initialGrid)", difficulty: entry.difficulty,
             initialGrid: entry.initialGrid, solutionGrid: entry.solutionGrid, hasUniqueSolution: true
         )
@@ -205,7 +217,7 @@ final class AppController: ObservableObject {
             saveLedger()
         }
         viewModel.onTechniqueFound = { [weak self] technique, puzzleID, move in
-            guard let self else { return }
+            guard let self, learningStoresLoaded else { return }
             let technique = Self.lessonTechnique(technique)
             guard learningLedger.credit(move, technique: technique, puzzle: puzzleID) else { return }
             saveLedger()
@@ -215,6 +227,7 @@ final class AppController: ObservableObject {
             guard let self else { return }
             let technique = technique.map(Self.lessonTechnique)
             let first = learningLedger.recordHint(puzzle: puzzleID, technique: technique, changes: changes)
+            guard learningStoresLoaded else { return }
             saveLedger()
             // hintsSeen counts each technique once per puzzle.
             if let technique, first { updateProgress(technique) { $0.recordHint(at: self.timeProvider.now()) } }
@@ -222,7 +235,7 @@ final class AppController: ObservableObject {
     }
 
     private func saveLedger() {
-        guard !learningLedgerLoadFailed else { return }
+        guard learningStoresLoaded else { return }
         do {
             try persistence.save(learningLedger, to: File.learningLedger.rawValue)
         } catch {
