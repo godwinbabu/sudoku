@@ -1,254 +1,239 @@
 import SwiftUI
 
+/// The board: 3×3 boxes on a `lineMajor` ground, each 3×3 cells on a `line` ground (CODESPEC 7.2).
+/// Line widths follow Clarity; every state shows by shape or weight, never hue alone.
 struct SudokuGridView: View {
     let cells: [SudokuCell]
     let selectedCellID: UUID?
     let theme: PSPalette
-    var candidateOverlay: [UUID: Set<Int>] = [:]
     /// Open hint's marks (CODESPEC 7.3).
     var highlight = HintHighlight()
     var onSelect: (SudokuCell) -> Void
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 9)
+    @Environment(\.psType) private var type
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
-        let selectedCell = cells.first(where: { $0.id == selectedCellID })
-        let selectedValue = selectedCell?.value
-        ZStack {
-            RoundedRectangle(cornerRadius: 12)
-                .fill(theme.bg)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(theme.lineMajor.opacity(0.6), lineWidth: 2)
-                )
-            GeometryReader { geometry in
-                let rawLength = min(geometry.size.width, geometry.size.height)
-                let scale = UIScreen.main.scale
-                let length = floor(rawLength * scale) / scale
-                let cellSide = floor((length / 9) * scale) / scale
-                LazyVGrid(columns: columns, spacing: 0) {
-                    ForEach(cells) { cell in
-                        let isSelected = cell.id == selectedCellID
-                        let isHighlighted = {
-                            guard let target = selectedCell, target.id != cell.id else { return false }
-                            return target.row == cell.row || target.col == cell.col
-                        }()
-                        let isNumberMatch: Bool = {
-                            guard let value = selectedValue, !isSelected else { return false }
-                            return cell.value == value
-                        }()
-                        let displayCandidates = displayCandidates(for: cell)
-                        Button {
-                            onSelect(cell)
-                        } label: {
-                            SudokuCellView(
-                                cell: cell,
-                                displayCandidates: displayCandidates,
-                                isSelected: isSelected,
-                                isHighlighted: isHighlighted,
-                                isNumberMatch: isNumberMatch,
-                                theme: theme,
-                                cellSize: cellSide,
-                                hint: CellHintMark(highlight, cell: cell.index)
-                            )
-                                .frame(height: cellSide)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
-                    }
-                }
-                .frame(width: cellSide * 9, height: cellSide * 9)
-                .padding(4)
-            }
-            gridGuides
-        }
-        .animation(.easeInOut(duration: 0.3), value: highlight)
-    }
-
-    private var gridGuides: some View {
         GeometryReader { geometry in
-            let rawLength = min(geometry.size.width, geometry.size.height)
-            let scale = UIScreen.main.scale
-            let length = floor(rawLength * scale) / scale
-            let cellSize = floor((length / 9) * scale) / scale
-            let gridLength = cellSize * 9
-            let originX = (geometry.size.width - gridLength) / 2
-            let originY = (geometry.size.height - gridLength) / 2
-            ZStack {
-                ForEach(0...9, id: \.self) { index in
-                    let lineWidth: CGFloat = index % 3 == 0 ? 3.2 : 1.2
-                    Path { path in
-                        let offset = CGFloat(index) * cellSize
-                        path.move(to: CGPoint(x: originX + offset, y: originY))
-                        path.addLine(to: CGPoint(x: originX + offset, y: originY + length))
+            let box = type.boxLine, minor = type.minorLine
+            // Whole pixels, so every line lands on the same pixel row across the board.
+            let raw = (min(geometry.size.width, geometry.size.height) - 4 * box - 6 * minor) / 9
+            let cellSide = (raw * displayScale).rounded(.down) / displayScale
+            let side = 9 * cellSide + 6 * minor + 4 * box
+            let selected = cells.first { $0.id == selectedCellID }
+            let marks = BoardMarks(highlight)
+            VStack(spacing: box) {
+                ForEach(0..<3, id: \.self) { boxRow in
+                    HStack(spacing: box) {
+                        ForEach(0..<3, id: \.self) { boxCol in
+                            let layout = BoxLayout(minor: minor, cellSide: cellSide, selected: selected, marks: marks)
+                            boxView(boxRow * 3 + boxCol, layout: layout)
+                        }
                     }
-                    .stroke(theme.lineMajor.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
+                }
+            }
+            .padding(box)
+            .background(theme.lineMajor)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .frame(width: side, height: side)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .animation(.easeInOut(duration: 0.15), value: highlight)
+    }
 
-                    Path { path in
-                        let offset = CGFloat(index) * cellSize
-                        path.move(to: CGPoint(x: originX, y: originY + offset))
-                        path.addLine(to: CGPoint(x: originX + length, y: originY + offset))
+    private struct BoxLayout {
+        let minor: CGFloat
+        let cellSide: CGFloat
+        let selected: SudokuCell?
+        let marks: BoardMarks
+    }
+
+    private func boxView(_ box: Int, layout: BoxLayout) -> some View {
+        let boxRow = box / 3, boxCol = box % 3, minor = layout.minor
+        return VStack(spacing: minor) {
+            ForEach(0..<3, id: \.self) { r in
+                HStack(spacing: minor) {
+                    ForEach(0..<3, id: \.self) { c in
+                        let index = (boxRow * 3 + r) * 9 + boxCol * 3 + c
+                        if cells.indices.contains(index) {
+                            let cell = cells[index]
+                            Button { onSelect(cell) } label: {
+                                SudokuCellView(cell: cell, state: state(of: cell, selected: layout.selected, marks: layout.marks),
+                                               hint: CellHintMark(highlight, cell: index), theme: theme, side: layout.cellSide)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
+                        }
                     }
-                    .stroke(theme.lineMajor.opacity(index % 3 == 0 ? 0.9 : 0.45), lineWidth: lineWidth)
                 }
             }
         }
-        .allowsHitTesting(false)
+        .background(theme.line)
     }
 
-    private func displayCandidates(for cell: SudokuCell) -> Set<Int> {
-        var shown = cell.candidates
-        if let overlay = candidateOverlay[cell.id] { shown.formUnion(overlay) }
-        // A hint shows the candidates it reasons about in cells without notes.
-        if shown.isEmpty, let hinted = highlight.shownCandidates[cell.index] { shown = hinted }
-        return shown.subtracting(highlight.hiddenDigits[cell.index] ?? [])
+    private func state(of cell: SudokuCell, selected: SudokuCell?, marks: BoardMarks) -> CellState {
+        var state = CellState()
+        state.isSelected = cell.id == selected?.id
+        if let selected, !state.isSelected {
+            let seesSelected = cell.row == selected.row || cell.col == selected.col
+                || (cell.row / 3 == selected.row / 3 && cell.col / 3 == selected.col / 3)
+            state.isPeer = seesSelected && !marks.spotlight
+            state.isSameDigit = selected.value != nil && cell.value == selected.value
+        }
+        state.selectedDigit = selected?.value
+        state.inFocus = !marks.spotlight || marks.focus.contains(cell.index)
+        state.isPattern = highlight.patternCells.contains(cell.index)
+        state.isEvidence = highlight.evidenceCells.contains(cell.index)
+        state.isTarget = highlight.ghostDigits[cell.index] != nil
+        state.isRuledOut = highlight.struckDigits[cell.index] != nil
+        return state
     }
+}
+
+/// The spotlight: with a hint open, everything outside its cells fades to `focusDim`.
+private struct BoardMarks {
+    let focus: Set<Int>
+    var spotlight: Bool { !focus.isEmpty }
+
+    init(_ highlight: HintHighlight) {
+        focus = highlight.areaCells.union(highlight.patternCells).union(highlight.evidenceCells)
+            .union(highlight.ghostDigits.keys).union(highlight.struckDigits.keys)
+    }
+}
+
+struct CellState: Equatable {
+    var isSelected = false
+    var isPeer = false
+    var isSameDigit = false
+    var selectedDigit: Int?
+    var inFocus = true
+    var isPattern = false
+    var isEvidence = false
+    var isTarget = false
+    var isRuledOut = false
 }
 
 struct SudokuCellView: View {
     let cell: SudokuCell
-    let displayCandidates: Set<Int>
-    let isSelected: Bool
-    let isHighlighted: Bool
-    let isNumberMatch: Bool
-    let theme: PSPalette
-    let cellSize: CGFloat
+    let state: CellState
     var hint = CellHintMark()
+    let theme: PSPalette
+    let side: CGFloat
+
+    @Environment(\.psType) private var type
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(cellFillColor)
-            if cell.value == nil, let ghost = hint.ghost {
-                Text("\(ghost)")
-                    .font(.title)
-                    .foregroundColor(theme.accent.opacity(0.5))
-                    .accessibilityIdentifier("hintGhost")
-            } else if let value = cell.value {
-                Text("\(value)")
-                    .font(cell.given ? .title.bold() : .title)
-                    .foregroundColor(cell.given ? theme.ink : theme.accent)
-            } else if !displayCandidates.isEmpty {
-                candidateGrid
+            if state.isSelected { Rectangle().strokeBorder(theme.accent, lineWidth: 2) }
+            if state.isEvidence { Rectangle().strokeBorder(theme.accent, lineWidth: 1.5) }
+            if state.isTarget {
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(theme.accent, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                    .padding(3)
             }
-        }
-        .frame(height: cellSize)
-        .overlay(borderOverlay)
-        .overlay(alignment: .topTrailing) {
-            // Errors show by shape, not color alone (CODESPEC 7.2).
-            if cell.isError {
-                Path { path in
-                    path.move(to: .zero)
-                    path.addLine(to: CGPoint(x: cellSize * 0.28, y: 0))
-                    path.addLine(to: CGPoint(x: cellSize * 0.28, y: cellSize * 0.28))
-                    path.closeSubpath()
-                }
-                .fill(theme.err)
-                .frame(width: cellSize * 0.28, height: cellSize * 0.28)
-                .padding(3)
-                .accessibilityHidden(true)
+            if state.isRuledOut {
+                RoundedRectangle(cornerRadius: 4)
+                    .strokeBorder(theme.ink3, style: StrokeStyle(lineWidth: 1, dash: [1, 2]))
+                    .padding(4)
             }
+            content.opacity(state.inFocus ? 1 : theme.focusDim)
         }
+        .frame(width: side, height: side)
+        .background(fill)
+        .clipped()
+        .contentShape(Rectangle())
         .accessibilityLabel(accessibilityText)
     }
 
-    private var cellFillColor: Color {
-        if cell.isVerifiedCorrect {
-            return theme.accent.opacity(0.2)
-        } else if isSelected {
-            return theme.sel
-        } else if isNumberMatch {
-            return theme.same
-        } else if isHighlighted {
-            return theme.sel.opacity(0.4)
-        } else {
-            return theme.surface
-        }
+    private var fill: Color {
+        if state.isPattern { return theme.same }
+        if state.isSelected { return theme.sel }
+        if state.isSameDigit { return theme.same }
+        if state.isPeer { return theme.peer }
+        return theme.bg
     }
 
     @ViewBuilder
-    private var candidateGrid: some View {
-        GeometryReader { geometry in
-            let size = geometry.size
-            ForEach(displayCandidates.sorted(), id: \.self) { number in
-                let position = candidatePosition(for: number, in: size)
-                let isStruck = hint.struck.contains(number)
-                Text("\(number)")
-                    .font(.caption2.weight(hint.ringed.contains(number) ? .heavy : .semibold))
-                    .strikethrough(isStruck, color: theme.ink)
-                    .foregroundColor(isStruck ? theme.ink2.opacity(0.6) : theme.ink2)
-                    .overlay {
-                        if hint.ringed.contains(number) {
-                            Circle().stroke(theme.accent, lineWidth: 1.2).frame(width: size.width / 3.2, height: size.width / 3.2)
+    private var content: some View {
+        let digitSize = side * 0.6 * type.digitScale
+        if let value = cell.value {
+            Text("\(value)")
+                .font(.system(size: digitSize, weight: cell.given ? type.givenWeight : type.userWeight).monospacedDigit())
+                .foregroundColor(cell.isError ? theme.err : cell.given ? theme.ink : theme.accent)
+                .overlay(alignment: .bottom) {
+                    // A mistake also gets a bar under the digit, so it never depends on hue (CODESPEC 7.2).
+                    if cell.isError {
+                        GeometryReader { proxy in
+                            Capsule().fill(theme.err)
+                                .frame(width: proxy.size.width * 1.2, height: 2)
+                                .position(x: proxy.size.width / 2, y: proxy.size.height + side * 0.06)
                         }
+                        .accessibilityHidden(true)
                     }
-                    .position(position)
+                }
+        } else if let ghost = hint.ghost {
+            Text("\(ghost)")
+                .font(.system(size: digitSize, weight: type.userWeight).monospacedDigit())
+                .foregroundColor(theme.accent.opacity(0.55))
+                .accessibilityIdentifier("hintGhost")
+        } else if !hint.candidates(cell).isEmpty {
+            notes
+        }
+    }
+
+    private var notes: some View {
+        let shown = hint.candidates(cell)
+        let size = side * 0.25 * type.candidateScale
+        let pad = side * 0.06, slot = (side - 2 * pad) / 3
+        return VStack(spacing: 0) {
+            ForEach(0..<3, id: \.self) { r in
+                HStack(spacing: 0) {
+                    ForEach(1...3, id: \.self) { c in
+                        let digit = r * 3 + c
+                        let isKey = hint.ringed.contains(digit) || state.selectedDigit == digit
+                        let isStruck = hint.struck.contains(digit)
+                        Text(shown.contains(digit) ? "\(digit)" : " ")
+                            .font(.system(size: size, weight: isKey ? .bold : .medium).monospacedDigit())
+                            .strikethrough(isStruck, color: theme.err)
+                            .foregroundColor(isKey ? theme.accent : isStruck ? theme.ink3 : theme.ink2)
+                            .frame(width: slot, height: slot)
+                    }
+                }
             }
         }
-        .allowsHitTesting(false)
-    }
-
-    private func candidatePosition(for number: Int, in size: CGSize) -> CGPoint {
-        let safeNumber = min(max(number, 1), 9)
-        let row = CGFloat((safeNumber - 1) / 3)
-        let col = CGFloat((safeNumber - 1) % 3)
-        let inset = min(size.width, size.height) * 0.08
-        let availableWidth = size.width - inset * 2
-        let availableHeight = size.height - inset * 2
-        let cellWidth = availableWidth / 3
-        let cellHeight = availableHeight / 3
-        let bias = min(size.width, size.height) * 0.01
-        return CGPoint(
-            x: inset + col * cellWidth + cellWidth / 2 - bias,
-            y: inset + row * cellHeight + cellHeight / 2 - bias
-        )
-    }
-
-    @ViewBuilder
-    private var borderOverlay: some View {
-        if hint.isPattern {
-            RoundedRectangle(cornerRadius: 8).stroke(theme.accent, lineWidth: 3)
-        } else if cell.isError || cell.isVerifiedCorrect || isSelected {
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(borderColor, lineWidth: cell.isError ? 2 : 1.5)
-        } else if hint.inArea {
-            RoundedRectangle(cornerRadius: 8).stroke(theme.accent.opacity(0.7), style: StrokeStyle(lineWidth: 1.2, dash: [3, 3]))
-        }
-    }
-
-    private var borderColor: Color {
-        if cell.isError { return theme.err }
-        if cell.isVerifiedCorrect { return theme.accent }
-        return theme.sel
     }
 
     private var accessibilityText: String {
-        if let value = cell.value {
-            return "Row \(cell.row + 1) column \(cell.col + 1) value \(value)"
-        } else if !displayCandidates.isEmpty {
-            let candidates = displayCandidates.sorted().map(String.init).joined(separator: ", ")
-            return "Row \(cell.row + 1) column \(cell.col + 1) candidates \(candidates)"
-        } else {
-            return "Row \(cell.row + 1) column \(cell.col + 1) empty"
-        }
+        let name = "Row \(cell.row + 1) column \(cell.col + 1)"
+        if let value = cell.value { return "\(name) value \(value)" }
+        let shown = hint.candidates(cell)
+        if !shown.isEmpty { return "\(name) candidates \(shown.sorted().map(String.init).joined(separator: ", "))" }
+        return "\(name) empty"
     }
 }
 
 /// One cell's share of an open hint's highlight.
 struct CellHintMark: Equatable {
-    var inArea = false
-    var isPattern = false
     var ringed: Set<Int> = []
     var struck: Set<Int> = []
+    var hidden: Set<Int> = []
+    var shown: Set<Int>?
     var ghost: Int?
 
     init() {}
 
     init(_ highlight: HintHighlight, cell: Int) {
-        inArea = highlight.areaCells.contains(cell)
-        isPattern = highlight.patternCells.contains(cell)
         ringed = highlight.ringedDigits[cell] ?? []
         struck = highlight.struckDigits[cell] ?? []
+        hidden = highlight.hiddenDigits[cell] ?? []
+        shown = highlight.shownCandidates[cell]
         ghost = highlight.ghostDigits[cell]
+    }
+
+    /// The player's notes; a hint shows the candidates it reasons about in cells without notes.
+    func candidates(_ cell: SudokuCell) -> Set<Int> {
+        let notes = cell.candidates.isEmpty ? (shown ?? []) : cell.candidates
+        return notes.subtracting(hidden)
     }
 }

@@ -1,192 +1,92 @@
 import SwiftUI
 
+/// The game screen (CODESPEC 3.2): header, board, hint slot, four tools and the 1×9 keypad.
 struct GameView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.popToRoot) private var popToRoot
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.psPalette) private var palette
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel: GameViewModel
-    @State private var activeSheet: Sheet?
-    @State private var showCelebration: Bool = false
+    @State private var showsMenu = false
+    @State private var isHushed = false
+    @State private var pausedForHush = false
+    @State private var isGoodnight = false
     @State private var lessonTechnique: Technique?
+    @State private var techniqueLine: String?
     private let difficulty: Difficulty
+
     init(viewModel: GameViewModel, difficulty: Difficulty) {
         _viewModel = StateObject(wrappedValue: viewModel)
         self.difficulty = difficulty
     }
 
-    private enum Sheet: Identifiable {
-        case settings
-        case stats
-
-        var id: Int {
-            switch self {
-            case .settings: return 0
-            case .stats: return 1
-            }
-        }
-    }
+    /// Header, board top gap, hint slot, tools and keypad (everything but the board).
+    private static let chromeHeight: CGFloat = 48 + 6 + 12 + 124 + 54 + 6 + 64 + 4
 
     var body: some View {
         let theme = palette
-        ZStack {
-            theme.bg.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 16) {
-                    topBar(theme: theme)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    SudokuGridView(cells: viewModel.state.cells, selectedCellID: viewModel.selectedCellID, theme: theme, candidateOverlay: viewModel.candidateOverlay, highlight: viewModel.hintHighlight) { cell in
-                        viewModel.select(cell: cell)
+        let isDone = viewModel.state.isCompleted
+        GeometryReader { geometry in
+            let side = min(geometry.size.width - 24, geometry.size.height - Self.chromeHeight, 440)
+            VStack(spacing: 0) {
+                header(theme: theme)
+                boardArea(theme: theme, side: max(side, 200))
+                    .padding(.top, 6)
+                if let session = viewModel.hint, !isDone {
+                    ScrollView {
+                        hintPanel(session, theme: theme).padding(12)
                     }
-                    .frame(maxWidth: .infinity)
-                    .aspectRatio(1, contentMode: .fit)
-                    .padding(.vertical, 4)
-                    .allowsHitTesting(!viewModel.state.isCompleted && !viewModel.isPaused)
-                    if let session = viewModel.hint {
-                        HintPanelView(
-                            session: session,
-                            names: controller.settings.cellNameStyle,
-                            theme: theme,
-                            onBack: viewModel.hintBack,
-                            onNext: viewModel.hintNext,
-                            onShowResult: viewModel.hintShowResult,
-                            onApply: viewModel.applyHint,
-                            onToggleAfter: viewModel.hintToggleAfter,
-                            onReveal: viewModel.hintRevealCell,
-                            onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
-                            onLesson: { lessonTechnique = session.step?.technique },
-                            onDone: { viewModel.endHint() }
-                        )
-                        .disabled(viewModel.isPaused)
-                        .transition(.opacity)
-                    } else {
-                        modeToggle(theme: theme)
-                            .disabled(viewModel.state.isCompleted || viewModel.isPaused)
-                        NumberPadView(
-                            theme: theme,
-                            disabledDigits: viewModel.disabledDigits,
-                            isCandidateMode: viewModel.inputMode == .candidate,
-                            onDigit: { viewModel.setDigit($0) },
-                            onClear: { viewModel.clearSelectedCell() }
-                        )
-                        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
-                        actionButtons(theme: theme)
-                            .disabled(viewModel.isPaused)
-                    }
-                    hintBanner(theme: theme)
+                } else {
+                    hintSlot(theme: theme)
+                        .frame(height: 124)
+                        .padding([.top, .horizontal], 12)
+                    Spacer(minLength: 0)
+                    tools(theme: theme)
+                        .padding(.horizontal, 18)
+                        .opacity(isDone ? 0.3 : 1)
+                    NumberPadView(theme: theme, remaining: viewModel.remaining,
+                                  isNotesMode: viewModel.inputMode == .candidate) { viewModel.setDigit($0) }
+                        .padding(.horizontal, 8)
+                        .padding(.top, 6)
+                        .padding(.bottom, 4)
+                        .opacity(isDone ? 0.3 : 1)
+                        .disabled(isDone || viewModel.isPaused)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
             }
-            // Subtle solved overlay celebration
-            if showCelebration {
-                celebrationOverlay(theme: theme)
-                    .transition(.scale.combined(with: .opacity))
-            }
-            if viewModel.isPaused && !viewModel.state.isCompleted {
-                pauseOverlay(theme: theme)
-                    .transition(.opacity)
+            .frame(width: geometry.size.width)
+        }
+        .background(theme.bg.ignoresSafeArea())
+        .overlay(alignment: .topTrailing) { menu(theme: theme) }
+        .overlay { confirmation(theme: theme) }
+        .overlay {
+            if isHushed {
+                BlackoutView(theme: theme, text: "Tap anywhere to return", onTap: endHush)
+                    .accessibilityIdentifier("hushView")
+            } else if isGoodnight {
+                BlackoutView(theme: theme, text: "Sleep well.", serif: true) { popToRoot() }
+                    .accessibilityIdentifier("goodnightView")
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.headline)
-                        .foregroundColor(theme.accent)
-                }
-                .accessibilityIdentifier("backButton")
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button("Reveal Cell") {
-                        viewModel.revealCell()
-                    }
-                    .disabled(viewModel.selectedCellID == nil || viewModel.state.isCompleted || viewModel.isPaused)
-                    Button("Reveal Puzzle", role: .destructive) {
-                        viewModel.pendingAction = .revealPuzzle
-                    }
-                    .disabled(viewModel.state.isCompleted)
-                    Button("Reset Puzzle", role: .destructive) {
-                        viewModel.pendingAction = .reset
-                    }
-                    if viewModel.state.puzzle.source != .imported && !viewModel.isPractice {
-                        Button("New Puzzle") {
-                            viewModel.pendingAction = .newPuzzle
-                        }
-                        .disabled(viewModel.isPreparingNewPuzzle)
-                    }
-                } label: {
-                    Image(systemName: "line.3.horizontal")
-                }
-                .foregroundColor(theme.accent)
-                .accessibilityIdentifier("gameMenuButton")
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { activeSheet = .stats }) {
-                    Image(systemName: "chart.bar.doc.horizontal")
-                }
-                .foregroundColor(theme.accent)
-                .accessibilityIdentifier("statsButton")
-            }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: { activeSheet = .settings }) {
-                    Image(systemName: "gearshape")
-                }
-                .foregroundColor(theme.accent)
-                .accessibilityIdentifier("settingsButton")
-            }
-        }
+        .background(TwoFingerTapCatcher(action: hush))
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHushed)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isGoodnight)
+        .toolbar(.hidden, for: .navigationBar)
+        .statusBarHidden(isHushed || isGoodnight || (theme.isNight && controller.settings.hideStatusBarInGames))
+        .persistentSystemOverlays(theme.isNight || isHushed || isGoodnight ? .hidden : .automatic)
         .onAppear {
             viewModel.apply(settings: controller.settings)
             viewModel.handleSceneDidAppear()
         }
-        .onDisappear {
-            viewModel.handleSceneDidDisappear()
-        }
-        .onChange(of: controller.settings) { newSettings in
-            viewModel.apply(settings: newSettings)
-        }
+        .onDisappear { viewModel.handleSceneDidDisappear() }
+        .onChange(of: controller.settings) { viewModel.apply(settings: $0) }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 viewModel.resumeFromBackground()
             } else {
                 viewModel.pauseForBackground()
-            }
-        }
-        .onChange(of: viewModel.state.isCompleted) { isCompleted in
-            guard isCompleted else { return }
-            withAnimation(.easeInOut(duration: 0.25)) { showCelebration = true }
-        }
-        .confirmationDialog(
-            viewModel.pendingAction?.title ?? "",
-            isPresented: Binding(
-                get: { viewModel.pendingAction != nil },
-                set: { newValue in
-                    if !newValue {
-                        Task { @MainActor in
-                            viewModel.pendingAction = nil
-                        }
-                    }
-                }
-            ),
-            titleVisibility: .visible
-        ) {
-            if let action = viewModel.pendingAction {
-                Button("Confirm", role: .destructive) {
-                    viewModel.handle(pendingAction: action)
-                }
-                Button("Cancel", role: .cancel) {
-                    Task { @MainActor in
-                        viewModel.pendingAction = nil
-                    }
-                }
-            }
-        } message: {
-            if let action = viewModel.pendingAction {
-                Text(action.message)
             }
         }
         .sheet(item: $lessonTechnique) { technique in
@@ -201,279 +101,263 @@ struct GameView: View {
             .environmentObject(controller)
             .sheetTheme(controller)
         }
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .settings:
-                SettingsView(viewModel: SettingsViewModel(controller: controller))
-                    .sheetTheme(controller)
-            case .stats:
-                StatsView(viewModel: StatsViewModel(controller: controller))
-                    .sheetTheme(controller)
-            }
-        }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("gameView")
     }
 
+    // MARK: - Header
 
-    private func topBar(theme: PSPalette) -> some View {
-        let statusText = viewModel.state.isCompleted ? "Solved" : (viewModel.isPaused ? "Paused" : "In progress")
-        return HStack(alignment: .center, spacing: 12) {
-            Text(difficulty.displayName)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if viewModel.showTimer {
-                HStack(spacing: 8) {
-                    Button(action: toggleTimer) {
-                        Image(systemName: viewModel.isTimerRunning ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.title3)
-                            .foregroundColor(theme.accent)
+    private func header(theme: PSPalette) -> some View {
+        HStack(spacing: 4) {
+            HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
+                .accessibilityIdentifier("backButton")
+            Button(action: togglePause) {
+                VStack(spacing: 1) {
+                    Text(difficulty.displayName.uppercased())
+                        .font(.system(size: 11, weight: .semibold))
+                        .tracking(0.9)
+                        .foregroundColor(theme.ink3)
+                    if viewModel.showTimer {
+                        HStack(spacing: 5) {
+                            Text(Self.timeString(viewModel.state.elapsedSeconds))
+                                .accessibilityIdentifier("timerLabel")
+                            if viewModel.isPaused { Image(systemName: "pause").font(.system(size: 11, weight: .semibold)) }
+                        }
+                        .font(.system(size: 15, weight: .medium).monospacedDigit())
+                        .foregroundColor(theme.ink2)
                     }
-                    .accessibilityIdentifier("timerToggle")
-                    Text(timeString(seconds: viewModel.state.elapsedSeconds))
-                        .accessibilityIdentifier("timerLabel")
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
-            } else {
-                Spacer()
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
             }
-            Text(statusText)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            .buttonStyle(.plain)
+            .disabled(viewModel.state.isCompleted)
+            .accessibilityIdentifier("timerToggle")
+            .accessibilityLabel(viewModel.isPaused ? "Resume timer" : "Pause timer")
+            HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: theme.isNight ? "Night On" : "Night Off") {
+                controller.toggleNight()
+            }
+            .accessibilityIdentifier("nightButton")
+            HeaderIconButton(theme: theme, symbol: "ellipsis", label: "More") { showsMenu.toggle() }
+                .accessibilityIdentifier("moreButton")
         }
-        .font(.headline.bold())
-        .foregroundColor(theme.ink)
+        .padding(.horizontal, 10)
+        .frame(height: 48)
     }
 
-    private func toggleTimer() {
-        if viewModel.isTimerRunning {
-            viewModel.pauseTimer()
-        } else {
-            viewModel.resumeTimer()
-        }
-    }
-
-    private func modeToggle(theme: PSPalette) -> some View {
-        HStack(spacing: 12) {
-            ModeChip(title: "Normal", active: viewModel.inputMode == .normal, theme: theme) {
-                viewModel.inputMode = .normal
-            }
-            ModeChip(title: "Candidate", active: viewModel.inputMode == .candidate, theme: theme) {
-                viewModel.inputMode = .candidate
-            }
-            Spacer()
-            Button(action: { viewModel.undo() }) {
-                Label("Undo", systemImage: "arrow.uturn.backward")
-                    .labelStyle(.titleAndIcon)
-                    .font(.footnote.bold())
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(theme.surface)
-                    .foregroundColor(viewModel.canUndo ? theme.ink : theme.ink2)
-                    .clipShape(Capsule())
-            }
-            .disabled(!viewModel.canUndo || viewModel.isPaused || viewModel.state.isCompleted)
-            .accessibilityIdentifier("mode_undo")
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("modeToggle")
-    }
-
-    private func actionButtons(theme: PSPalette) -> some View {
-        let items: [ActionItem] = [
-            ActionItem(title: viewModel.showAllCandidates ? "Hide Candidates" : "Show Candidates") { viewModel.toggleAllCandidates() },
-            ActionItem(title: "Hint") { viewModel.requestHint() },
-            ActionItem(title: "Check Cell") { viewModel.checkCell() },
-            ActionItem(title: "Check Puzzle") { viewModel.checkPuzzle() }
-        ]
-        let columns = [GridItem(.flexible()), GridItem(.flexible())]
-        return LazyVGrid(columns: columns, spacing: 12) {
-            ForEach(items) { item in
-                let shouldDisable = viewModel.state.isCompleted && ["Hint", "Check Cell", "Check Puzzle"].contains(item.title)
-                GameActionButton(theme: theme, title: item.title, style: item.style, action: item.action)
-                    .disabled(shouldDisable || !item.isEnabled)
-            }
-        }
-    }
-
-    private struct ActionItem: Identifiable {
-        let id = UUID()
-        let title: String
-        var style: GameActionButton.Style = .normal
-        var isEnabled: Bool = true
-        let action: () -> Void
-    }
+    // MARK: - Board
 
     @ViewBuilder
-    private func hintBanner(theme: PSPalette) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if viewModel.state.hasContradiction {
-                Text("Board has a contradiction. Check duplicates or reset.")
-                    .font(.footnote)
+    private func boardArea(theme: PSPalette, side: CGFloat) -> some View {
+        let isDone = viewModel.state.isCompleted
+        ZStack {
+            if viewModel.isPaused && !isDone {
+                VStack(spacing: 14) {
+                    Text("Paused")
+                        .font(.system(size: 28, weight: .medium, design: .serif))
+                        .foregroundColor(theme.ink)
+                    Button("Resume") { viewModel.resumeTimer() }
+                        .buttonStyle(PSButtonStyle(theme: theme))
+                }
+                .frame(width: side, height: side)
+                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(theme.hair, lineWidth: 1))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("pauseOverlay")
+            } else {
+                SudokuGridView(
+                    cells: viewModel.state.cells,
+                    selectedCellID: viewModel.hint == nil ? viewModel.selectedCellID : nil,
+                    theme: theme,
+                    highlight: viewModel.hintHighlight
+                ) { viewModel.select(cell: $0) }
+                    .frame(width: side, height: side)
+                    .opacity(isDone ? 0.3 : 1)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: isDone)
+                    .allowsHitTesting(!isDone)
+            }
+            if isDone {
+                SolvedPanel(theme: theme, summary: solvedSummary, note: solvedNote,
+                            techniques: techniqueLine, onAnother: another, onGoodnight: { isGoodnight = true })
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .task(id: isDone) {
+            techniqueLine = nil
+            guard isDone else { return }
+            let counts = await viewModel.techniqueCounts()
+            guard !Task.isCancelled, !counts.isEmpty else { return }
+            techniqueLine = "This grid took " + counts.map { "\($0.name) ×\($0.count)" }.joined(separator: ", ") + "."
+        }
+    }
+
+    private var solvedSummary: String {
+        let hints = viewModel.state.hintLog.count
+        let hintText = hints == 0 ? "" : " · \(hints) hint\(hints == 1 ? "" : "s")"
+        return "\(difficulty.displayName) · \(Self.timeString(viewModel.state.elapsedSeconds))\(hintText)"
+    }
+
+    /// What this solve counts for (Stats.recordCompletion; practice records nothing).
+    private var solvedNote: String? {
+        if viewModel.isPractice { return "Practice · not counted in stats" }
+        if viewModel.state.usedReveal { return "Revealed · not counted in stats" }
+        if viewModel.state.usedHint { return "Assisted · counts for your streak, not best times" }
+        return nil
+    }
+
+    /// A new puzzle at this level; imports and practice have none, so they go back.
+    private func another() {
+        if viewModel.state.puzzle.source == .imported || viewModel.isPractice {
+            dismiss()
+        } else {
+            viewModel.handle(pendingAction: .newPuzzle)
+        }
+    }
+
+    // MARK: - Below the board
+
+    @ViewBuilder
+    private func hintSlot(theme: PSPalette) -> some View {
+        VStack(spacing: 6) {
+            if viewModel.state.hasContradiction && !viewModel.state.isCompleted {
+                Text("Two of the same digit share a row, column or box.")
                     .foregroundColor(theme.err)
                     .accessibilityIdentifier("contradictionWarning")
             }
+            if viewModel.inputMode == .candidate && !viewModel.state.isCompleted {
+                Text("Notes on — digits go in as pencil marks").foregroundColor(theme.ink3)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 4)
+        .font(.system(size: 13))
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    private func timeString(seconds: Int) -> String {
-        let hours = seconds / 3600
-        let minutes = (seconds % 3600) / 60
-        let secs = seconds % 60
-        if hours > 0 {
-            return String(format: "%02d:%02d:%02d", hours, minutes, secs)
-        } else {
-            return String(format: "%02d:%02d", minutes, secs)
+    private func tools(theme: PSPalette) -> some View {
+        let notesOn = viewModel.inputMode == .candidate
+        return HStack(spacing: 0) {
+            ToolButton(theme: theme, symbol: "arrow.uturn.backward", label: "Undo") { viewModel.undo() }
+                .disabled(!viewModel.canUndo)
+                .accessibilityIdentifier("tool_undo")
+            ToolButton(theme: theme, symbol: "eraser", label: "Erase") { viewModel.clearSelectedCell() }
+                .accessibilityIdentifier("tool_erase")
+            ToolButton(theme: theme, symbol: "pencil", label: "Notes", isActive: notesOn, badge: notesOn ? "ON" : "OFF") {
+                viewModel.inputMode = notesOn ? .normal : .candidate
+            }
+            .accessibilityIdentifier("tool_notes")
+            .accessibilityValue(notesOn ? "On" : "Off")
+            ToolButton(theme: theme, symbol: "lightbulb", label: "Hint") { viewModel.requestHint() }
+                .accessibilityIdentifier("tool_hint")
         }
+        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+    }
+
+    private func hintPanel(_ session: HintSession, theme: PSPalette) -> some View {
+        HintPanelView(
+            session: session,
+            names: controller.settings.cellNameStyle,
+            theme: theme,
+            onBack: viewModel.hintBack,
+            onNext: viewModel.hintNext,
+            onShowResult: viewModel.hintShowResult,
+            onApply: viewModel.applyHint,
+            onToggleAfter: viewModel.hintToggleAfter,
+            onReveal: viewModel.hintRevealCell,
+            onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
+            onLesson: { lessonTechnique = session.step?.technique },
+            onDone: { viewModel.endHint() }
+        )
+        .disabled(viewModel.isPaused)
+    }
+
+    // MARK: - More menu, confirmation, Hush
+
+    @ViewBuilder
+    private func menu(theme: PSPalette) -> some View {
+        if showsMenu {
+            let isDone = viewModel.state.isCompleted
+            ZStack(alignment: .topTrailing) {
+                Color.clear.contentShape(Rectangle()).ignoresSafeArea().onTapGesture { showsMenu = false }
+                PopoverCard(theme: theme) {
+                    MenuRow(theme: theme, title: "Check puzzle", showsDivider: false) { closeMenu(viewModel.checkPuzzle) }
+                        .disabled(isDone || viewModel.isPaused)
+                        .accessibilityIdentifier("menu_check")
+                    MenuRow(theme: theme, title: "Fill all notes") { closeMenu(viewModel.fillAllNotes) }
+                        .disabled(isDone || viewModel.isPaused)
+                        .accessibilityIdentifier("menu_fillNotes")
+                    MenuRow(theme: theme, title: "Restart puzzle") { closeMenu { viewModel.pendingAction = .reset } }
+                        .disabled(viewModel.isPaused)
+                        .accessibilityIdentifier("menu_restart")
+                    MenuRow(theme: theme, title: "Hush screen", detail: "2-finger tap") { closeMenu(hush) }
+                        .accessibilityIdentifier("menu_hush")
+                }
+                .frame(width: 230)
+                .padding(.top, 50)
+                .padding(.trailing, 12)
+            }
+            .transition(.opacity)
+        }
+    }
+
+    private func closeMenu(_ action: () -> Void) {
+        showsMenu = false
+        action()
     }
 
     @ViewBuilder
-    private func celebrationOverlay(theme: PSPalette) -> some View {
-        ZStack {
-            Color.black.opacity(theme.isNight ? 0.55 : 0.35)
-                .ignoresSafeArea()
-            VStack(spacing: 20) {
-                HStack(spacing: 10) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 30, weight: .bold))
-                        .foregroundColor(theme.accent)
-                    Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 90, weight: .bold))
-                        .foregroundColor(theme.accent)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 30, weight: .bold))
-                        .foregroundColor(theme.accent)
-                }
-                VStack(spacing: 6) {
-                    Text("Puzzle Solved!")
-                        .font(.system(size: 34, weight: .black, design: .rounded))
-                        .foregroundColor(theme.ink)
-                    Text("Amazing focus. Enjoy that win!")
-                        .font(.headline)
-                        .foregroundColor(theme.ink2)
-                    Text(timeString(seconds: viewModel.state.elapsedSeconds))
-                        .font(.title2.bold())
-                        .foregroundColor(theme.ink)
-                }
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        showCelebration = false
+    private func confirmation(theme: PSPalette) -> some View {
+        if let action = viewModel.pendingAction {
+            ZStack {
+                Color.black.opacity(theme.isNight ? 0.55 : 0.18)
+                    .ignoresSafeArea()
+                    .onTapGesture { viewModel.pendingAction = nil }
+                PopoverCard(theme: theme) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(action.title).font(.system(size: 17, weight: .semibold)).foregroundColor(theme.ink)
+                        Text(action.message).font(.system(size: 15)).foregroundColor(theme.ink2)
+                        HStack(spacing: 10) {
+                            Spacer()
+                            Button("Cancel") { viewModel.pendingAction = nil }
+                                .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
+                                .accessibilityIdentifier("confirm_cancel")
+                            Button(action.confirmLabel) { viewModel.handle(pendingAction: action) }
+                                .buttonStyle(PSButtonStyle(theme: theme))
+                                .accessibilityIdentifier("confirm_action")
+                        }
+                        .padding(.top, 10)
                     }
-                } label: {
-                    Text("Continue")
-                        .font(.headline.bold())
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 18)
-                        .frame(maxWidth: .infinity)
-                        .background(theme.accent.opacity(0.15))
-                        .foregroundColor(theme.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(16)
                 }
-                .accessibilityIdentifier("celebrationContinue")
+                .frame(maxWidth: 320)
+                .padding(.horizontal, 24)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("confirmDialog")
             }
-            .padding(.vertical, 32)
-            .padding(.horizontal, 28)
-            .frame(minWidth: 320)
-            .background(
-                LinearGradient(
-                    colors: [theme.surface.opacity(0.98), theme.accent.opacity(0.18)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .stroke(theme.accent.opacity(0.6), lineWidth: 2.2)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-            .shadow(color: Color.black.opacity(theme.isNight ? 0.2 : 0.26), radius: 14, x: 0, y: 4)
-            .padding(.horizontal, 20)
+            .transition(.opacity)
         }
     }
 
-    @ViewBuilder
-    private func pauseOverlay(theme: PSPalette) -> some View {
-        ZStack {
-            Color.black.opacity(theme.isNight ? 0.55 : 0.35)
-                .ignoresSafeArea()
-            VStack(spacing: 16) {
-                Text("Game is paused")
-                    .font(.title2.bold())
-                    .foregroundColor(theme.ink)
-                Button {
-                    viewModel.resumeTimer()
-                } label: {
-                    Text("Resume")
-                        .font(.headline.bold())
-                        .padding(.horizontal, 28)
-                        .padding(.vertical, 12)
-                        .background(theme.accent.opacity(0.25))
-                        .foregroundColor(theme.accent)
-                        .clipShape(Capsule())
-                }
-            }
-            .padding(24)
-            .frame(maxWidth: 320)
-            .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(radius: 12)
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("pauseOverlay")
-        }
-    }
-}
-
-struct GameActionButton: View {
-    enum Style {
-        case normal
-        case destructive
+    /// Hush: pause and go black. A two-finger tap anywhere, or the More menu.
+    private func hush() {
+        // The recognizer is on the window, so it also fires inside the Lesson sheet.
+        guard !isHushed, !isGoodnight, lessonTechnique == nil else { return }
+        showsMenu = false
+        pausedForHush = !viewModel.isPaused && !viewModel.state.isCompleted
+        if pausedForHush { viewModel.pauseTimer() }
+        isHushed = true
     }
 
-    let theme: PSPalette
-    let title: String
-    var style: Style = .normal
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.footnote.bold())
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .foregroundColor(style == .destructive ? theme.err : theme.ink)
-                .frame(maxWidth: .infinity)
-                .background(background)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("action_\(title.replacingOccurrences(of: " ", with: ""))")
+    private func endHush() {
+        isHushed = false
+        if pausedForHush { viewModel.resumeTimer() }
+        pausedForHush = false
     }
 
-    private var background: Color {
-        switch style {
-        case .normal: return theme.accent.opacity(0.15)
-        case .destructive: return theme.err.opacity(0.15)
-        }
+    private func togglePause() {
+        if viewModel.isPaused { viewModel.resumeTimer() } else { viewModel.pauseTimer() }
     }
-}
 
-private struct ModeChip: View {
-    let title: String
-    let active: Bool
-    let theme: PSPalette
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(.footnote.bold())
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .frame(maxWidth: .infinity)
-                .background(active ? theme.accent.opacity(0.2) : theme.surface)
-                .foregroundColor(active ? theme.accent : theme.ink2)
-                .clipShape(Capsule())
-        }
-        .accessibilityIdentifier("mode_\(title.lowercased())")
+    static func timeString(_ seconds: Int) -> String {
+        let hours = seconds / 3600, minutes = (seconds % 3600) / 60, secs = seconds % 60
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, secs) : String(format: "%d:%02d", minutes, secs)
     }
 }

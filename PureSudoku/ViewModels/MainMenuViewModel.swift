@@ -41,8 +41,5 @@ final class MainMenuViewModel: ObservableObject {
     }
 
     /// Until the Night sheet lands (CODESPEC 12.2), the menu bar flips between Day and Night.
-    func toggleNight() {
-        let night = !controller.isNight
-        controller.updateSettings { $0.appearance = night ? .night : .day }
-    }
+    func toggleNight() { controller.toggleNight() }
 }

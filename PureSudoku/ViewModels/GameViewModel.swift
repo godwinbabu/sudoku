@@ -29,10 +29,8 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var canUndo: Bool = false
     @Published private(set) var isTimerRunning: Bool = false
     @Published private(set) var isPaused: Bool = false
-    @Published private(set) var showAllCandidates: Bool = false
     /// True while a new puzzle is being generated; further New Puzzle requests are ignored.
     @Published private(set) var isPreparingNewPuzzle = false
-    @Published private(set) var candidateOverlay: [UUID: Set<Int>] = [:]
 
     enum PendingAction: Identifiable {
         case reset
@@ -49,9 +47,17 @@ final class GameViewModel: ObservableObject {
 
         var title: String {
             switch self {
-            case .reset: return "Reset puzzle?"
+            case .reset: return "Restart puzzle?"
             case .revealPuzzle: return "Reveal entire puzzle?"
             case .newPuzzle: return "Start a new puzzle?"
+            }
+        }
+
+        var confirmLabel: String {
+            switch self {
+            case .reset: return "Restart"
+            case .revealPuzzle: return "Reveal"
+            case .newPuzzle: return "New puzzle"
             }
         }
 
@@ -202,9 +208,20 @@ final class GameViewModel: ObservableObject {
         return elapsed
     }
 
-    func toggleAllCandidates() {
-        showAllCandidates.toggle()
-        candidateOverlay = showAllCandidates ? computeCandidateOverlay() : [:]
+    /// Fills every empty cell's notes with the digits its row, column and box still allow. One Undo reverts it.
+    func fillAllNotes() {
+        guard !state.isCompleted else { return }
+        recordUndoPoint()
+        var newState = state
+        let valueAt = Dictionary(uniqueKeysWithValues: newState.cells.map { ($0.index, $0.value) })
+        for idx in newState.cells.indices where newState.cells[idx].value == nil {
+            let seen = Set(Board.peers[newState.cells[idx].index].compactMap { valueAt[$0] ?? nil })
+            newState.cells[idx].candidates = Set(1...9).subtracting(seen)
+        }
+        state = newState
+        endHint()
+        updateCanUndo()
+        scheduleSave()
     }
 
     func select(cell: SudokuCell) {
@@ -230,7 +247,6 @@ final class GameViewModel: ObservableObject {
         endHint()
         
         updateAutoCheckHighlights()
-        refreshCandidateOverlayIfNeeded()
         scheduleSave()
     }
 
@@ -265,8 +281,7 @@ final class GameViewModel: ObservableObject {
             updateAutoCheckHighlights()
             checkIfSolved()
             updateCanUndo()
-            refreshCandidateOverlayIfNeeded()
-            scheduleSave()
+                scheduleSave()
         case .candidate:
             if newState.cells[index].candidates.contains(digit) {
                 newState.cells[index].candidates.remove(digit)
@@ -277,8 +292,7 @@ final class GameViewModel: ObservableObject {
             endHint()
             updateAutoCheckHighlights()
             updateCanUndo()
-            refreshCandidateOverlayIfNeeded()
-            scheduleSave()
+                scheduleSave()
         }
     }
 
@@ -374,8 +388,7 @@ final class GameViewModel: ObservableObject {
             updateAutoCheckHighlights()
             checkIfSolved()
             updateCanUndo()
-            refreshCandidateOverlayIfNeeded()
-            scheduleSave()
+                scheduleSave()
         }
     }
 
@@ -404,8 +417,6 @@ final class GameViewModel: ObservableObject {
         
         self.state = newState
         updateCanUndo()
-        candidateOverlay = [:]
-        showAllCandidates = false
         reportCompletion(newState)
     }
 
@@ -432,20 +443,15 @@ final class GameViewModel: ObservableObject {
         hint = nil // the old board's hint no longer applies
         undoStack.removeAll()
         updateCanUndo()
-        candidateOverlay = [:]
-        showAllCandidates = false
         startTimerIfNeeded()
         saveNow()
     }
 
-    var disabledDigits: Set<Int> {
-        var counts: [Int: Int] = [:]
-        for cell in state.cells {
-            if let value = cell.value, (1...9).contains(value) {
-                counts[value, default: 0] += 1
-            }
-        }
-        return Set(counts.filter { $0.value >= 9 }.map(\.key))
+    /// Digits still to place, 9 minus those on the board (the keypad counts).
+    var remaining: [Int: Int] {
+        var left = Dictionary(uniqueKeysWithValues: (1...9).map { ($0, 9) })
+        for case let value? in state.cells.map(\.value) where left[value] != nil { left[value]! -= 1 }
+        return left
     }
 
     func load(state newState: GameState) {
@@ -475,8 +481,6 @@ final class GameViewModel: ObservableObject {
         isPaused = false
         updateCanUndo()
         updateAutoCheckHighlights()
-        candidateOverlay = [:]
-        showAllCandidates = false
         
         if !finalState.isCompleted {
             startTimerIfNeeded()
@@ -523,7 +527,6 @@ final class GameViewModel: ObservableObject {
         pendingAction = nil
         updateAutoCheckHighlights()
         updateCanUndo()
-        refreshCandidateOverlayIfNeeded()
         scheduleSave()
     }
 
@@ -562,7 +565,6 @@ final class GameViewModel: ObservableObject {
         updateContradictionFlag(on: &newState)
         self.state = newState
         updateCanUndo()
-        refreshCandidateOverlayIfNeeded()
     }
 
     private func checkIfSolved() {
@@ -579,8 +581,6 @@ final class GameViewModel: ObservableObject {
         
         self.state = newState
         updateCanUndo()
-        candidateOverlay = [:]
-        showAllCandidates = false
         reportCompletion(newState)
     }
     }
@@ -650,19 +650,21 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    private func refreshCandidateOverlayIfNeeded() {
-        guard showAllCandidates else { return }
-        candidateOverlay = computeCandidateOverlay()
+    /// How often each technique solves this grid from the start, by display name, most used first
+    /// (the Solved panel). A full solve, so it runs off the main thread (CODESPEC 9).
+    func techniqueCounts() async -> [(name: String, count: Int)] {
+        let start = state.puzzle.initialGrid.map { Int(String($0)) ?? 0 }
+        let allowsUniqueness = state.puzzle.isUnique
+        return await Task.detached(priority: .userInitiated) {
+            let steps = LogicalSolver(allowsUniqueness: allowsUniqueness).solve(SolverBoard(values: start)).steps
+            return GameViewModel.countByName(steps.map(\.technique))
+        }.value
     }
 
-    private func computeCandidateOverlay() -> [UUID: Set<Int>] {
-        var overlay: [UUID: Set<Int>] = [:]
-        let valueAt = Dictionary(uniqueKeysWithValues: state.cells.map { ($0.index, $0.value) })
-        for cell in state.cells where cell.value == nil {
-            let seen = Set(Board.peers[cell.index].compactMap { valueAt[$0] ?? nil })
-            overlay[cell.id] = cell.candidates.union(Set(1...9).subtracting(seen))
-        }
-        return overlay
+    /// Hidden Single (box) and (line) share one name, so they count as one line.
+    nonisolated static func countByName(_ techniques: [Technique]) -> [(name: String, count: Int)] {
+        let counts = Dictionary(techniques.map { ($0.displayName, 1) }, uniquingKeysWith: +)
+        return counts.map { (name: $0.key, count: $0.value) }.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
     }
 }
 
@@ -748,7 +750,6 @@ extension GameViewModel {
         updateAutoCheckHighlights()
         checkIfSolved()
         updateCanUndo()
-        refreshCandidateOverlayIfNeeded()
         scheduleSave()
     }
 

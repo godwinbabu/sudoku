@@ -103,6 +103,7 @@ struct MainMenuView: View {
                 }
             }
         }
+        .environment(\.popToRoot) { navigationPath = NavigationPath() }
     }
 
     private func topSection(theme: PSPalette) -> some View {

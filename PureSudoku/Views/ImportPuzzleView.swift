@@ -125,7 +125,6 @@ struct ImportPuzzleView: View {
                 cells: viewModel.displayCells(),
                 selectedCellID: viewModel.selectedIndex.map { viewModel.cellIDs[$0] },
                 theme: theme,
-                candidateOverlay: [:],
                 onSelect: { cell in
                     viewModel.selectCell(id: cell.id)
                 }
@@ -138,14 +137,9 @@ struct ImportPuzzleView: View {
 
     @ViewBuilder
     private func numberPadSection(theme: PSPalette) -> some View {
-        NumberPadView(
-            theme: theme,
-            disabledDigits: [],
-            isCandidateMode: false,
-            onDigit: { viewModel.setDigit($0) },
-            onClear: { viewModel.clearSelected() }
-        )
-        .accessibilityIdentifier("importNumberPad")
+        NumberPadView(theme: theme, keyHeight: 52) { viewModel.setDigit($0) }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("importNumberPad")
     }
 
     @ViewBuilder
@@ -171,6 +165,13 @@ struct ImportPuzzleView: View {
     @ViewBuilder
     private func actionSection(theme: PSPalette) -> some View {
         HStack(spacing: 12) {
+            Button("Clear cell") {
+                viewModel.clearSelected()
+            }
+            .buttonStyle(.bordered)
+            .tint(theme.ink2)
+            .accessibilityIdentifier("importClearCell")
+
             Button("Clear All") {
                 viewModel.clearAll()
             }
@@ -187,5 +188,6 @@ struct ImportPuzzleView: View {
             .disabled(!viewModel.canStart)
             .accessibilityIdentifier("importStartPuzzle")
         }
+        .controlSize(.large) // ~50 pt tall: a 44 pt hit area (CODESPEC 9)
     }
 }
