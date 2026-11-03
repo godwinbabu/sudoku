@@ -169,7 +169,6 @@ struct ImportPuzzleView: View {
                 viewModel.clearSelected()
             }
             .buttonStyle(.bordered)
-            .frame(minHeight: 44)
             .tint(theme.ink2)
             .accessibilityIdentifier("importClearCell")
 
@@ -177,7 +176,6 @@ struct ImportPuzzleView: View {
                 viewModel.clearAll()
             }
             .buttonStyle(.bordered)
-            .frame(minHeight: 44)
             .tint(theme.ink2)
 
             Button("Start Puzzle") {
@@ -190,5 +188,6 @@ struct ImportPuzzleView: View {
             .disabled(!viewModel.canStart)
             .accessibilityIdentifier("importStartPuzzle")
         }
+        .controlSize(.large) // ~50 pt tall: a 44 pt hit area (CODESPEC 9)
     }
 }

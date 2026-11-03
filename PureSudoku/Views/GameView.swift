@@ -185,7 +185,7 @@ struct GameView: View {
             techniqueLine = nil
             guard isDone else { return }
             let counts = await viewModel.techniqueCounts()
-            guard !counts.isEmpty else { return }
+            guard !Task.isCancelled, !counts.isEmpty else { return }
             techniqueLine = "This grid took " + counts.map { "\($0.name) ×\($0.count)" }.joined(separator: ", ") + "."
         }
     }

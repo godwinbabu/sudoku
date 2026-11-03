@@ -49,8 +49,13 @@ final class GameViewModelTests: XCTestCase {
         let counts = await makeViewModel().techniqueCounts()
         XCTAssertFalse(counts.isEmpty)
         XCTAssertEqual(counts.map(\.count), counts.map(\.count).sorted(by: >), "most used first")
-        // Hidden Single (box) and Hidden Single (line) share one name; it must show once.
-        XCTAssertEqual(Set(counts.map(\.name)).count, counts.count, "no name repeats")
+    }
+
+    /// Hidden Single (box) and Hidden Single (line) share one name; the Solved panel shows it once.
+    func testTechniqueCountsMergeSharedNames() {
+        let counts = GameViewModel.countByName([.hiddenSingleBox, .hiddenSingleLine, .hiddenSingleBox, .nakedSingle])
+        XCTAssertEqual(counts.map(\.name), ["Hidden Single", "Naked Single"])
+        XCTAssertEqual(counts.map(\.count), [3, 1])
     }
 
     func testCandidateModeToggles() {

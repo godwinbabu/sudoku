@@ -203,6 +203,34 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.buttons["lesson_practice1"].waitForExistence(timeout: 2))
     }
 
+    /// Goodnight after a practice solve goes back to the main menu, not the lesson (CODESPEC 3.2).
+    func testGoodnightFromPracticeReturnsToMenu() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestNearlySolved"]
+        app.launch()
+        let learn = app.buttons["learnButton"]
+        for _ in 0..<3 where !learn.isHittable { app.swipeUp() }
+        learn.tap()
+        let lesson = app.buttons["learn_pointing"]
+        XCTAssertTrue(lesson.waitForExistence(timeout: 2))
+        for _ in 0..<4 where !lesson.isHittable { app.swipeUp() }
+        lesson.tap()
+        let practice = app.buttons["lesson_practice1"]
+        XCTAssertTrue(practice.waitForExistence(timeout: 5))
+        for _ in 0..<4 where !practice.isHittable { app.swipeUp() }
+        practice.tap()
+        firstEmptyCell(in: app).tap()
+        // One cell is left, so only its digit's key is still enabled.
+        app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'number_' AND isEnabled == true")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["solved_goodnight"].waitForExistence(timeout: 3))
+        app.buttons["solved_goodnight"].tap()
+        let goodnight = element("goodnightView", in: app)
+        XCTAssertTrue(goodnight.waitForExistence(timeout: 2))
+        goodnight.tap()
+        XCTAssertTrue(app.buttons["difficulty_easy"].waitForExistence(timeout: 3), "back on the main menu")
+        XCTAssertFalse(app.buttons["lesson_practice1"].exists, "not the lesson")
+    }
+
     private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {

@@ -124,7 +124,15 @@ final class AppController: ObservableObject {
             id: "practice-\(entry.initialGrid.prefix(12))", difficulty: entry.difficulty,
             initialGrid: entry.initialGrid, solutionGrid: entry.solutionGrid, hasUniqueSolution: true
         )
-        let viewModel = GameViewModel(state: GameState.newGame(for: puzzle, now: timeProvider.now()), settings: settings,
+        var state = GameState.newGame(for: puzzle, now: timeProvider.now())
+        // UI tests only: fill all but one cell, so a test can reach the Solved panel (CODESPEC 8).
+        if ProcessInfo.processInfo.arguments.contains("-uiTestNearlySolved") {
+            let solution = Array(entry.solutionGrid)
+            for index in state.cells.indices.filter({ state.cells[$0].value == nil }).dropFirst() {
+                state.cells[index].value = Int(String(solution[index]))
+            }
+        }
+        let viewModel = GameViewModel(state: state, settings: settings,
                                       validator: validator, timeProvider: timeProvider, hintService: generatorService)
         viewModel.isPractice = true
         connectLearning(viewModel)

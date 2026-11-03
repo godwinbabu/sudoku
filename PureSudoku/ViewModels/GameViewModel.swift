@@ -657,9 +657,14 @@ final class GameViewModel: ObservableObject {
         let allowsUniqueness = state.puzzle.isUnique
         return await Task.detached(priority: .userInitiated) {
             let steps = LogicalSolver(allowsUniqueness: allowsUniqueness).solve(SolverBoard(values: start)).steps
-            let counts = Dictionary(steps.map { ($0.technique.displayName, 1) }, uniquingKeysWith: +)
-            return counts.map { (name: $0.key, count: $0.value) }.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
+            return GameViewModel.countByName(steps.map(\.technique))
         }.value
+    }
+
+    /// Hidden Single (box) and (line) share one name, so they count as one line.
+    nonisolated static func countByName(_ techniques: [Technique]) -> [(name: String, count: Int)] {
+        let counts = Dictionary(techniques.map { ($0.displayName, 1) }, uniquingKeysWith: +)
+        return counts.map { (name: $0.key, count: $0.value) }.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
     }
 }
 
