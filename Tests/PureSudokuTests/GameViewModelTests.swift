@@ -25,13 +25,11 @@ final class GameViewModelTests: XCTestCase {
         let digit = 5
         let missing = viewModel.state.cells.filter { !$0.given && solution[$0.index] == digit }
         XCTAssertEqual(viewModel.remaining[digit], missing.count)
-        XCTAssertFalse(viewModel.disabledDigits.contains(digit))
         for cell in missing {
             viewModel.select(cell: cell)
             viewModel.setDigit(digit)
         }
         XCTAssertEqual(viewModel.remaining[digit], 0)
-        XCTAssertEqual(viewModel.disabledDigits, [digit])
     }
 
     func testFillAllNotesIsOneUndo() {
@@ -47,10 +45,12 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.cells.allSatisfy { $0.candidates.isEmpty })
     }
 
-    func testTechniqueCountsCoverTheGrid() {
-        let counts = makeViewModel().techniqueCounts()
+    func testTechniqueCountsCoverTheGrid() async {
+        let counts = await makeViewModel().techniqueCounts()
         XCTAssertFalse(counts.isEmpty)
         XCTAssertEqual(counts.map(\.count), counts.map(\.count).sorted(by: >), "most used first")
+        // Hidden Single (box) and Hidden Single (line) share one name; it must show once.
+        XCTAssertEqual(Set(counts.map(\.name)).count, counts.count, "no name repeats")
     }
 
     func testCandidateModeToggles() {

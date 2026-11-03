@@ -169,6 +169,7 @@ struct ImportPuzzleView: View {
                 viewModel.clearSelected()
             }
             .buttonStyle(.bordered)
+            .frame(minHeight: 44)
             .tint(theme.ink2)
             .accessibilityIdentifier("importClearCell")
 
@@ -176,6 +177,7 @@ struct ImportPuzzleView: View {
                 viewModel.clearAll()
             }
             .buttonStyle(.bordered)
+            .frame(minHeight: 44)
             .tint(theme.ink2)
 
             Button("Start Puzzle") {

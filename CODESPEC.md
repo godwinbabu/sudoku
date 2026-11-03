@@ -237,7 +237,7 @@ Testing requirements:
 	•	Restart puzzle asks first, with a custom confirmation styled like the menu.
 	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops.
 	•	Hush: a two-finger tap anywhere, or the More menu, pauses the game and shows pure black. “Tap anywhere to return” fades out after about 3.5 s. Any tap returns and resumes.
-	•	Solved: the board fades to 30% over 600 ms. Over it: “Solved.”, the level, time and hint count, an “Assisted” note when a hint showed its result, and the techniques the grid needs (from the logical solver). Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
+	•	Solved: the board fades to 30% over 600 ms. Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: streak, not best times), and the techniques the grid needs, by name (from the logical solver, computed once off the main thread). Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
 	•	Goodnight: pure black with “Sleep well.” fading out. A tap returns to the main menu.
 	•	In a Night game the status bar is hidden (hideStatusBarInGames) and the home indicator auto-hides.
 	•	Interaction:
@@ -525,7 +525,7 @@ enum Appearance: String, Codable {
 	•	s = floor + (1 − floor) × (glow / 100)^1.15, with floor 0.20 / 0.30 / 0.38 for Clarity Standard / Large / Bold. Increase Contrast uses the Bold floor.
 	•	bg is always #000 (OLED pixels off). Every other token is base or accent times a fixed share of s (Design/v2/README.md, “Night palette”).
 	•	Never use a black overlay to dim; it dims everything by the same amount and makes small marks unreadable first.
-	•	Night rules: no filled shapes behind text; primary buttons are outlines (1.5 pt accentDim stroke, accent text); cards are transparent with a 1 pt hair border.
+	•	Night rules: no filled shapes behind text; primary buttons are outlines (1.5 pt accentDim stroke, accent text); cards are transparent with a 1 pt hair border (popovers over the board, such as the More menu and confirmations, fill #000 so the board does not show through).
 	•	Every state must show by shape or weight, not hue alone (Day and Night):
 	•	Selection: a filled background plus a heavier outline.
 	•	Error: an underline bar plus the err colour.
@@ -804,6 +804,7 @@ Design with thumb-only use in mind:
 	•	Hint panel buttons (Back, Next, Apply, Done) in the bottom thumb zone.
 	•	Tap targets:
 	•	Minimum hit size ~44×44 points for all interactive elements (Apple HIG).
+	•	Exception: the 1×9 keypad keys are about 38 pt wide on a 390 pt phone, but 64 pt tall. The single row is a design decision (Design/v2).
 	•	Gestures:
 	•	Primary interactions must be simple taps.
 	•	Avoid complex gestures (e.g. long-press + drag combos) as required controls.

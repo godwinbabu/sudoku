@@ -454,8 +454,6 @@ final class GameViewModel: ObservableObject {
         return left
     }
 
-    var disabledDigits: Set<Int> { Set(remaining.filter { $0.value <= 0 }.keys) }
-
     func load(state newState: GameState) {
         _ = calculateAndStopTimer()
         checkedWrongIDs.removeAll()
@@ -652,12 +650,16 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    /// How often each technique solves this grid from the start, most used first (the Solved panel).
-    func techniqueCounts() -> [(technique: Technique, count: Int)] {
+    /// How often each technique solves this grid from the start, by display name, most used first
+    /// (the Solved panel). A full solve, so it runs off the main thread (CODESPEC 9).
+    func techniqueCounts() async -> [(name: String, count: Int)] {
         let start = state.puzzle.initialGrid.map { Int(String($0)) ?? 0 }
-        let steps = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).solve(SolverBoard(values: start)).steps
-        let counts = Dictionary(steps.map { ($0.technique, 1) }, uniquingKeysWith: +)
-        return counts.map { (technique: $0.key, count: $0.value) }.sorted { $0.count > $1.count }
+        let allowsUniqueness = state.puzzle.isUnique
+        return await Task.detached(priority: .userInitiated) {
+            let steps = LogicalSolver(allowsUniqueness: allowsUniqueness).solve(SolverBoard(values: start)).steps
+            let counts = Dictionary(steps.map { ($0.technique.displayName, 1) }, uniquingKeysWith: +)
+            return counts.map { (name: $0.key, count: $0.value) }.sorted { ($0.count, $1.name) > ($1.count, $0.name) }
+        }.value
     }
 }
 

@@ -92,7 +92,8 @@ struct HeaderIconButton: View {
     }
 }
 
-/// A custom popover card (the More menu and confirmations). Never a system menu or dialog, which
+/// A custom popover card (the More menu and confirmations): surface2 in Day, black with a hair
+/// border at night. Never a system menu or dialog, which
 /// could render light at night (CODESPEC 12).
 struct PopoverCard<Content: View>: View {
     let theme: PSPalette
@@ -100,7 +101,8 @@ struct PopoverCard<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) { content }
-            .background(RoundedRectangle(cornerRadius: 14).fill(theme.surface2))
+            // At night the card is black, not lit, so it still hides the board behind it (CODESPEC 7.2).
+            .background(RoundedRectangle(cornerRadius: 14).fill(theme.isNight ? theme.bg : theme.surface2))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.hair, lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: 14))
     }
@@ -135,7 +137,7 @@ struct MenuRow: View {
 struct SolvedPanel: View {
     let theme: PSPalette
     let summary: String
-    let assisted: Bool
+    let note: String?
     let techniques: String?
     let onAnother: () -> Void
     let onGoodnight: () -> Void
@@ -148,8 +150,8 @@ struct SolvedPanel: View {
             Text(summary)
                 .font(.system(size: 15).monospacedDigit())
                 .foregroundColor(theme.ink2)
-            if assisted {
-                Text("Assisted · counts for your streak, not best times")
+            if let note {
+                Text(note)
                     .font(.system(size: 13))
                     .foregroundColor(theme.ink2)
                     .padding(.horizontal, 10)
@@ -205,6 +207,18 @@ struct BlackoutView: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isButton)
+    }
+}
+
+/// Pops the main navigation stack back to the menu (Goodnight from a practice game, CODESPEC 3.2).
+private struct PopToRootKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var popToRoot: () -> Void {
+        get { self[PopToRootKey.self] }
+        set { self[PopToRootKey.self] = newValue }
     }
 }
 

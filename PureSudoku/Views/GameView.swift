@@ -4,6 +4,7 @@ import SwiftUI
 struct GameView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.popToRoot) private var popToRoot
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.psPalette) private var palette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -13,6 +14,7 @@ struct GameView: View {
     @State private var pausedForHush = false
     @State private var isGoodnight = false
     @State private var lessonTechnique: Technique?
+    @State private var techniqueLine: String?
     private let difficulty: Difficulty
 
     init(viewModel: GameViewModel, difficulty: Difficulty) {
@@ -63,7 +65,7 @@ struct GameView: View {
                 BlackoutView(theme: theme, text: "Tap anywhere to return", onTap: endHush)
                     .accessibilityIdentifier("hushView")
             } else if isGoodnight {
-                BlackoutView(theme: theme, text: "Sleep well.", serif: true) { dismiss() }
+                BlackoutView(theme: theme, text: "Sleep well.", serif: true) { popToRoot() }
                     .accessibilityIdentifier("goodnightView")
             }
         }
@@ -174,11 +176,18 @@ struct GameView: View {
                     .allowsHitTesting(!isDone)
             }
             if isDone {
-                SolvedPanel(theme: theme, summary: solvedSummary, assisted: viewModel.state.usedHint,
+                SolvedPanel(theme: theme, summary: solvedSummary, note: solvedNote,
                             techniques: techniqueLine, onAnother: another, onGoodnight: { isGoodnight = true })
             }
         }
         .frame(maxWidth: .infinity)
+        .task(id: isDone) {
+            techniqueLine = nil
+            guard isDone else { return }
+            let counts = await viewModel.techniqueCounts()
+            guard !counts.isEmpty else { return }
+            techniqueLine = "This grid took " + counts.map { "\($0.name) ×\($0.count)" }.joined(separator: ", ") + "."
+        }
     }
 
     private var solvedSummary: String {
@@ -187,10 +196,12 @@ struct GameView: View {
         return "\(difficulty.displayName) · \(Self.timeString(viewModel.state.elapsedSeconds))\(hintText)"
     }
 
-    private var techniqueLine: String? {
-        let counts = viewModel.techniqueCounts()
-        guard !counts.isEmpty else { return nil }
-        return "This grid took " + counts.map { "\($0.technique.displayName) ×\($0.count)" }.joined(separator: ", ") + "."
+    /// What this solve counts for (Stats.recordCompletion; practice records nothing).
+    private var solvedNote: String? {
+        if viewModel.isPractice { return "Practice · not counted in stats" }
+        if viewModel.state.usedReveal { return "Revealed · not counted in stats" }
+        if viewModel.state.usedHint { return "Assisted · counts for your streak, not best times" }
+        return nil
     }
 
     /// A new puzzle at this level; imports and practice have none, so they go back.
@@ -268,12 +279,13 @@ struct GameView: View {
                 Color.clear.contentShape(Rectangle()).ignoresSafeArea().onTapGesture { showsMenu = false }
                 PopoverCard(theme: theme) {
                     MenuRow(theme: theme, title: "Check puzzle", showsDivider: false) { closeMenu(viewModel.checkPuzzle) }
-                        .disabled(isDone)
+                        .disabled(isDone || viewModel.isPaused)
                         .accessibilityIdentifier("menu_check")
                     MenuRow(theme: theme, title: "Fill all notes") { closeMenu(viewModel.fillAllNotes) }
-                        .disabled(isDone)
+                        .disabled(isDone || viewModel.isPaused)
                         .accessibilityIdentifier("menu_fillNotes")
                     MenuRow(theme: theme, title: "Restart puzzle") { closeMenu { viewModel.pendingAction = .reset } }
+                        .disabled(viewModel.isPaused)
                         .accessibilityIdentifier("menu_restart")
                     MenuRow(theme: theme, title: "Hush screen", detail: "2-finger tap") { closeMenu(hush) }
                         .accessibilityIdentifier("menu_hush")
@@ -326,7 +338,8 @@ struct GameView: View {
 
     /// Hush: pause and go black. A two-finger tap anywhere, or the More menu.
     private func hush() {
-        guard !isHushed, !isGoodnight else { return }
+        // The recognizer is on the window, so it also fires inside the Lesson sheet.
+        guard !isHushed, !isGoodnight, lessonTechnique == nil else { return }
         showsMenu = false
         pausedForHush = !viewModel.isPaused && !viewModel.state.isCompleted
         if pausedForHush { viewModel.pauseTimer() }
