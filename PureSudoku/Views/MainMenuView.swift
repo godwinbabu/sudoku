@@ -60,6 +60,14 @@ struct MainMenuView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { controller.showsNightSheet = true } label: {
+                        Image(systemName: theme.isNight ? "moon.fill" : "moon")
+                    }
+                    .foregroundColor(theme.accent)
+                    .accessibilityLabel("Night")
+                    .accessibilityIdentifier("nightButton")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { activeSheet = .settings }) {
                         Image(systemName: "gearshape")
                     }
@@ -96,6 +104,7 @@ struct MainMenuView: View {
                 switch sheet {
                 case .settings:
                     SettingsView(viewModel: SettingsViewModel(controller: controller))
+                    .environmentObject(controller)
                     .sheetTheme(controller)
                 case .stats:
                     StatsView(viewModel: StatsViewModel(controller: controller))
@@ -104,6 +113,8 @@ struct MainMenuView: View {
             }
         }
         .environment(\.popToRoot) { navigationPath = NavigationPath() }
+        // The first-night screen is drawn from the app root; a system sheet would sit above it.
+        .onChange(of: controller.showsFirstNight) { if $0 { activeSheet = nil } }
     }
 
     private func topSection(theme: PSPalette) -> some View {

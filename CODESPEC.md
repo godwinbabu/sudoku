@@ -213,8 +213,9 @@ Testing requirements:
 	•	Current streak (“Streak: N days”).
 	•	Total puzzles solved.
 	•	Optional total time spent.
-	•	A settings icon to open SettingsView (appearance, Night screen, toggles).
-	•	A Night toggle at the bottom that switches between Day and Night (until the Night sheet, Section 12.2 of the v2 design, replaces it).
+	•	A settings icon to open SettingsView (Display & Night, toggles).
+	•	A moon in the toolbar that opens the Night sheet (Section 12.2).
+	•	A Night toggle at the bottom that switches between Day and Night (removed with the Home redesign).
 	•	Behavior:
 	•	Tapping a difficulty:
 	•	If an unfinished game exists for that difficulty (!isCompleted), navigate to GameView with that existing GameState.
@@ -228,7 +229,7 @@ Testing requirements:
 3.2 Game Screen
 	•	SwiftUI view: GameView. Layout and sizes: Design/v2/README.md, “Game”.
 	•	From top to bottom:
-	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (switches Day and Night until the Night sheet ships); More.
+	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (opens the Night sheet, Section 12.2); More.
 	•	Board: 3×3 boxes on a lineMajor ground, each 3×3 cells on a line ground. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
 	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never).
 	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
@@ -241,6 +242,7 @@ Testing requirements:
 	•	Solved: the board fades to 30% over 600 ms. Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: “Assisted · counts for your streak, not best times”), and the techniques the grid needs, by name: “This grid took Hidden Single ×38, Naked Single ×9.” They come from LogicalSolver.techniquesNeeded(for:), which replays the hint engine from the givens once, off the main thread. Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
 	•	Goodnight: pure black with “Sleep well.” fading out. A tap returns to the main menu.
 	•	In a Night game the status bar is hidden (hideStatusBarInGames) and the home indicator auto-hides.
+	•	Drift (Section 12.3) applies to the game's palette while Night and the Drift setting are on.
 	•	Interaction:
 	•	Tap a cell to select it.
 	•	Tap a number to either:
@@ -263,15 +265,20 @@ Testing requirements:
 3.3 Settings & Stats Screen
 	•	SwiftUI view: SettingsView and StatsView (can be separate or combined).
 	•	Settings includes:
-	•	Appearance: Day, Night, After dark, Match iPhone (Section 7.1).
-	•	Night screen: preset (Reading lamp, Lights out, Red light), Glow, Warmth (shown in Kelvin), Clarity (Section 12.3).
+	•	A Display & Night row that pushes DisplaySettingsView (it moves to Journal in the Home redesign). Display & Night holds, top to bottom:
+	•	A live preview strip: five 52 pt cells (given 5, entered 3, selected 7, mistake 4, notes).
+	•	Appearance: Day, Night, After dark, Match iPhone, with a checkmark (Section 7.1). With After dark chosen, a block shows either “Tonight · Sunset 6:12 PM → sunrise 6:41 AM” with “Worked out on this iPhone from your rough location and the date. Nothing leaves the phone.”, or “Hours · 9:00 PM → 6:30 AM” with − / + buttons (15-minute steps). A chip switches between the two (“Use fixed hours instead” / “Use sunset and sunrise”).
+	•	Night screen: presets, Glow and Warmth (Section 12.3).
+	•	Your eyes: Clarity; Lowest readable glow (“Set at N%. Glow and Drift never go below it.”) with Check again.
+	•	Quiet: Drift; Hide status bar in games; Sounds; Vibration (“Night always keeps sound and vibration off.”). Then a footnote about Hush.
+	•	Every control is drawn from the palette (custom segments, switches and sliders), never a system control that could render light.
 	•	Toggles:
 	•	Show timer on/off.
 	•	Tidy notes (remove a placed digit from the notes it sees).
 	•	Show mistakes: Right away / When I check / Never. Never means no automatic marks and no Check; the hint still points at a mistake first.
 	•	Cell names (notation): “row 5, column 2” (plain, default) or “R5C2” (grid). Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
 	•	Migration: the old cellNameStyle key maps short → grid and long → plain. The old askBeforeHintResult key is ignored: the card has no “Try it yourself first?” step.
-	•	These controls move to the Night sheet and Journal › Display & Night in later v2 phases (Design/v2/README.md).
+	•	The gameplay, hints and imports toggles move to Journal in the Home redesign (Design/v2/README.md).
 	•	Stats includes:
 	•	Current streak.
 	•	Best times per difficulty.
@@ -287,6 +294,7 @@ Testing requirements:
 	•	Notation strings in both modes, including “an 8”.
 	•	UI tests:
 	•	Navigate to settings, toggle Show timer off, go back to game and verify timer visually hidden.
+	•	Settings → Display & Night shows the presets and After dark.
 
 ⸻
 
@@ -504,7 +512,14 @@ enum Appearance: String, Codable {
     case matchSystem  // Night when iOS is in Dark mode
 }
 
-	•	Default: afterDark. Without location (until the After dark scheduler lands), the window is fixed hours: 9:00 PM → 6:30 AM.
+	•	Default: afterDark. AfterDarkScheduler decides the window:
+	•	With location (useLocationForAfterDark and a known place): sunset to sunrise, worked out on the device with the NOAA solar equations. No network.
+	•	Location is CoreLocation with reduced accuracy (NSLocationDefaultAccuracyReduced). The app asks only when the player picks After dark or “Use sunset and sunrise”. If permission was given earlier, the place is refreshed at launch without asking.
+	•	Without location (off, denied, not known yet, or a day with no sunset): fixed hours, 9:00 PM → 6:30 AM by default, editable on Display & Night. If permission is taken away, the cached place is dropped.
+	•	Each local day uses one source: the sun when it rises and sets that day, else the fixed hours. A day's sun times are those of the solar day whose noon falls on that local day (right across the date line; near the poles the sunset may be after midnight). The next boundary is the first moment Night really changes. The candidates are every sunrise and sunset, every fixed-hour start and end (including the end of a window that began the day before), and every local midnight, where a day can change source. While the app runs, when Night first comes on in Day it shows the first-night flow, which closes the Night sheet and any system sheet (Settings, Lesson, camera) first.
+	•	Fixed hours are instants on the calendar: a wall time that happens twice (clocks go back) means its first occurrence; a skipped one (clocks go forward) means the next valid time. The Night check and the boundary list use the same rule.
+	•	The maths uses a Gregorian calendar in the device’s current time zone, whatever calendar the device shows.
+	•	A one-shot timer fires at the next boundary. It is re-armed after any settings change, a new place, a permission change, a clock change (significantTimeChangeNotification) or a time zone change. The palette then changes inside a 600 ms fade (instant with Reduce Motion).
 	•	Match iPhone leaves the colour scheme to iOS; the other choices pin it (Day = light, Night = dark).
 	•	The palette (PSPalette) and type scale (PSType) are injected through the SwiftUI environment (psPalette, psType) from the app root. Views never hard-code colours.
 	•	v1 settings migrate once: theme light → Day, dark → Night, system → Match iPhone; sleepBrightness normal / dim / extraDim → glow 55 / 30 / 18; the active display profile (the bedtime profile when bedtimeMode is on) then sets glow = (1 − dimness) × 60 and warmth; theme sleep or bedtimeMode → Night with the Lights out preset, unless hasCalibratedDisplay, when the profile wins; autoCheckMistakes true → Right away, false → When I check; autoRemoveCandidates → tidyNotes; hasCalibratedDisplay → calibrated.
@@ -657,6 +672,9 @@ Testing requirements:
 	•	Settings.swift
 	•	Theme/
 	•	NightPalette.swift (Appearance, Clarity, PSType, PSPalette, Blackbody, NightPreset)
+	•	ScreenBrightnessController.swift, SystemAppearance.swift, SheetTheme.swift
+	•	AfterDarkScheduler.swift (Coordinate, SunTimes, SolarCalculator, AfterDarkScheduler)
+	•	DriftController.swift
 	•	Engine/
 	•	SudokuValidator.swift
 	•	SudokuPuzzleRepository.swift
@@ -683,6 +701,8 @@ Testing requirements:
 	•	SettingsView.swift
 	•	StatsView.swift
 	•	HintCardView.swift (the three-step hint card, phase 3)
+	•	NightControls.swift (segments, switch, slider, presets, rows, card, sample strip, CalibrateView)
+	•	NightSheetView.swift, DisplaySettingsView.swift, FirstNightView.swift
 	•	LearnView.swift, LessonView.swift (phase 5)
 	•	Persistence/
 	•	PersistenceManager.swift (or similar).
@@ -755,11 +775,14 @@ Why: total light, not colour, is what affects sleep, and people differ widely. S
 	•	Warmth 0–100: colour temperature 6500 → 1200 K. Warmth is a comfort setting. The app must not claim that warm colours protect sleep.
 	•	Clarity: Standard / Large / Bold. Bigger, heavier digits and stronger lines, and a higher Night floor.
 	•	Presets: Reading lamp (glow 55, warmth 45), Lights out (18, 75), Red light (10, 100). A preset never sets glow below glowFloor.
-	•	glowFloor and calibrated are stored for the first-night “Find my lowest glow” flow (a later v2 phase).
+	•	Find my lowest glow: six 76 pt tiles drawn in the night ink at glow 0 / 6 / 14 / 24 / 38 / 56. “Use this” sets glowFloor = pick, glow = min(100, pick + 4) and calibrated = true. The slider and presets never set glow below glowFloor.
+	•	First night (FirstNightView): the first time Night is active while calibrated is false, a full black screen shows welcome → Find my lowest glow (no Cancel) → result (“Glow set to N%.”, the Kelvin, a sample strip, Start playing). “Skip for now — use Lights out” applies Lights out and sets calibrated. It appears once: calibrated is saved before the result screen. It is drawn above everything: an open Settings or Lesson sheet closes first, the More menu closes, and a running game timer pauses until the flow ends. It keeps the Night palette for its whole run, even if Night ends while it is open. VoiceOver treats it as modal. UI tests launch with -uiTestSkipFirstNight (Debug only); -uiTestFirstNight starts in Day before the first night, to walk through the flow.
+	•	Drift (DriftController): during a night game with Drift on, every 90 s glow −1 and warmth +1, up to 20 each. Glow never goes below glowFloor (and Drift never raises it). It is a session offset: never saved, reset when the game closes or Night ends, and reset after a gap of 30 minutes or more between updates (the app was away, for example through a whole day). The change fades over 600 ms.
 	•	Limits the app must respect: it cannot go below the system brightness minimum, cannot read room light, and cannot turn on Reduce White Point.
 
 Testing requirements:
 	•	Unit tests: palette snapshots, Kelvin mapping, Clarity floor, v1 migration, brightness lowered only in Night and restored afterwards.
+	•	Unit tests: NOAA sunrise and sunset within ±2 minutes of published times (London, 21 June 2024; New York, 21 December 2024); no sun times in polar night; After dark boundaries with and without location; edited fixed hours; Drift steps, stops at 20 and never goes below the floor; the first-night flow appears exactly once, also after a relaunch.
 	•	Manual test: with Night on at minimum system brightness, no filled area anywhere renders brighter than ink, including sheets and menus.
 
 12.4 Calm Visual Design (No Sudden Flashing)
@@ -830,7 +853,11 @@ Testing requirements:
 	•	Ensure no modal dialog appears on resume unless absolutely necessary.
 
 12.7 Night shortcut and silence
-	•	Bedtime Mode is replaced by Night (Section 7.1). A toggle on the main menu, and the moon in the game header, switch between Day and Night.
+	•	Bedtime Mode is replaced by Night (Section 7.1). The moon on the main menu and in the game header opens the Night sheet. The main-menu toggle still switches between Day and Night.
+	•	Night sheet (NightSheetView): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge, 36 × 5 grabber. Backdrop black at 55% at night, warm at 18% in Day; tapping it or × closes the sheet. At least 56 pt of backdrop always shows; when the controls do not fit (iPhone SE, large text) the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live.
+	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” under 35, else “How much light the screen gives off.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”); Clarity; then, unless Day: Drift and Find my lowest glow (Start).
+	•	At night the selected segment is an accentDim ring, not a fill, and the Warmth track is capped at 75% of the ink’s light, so no fill is brighter than ink. The sheet and the first-night screen hide the white system status bar at night.
+	•	The one accepted system alert is the iOS location permission prompt. It appears only after the player taps After dark (or “Use sunset and sunrise”), and it follows the dark colour scheme at night.
 	•	Hush and Goodnight (Section 3.2) go to pure black in one tap.
 	•	When Night is active:
 	•	Sounds and haptics are off at runtime, whatever the saved settings say (the saved choice is kept for Day).
@@ -843,6 +870,7 @@ Testing requirements:
 	•	With Night active, soundsActive and hapticsActive are false, the palette is the Night palette and the colour scheme is dark.
 	•	UI tests:
 	•	Turn Night on from the main menu and open a game.
+	•	The moon opens the Night sheet on the main menu and in a game; × and the backdrop close it.
 
 ⸻
 

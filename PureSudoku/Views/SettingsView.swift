@@ -8,33 +8,13 @@ struct SettingsView: View {
         let settings = viewModel.settings
         NavigationStack {
             Form {
-                // Interim Display & Night controls until the Night sheet (CODESPEC 12.2).
-                Section("Appearance") {
-                    Picker("Appearance", selection: Binding(get: { settings.appearance }, set: { viewModel.setAppearance($0) })) {
-                        ForEach(Appearance.allCases) { Text($0.displayName).tag($0) }
+                Section {
+                    NavigationLink {
+                        DisplaySettingsView(viewModel: viewModel)
+                    } label: {
+                        Text("Display & Night")
                     }
-                    .accessibilityIdentifier("settings_appearance")
-                }
-                .paletteRowBackground()
-                Section("Night screen") {
-                    let preset = Binding(get: { viewModel.currentPreset }, set: { (new: NightPreset?) in new.map(viewModel.applyPreset) })
-                    Picker("Preset", selection: preset) {
-                        ForEach(NightPreset.allCases) { Text($0.title).tag(Optional($0)) }
-                        if viewModel.currentPreset == nil { Text("Custom").tag(NightPreset?.none) }
-                    }
-                    .accessibilityIdentifier("settings_preset")
-                    VStack(alignment: .leading) {
-                        Text("Glow \(Int(settings.glow))%")
-                        Slider(value: Binding(get: { settings.glow }, set: { viewModel.setGlow($0) }), in: 0...100, step: 1)
-                            .accessibilityIdentifier("settings_glow")
-                    }
-                    VStack(alignment: .leading) {
-                        Text("Warmth \(Int(Blackbody.kelvin(forWarmth: settings.warmth)).formatted()) K")
-                        Slider(value: Binding(get: { settings.warmth }, set: { viewModel.setWarmth($0) }), in: 0...100, step: 1)
-                    }
-                    Picker("Clarity", selection: Binding(get: { settings.clarity }, set: { viewModel.setClarity($0) })) {
-                        ForEach(Clarity.allCases) { Text($0.displayName).tag($0) }
-                    }
+                    .accessibilityIdentifier("settings_display")
                 }
                 .paletteRowBackground()
                 Section("Gameplay") {

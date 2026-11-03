@@ -104,10 +104,28 @@ struct Settings: Codable, Equatable {
         case .matchSystem: return systemIsDark
         case .afterDark:
             if useLocationForAfterDark, let sunset, let sunrise { return now >= sunset || now < sunrise }
-            let minute = calendar.component(.hour, from: now) * 60 + calendar.component(.minute, from: now)
-            let start = afterDarkStart.minutes, end = afterDarkEnd.minutes
-            return start <= end ? (minute >= start && minute < end) : (minute >= start || minute < end)
+            let today = calendar.startOfDay(for: now)
+            return [-1, 0].contains { offset in
+                guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return false }
+                return fixedWindows(startingOn: day, calendar: calendar).contains { $0.contains(now) }
+            }
         }
+    }
+
+    /// The fixed-hours Night window that starts on `day`, as instants. A wall time that happens twice
+    /// (the hour repeated when clocks go back) means its first occurrence; one that is skipped (clocks
+    /// go forward) means the next valid time. Equal start and end mean no window.
+    func fixedWindows(startingOn day: Date, calendar: Calendar) -> [Range<Date>] {
+        guard afterDarkStart.minutes != afterDarkEnd.minutes else { return [] }
+        let endDay = afterDarkEnd.minutes > afterDarkStart.minutes ? day : calendar.date(byAdding: .day, value: 1, to: day)
+        func at(_ time: ClockTime, _ day: Date?) -> Date? {
+            day.flatMap {
+                calendar.date(bySettingHour: time.hour, minute: time.minute, second: 0, of: $0,
+                              matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)
+            }
+        }
+        guard let start = at(afterDarkStart, day), let end = at(afterDarkEnd, endDay), start < end else { return [] }
+        return [start..<end]
     }
 
     mutating func apply(_ preset: NightPreset) {

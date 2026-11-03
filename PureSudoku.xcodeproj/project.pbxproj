@@ -84,6 +84,13 @@
 		00000000000000000000009F /* ImportedImageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A8 /* ImportedImageStoreTests.swift */; };
 		0000000000000000000000A0 /* ImportedGamePersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000A9 /* ImportedGamePersistenceTests.swift */; };
 		0000000000000000000000AA /* SudokuImageDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AB /* SudokuImageDetector.swift */; };
+		0000000000000000000000F1 /* AfterDarkScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F0 /* AfterDarkScheduler.swift */; };
+		0000000000000000000000F3 /* DriftController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F2 /* DriftController.swift */; };
+		0000000000000000000000F5 /* NightControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F4 /* NightControls.swift */; };
+		0000000000000000000000F7 /* NightSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F6 /* NightSheetView.swift */; };
+		0000000000000000000000F9 /* DisplaySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F8 /* DisplaySettingsView.swift */; };
+		0000000000000000000000FB /* FirstNightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000FA /* FirstNightView.swift */; };
+		0000000000000000000000FD /* NightScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000FC /* NightScheduleTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -187,6 +194,13 @@
 		0000000000000000000000A8 /* ImportedImageStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedImageStoreTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000A9 /* ImportedGamePersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedGamePersistenceTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000AB /* SudokuImageDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuImageDetector.swift; sourceTree = "<group>"; };
+		0000000000000000000000F0 /* AfterDarkScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AfterDarkScheduler.swift; sourceTree = "<group>"; };
+		0000000000000000000000F2 /* DriftController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriftController.swift; sourceTree = "<group>"; };
+		0000000000000000000000F4 /* NightControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightControls.swift; sourceTree = "<group>"; };
+		0000000000000000000000F6 /* NightSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightSheetView.swift; sourceTree = "<group>"; };
+		0000000000000000000000F8 /* DisplaySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaySettingsView.swift; sourceTree = "<group>"; };
+		0000000000000000000000FA /* FirstNightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstNightView.swift; sourceTree = "<group>"; };
+		0000000000000000000000FC /* NightScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScheduleTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -316,6 +330,10 @@
 				000000000000000000000027 /* SudokuGridView.swift */,
 				000000000000000000000028 /* NumberPadView.swift */,
 				0000000000000000000000E6 /* GameChrome.swift */,
+				0000000000000000000000FA /* FirstNightView.swift */,
+				0000000000000000000000F8 /* DisplaySettingsView.swift */,
+				0000000000000000000000F6 /* NightSheetView.swift */,
+				0000000000000000000000F4 /* NightControls.swift */,
 				000000000000000000000029 /* SettingsView.swift */,
 				00000000000000000000002A /* StatsView.swift */,
 				0000000000000000000000A5 /* ImportPuzzleView.swift */,
@@ -365,6 +383,7 @@
 				0000000000000000000000E4 /* LearningTests.swift */,
 				0000000000000000000000DA /* PuzzleGraderTests.swift */,
 				0000000000000000000000D2 /* NightPaletteTests.swift */,
+				0000000000000000000000FC /* NightScheduleTests.swift */,
 				0000000000000000000000C8 /* HintLadderTests.swift */,
 				0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */,
 				0000000000000000000000BE /* LogicalSolverTests.swift */,
@@ -411,6 +430,8 @@
 				0000000000000000000000D4 /* SystemAppearance.swift */,
 				0000000000000000000000CE /* ScreenBrightnessController.swift */,
 				0000000000000000000000CC /* NightPalette.swift */,
+				0000000000000000000000F2 /* DriftController.swift */,
+				0000000000000000000000F0 /* AfterDarkScheduler.swift */,
 			);
 			path = Theme;
 			sourceTree = "<group>";
@@ -606,6 +627,12 @@
 				0000000000000000000000AF /* SheetTheme.swift in Sources */,
 				0000000000000000000000D5 /* SystemAppearance.swift in Sources */,
 				0000000000000000000000CF /* ScreenBrightnessController.swift in Sources */,
+				0000000000000000000000FB /* FirstNightView.swift in Sources */,
+				0000000000000000000000F9 /* DisplaySettingsView.swift in Sources */,
+				0000000000000000000000F7 /* NightSheetView.swift in Sources */,
+				0000000000000000000000F5 /* NightControls.swift in Sources */,
+				0000000000000000000000F3 /* DriftController.swift in Sources */,
+				0000000000000000000000F1 /* AfterDarkScheduler.swift in Sources */,
 				0000000000000000000000CD /* NightPalette.swift in Sources */,
 				00000000000000000000008B /* BedtimeIcon.swift in Sources */,
 			);
@@ -625,6 +652,7 @@
 				0000000000000000000000DB /* PuzzleGraderTests.swift in Sources */,
 				0000000000000000000000D3 /* NightPaletteTests.swift in Sources */,
 				0000000000000000000000C9 /* HintLadderTests.swift in Sources */,
+				0000000000000000000000FD /* NightScheduleTests.swift in Sources */,
 				0000000000000000000000C3 /* PuzzleDataConsistencyTests.swift in Sources */,
 				0000000000000000000000BF /* LogicalSolverTests.swift in Sources */,
 				0000000000000000000000AD /* AppControllerTests.swift in Sources */,

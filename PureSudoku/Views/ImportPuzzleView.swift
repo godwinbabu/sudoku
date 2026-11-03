@@ -61,6 +61,8 @@ struct ImportPuzzleView: View {
         .onDisappear {
             viewModel.discardIfUnused()
         }
+        // The first-night screen is drawn from the app root; a system sheet would sit above it.
+        .onChange(of: controller.showsFirstNight) { if $0 { showCamera = false } }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("importPuzzleView")
     }

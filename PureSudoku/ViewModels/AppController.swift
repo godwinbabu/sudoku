@@ -13,6 +13,12 @@ final class AppController: ObservableObject {
     /// True when technique_progress.json could not be loaded: never overwrite it this session.
     private var techniqueProgressLoadFailed = false
     @Published var lastPersistenceError: (any Error)?
+    /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
+    @Published var showsNightSheet = false
+    /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
+    @Published private(set) var showsFirstNight = false
+    let afterDark: AfterDarkScheduler
+    private var suppressesFirstNight = false
 
     private let persistence: PersistenceManager
     private let generatorService: SudokuGeneratorService
@@ -32,7 +38,8 @@ final class AppController: ObservableObject {
         validator: SudokuValidator = SudokuValidator(),
         timeProvider: TimeProvider = SystemTimeProvider(),
         generatorService: SudokuGeneratorService = SudokuGeneratorService(),
-        imageStore: ImportedImageStore = ImportedImageStore()
+        imageStore: ImportedImageStore = ImportedImageStore(),
+        afterDark: AfterDarkScheduler? = nil
     ) {
         self.persistence = persistence
         self.generatorService = generatorService
@@ -40,6 +47,7 @@ final class AppController: ObservableObject {
         self.validator = validator
         self.timeProvider = timeProvider
         self.imageStore = imageStore
+        self.afterDark = afterDark ?? AfterDarkScheduler(clock: timeProvider)
 
         do {
             self.settings = try persistence.load(Settings.self, from: File.settings.rawValue) ?? .default
@@ -81,6 +89,18 @@ final class AppController: ObservableObject {
             self.lastPersistenceError = error
         }
         countSolutionsOfOldImports()
+        #if DEBUG
+        // UI tests start past the first-night flow, whatever the simulator clock says.
+        let arguments = ProcessInfo.processInfo.arguments
+        suppressesFirstNight = arguments.contains("-uiTestSkipFirstNight")
+        // UI tests only: start in Day, before the first night, to walk through that flow.
+        if arguments.contains("-uiTestFirstNight") {
+            settings.appearance = .day
+            settings.calibrated = false
+        }
+        #endif
+        self.afterDark.onBoundary = { [weak self] in self?.afterDarkBoundary() }
+        self.afterDark.schedule(for: settings)
     }
 
     /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
@@ -227,7 +247,9 @@ final class AppController: ObservableObject {
     // MARK: Display (CODESPEC 12)
 
     /// Night is worked out on read, so After dark follows the clock and Match iPhone the system setting.
-    var isNight: Bool { settings.isNight(systemIsDark: UIScreen.main.traitCollection.userInterfaceStyle == .dark) }
+    var isNight: Bool {
+        afterDark.isNight(settings, systemIsDark: UIScreen.main.traitCollection.userInterfaceStyle == .dark)
+    }
     var palette: PSPalette { settings.palette(isNight: isNight) }
     var preferredColorScheme: ColorScheme? { settings.preferredColorScheme(isNight: isNight) }
     /// Night always keeps sound and vibration off, whatever the saved settings say.
@@ -235,14 +257,64 @@ final class AppController: ObservableObject {
     var soundsActive: Bool { settings.soundsEnabled && !isNight }
     var hapticsActive: Bool { settings.hapticsEnabled && !isNight }
 
-    /// Until the Night sheet lands (CODESPEC 12.2), the moon flips between Day and Night.
+    /// The main-menu Night bar flips between Day and Night.
     func toggleNight() {
         let night = !isNight
         updateSettings { $0.appearance = night ? .night : .day }
     }
 
+    /// Picking After dark (or sunset and sunrise) is the only thing that asks for location.
+    func setAppearance(_ appearance: Appearance) {
+        updateSettings { $0.appearance = appearance }
+        if appearance == .afterDark && settings.useLocationForAfterDark { afterDark.requestLocation() }
+    }
+
+    func setUsesSunForAfterDark(_ on: Bool) {
+        updateSettings { $0.useLocationForAfterDark = on }
+        if on { afterDark.requestLocation() }
+    }
+
+    private func afterDarkBoundary() {
+        let reduceMotion = UIAccessibility.isReduceMotionEnabled
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) { objectWillChange.send() }
+        updateFirstNight()
+    }
+
+    // MARK: First night (CODESPEC 12.3)
+
+    /// Shows the first-night flow the first time Night is active, until it is finished or skipped.
+    func updateFirstNight() {
+        guard !suppressesFirstNight, !showsFirstNight, !settings.calibrated, isNight else { return }
+        showsFirstNight = true
+        showsNightSheet = false // one modal at a time
+    }
+
+    /// "Use this" in Find my lowest glow: the pick is the floor, and glow starts 4 above it.
+    func calibrate(pick: Double) {
+        updateSettings {
+            $0.glowFloor = pick
+            $0.glow = min(100, pick + 4)
+            $0.calibrated = true
+        }
+    }
+
+    /// "Skip for now — use Lights out".
+    func skipFirstNight() {
+        updateSettings {
+            $0.apply(.lightsOut)
+            $0.calibrated = true
+        }
+        showsFirstNight = false
+    }
+
+    /// "Start playing" on the result screen.
+    func endFirstNight() {
+        showsFirstNight = false
+    }
+
     func updateSettings(_ block: (inout Settings) -> Void) {
         block(&settings)
+        afterDark.schedule(for: settings)
         do {
             try persistence.save(settings, to: File.settings.rawValue)
         } catch {

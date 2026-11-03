@@ -20,6 +20,10 @@
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Use the camera to import a Sudoku puzzle.</string>
+	<key>NSLocationDefaultAccuracyReduced</key>
+	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>After dark uses your rough location to work out sunset and sunrise on this iPhone. Your location never leaves the phone.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
