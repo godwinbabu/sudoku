@@ -4,12 +4,16 @@ import SwiftUI
 /// Night is active while `calibrated` is false. Skip applies Lights out.
 struct FirstNightView: View {
     @EnvironmentObject private var controller: AppController
-    @Environment(\.psPalette) private var theme
     @Environment(\.psType) private var type
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step = Step.welcome
 
     enum Step { case welcome, calibrate, result }
+
+    /// Always the Night palette, even if Night ends mid-flow (Day text would be dark on black).
+    static func palette(_ settings: Settings) -> PSPalette { settings.palette(isNight: true) }
+
+    private var theme: PSPalette { Self.palette(controller.settings) }
 
     var body: some View {
         ZStack {
@@ -29,9 +33,12 @@ struct FirstNightView: View {
                 message
             }
         }
+        .environment(\.psPalette, theme)
         // The system status bar is white in dark mode, brighter than any ink.
         .statusBarHidden(true)
+        .preferredColorScheme(.dark)
         .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isModal)
         .accessibilityIdentifier("firstNight")
     }
 

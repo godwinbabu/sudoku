@@ -7,9 +7,9 @@ final class PureSudokuUITests: XCTestCase {
 
     /// Launches past the first-night flow, which would otherwise cover the app whenever the
     /// simulator clock is after dark (CODESPEC 12.3).
-    private func launchApp(_ arguments: [String] = []) -> XCUIApplication {
+    private func launchApp(_ arguments: [String] = [], skipFirstNight: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestSkipFirstNight"] + arguments
+        app.launchArguments = (skipFirstNight ? ["-uiTestSkipFirstNight"] : []) + arguments
         app.launch()
         return app
     }
@@ -224,10 +224,70 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitUntilHittable(gameMoon))
         gameMoon.tap()
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
-        // Tap the backdrop above the panel, below the system status area.
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.12)).tap()
+        // Tap the backdrop halfway between the top of the screen and the panel.
+        let panelTop = sheet.frame.minY
+        XCTAssertGreaterThanOrEqual(panelTop, 56, "some backdrop always shows")
+        app.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: app.frame.midX, dy: panelTop / 2)).tap()
         XCTAssertTrue(waitForAbsence(sheet), "the backdrop closes the sheet")
         XCTAssertTrue(element("gameView", in: app).exists, "still in the game")
+    }
+
+    /// Every Night sheet control can be reached, scrolling if the screen is small (iPhone SE).
+    func testNightSheetControlsAreReachable() {
+        let app = launchApp()
+        let moon = app.buttons["nightButton"]
+        XCTAssertTrue(moon.waitForExistence(timeout: 2))
+        moon.tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        let ids = ["day", "night", "afterDark"].map { "night_appearance_\($0)" }
+        let original = ids.first { app.buttons[$0].isSelected }
+        app.buttons["night_appearance_night"].tap() // the Night-only controls appear
+        let controls = ids + ["readingLamp", "lightsOut", "redLight"].map { "night_preset_\($0)" }
+            + ["night_glow", "night_warmth"] + ["standard", "large", "bold"].map { "night_clarity_\($0)" }
+            + ["night_drift", "night_calibrate"]
+        for id in controls {
+            let control = element(id, in: app)
+            XCTAssertTrue(control.waitForExistence(timeout: 2), id)
+            for _ in 0..<4 where !control.isHittable { sheet.swipeUp() }
+            XCTAssertTrue(control.isHittable, "\(id) can be reached")
+        }
+        let close = app.buttons["night_close"]
+        for _ in 0..<4 where !close.isHittable { sheet.swipeDown() }
+        if let original { app.buttons[original].tap() } // leave the app as found
+        close.tap()
+        XCTAssertTrue(waitForAbsence(sheet))
+    }
+
+    /// First night, without the skip argument: picking Night inside Settings closes that system
+    /// sheet, so the flow shows on top; it runs to the end and returns to the menu (CODESPEC 12.3).
+    func testFirstNightShowsAboveSettingsAndCompletes() {
+        let app = launchApp(["-uiTestFirstNight"], skipFirstNight: false)
+        XCTAssertFalse(element("firstNight", in: app).exists, "Day: no first night yet")
+        app.buttons["settingsButton"].tap()
+        let display = element("settings_display", in: app)
+        XCTAssertTrue(display.waitForExistence(timeout: 2))
+        display.tap()
+        XCTAssertTrue(app.buttons["display_appearance_night"].waitForExistence(timeout: 2))
+        app.buttons["display_appearance_night"].tap()
+
+        XCTAssertTrue(element("firstNight", in: app).waitForExistence(timeout: 3))
+        XCTAssertTrue(waitForAbsence(app.buttons["settings_done"]), "the Settings sheet closed")
+        let calibrate = app.buttons["firstNight_calibrate"]
+        XCTAssertTrue(waitUntilHittable(calibrate), "the flow is on top")
+        calibrate.tap()
+        let tile = app.buttons["calibrate_14"]
+        XCTAssertTrue(tile.waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons["calibrate_cancel"].exists, "first run has no Cancel")
+        tile.tap()
+        app.buttons["calibrate_use"].tap()
+        XCTAssertTrue(app.staticTexts["Glow set to 18%."].waitForExistence(timeout: 2))
+        app.buttons["firstNight_start"].tap()
+        XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
+        XCTAssertTrue(waitUntilHittable(app.buttons["difficulty_easy"]), "back on the menu")
+
+        let toggle = app.buttons["bedtimeToggle"]
+        if toggle.label.hasSuffix("On") { toggle.tap() } // leave the app in Day
     }
 
     /// Learn → a technique → its worked example and practice (CODESPEC 13.5).

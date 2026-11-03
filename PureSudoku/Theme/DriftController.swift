@@ -10,20 +10,26 @@ final class DriftController: ObservableObject {
     @Published private(set) var steps = 0
     private let clock: TimeProvider
     private var startedAt: Date?
+    private var lastUpdate: Date?
 
     init(clock: TimeProvider = SystemTimeProvider()) {
         self.clock = clock
     }
 
-    /// Call on appear, on a periodic tick, and when Night or the Drift setting changes.
-    /// Inactive resets the session, so leaving the game (or Night) starts Drift over.
+    /// Call on appear, on a periodic tick, on resume, and when Night or the Drift setting changes.
+    /// Inactive resets the session, so leaving the game (or Night) starts Drift over. So does a gap
+    /// of 30 minutes or more between updates: the app was away (perhaps through a whole day), and
+    /// Drift is about one continuous sitting.
     func update(active: Bool) {
         guard active else {
             startedAt = nil
+            lastUpdate = nil
             if steps != 0 { steps = 0 }
             return
         }
         let now = clock.now()
+        if let lastUpdate, now.timeIntervalSince(lastUpdate) >= Self.interval * Double(Self.maxSteps) { startedAt = nil }
+        lastUpdate = now
         let start = startedAt ?? now
         startedAt = start
         let next = min(Self.maxSteps, max(0, Int(now.timeIntervalSince(start) / Self.interval)))

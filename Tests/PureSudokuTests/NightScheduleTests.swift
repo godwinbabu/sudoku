@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import PureSudoku
 
@@ -32,13 +33,13 @@ final class NightScheduleTests: XCTestCase {
     func testSunTimesMatchPublishedTimesWithinTwoMinutes() throws {
         // Published: London 21 June 2024, sunrise 04:43, sunset 21:21 (BST).
         let uk = calendar("Europe/London")
-        let june = try XCTUnwrap(SolarCalculator.sunTimes(on: date(uk, "2024-06-21 12:00"), at: london, calendar: uk))
+        let june = try XCTUnwrap(SolarCalculator.sunTimes(on: date(uk, "2024-06-21 12:00"), at: london, timeZone: uk.timeZone))
         assertNear(june.sunrise, date(uk, "2024-06-21 04:43"))
         assertNear(june.sunset, date(uk, "2024-06-21 21:21"))
         // New York 21 December 2024, sunrise 7:17 AM, sunset 4:32 PM (EST). West of Greenwich, so the
         // sunset falls on the next UTC day.
         let ny = calendar("America/New_York")
-        let december = try XCTUnwrap(SolarCalculator.sunTimes(on: date(ny, "2024-12-21 12:00"), at: newYork, calendar: ny))
+        let december = try XCTUnwrap(SolarCalculator.sunTimes(on: date(ny, "2024-12-21 12:00"), at: newYork, timeZone: ny.timeZone))
         assertNear(december.sunrise, date(ny, "2024-12-21 07:17"))
         assertNear(december.sunset, date(ny, "2024-12-21 16:32"))
     }
@@ -46,7 +47,7 @@ final class NightScheduleTests: XCTestCase {
     func testPolarNightHasNoSunTimes() {
         let tromso = Coordinate(latitude: 69.65, longitude: 18.96)
         let oslo = calendar("Europe/Oslo")
-        XCTAssertNil(SolarCalculator.sunTimes(on: date(oslo, "2024-12-21 12:00"), at: tromso, calendar: oslo))
+        XCTAssertNil(SolarCalculator.sunTimes(on: date(oslo, "2024-12-21 12:00"), at: tromso, timeZone: oslo.timeZone))
     }
 
     // MARK: After dark boundaries
@@ -121,6 +122,125 @@ final class NightScheduleTests: XCTestCase {
         XCTAssertEqual(controller.settings.afterDarkEnd, ClockTime(hour: 6, minute: 15))
     }
 
+    /// C1: a place that arrives after launch re-arms the timer for sunset, not the fixed 9:00 PM.
+    func testLocationUpdateRearmsTheTimer() {
+        let uk = calendar("Europe/London")
+        let scheduler = scheduler(at: date(uk, "2024-06-21 12:00"), place: nil, calendar: uk)
+        var repaints = 0
+        scheduler.onBoundary = { repaints += 1 }
+        scheduler.schedule(for: Settings(appearance: .afterDark))
+        XCTAssertEqual(scheduler.scheduledFire, date(uk, "2024-06-21 21:00").addingTimeInterval(1))
+        scheduler.useCoordinate(london)
+        assertNear(scheduler.scheduledFire, date(uk, "2024-06-21 21:21"))
+        XCTAssertEqual(repaints, 1)
+    }
+
+    /// C2: when permission is taken away, the cached place is dropped and the fixed hours return.
+    func testRevokedPermissionDropsThePlace() {
+        let uk = calendar("Europe/London")
+        let scheduler = scheduler(at: date(uk, "2024-06-21 12:00"), place: london, calendar: uk)
+        let settings = Settings(appearance: .afterDark)
+        scheduler.schedule(for: settings)
+        XCTAssertTrue(scheduler.usesSun(settings))
+        scheduler.handleAuthorization(.denied)
+        XCTAssertNil(scheduler.coordinate)
+        XCTAssertTrue(scheduler.isLocationDenied)
+        XCTAssertFalse(scheduler.usesSun(settings))
+        XCTAssertEqual(scheduler.scheduledFire, date(uk, "2024-06-21 21:00").addingTimeInterval(1))
+    }
+
+    /// C3: across the date line both events land on the requested local day.
+    func testSunTimesLandOnTheLocalDayAcrossTheDateLine() throws {
+        let places: [(String, Coordinate)] = [
+            ("Pacific/Kiritimati", Coordinate(latitude: 1.8721, longitude: -157.4278)),
+            ("Pacific/Pago_Pago", Coordinate(latitude: -14.2756, longitude: -170.7020)),
+            ("Pacific/Auckland", Coordinate(latitude: -36.8485, longitude: 174.7633)),
+            ("Pacific/Tongatapu", Coordinate(latitude: -21.1393, longitude: -175.2049))
+        ]
+        for (zone, place) in places {
+            let local = calendar(zone)
+            let noon = date(local, "2024-06-21 12:00")
+            let sun = try XCTUnwrap(SolarCalculator.sunTimes(on: noon, at: place, timeZone: local.timeZone), zone)
+            XCTAssertTrue(local.isDate(sun.sunrise, inSameDayAs: noon), "\(zone) sunrise \(sun.sunrise)")
+            XCTAssertTrue(local.isDate(sun.sunset, inSameDayAs: noon), "\(zone) sunset \(sun.sunset)")
+            XCTAssertLessThan(sun.sunrise, sun.sunset, zone)
+        }
+        // Kiritimati (UTC+14), 21 June 2024: about 6:24 AM and 6:37 PM.
+        let kiritimati = calendar("Pacific/Kiritimati")
+        let kiritimatiNoon = date(kiritimati, "2024-06-21 12:00")
+        let sun = try XCTUnwrap(SolarCalculator.sunTimes(on: kiritimatiNoon, at: places[0].1, timeZone: kiritimati.timeZone))
+        assertNear(sun.sunrise, date(kiritimati, "2024-06-21 06:24"))
+        assertNear(sun.sunset, date(kiritimati, "2024-06-21 18:37"))
+    }
+
+    /// C4: a Buddhist (or any non-Gregorian) device calendar gives the same times.
+    func testNonGregorianCalendarGivesTheSameTimes() {
+        var buddhist = Calendar(identifier: .buddhist)
+        buddhist.timeZone = TimeZone(identifier: "Europe/London")!
+        let uk = calendar("Europe/London")
+        let scheduler = scheduler(at: date(uk, "2024-06-21 12:00"), place: london, calendar: buddhist)
+        assertNear(scheduler.sunTimes(on: date(uk, "2024-06-21 12:00"))?.sunset, date(uk, "2024-06-21 21:21"))
+        let fixed = Settings(appearance: .afterDark, useLocationForAfterDark: false)
+        XCTAssertEqual(scheduler.nextBoundary(after: date(uk, "2024-06-21 12:00"), settings: fixed), date(uk, "2024-06-21 21:00"))
+        XCTAssertTrue(scheduler.isNight(fixed, systemIsDark: false, at: date(uk, "2024-06-21 23:00")))
+    }
+
+    /// C5: a time zone or clock change re-arms the timer and repaints.
+    func testClockChangesRearmTheTimer() {
+        let scheduler = scheduler(at: Date(), place: nil, calendar: .current)
+        var repaints = 0
+        scheduler.onBoundary = { repaints += 1 }
+        scheduler.schedule(for: Settings(appearance: .afterDark))
+        NotificationCenter.default.post(name: .NSSystemTimeZoneDidChange, object: nil)
+        NotificationCenter.default.post(name: UIApplication.significantTimeChangeNotification, object: nil)
+        XCTAssertEqual(repaints, 2)
+        XCTAssertNotNil(scheduler.scheduledFire)
+    }
+
+    /// C6: when clocks go back, a repeated end time means its first occurrence, for both the
+    /// Night check and the boundary list. New York, 3 November 2024, hours 9:00 PM → 1:30 AM.
+    func testRepeatedHourUsesTheFirstOccurrence() throws {
+        let ny = calendar("America/New_York")
+        var settings = Settings(appearance: .afterDark, useLocationForAfterDark: false)
+        settings.afterDarkEnd = ClockTime(hour: 1, minute: 30)
+        let scheduler = scheduler(at: Date(), place: nil, calendar: ny)
+        let utc = ISO8601DateFormatter()
+        let firstHalfPast = try XCTUnwrap(utc.date(from: "2024-11-03T05:30:00Z")) // 1:30 AM EDT
+        let earlyFirst = try XCTUnwrap(utc.date(from: "2024-11-03T05:15:00Z")) // 1:15 AM EDT
+        let earlySecond = try XCTUnwrap(utc.date(from: "2024-11-03T06:15:00Z")) // 1:15 AM EST, again
+        XCTAssertTrue(scheduler.isNight(settings, systemIsDark: false, at: earlyFirst))
+        XCTAssertFalse(scheduler.isNight(settings, systemIsDark: false, at: firstHalfPast))
+        XCTAssertFalse(scheduler.isNight(settings, systemIsDark: false, at: earlySecond), "Night ended at the first 1:30")
+        XCTAssertEqual(scheduler.nextBoundary(after: earlyFirst, settings: settings), firstHalfPast)
+        XCTAssertEqual(scheduler.nextBoundary(after: firstHalfPast, settings: settings), date(ny, "2024-11-03 21:00"))
+    }
+
+    /// C7: Tromsø, 17 May 2024. The sun sets at 00:11 on the 18th, and the 18th has no sunset, so
+    /// that day uses the fixed hours. Midnight is a boundary.
+    func testPolarFallbackDayStartsAtMidnight() {
+        let oslo = calendar("Europe/Oslo")
+        let tromso = Coordinate(latitude: 69.65, longitude: 18.96)
+        let scheduler = scheduler(at: date(oslo, "2024-05-17 23:00"), place: tromso, calendar: oslo)
+        let settings = Settings(appearance: .afterDark)
+        XCTAssertNotNil(scheduler.sunTimes(on: date(oslo, "2024-05-17 12:00")))
+        XCTAssertNil(scheduler.sunTimes(on: date(oslo, "2024-05-18 12:00")))
+        assertNear(scheduler.sunTimes(on: date(oslo, "2024-05-17 12:00"))?.sunset, date(oslo, "2024-05-18 00:11"))
+        XCTAssertFalse(scheduler.isNight(settings, systemIsDark: false, at: date(oslo, "2024-05-17 23:00")), "the sun is still up")
+        XCTAssertEqual(scheduler.nextBoundary(settings: settings), date(oslo, "2024-05-18 00:00"))
+        XCTAssertTrue(scheduler.isNight(settings, systemIsDark: false, at: date(oslo, "2024-05-18 00:01")), "fixed hours from midnight")
+    }
+
+    /// C12: tonight's sunrise is the next calendar day, also when clocks go forward overnight.
+    func testTonightUsesCalendarDaysOnTheSpringForwardNight() throws {
+        let uk = calendar("Europe/London")
+        let scheduler = scheduler(at: date(uk, "2024-03-30 23:00"), place: london, calendar: uk)
+        let tonight = try XCTUnwrap(scheduler.tonight())
+        XCTAssertTrue(uk.isDate(tonight.sunset, inSameDayAs: date(uk, "2024-03-30 12:00")))
+        XCTAssertTrue(uk.isDate(tonight.sunrise, inSameDayAs: date(uk, "2024-03-31 12:00")), "\(tonight.sunrise)")
+        let beforeDawn = try XCTUnwrap(scheduler.tonight(at: date(uk, "2024-03-31 03:30")))
+        XCTAssertTrue(uk.isDate(beforeDawn.sunset, inSameDayAs: date(uk, "2024-03-30 12:00")))
+    }
+
     // MARK: Drift
 
     func testDriftStepsEvery90SecondsAndStopsAt20() {
@@ -134,13 +254,31 @@ final class NightScheduleTests: XCTestCase {
         clock.advance(1)
         drift.update(active: true)
         XCTAssertEqual(drift.steps, 1)
-        clock.advance(3 * 3600)
-        drift.update(active: true)
+        for _ in 0..<18 { // three hours of play, updated every 10 minutes
+            clock.advance(600)
+            drift.update(active: true)
+        }
         XCTAssertEqual(drift.steps, DriftController.maxSteps)
         drift.update(active: false)
         XCTAssertEqual(drift.steps, 0, "leaving the game resets the session")
         drift.update(active: true)
         XCTAssertEqual(drift.steps, 0, "a new session starts from zero")
+    }
+
+    /// C11: away from 11 PM until the next night at 11 PM (suspended, so no updates): a new session.
+    func testDriftRestartsAfterTheAppWasAway() {
+        let clock = AdvancingTimeProvider()
+        let drift = DriftController(clock: clock)
+        drift.update(active: true)
+        clock.advance(15 * 60)
+        drift.update(active: true)
+        XCTAssertEqual(drift.steps, 10)
+        clock.advance(24 * 3600)
+        drift.update(active: true)
+        XCTAssertEqual(drift.steps, 0)
+        clock.advance(90)
+        drift.update(active: true)
+        XCTAssertEqual(drift.steps, 1, "the new session steps as usual")
     }
 
     func testDriftNeverGoesBelowTheFloor() {
@@ -179,6 +317,13 @@ final class NightScheduleTests: XCTestCase {
         XCTAssertTrue(reopened.settings.calibrated)
         reopened.updateFirstNight()
         XCTAssertFalse(reopened.showsFirstNight, "never again after a relaunch")
+    }
+
+    /// C9: the flow keeps the Night palette even if Night ends while it is open.
+    func testFirstNightKeepsTheNightPalette() {
+        XCTAssertTrue(FirstNightView.palette(Settings(appearance: .day)).isNight)
+        XCTAssertEqual(FirstNightView.palette(Settings(appearance: .day, glow: 18, warmth: 75)).ink,
+                       Settings(glow: 18, warmth: 75).palette(isNight: true).ink)
     }
 
     func testCalibratingSetsTheFloorAndKeepsTheResultOpen() {

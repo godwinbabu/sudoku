@@ -19,15 +19,10 @@ struct NightSheetView: View {
             backdrop
             VStack(spacing: 0) {
                 Capsule().fill(theme.hair).frame(width: 36, height: 5).padding(.bottom, 6)
-                if calibrating {
-                    CalibrateView(theme: theme, settings: settings, onCancel: { calibrating = false }, onUse: {
-                        viewModel.calibrate(pick: $0)
-                        calibrating = false
-                    })
-                    .padding(.horizontal, 22)
-                    .padding(.top, 6)
-                } else {
-                    controls(settings)
+                // Scrolls only when the controls do not fit (iPhone SE, large text).
+                ViewThatFits(in: .vertical) {
+                    panel(settings)
+                    ScrollView(showsIndicators: false) { panel(settings) }
                 }
             }
             .padding(.top, 8)
@@ -39,11 +34,28 @@ struct NightSheetView: View {
                     .ignoresSafeArea(edges: .bottom)
             )
             .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
             .accessibilityIdentifier("nightSheet")
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: calibrating)
+            // The backdrop always shows above the panel, so a tap there can close it.
+            .padding(.top, 56)
         }
         // The system status bar is white in dark mode, brighter than any ink.
         .statusBarHidden(theme.isNight)
+    }
+
+    @ViewBuilder
+    private func panel(_ settings: Settings) -> some View {
+        if calibrating {
+            CalibrateView(theme: theme, settings: settings, onCancel: { calibrating = false }, onUse: {
+                viewModel.calibrate(pick: $0)
+                calibrating = false
+            })
+            .padding(.horizontal, 22)
+            .padding(.top, 6)
+        } else {
+            VStack(spacing: 0) { controls(settings) }
+        }
     }
 
     private var backdrop: some View {

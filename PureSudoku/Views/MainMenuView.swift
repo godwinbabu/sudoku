@@ -113,6 +113,8 @@ struct MainMenuView: View {
             }
         }
         .environment(\.popToRoot) { navigationPath = NavigationPath() }
+        // The first-night screen is drawn from the app root; a system sheet would sit above it.
+        .onChange(of: controller.showsFirstNight) { if $0 { activeSheet = nil } }
     }
 
     private func topSection(theme: PSPalette) -> some View {

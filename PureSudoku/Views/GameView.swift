@@ -12,6 +12,7 @@ struct GameView: View {
     @State private var showsMenu = false
     @State private var isHushed = false
     @State private var pausedForHush = false
+    @State private var pausedForFirstNight = false
     @State private var isGoodnight = false
     @State private var lessonTechnique: Technique?
     @State private var techniqueLine: String?
@@ -89,6 +90,7 @@ struct GameView: View {
         .environment(\.psPalette, theme)
         .onReceive(driftTick) { _ in updateDrift() }
         .onChange(of: driftIsActive) { _ in updateDrift() }
+        .onChange(of: controller.showsFirstNight, perform: firstNightChanged)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHushed)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isGoodnight)
@@ -108,6 +110,7 @@ struct GameView: View {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 viewModel.resumeFromBackground()
+                updateDrift()
             } else {
                 viewModel.pauseForBackground()
             }
@@ -369,6 +372,19 @@ struct GameView: View {
         pausedForHush = !viewModel.isPaused && !viewModel.state.isCompleted
         if pausedForHush { viewModel.pauseTimer() }
         isHushed = true
+    }
+
+    /// The first-night screen covers the game: close the menu and Lesson sheet, and hold the timer.
+    private func firstNightChanged(_ shows: Bool) {
+        if shows {
+            showsMenu = false
+            lessonTechnique = nil
+            pausedForFirstNight = !viewModel.isPaused && !viewModel.state.isCompleted
+            if pausedForFirstNight { viewModel.pauseTimer() }
+        } else if pausedForFirstNight {
+            pausedForFirstNight = false
+            viewModel.resumeTimer()
+        }
     }
 
     private func endHush() {

@@ -17,8 +17,6 @@ final class AppController: ObservableObject {
     @Published var showsNightSheet = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
     @Published private(set) var showsFirstNight = false
-    /// Bumped (inside a fade) when After dark crosses sunset, sunrise or a fixed hour.
-    @Published private(set) var displayRevision = 0
     let afterDark: AfterDarkScheduler
     private var suppressesFirstNight = false
 
@@ -93,7 +91,13 @@ final class AppController: ObservableObject {
         countSolutionsOfOldImports()
         #if DEBUG
         // UI tests start past the first-night flow, whatever the simulator clock says.
-        suppressesFirstNight = ProcessInfo.processInfo.arguments.contains("-uiTestSkipFirstNight")
+        let arguments = ProcessInfo.processInfo.arguments
+        suppressesFirstNight = arguments.contains("-uiTestSkipFirstNight")
+        // UI tests only: start in Day, before the first night, to walk through that flow.
+        if arguments.contains("-uiTestFirstNight") {
+            settings.appearance = .day
+            settings.calibrated = false
+        }
         #endif
         self.afterDark.onBoundary = { [weak self] in self?.afterDarkBoundary() }
         self.afterDark.schedule(for: settings)
@@ -272,7 +276,7 @@ final class AppController: ObservableObject {
 
     private func afterDarkBoundary() {
         let reduceMotion = UIAccessibility.isReduceMotionEnabled
-        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) { displayRevision += 1 }
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) { objectWillChange.send() }
         updateFirstNight()
     }
 
