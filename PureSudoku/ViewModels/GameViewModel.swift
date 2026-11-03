@@ -75,6 +75,8 @@ final class GameViewModel: ObservableObject {
     private var lastTickDate: Date?
     private var isManuallyPaused = false
     private var isBackgroundPaused = false
+    /// False while the game screen is off screen (a pushed lesson): the timer never runs then.
+    private var isSceneVisible = true
     /// Cells that Check Cell / Check Puzzle found wrong. Kept apart from duplicate (auto-check) errors
     /// so later moves do not erase them; cleared when the cell is edited.
     private var checkedWrongIDs: Set<UUID> = []
@@ -121,10 +123,12 @@ final class GameViewModel: ObservableObject {
     }
 
     func handleSceneDidAppear() {
+        isSceneVisible = true
         startTimerIfNeeded()
     }
 
     func handleSceneDidDisappear() {
+        isSceneVisible = false
         let elapsed = calculateAndStopTimer()
         var newState = self.state
         newState.elapsedSeconds += elapsed
@@ -178,7 +182,7 @@ final class GameViewModel: ObservableObject {
     }
 
     private func startTimerIfNeeded() {
-        guard !state.isCompleted, timer == nil, !isManuallyPaused, !isBackgroundPaused else { return }
+        guard !state.isCompleted, timer == nil, !isManuallyPaused, !isBackgroundPaused, isSceneVisible else { return }
         lastTickDate = timeProvider.now()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { await self?.tick() }

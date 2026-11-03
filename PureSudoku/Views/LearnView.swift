@@ -7,9 +7,18 @@ struct LearnView: View {
 
     var body: some View {
         let theme = palette
+        VStack(spacing: 0) {
+            ScreenHead(title: "Learn")
+            list(theme: theme)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("learnView")
+    }
+
+    private func list(theme: PSPalette) -> some View {
         List {
-            ForEach([TechniqueTier.basic, .intermediate, .advanced], id: \.self) { tier in
-                Section(tier.displayName) {
+            ForEach([TechniqueTier.basic, .intermediate, .advanced, .expert], id: \.self) { tier in
+                Section {
                     ForEach(Lesson.techniques.filter { $0.tier == tier }, id: \.self) { technique in
                         NavigationLink {
                             LessonView(technique: technique)
@@ -18,15 +27,17 @@ struct LearnView: View {
                         }
                         .accessibilityIdentifier("learn_\(technique.rawValue)")
                     }
+                } header: {
+                    // System headers and separators are grey, brighter than ink at night.
+                    SectionLabel(theme: theme, title: tier.displayName).padding(.horizontal, -22).padding(.bottom, -8)
                 }
-                .listRowBackground(theme.isNight ? theme.surface : nil)
+                // Night: no fill behind text, only hairlines (CODESPEC 12.7).
+                .listRowBackground(theme.isNight ? Color.clear : theme.surface)
+                .listRowSeparatorTint(theme.hair)
             }
         }
-        .scrollContentBackground(theme.isNight ? .hidden : .automatic)
+        .scrollContentBackground(.hidden)
         .background(theme.bg.ignoresSafeArea())
-        .themedTitle("Learn")
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("learnView")
     }
 
     private func row(_ technique: Technique, theme: PSPalette) -> some View {
@@ -43,9 +54,17 @@ struct LearnView: View {
             }
             Text(technique.definition).font(.footnote).foregroundColor(theme.ink2)
             if progress.level != .new {
-                ProgressView(value: progress.strength(at: Date()))
-                    .tint(theme.accent)
-                    .accessibilityLabel("Strength")
+                // Drawn from the palette: the system track is grey, brighter than ink at night.
+                let strength = progress.strength(at: Date())
+                GeometryReader { proxy in
+                    Capsule().fill(theme.hair).overlay(alignment: .leading) {
+                        Capsule().fill(theme.accentDim).frame(width: proxy.size.width * strength)
+                    }
+                }
+                .frame(height: 3)
+                .accessibilityElement()
+                .accessibilityLabel("Strength")
+                .accessibilityValue("\(Int(strength * 100)) percent")
             }
         }
         .padding(.vertical, 4)
@@ -116,6 +135,7 @@ struct LessonView: View {
         .background(theme.bg.ignoresSafeArea())
         .tint(theme.accent)
         .themedTitle(technique.displayName)
+        .statusBarHidden(controller.isNight)
         .task {
             let technique = technique
             lesson = await Task.detached(priority: .userInitiated) { Lesson.make(for: technique) }.value

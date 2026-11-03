@@ -115,17 +115,10 @@ struct GameView: View {
                 viewModel.pauseForBackground()
             }
         }
-        .sheet(item: $lessonTechnique) { technique in
-            NavigationStack {
-                LessonView(technique: technique == .hiddenSingleLine ? .hiddenSingleBox : technique)
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { lessonTechnique = nil }
-                        }
-                    }
-            }
-            .environmentObject(controller)
-            .sheetTheme(controller)
+        // Pushed, not a system sheet, so it can't render light at night (CODESPEC 12.7).
+        .navigationDestination(isPresented: Binding(get: { lessonTechnique != nil }, set: { if !$0 { lessonTechnique = nil } })) {
+            let technique = lessonTechnique ?? .fullHouse
+            LessonView(technique: technique == .hiddenSingleLine ? .hiddenSingleBox : technique)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("gameView")
@@ -366,7 +359,7 @@ struct GameView: View {
 
     /// Hush: pause and go black. A two-finger tap anywhere, or the More menu.
     private func hush() {
-        // The recognizer is on the window, so it also fires inside the Lesson sheet.
+        // The recognizer is on the window, so it also fires on the pushed lesson.
         guard !isHushed, !isGoodnight, lessonTechnique == nil else { return }
         showsMenu = false
         pausedForHush = !viewModel.isPaused && !viewModel.state.isCompleted
@@ -374,7 +367,7 @@ struct GameView: View {
         isHushed = true
     }
 
-    /// The first-night screen covers the game: close the menu and Lesson sheet, and hold the timer.
+    /// The first-night screen covers the game: close the menu and the lesson, and hold the timer.
     private func firstNightChanged(_ shows: Bool) {
         if shows {
             showsMenu = false

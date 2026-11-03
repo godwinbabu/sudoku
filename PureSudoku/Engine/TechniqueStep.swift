@@ -48,6 +48,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
     case uniqueRectangle2
     case uniqueRectangle4
     case bugPlusOne
+    case xyChain
 
     var displayName: String {
         switch self {
@@ -77,6 +78,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         case .uniqueRectangle2: return "Unique Rectangle (Type 2)"
         case .uniqueRectangle4: return "Unique Rectangle (Type 4)"
         case .bugPlusOne: return "BUG+1"
+        case .xyChain: return "XY-Chain"
         }
     }
 
@@ -85,6 +87,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         case .fullHouse, .hiddenSingleBox, .hiddenSingleLine, .nakedSingle: return .basic
         case .xWing, .swordfish, .xyWing, .skyscraper, .twoStringKite, .emptyRectangle, .xyzWing, .wWing, .simpleColoring,
              .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne: return .advanced
+        case .xyChain: return .expert
         default: return .intermediate
         }
     }
@@ -117,6 +120,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         case .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4:
             return "Four cells that would allow two solutions; a one-solution puzzle must avoid that."
         case .bugPlusOne: return "All cells but one have two candidates; that one must break the tie."
+        case .xyChain: return "A chain of two-candidate cells: one of its two ends must hold the same digit."
         }
     }
 
@@ -140,6 +144,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         case .twoStringKite, .wWing, .simpleColoring: return 150
         case .xyzWing: return 180
         case .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne: return 100
+        case .xyChain: return 260
         }
     }
 }
@@ -196,7 +201,7 @@ struct TechniqueStep: Equatable, Codable {
         if !looked.isEmpty { return "Look at \(Self.list(looked))." }
         let anchor = cells.first { $0.role == .pivot } ?? cells.first
         guard let anchor else { return "" }
-        let suffix = technique == .xyWing ? " and the cells it sees" : ""
+        let suffix = [.xyWing, .xyChain].contains(technique) ? " and the cells it sees" : ""
         return "Look at \(names.cell(anchor.cell))\(suffix)."
     }
 
@@ -253,6 +258,11 @@ struct TechniqueStep: Equatable, Codable {
                 + "That would allow two solutions, and the puzzle has one, so something must break it."
         case .bugPlusOne:
             return "Every other empty cell has two candidates. If \(cellNames) weren't the right digit, the puzzle would have two solutions."
+        case .xyChain:
+            let ends = Self.list([cells.first, cells.last].compactMap { $0.map { names.cell($0.cell) } })
+            return "\(cellNames.capitalizedFirst) each hold two candidates, and each shares one with the next. "
+                + "If one end isn't \(digitList), the links force the other end to be \(digitList). "
+                + "So a cell that sees both \(ends) can't be \(digitList)."
         }
     }
 

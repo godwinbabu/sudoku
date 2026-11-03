@@ -8,6 +8,16 @@ struct Stats: Codable, Equatable {
     var importedPuzzlesSolved: Int
     var totalPuzzlesSolved: Int
     var totalTimeSeconds: Int
+    /// Unassisted solve times per level, newest last, for the typical (median) time.
+    var solveTimes: [Difficulty: [Int]] = [:]
+    /// Solves that used a hint's Place or Remove (CODESPEC 6.3.1).
+    var assistedSolves = 0
+    /// Days with a counted solve (start of day), newest last, for the Journal week.
+    var solvedDays: [Date] = []
+
+    /// Solve times kept per level; shortcut: the median of the last 50, enough for "typical".
+    static let keptTimes = 50
+    static let keptDays = 14
 
     init(streakDays: Int = 0, lastCompletionDate: Date? = nil, bestTimes: [Difficulty: Int] = [:], puzzlesSolved: [Difficulty: Int] = [:], importedPuzzlesSolved: Int = 0, totalPuzzlesSolved: Int = 0, totalTimeSeconds: Int = 0) {
         self.streakDays = streakDays
@@ -30,8 +40,16 @@ struct Stats: Codable, Equatable {
             importedPuzzlesSolved += 1
         }
 
-        if !assisted {
+        if assisted {
+            assistedSolves += 1
+        } else {
             bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
+            solveTimes[difficulty, default: []].append(time)
+            solveTimes[difficulty] = solveTimes[difficulty]?.suffix(Self.keptTimes)
+        }
+        let day = calendar.startOfDay(for: date)
+        if !solvedDays.contains(where: { calendar.isDate($0, inSameDayAs: day) }) {
+            solvedDays = (solvedDays + [day]).suffix(Self.keptDays)
         }
 
         if let lastDate = lastCompletionDate {
@@ -57,6 +75,27 @@ struct Stats: Codable, Equatable {
         bestTimes[difficulty]
     }
 
+    /// The median unassisted solve time at a level (the Journal's "Typical").
+    func typicalTime(for difficulty: Difficulty) -> Int? {
+        let times = solveTimes[difficulty, default: []].sorted()
+        guard !times.isEmpty else { return nil }
+        let middle = times.count / 2
+        return times.count.isMultiple(of: 2) ? (times[middle - 1] + times[middle]) / 2 : times[middle]
+    }
+
+    /// The streak as of `date`: zero once a whole day has passed without a solve.
+    func currentStreak(at date: Date = Date(), calendar: Calendar = .current) -> Int {
+        guard let last = lastCompletionDate else { return 0 }
+        let today = calendar.startOfDay(for: date)
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: last), to: today).day ?? 0
+        return days <= 1 ? streakDays : 0
+    }
+
+    /// True if a counted solve happened on `date`'s day.
+    func solved(on date: Date, calendar: Calendar = .current) -> Bool {
+        solvedDays.contains { calendar.isDate($0, inSameDayAs: date) }
+    }
+
     private enum CodingKeys: String, CodingKey {
         case streakDays
         case lastCompletionDate
@@ -65,6 +104,9 @@ struct Stats: Codable, Equatable {
         case importedPuzzlesSolved
         case totalPuzzlesSolved
         case totalTimeSeconds
+        case solveTimes
+        case assistedSolves
+        case solvedDays
     }
 
     init(from decoder: Decoder) throws {
@@ -76,6 +118,10 @@ struct Stats: Codable, Equatable {
         importedPuzzlesSolved = try container.decodeIfPresent(Int.self, forKey: .importedPuzzlesSolved) ?? 0
         totalPuzzlesSolved = try container.decode(Int.self, forKey: .totalPuzzlesSolved)
         totalTimeSeconds = try container.decode(Int.self, forKey: .totalTimeSeconds)
+        solveTimes = try container.decodeIfPresent([Difficulty: [Int]].self, forKey: .solveTimes) ?? [:]
+        assistedSolves = try container.decodeIfPresent(Int.self, forKey: .assistedSolves) ?? 0
+        // Files from before the Journal week know only the last solve day; start the week from it.
+        solvedDays = try container.decodeIfPresent([Date].self, forKey: .solvedDays) ?? (lastCompletionDate.map { [$0] } ?? [])
     }
 
     func encode(to encoder: Encoder) throws {
@@ -87,5 +133,8 @@ struct Stats: Codable, Equatable {
         try container.encode(importedPuzzlesSolved, forKey: .importedPuzzlesSolved)
         try container.encode(totalPuzzlesSolved, forKey: .totalPuzzlesSolved)
         try container.encode(totalTimeSeconds, forKey: .totalTimeSeconds)
+        try container.encode(solveTimes, forKey: .solveTimes)
+        try container.encode(assistedSolves, forKey: .assistedSolves)
+        try container.encode(solvedDays, forKey: .solvedDays)
     }
 }
