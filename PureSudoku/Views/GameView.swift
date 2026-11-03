@@ -6,7 +6,7 @@ struct GameView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.popToRoot) private var popToRoot
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.psPalette) private var palette
+    @Environment(\.psPalette) private var basePalette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel: GameViewModel
     @State private var showsMenu = false
@@ -15,11 +15,26 @@ struct GameView: View {
     @State private var isGoodnight = false
     @State private var lessonTechnique: Technique?
     @State private var techniqueLine: String?
+    @StateObject private var drift = DriftController()
+    /// Drift is checked often; it only steps every 90 s.
+    private let driftTick = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let difficulty: Difficulty
 
     init(viewModel: GameViewModel, difficulty: Difficulty) {
         _viewModel = StateObject(wrappedValue: viewModel)
         self.difficulty = difficulty
+    }
+
+    /// The screen's palette, with this session's Drift offset at night (CODESPEC 12.3).
+    private var palette: PSPalette {
+        guard drift.steps > 0 else { return basePalette }
+        return DriftController.apply(steps: drift.steps, to: controller.settings).palette(isNight: true)
+    }
+
+    private var driftIsActive: Bool { basePalette.isNight && controller.settings.drift }
+
+    private func updateDrift() {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) { drift.update(active: driftIsActive) }
     }
 
     /// Header, board top gap, hint slot, tools and keypad (everything but the board).
@@ -71,6 +86,9 @@ struct GameView: View {
             }
         }
         .background(TwoFingerTapCatcher(action: hush))
+        .environment(\.psPalette, theme)
+        .onReceive(driftTick) { _ in updateDrift() }
+        .onChange(of: driftIsActive) { _ in updateDrift() }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHushed)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isGoodnight)
@@ -80,8 +98,12 @@ struct GameView: View {
         .onAppear {
             viewModel.apply(settings: controller.settings)
             viewModel.handleSceneDidAppear()
+            updateDrift()
         }
-        .onDisappear { viewModel.handleSceneDidDisappear() }
+        .onDisappear {
+            viewModel.handleSceneDidDisappear()
+            drift.update(active: false)
+        }
         .onChange(of: controller.settings) { viewModel.apply(settings: $0) }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
@@ -135,8 +157,9 @@ struct GameView: View {
             .disabled(viewModel.state.isCompleted)
             .accessibilityIdentifier("timerToggle")
             .accessibilityLabel(viewModel.isPaused ? "Resume timer" : "Pause timer")
-            HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: theme.isNight ? "Night On" : "Night Off") {
-                controller.toggleNight()
+            HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: "Night") {
+                showsMenu = false
+                controller.showsNightSheet = true
             }
             .accessibilityIdentifier("nightButton")
             HeaderIconButton(theme: theme, symbol: "ellipsis", label: "More") { showsMenu.toggle() }

@@ -60,6 +60,14 @@ struct MainMenuView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { controller.showsNightSheet = true } label: {
+                        Image(systemName: theme.isNight ? "moon.fill" : "moon")
+                    }
+                    .foregroundColor(theme.accent)
+                    .accessibilityLabel("Night")
+                    .accessibilityIdentifier("nightButton")
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { activeSheet = .settings }) {
                         Image(systemName: "gearshape")
                     }
@@ -96,6 +104,7 @@ struct MainMenuView: View {
                 switch sheet {
                 case .settings:
                     SettingsView(viewModel: SettingsViewModel(controller: controller))
+                    .environmentObject(controller)
                     .sheetTheme(controller)
                 case .stats:
                     StatsView(viewModel: StatsViewModel(controller: controller))

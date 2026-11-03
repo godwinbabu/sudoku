@@ -21,13 +21,11 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func setAppearance(_ value: Appearance) {
-        controller.updateSettings { $0.appearance = value }
+        controller.setAppearance(value)
     }
 
-    /// The preset matching the current glow and warmth, if any.
-    var currentPreset: NightPreset? {
-        NightPreset.allCases.first { $0.glow == settings.glow && $0.warmth == settings.warmth }
-    }
+    /// The preset matching the current glow and warmth (after the floor), if any.
+    var currentPreset: NightPreset? { NightPreset.matching(settings) }
 
     func applyPreset(_ preset: NightPreset) {
         controller.updateSettings { $0.apply(preset) }
@@ -43,6 +41,40 @@ final class SettingsViewModel: ObservableObject {
 
     func setClarity(_ value: Clarity) {
         controller.updateSettings { $0.clarity = value }
+    }
+
+    func setDrift(_ value: Bool) {
+        controller.updateSettings { $0.drift = value }
+    }
+
+    func setHideStatusBar(_ value: Bool) {
+        controller.updateSettings { $0.hideStatusBarInGames = value }
+    }
+
+    func setSounds(_ value: Bool) {
+        controller.updateSettings { $0.soundsEnabled = value }
+    }
+
+    func setHaptics(_ value: Bool) {
+        controller.updateSettings { $0.hapticsEnabled = value }
+    }
+
+    func setUsesSun(_ value: Bool) {
+        controller.setUsesSunForAfterDark(value)
+    }
+
+    /// Moves an After dark fixed hour by `minutes`, wrapping around midnight.
+    func shiftAfterDark(start: Bool, by minutes: Int) {
+        controller.updateSettings {
+            let time = start ? $0.afterDarkStart : $0.afterDarkEnd
+            let total = ((time.minutes + minutes) % 1440 + 1440) % 1440
+            let shifted = ClockTime(hour: total / 60, minute: total % 60)
+            if start { $0.afterDarkStart = shifted } else { $0.afterDarkEnd = shifted }
+        }
+    }
+
+    func calibrate(pick: Double) {
+        controller.calibrate(pick: pick)
     }
 
     func setShowTimer(_ value: Bool) {
