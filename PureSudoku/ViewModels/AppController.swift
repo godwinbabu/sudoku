@@ -137,6 +137,11 @@ final class AppController: ObservableObject {
         return viewModel
     }
 
+    /// The unfinished level game played most recently: Home's Continue card (CODESPEC 3.1).
+    var continueGame: GameState? {
+        activeGames.values.filter { !$0.isCompleted }.max { $0.lastUpdated < $1.lastUpdated }
+    }
+
     /// A practice game from a lesson: not saved and not counted in stats, but it does count
     /// toward learning (CODESPEC 13.5).
     func makePracticeGameViewModel(_ entry: BundledPuzzles.Entry, number: Int) -> GameViewModel {
@@ -222,12 +227,12 @@ final class AppController: ObservableObject {
         guard initialGrid.count == 81 else { return nil }
         guard let solution = generatorService.solve(initialGrid: initialGrid) else { return nil }
         let values = initialGrid.map { Int(String($0)) ?? 0 }
-        // Level from the techniques needed; an import the solver can't finish is Hard (CODESPEC 2.2).
+        // Level from the techniques needed; an import the solver can't finish is Master (CODESPEC 2.2).
         let unique = SolutionCounter.count(values, limit: 2) == 1
         let grade = PuzzleGrader.grade(values, allowsUniqueness: unique)?.grade
         let puzzle = SudokuPuzzle(
             id: UUID().uuidString,
-            difficulty: grade?.difficulty ?? .hard,
+            difficulty: grade?.difficulty ?? .master,
             initialGrid: initialGrid,
             solutionGrid: solution,
             grade: grade,
@@ -256,12 +261,6 @@ final class AppController: ObservableObject {
     /// Any future sound or haptic must check these, never `settings.soundsEnabled` / `hapticsEnabled`.
     var soundsActive: Bool { settings.soundsEnabled && !isNight }
     var hapticsActive: Bool { settings.hapticsEnabled && !isNight }
-
-    /// The main-menu Night bar flips between Day and Night.
-    func toggleNight() {
-        let night = !isNight
-        updateSettings { $0.appearance = night ? .night : .day }
-    }
 
     /// Picking After dark (or sunset and sunrise) is the only thing that asks for location.
     func setAppearance(_ appearance: Appearance) {
@@ -364,6 +363,8 @@ final class AppController: ObservableObject {
     }
 
     private func persist(state: GameState, for difficulty: Difficulty) {
+        var state = state
+        state.lastUpdated = timeProvider.now() // the Continue card picks the game played last
         activeGames[difficulty] = state
         do {
             try persistence.save(state, to: File.game(difficulty).rawValue)

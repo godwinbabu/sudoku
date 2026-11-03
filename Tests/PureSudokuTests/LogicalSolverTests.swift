@@ -47,6 +47,7 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertGreaterThan(solvedCount, Self.corpus.count / 2, "the solver should finish most generated puzzles")
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     /// Checks that a step's pattern really justifies it, on the board before the step.
     private static func patternProblem(_ step: TechniqueStep, on board: SolverBoard) -> String? {
         let cells = step.cells.map(\.cell)
@@ -99,7 +100,24 @@ final class LogicalSolverTests: XCTestCase {
             return step.eliminations.allSatisfy { e in ends.allSatisfy { SolverBoard.sees(e.cell, $0) } } ? nil : "elimination does not see both ends"
         case .uniqueRectangle1, .uniqueRectangle2, .uniqueRectangle4, .bugPlusOne:
             return cells.allSatisfy({ board.values[$0] == 0 }) ? nil : "pattern cell is filled"
+        case .xyChain:
+            return xyChainProblem(cells, digit: step.digits[0], eliminations: step.eliminations, on: board)
         }
+    }
+
+    /// Walks the chain: from the start's other digit, each next cell must see the last and hold the
+    /// forced digit; the end must be forced to X, and every elimination must see both ends.
+    static func xyChainProblem(_ cells: [Int], digit x: Int, eliminations: [CellDigit], on board: SolverBoard) -> String? {
+        guard cells.count >= 3, cells.allSatisfy({ board.candidates[$0].nonzeroBitCount == 2 }) else { return "not a chain of two-candidate cells" }
+        guard board.has(x, at: cells[0]) else { return "start lacks X" }
+        var forced = SolverBoard.digits(in: board.candidates[cells[0]] & ~SolverBoard.bit(x))[0]
+        for (previous, cell) in zip(cells, cells.dropFirst()) {
+            guard SolverBoard.sees(previous, cell), board.has(forced, at: cell) else { return "broken link" }
+            forced = SolverBoard.digits(in: board.candidates[cell] & ~SolverBoard.bit(forced))[0]
+        }
+        guard forced == x else { return "the end is not forced to X" }
+        let ends = [cells[0], cells[cells.count - 1]]
+        return eliminations.allSatisfy { e in e.digit == x && ends.allSatisfy { SolverBoard.sees(e.cell, $0) } } ? nil : "elimination does not see both ends"
     }
 
     // MARK: - Behavior
@@ -336,6 +354,25 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertEqual(wing.first?.eliminations, [CellDigit(cell: 40, digit: 3)])
         // A pivot and pincer with the same pair is not a wing.
         XCTAssertTrue(WingDetector.xyWings(board([0: [4, 5], 2: [4, 5], 72: [3, 5]])).isEmpty)
+    }
+
+    func testXYChainRemovesFromCellsSeeingBothEnds() {
+        // r1c1 {1,2} → r1c5 {2,3} → r5c5 {3,4} → r5c2 {4,1}: if r1c1 isn't 1, r5c2 is. Not an XY-Wing.
+        let chainBoard = board([0: [1, 2], 4: [2, 3], 40: [3, 4], 37: [1, 4]])
+        XCTAssertTrue(WingDetector.xyWings(chainBoard).isEmpty)
+        let steps = ChainDetector.xyChains(chainBoard)
+        // Cells that see both r1c1 and r5c2: r1c2, r2c2, r3c2 and r4c1, r5c1, r6c1.
+        let expected = [1, 10, 19, 27, 36, 45].map { CellDigit(cell: $0, digit: 1) }
+        let chain = steps.first { Set($0.cells.map(\.cell)) == [0, 4, 40, 37] }
+        XCTAssertEqual(chain?.eliminations, expected)
+        XCTAssertEqual(chain?.digits, [1])
+        XCTAssertEqual(chain?.cells.count, 4)
+        XCTAssertEqual(chain?.cells.first?.role, .pincer)
+        XCTAssertNil(Self.xyChainProblem(chain?.cells.map(\.cell) ?? [], digit: 1, eliminations: expected, on: chainBoard))
+        XCTAssertTrue(steps.allSatisfy { $0.technique == .xyChain && $0.digits == [1] }, "only 1 links the two ends")
+        // The solver reaches it once nothing simpler applies.
+        XCTAssertEqual(LogicalSolver().nextStep(chainBoard)?.technique, .xyChain)
+        XCTAssertFalse(chain?.reason().isEmpty ?? true)
     }
 
     func testEveryTechniqueHasADetector() {

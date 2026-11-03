@@ -8,12 +8,19 @@ struct PuzzleGrade: Codable, Equatable {
     /// Techniques used, in curriculum order.
     let techniques: [Technique]
 
-    /// One level per tier: Basic → Easy, Intermediate → Medium, Advanced (and later Expert) → Hard.
-    var difficulty: Difficulty {
-        switch hardestTier {
+    /// The level of the hardest technique needed (CODESPEC 2.2).
+    var difficulty: Difficulty { techniques.map(\.level).max() ?? .easy }
+}
+
+extension Technique {
+    /// The lowest level that may need this technique: singles → Easy, pointing and claiming →
+    /// Medium, subsets → Hard, wings, fish and the rest of the Advanced tier → Expert, chains → Master.
+    var level: Difficulty {
+        switch tier {
         case .basic: return .easy
-        case .intermediate: return .medium
-        case .advanced, .expert: return .hard
+        case .intermediate: return [.pointing, .claiming].contains(self) ? .medium : .hard
+        case .advanced: return .expert
+        case .expert: return .master
         }
     }
 }

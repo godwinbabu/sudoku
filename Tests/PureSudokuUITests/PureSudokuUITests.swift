@@ -35,10 +35,53 @@ final class PureSudokuUITests: XCTestCase {
     func testLaunchShowsDifficultyButtons() {
         let app = launchApp()
         XCTAssertTrue(app.buttons["difficulty_easy"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["difficulty_medium"].exists)
-        XCTAssertTrue(app.buttons["difficulty_hard"].exists)
-        // Each level names the techniques it needs (CODESPEC 1, 2.2).
-        XCTAssertTrue(app.staticTexts["Medium, then X-Wing, Skyscraper, wings, coloring"].exists)
+        for level in ["medium", "hard", "expert", "master"] {
+            XCTAssertTrue(app.buttons["difficulty_\(level)"].exists, level)
+        }
+        // Each level names the hardest technique it needs (CODESPEC 1, 2.2).
+        XCTAssertTrue(app.buttons["difficulty_expert"].label.contains("Wings & fish"), app.buttons["difficulty_expert"].label)
+        XCTAssertTrue(app.buttons["difficulty_master"].label.contains("Chains & beyond"), app.buttons["difficulty_master"].label)
+        XCTAssertFalse(app.buttons["bedtimeToggle"].exists, "the Night bar is gone; the moon replaces it")
+    }
+
+    /// Play, Learn and Journal each show their screen and the moon (CODESPEC 3.1).
+    func testTabsSwitch() {
+        let app = launchApp()
+        XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))
+        app.buttons["tab_learn"].tap()
+        XCTAssertTrue(element("learnView", in: app).waitForExistence(timeout: 2))
+        XCTAssertFalse(element("homeView", in: app).exists)
+        XCTAssertTrue(app.buttons["nightButton"].exists, "Learn has the moon")
+        app.buttons["tab_journal"].tap()
+        XCTAssertTrue(element("journalView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(element("journal_row_master", in: app).exists, "the solved table has all five levels")
+        XCTAssertTrue(app.buttons["nightButton"].exists, "Journal has the moon")
+        XCTAssertTrue(app.buttons["tab_journal"].isSelected)
+        app.buttons["tab_play"].tap()
+        XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["tab_play"].isSelected)
+    }
+
+    /// Home starts an Expert game; back on Home, the Continue card resumes it.
+    func testHomeStartsAnExpertGameAndContinues() {
+        let app = launchApp()
+        let expert = app.buttons["difficulty_expert"]
+        XCTAssertTrue(expert.waitForExistence(timeout: 2))
+        expert.tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["EXPERT"].exists, "the header names the level")
+        XCTAssertFalse(app.buttons["tab_play"].exists, "the game covers the tab bar")
+        let cell = firstEmptyCell(in: app)
+        let id = cell.identifier
+        cell.tap()
+        app.buttons["number_1"].tap()
+        app.buttons["backButton"].tap()
+        let card = element("continueCard", in: app)
+        XCTAssertTrue(card.waitForExistence(timeout: 2))
+        XCTAssertTrue(card.label.contains("Expert"), card.label)
+        card.tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons[id].label.hasSuffix("value 1"), "the same game, with its entry")
     }
 
     func testImportButtonOpensImportScreen() {
@@ -177,32 +220,75 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
 
-    /// Settings → Display & Night, then a game in Night (CODESPEC 12).
-    func testNightToggleOpensANightGame() {
+    /// Journal → Display & Night, then Night from the moon and a game in Night (CODESPEC 12).
+    func testJournalDisplayAndANightGame() {
         let app = launchApp()
-        XCTAssertTrue(app.buttons["settingsButton"].waitForExistence(timeout: 2))
-        app.buttons["settingsButton"].tap()
+        app.buttons["tab_journal"].tap()
         let display = element("settings_display", in: app)
         XCTAssertTrue(display.waitForExistence(timeout: 2))
         display.tap()
         XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["display_preset_lightsOut"].exists)
         XCTAssertTrue(app.buttons["display_appearance_afterDark"].exists)
+        XCTAssertFalse(app.buttons["tab_play"].exists, "Display & Night covers the tab bar")
         app.buttons["display_back"].tap()
-        XCTAssertTrue(app.buttons["settings_done"].waitForExistence(timeout: 2))
-        app.buttons["settings_done"].tap()
-        let easy = app.buttons["difficulty_easy"]
-        XCTAssertTrue(waitUntilHittable(easy), "Settings closed")
+        XCTAssertTrue(waitUntilHittable(app.buttons["tab_play"]))
+        app.buttons["tab_play"].tap()
 
-        let toggle = app.buttons["bedtimeToggle"]
-        let startedOn = toggle.label.hasSuffix("On")
-        if !startedOn { toggle.tap() }
-        XCTAssertTrue(waitForLabel(of: toggle, endingWith: "On", in: app), toggle.label)
+        let original = setAppearance("night", in: app)
+        let easy = app.buttons["difficulty_easy"]
+        XCTAssertTrue(waitUntilHittable(easy))
         easy.tap()
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
         snapshot(app, "night-game")
         app.buttons["backButton"].tap()
-        if !startedOn, waitUntilHittable(toggle) { toggle.tap() } // leave the app as found
+        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+    }
+
+    /// The Assists settings live in Journal; Show timer off hides the game timer (CODESPEC 3.3).
+    func testJournalShowTimerHidesTheTimer() {
+        let app = launchApp()
+        app.buttons["tab_journal"].tap()
+        let timer = app.buttons["journal_showTimer"]
+        XCTAssertTrue(timer.waitForExistence(timeout: 2))
+        for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
+        XCTAssertTrue(app.buttons["journal_mistakes_never"].exists)
+        XCTAssertTrue(app.buttons["journal_notation_grid"].exists)
+        let wasOn = timer.value as? String == "On"
+        if !wasOn { timer.tap() }
+        XCTAssertTrue(gameShowsTimer(in: app), "Show timer on: the game shows it")
+        app.buttons["tab_journal"].tap()
+        for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
+        timer.tap()
+        XCTAssertEqual(timer.value as? String, "Off")
+        XCTAssertFalse(gameShowsTimer(in: app), "Show timer off: no timer")
+        if wasOn {
+            app.buttons["tab_journal"].tap()
+            for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
+            timer.tap() // leave the app as found
+        }
+    }
+
+    /// Opens an Easy game from Home, checks for the timer, and goes back.
+    private func gameShowsTimer(in app: XCUIApplication) -> Bool {
+        app.buttons["tab_play"].tap()
+        app.buttons["difficulty_easy"].tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        let shows = element("timerLabel", in: app).waitForExistence(timeout: 1)
+        app.buttons["backButton"].tap()
+        return shows
+    }
+
+    /// Picks Day, Night or After dark in the Night sheet; returns the one selected before.
+    private func setAppearance(_ appearance: String, in app: XCUIApplication) -> String? {
+        app.buttons["nightButton"].tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        let original = ["day", "night", "afterDark"].first { app.buttons["night_appearance_\($0)"].isSelected }
+        app.buttons["night_appearance_\(appearance)"].tap()
+        app.buttons["night_close"].tap()
+        XCTAssertTrue(waitForAbsence(sheet))
+        return original
     }
 
     /// The moon opens the Night sheet on the main menu and in a game; the backdrop and × close it (CODESPEC 12.2).
@@ -259,12 +345,12 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForAbsence(sheet))
     }
 
-    /// First night, without the skip argument: picking Night inside Settings closes that system
-    /// sheet, so the flow shows on top; it runs to the end and returns to the menu (CODESPEC 12.3).
+    /// First night, without the skip argument: picking Night on Display & Night shows the flow on
+    /// top; it runs to the end and returns to the page (CODESPEC 12.3).
     func testFirstNightShowsAboveSettingsAndCompletes() {
         let app = launchApp(["-uiTestFirstNight"], skipFirstNight: false)
         XCTAssertFalse(element("firstNight", in: app).exists, "Day: no first night yet")
-        app.buttons["settingsButton"].tap()
+        app.buttons["tab_journal"].tap()
         let display = element("settings_display", in: app)
         XCTAssertTrue(display.waitForExistence(timeout: 2))
         display.tap()
@@ -272,7 +358,6 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["display_appearance_night"].tap()
 
         XCTAssertTrue(element("firstNight", in: app).waitForExistence(timeout: 3))
-        XCTAssertTrue(waitForAbsence(app.buttons["settings_done"]), "the Settings sheet closed")
         let calibrate = app.buttons["firstNight_calibrate"]
         XCTAssertTrue(waitUntilHittable(calibrate), "the flow is on top")
         calibrate.tap()
@@ -284,10 +369,9 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Glow set to 18%."].waitForExistence(timeout: 2))
         app.buttons["firstNight_start"].tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
-        XCTAssertTrue(waitUntilHittable(app.buttons["difficulty_easy"]), "back on the menu")
-
-        let toggle = app.buttons["bedtimeToggle"]
-        if toggle.label.hasSuffix("On") { toggle.tap() } // leave the app in Day
+        let day = app.buttons["display_appearance_day"]
+        XCTAssertTrue(waitUntilHittable(day), "back on Display & Night")
+        day.tap() // leave the app in Day
     }
 
     /// Learn → a technique → its worked example and practice (CODESPEC 13.5).
@@ -316,15 +400,13 @@ final class PureSudokuUITests: XCTestCase {
         let goodnight = element("goodnightView", in: app)
         XCTAssertTrue(goodnight.waitForExistence(timeout: 2))
         goodnight.tap()
-        XCTAssertTrue(app.buttons["difficulty_easy"].waitForExistence(timeout: 3), "back on the main menu")
+        XCTAssertTrue(app.buttons["difficulty_easy"].waitForExistence(timeout: 3), "back on Home")
         XCTAssertFalse(app.buttons["lesson_practice1"].exists, "not the lesson")
     }
 
-    /// Main menu → Learn → the Pointing lesson.
+    /// Learn tab → the Pointing lesson.
     private func openPointingLesson(in app: XCUIApplication) {
-        let learn = app.buttons["learnButton"]
-        for _ in 0..<3 where !learn.isHittable { app.swipeUp() }
-        learn.tap()
+        app.buttons["tab_learn"].tap()
         XCTAssertTrue(element("learnView", in: app).waitForExistence(timeout: 2))
         let lesson = app.buttons["learn_pointing"]
         XCTAssertTrue(lesson.waitForExistence(timeout: 2))

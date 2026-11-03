@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 
+/// Home (CODESPEC 3.1): the Continue card, the five levels and the sub-line.
 @MainActor
 final class MainMenuViewModel: ObservableObject {
     @Published private(set) var stats: Stats
@@ -29,17 +30,33 @@ final class MainMenuViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
-        controller.makeGameViewModel(for: difficulty)
-    }
+    /// The game the Continue card resumes.
+    var continueGame: GameState? { controller.continueGame }
 
-    func continueOrStartGame(for difficulty: Difficulty) async -> GameViewModel {
-        if controller.activeGames[difficulty]?.isCompleted != false {
-            await controller.startNewGame(for: difficulty)
-        }
+    /// A level always starts a new puzzle (Design/v2/README.md, Home).
+    func startNewGame(for difficulty: Difficulty) async -> GameViewModel {
+        await controller.startNewGame(for: difficulty)
         return controller.makeGameViewModel(for: difficulty)
     }
 
-    /// Until the Night sheet lands (CODESPEC 12.2), the menu bar flips between Day and Night.
-    func toggleNight() { controller.toggleNight() }
+    func continueGame(for difficulty: Difficulty) -> GameViewModel {
+        controller.makeGameViewModel(for: difficulty)
+    }
+
+    /// "Saturday night · 6-night streak".
+    func subLine(at date: Date = Date(), calendar: Calendar = .current) -> String {
+        let hour = calendar.component(.hour, from: date)
+        let part = switch hour {
+        case 5..<12: "morning"
+        case 12..<17: "afternoon"
+        case 17..<21: "evening"
+        default: "night"
+        }
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.dateFormat = "EEEE"
+        let day = formatter.string(from: date)
+        let streak = stats.currentStreak(at: date, calendar: calendar)
+        return streak > 0 ? "\(day) \(part) · \(streak)-night streak" : "\(day) \(part)"
+    }
 }

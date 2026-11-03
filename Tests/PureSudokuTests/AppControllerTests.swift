@@ -35,7 +35,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(several.hasUniqueSolution, false)
         XCTAssertFalse(several.isUnique)
         XCTAssertNil(several.grade, "the solver can't finish a 9-clue puzzle")
-        XCTAssertEqual(several.difficulty, .hard)
+        XCTAssertEqual(several.difficulty, .master, "beyond the solver: the top level")
     }
 
     func testOldImportsAreRecountedAndSaved() async throws {
@@ -78,5 +78,41 @@ final class AppControllerTests: XCTestCase {
         viewModel.resetPuzzle()
         XCTAssertEqual(controller.activeGames[.easy]?.isCompleted, false)
         XCTAssertEqual(controller.stats, Stats(), "revealed games do not count")
+    }
+
+    /// Home's Continue card resumes the unfinished game played last; a level row starts a new one
+    /// (CODESPEC 3.1).
+    func testContinueIsTheGamePlayedLastAndALevelStartsANewOne() async {
+        let clock = AdvancingTimeProvider()
+        let (controller, _) = makeTestController(timeProvider: clock)
+        XCTAssertNil(controller.continueGame)
+        await controller.startNewGame(for: .easy, mode: .seeded(1))
+        clock.advance(60)
+        await controller.startNewGame(for: .hard, mode: .seeded(2))
+        XCTAssertEqual(controller.continueGame?.puzzle.difficulty, .hard)
+
+        clock.advance(60)
+        let easy = controller.makeGameViewModel(for: .easy)
+        let empty = easy.state.cells.first { $0.value == nil }!
+        easy.select(cell: empty)
+        easy.setDigit(1)
+        easy.handleSceneDidDisappear() // saves on the next main-actor turn
+        for _ in 0..<50 where controller.continueGame?.puzzle.difficulty != .easy {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(controller.continueGame?.puzzle.difficulty, .easy, "playing Easy makes it the latest")
+
+        let menu = MainMenuViewModel(controller: controller)
+        let before = controller.activeGames[.easy]?.puzzle.id
+        let started = await menu.startNewGame(for: .easy)
+        XCTAssertNotEqual(started.state.puzzle.id, before, "a level row always starts a new puzzle")
+        XCTAssertTrue(started.state.cells.allSatisfy { $0.given || $0.value == nil })
+
+        controller.makeGameViewModel(for: .hard).revealPuzzle()
+        for _ in 0..<50 where controller.activeGames[.hard]?.isCompleted != true {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(controller.activeGames[.hard]?.isCompleted, true)
+        XCTAssertEqual(controller.continueGame?.puzzle.difficulty, .easy, "a finished game is never offered")
     }
 }

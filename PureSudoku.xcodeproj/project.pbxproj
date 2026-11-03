@@ -20,6 +20,7 @@
 		0000000000000000000000B1 /* Board.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B0 /* Board.swift */; };
 		0000000000000000000000BD /* FishAndWings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BC /* FishAndWings.swift */; };
 		0000000000000000000000DD /* AdvancedDetectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000DC /* AdvancedDetectors.swift */; };
+		000000000000000000000141 /* Chains.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000140 /* Chains.swift */; };
 		0000000000000000000000BB /* SubsetDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BA /* SubsetDetector.swift */; };
 		0000000000000000000000B9 /* SinglesAndIntersections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B8 /* SinglesAndIntersections.swift */; };
 		0000000000000000000000B7 /* LogicalSolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000B6 /* LogicalSolver.swift */; };
@@ -40,14 +41,14 @@
 		000000000000000000000057 /* StatsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000022 /* StatsViewModel.swift */; };
 		000000000000000000000059 /* Settings+Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000024 /* Settings+Theme.swift */; };
 		00000000000000000000005A /* MainMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000025 /* MainMenuView.swift */; };
+		000000000000000000000145 /* JournalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000144 /* JournalView.swift */; };
+		000000000000000000000143 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000142 /* HomeView.swift */; };
 		00000000000000000000005B /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000026 /* GameView.swift */; };
 		0000000000000000000000C7 /* HintCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C6 /* HintCardView.swift */; };
 		0000000000000000000000E3 /* LearnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E2 /* LearnView.swift */; };
 		00000000000000000000005C /* SudokuGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000027 /* SudokuGridView.swift */; };
 		00000000000000000000005D /* NumberPadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000028 /* NumberPadView.swift */; };
 		0000000000000000000000E7 /* GameChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E6 /* GameChrome.swift */; };
-		00000000000000000000005E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000029 /* SettingsView.swift */; };
-		00000000000000000000005F /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002A /* StatsView.swift */; };
 		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
 		000000000000000000000062 /* Media in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* Media */; };
 		000000000000000000000063 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002D /* README.md */; };
@@ -126,6 +127,7 @@
 		0000000000000000000000B0 /* Board.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Board.swift; sourceTree = "<group>"; };
 		0000000000000000000000BC /* FishAndWings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FishAndWings.swift; sourceTree = "<group>"; };
 		0000000000000000000000DC /* AdvancedDetectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedDetectors.swift; sourceTree = "<group>"; };
+		000000000000000000000140 /* Chains.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chains.swift; sourceTree = "<group>"; };
 		0000000000000000000000BA /* SubsetDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubsetDetector.swift; sourceTree = "<group>"; };
 		0000000000000000000000B8 /* SinglesAndIntersections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SinglesAndIntersections.swift; sourceTree = "<group>"; };
 		0000000000000000000000B6 /* LogicalSolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalSolver.swift; sourceTree = "<group>"; };
@@ -146,14 +148,14 @@
 		000000000000000000000022 /* StatsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsViewModel.swift; sourceTree = "<group>"; };
 		000000000000000000000024 /* Settings+Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Settings+Theme.swift"; sourceTree = "<group>"; };
 		000000000000000000000025 /* MainMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuView.swift; sourceTree = "<group>"; };
+		000000000000000000000144 /* JournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalView.swift; sourceTree = "<group>"; };
+		000000000000000000000142 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		000000000000000000000026 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
 		0000000000000000000000C6 /* HintCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintCardView.swift; sourceTree = "<group>"; };
 		0000000000000000000000E2 /* LearnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearnView.swift; sourceTree = "<group>"; };
 		000000000000000000000027 /* SudokuGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SudokuGridView.swift; sourceTree = "<group>"; };
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
 		0000000000000000000000E6 /* GameChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameChrome.swift; sourceTree = "<group>"; };
-		000000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		00000000000000000000002A /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
 		00000000000000000000002D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		00000000000000000000002E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -281,6 +283,7 @@
 				0000000000000000000000B0 /* Board.swift */,
 				0000000000000000000000BC /* FishAndWings.swift */,
 				0000000000000000000000DC /* AdvancedDetectors.swift */,
+				000000000000000000000140 /* Chains.swift */,
 				0000000000000000000000BA /* SubsetDetector.swift */,
 				0000000000000000000000B8 /* SinglesAndIntersections.swift */,
 				0000000000000000000000B6 /* LogicalSolver.swift */,
@@ -324,6 +327,8 @@
 			children = (
 				000000000000000000000024 /* Settings+Theme.swift */,
 				000000000000000000000025 /* MainMenuView.swift */,
+				000000000000000000000144 /* JournalView.swift */,
+				000000000000000000000142 /* HomeView.swift */,
 				000000000000000000000026 /* GameView.swift */,
 				0000000000000000000000C6 /* HintCardView.swift */,
 				0000000000000000000000E2 /* LearnView.swift */,
@@ -334,8 +339,6 @@
 				0000000000000000000000F8 /* DisplaySettingsView.swift */,
 				0000000000000000000000F6 /* NightSheetView.swift */,
 				0000000000000000000000F4 /* NightControls.swift */,
-				000000000000000000000029 /* SettingsView.swift */,
-				00000000000000000000002A /* StatsView.swift */,
 				0000000000000000000000A5 /* ImportPuzzleView.swift */,
 				0000000000000000000000A6 /* ImagePicker.swift */,
 				000000000000000000000087 /* Icons */,
@@ -589,6 +592,7 @@
 				0000000000000000000000B1 /* Board.swift in Sources */,
 				0000000000000000000000BD /* FishAndWings.swift in Sources */,
 				0000000000000000000000DD /* AdvancedDetectors.swift in Sources */,
+				000000000000000000000141 /* Chains.swift in Sources */,
 				0000000000000000000000BB /* SubsetDetector.swift in Sources */,
 				0000000000000000000000B9 /* SinglesAndIntersections.swift in Sources */,
 				0000000000000000000000B7 /* LogicalSolver.swift in Sources */,
@@ -614,14 +618,14 @@
 				00000000000000000000009B /* ImportPuzzleViewModel.swift in Sources */,
 				000000000000000000000059 /* Settings+Theme.swift in Sources */,
 				00000000000000000000005A /* MainMenuView.swift in Sources */,
+				000000000000000000000145 /* JournalView.swift in Sources */,
+				000000000000000000000143 /* HomeView.swift in Sources */,
 				00000000000000000000005B /* GameView.swift in Sources */,
 				0000000000000000000000C7 /* HintCardView.swift in Sources */,
 				0000000000000000000000E3 /* LearnView.swift in Sources */,
 				00000000000000000000005C /* SudokuGridView.swift in Sources */,
 				00000000000000000000005D /* NumberPadView.swift in Sources */,
 				0000000000000000000000E7 /* GameChrome.swift in Sources */,
-				00000000000000000000005E /* SettingsView.swift in Sources */,
-				00000000000000000000005F /* StatsView.swift in Sources */,
 				00000000000000000000009C /* ImportPuzzleView.swift in Sources */,
 				00000000000000000000009D /* ImagePicker.swift in Sources */,
 				0000000000000000000000AF /* SheetTheme.swift in Sources */,
