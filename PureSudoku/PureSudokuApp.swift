@@ -36,6 +36,7 @@ struct RootView: View {
         .environment(\.psPalette, controller.palette)
         .environment(\.psType, PSType(controller.settings.clarity))
         .preferredColorScheme(controller.preferredColorScheme)
+        .persistentSystemOverlays(controller.hidesHomeIndicator || controller.showsFirstNight ? .hidden : .automatic)
         .onChange(of: scenePhase) { _ in
             controller.objectWillChange.send() // After dark and Match iPhone may have changed while away
             updateDisplay()

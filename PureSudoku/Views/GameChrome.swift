@@ -8,14 +8,17 @@ struct PSButtonStyle: ButtonStyle {
     let theme: PSPalette
     var kind = Kind.primary
     var height: CGFloat = 40
+    /// Disabled buttons are a hair outline with ink3 text: at least 3:1 in Day, unlike a faded fill.
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let primary = kind == .primary
+        let primary = kind == .primary && isEnabled
         configuration.label
             .font(.system(size: height < 40 ? 14 : 15, weight: .semibold))
             .padding(.horizontal, height < 40 ? 14 : 18)
             .frame(minHeight: max(height, 44))
-            .foregroundColor(primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
+            .foregroundColor(!isEnabled ? theme.ink3
+                             : primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
             .background(
                 Capsule().fill(primary && !theme.isNight ? theme.accent : .clear).frame(height: height)
             )

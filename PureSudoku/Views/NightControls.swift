@@ -77,7 +77,8 @@ private struct ToggleTrait: ViewModifier {
     }
 }
 
-/// A 6 pt track with a 28 pt ink thumb in a 5 pt bg halo. Steps by whole numbers.
+/// A 6 pt track with a 28 pt ink thumb in a 5 pt bg halo (at night an ink ring, so the knob is never
+/// the brightest shape). Steps by whole numbers.
 struct PSSlider: View {
     let theme: PSPalette
     let value: Double
@@ -98,7 +99,8 @@ struct PSSlider: View {
                 }
                 .frame(height: 6)
                 Circle()
-                    .fill(theme.ink)
+                    .fill(theme.isNight ? theme.bg : theme.ink)
+                    .overlay(Circle().strokeBorder(theme.isNight ? theme.ink2 : .clear, lineWidth: 2))
                     .frame(width: 28, height: 28)
                     .background(Circle().fill(theme.bg).frame(width: 38, height: 38))
                     .offset(x: x)
@@ -303,7 +305,7 @@ struct SamplePreview: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            cell { digit("5", color: theme.ink, weight: type.givenWeight) }
+            cell { digit("5", color: theme.ink, weight: type.givenWeight(night: theme.isNight)) }
             cell { digit("3", color: theme.accent, weight: type.userWeight) }
             cell(selected: true) { digit("7", color: theme.accent, weight: type.userWeight) }
             cell {
@@ -362,9 +364,10 @@ struct CalibrateView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // At night the words stay dimmer than the tiles, so they don't undo the eyes' adjusting.
             Text("Which is the faintest you can read?")
                 .font(.system(size: 24, weight: .medium, design: .serif))
-                .foregroundColor(theme.ink)
+                .foregroundColor(theme.isNight ? theme.ink3 : theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Give your eyes a moment in the dark first. Tap the dimmest digit you can read without effort.")
                 .font(.system(size: 14))
@@ -402,7 +405,6 @@ struct CalibrateView: View {
                 Button("Use this") { if let pick { onUse(pick) } }
                     .buttonStyle(PSButtonStyle(theme: theme))
                     .disabled(pick == nil)
-                    .opacity(pick == nil ? 0.4 : 1)
                     .accessibilityIdentifier("calibrate_use")
             }
             .padding(.top, 22)

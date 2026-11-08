@@ -72,6 +72,9 @@ struct JournalView: View {
                     .font(.system(size: 56, weight: .medium, design: .serif).monospacedDigit())
                     .foregroundColor(theme.ink)
                 Text("nights in a row").font(.system(size: 14)).foregroundColor(theme.ink3)
+                if let line = viewModel.lastSolvedLine() {
+                    Text(line).font(.system(size: 13)).foregroundColor(theme.ink3)
+                }
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("journal_streak")

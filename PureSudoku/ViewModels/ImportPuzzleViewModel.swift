@@ -81,6 +81,11 @@ final class ImportPuzzleViewModel: ObservableObject {
         conflictIndices.isEmpty && solvableState == .solvable && filledCount >= minimumClues
     }
 
+    /// The empty grid's instruction (Type it in, or a read that found no digits).
+    var emptyGridHint: String? {
+        filledCount == 0 ? "Type the digits printed in the puzzle: tap a cell, then a number." : nil
+    }
+
     var validationMessage: String {
         if filledCount < minimumClues {
             return "Add at least \(minimumClues) clues to start."
