@@ -334,7 +334,7 @@ struct SamplePreview: View {
 
 /// Find my lowest glow: six tiles drawn in the night ink at glow 0 / 6 / 14 / 24 / 38 / 56.
 struct CalibrateView: View {
-    static let levels: [Double] = [0, 6, 14, 24, 38, 56]
+    static let levels: [Double] = [0, 4, 8, 14, 22, 32]
     private static let digits = ["8", "3", "6", "5", "9", "2"]
 
     let theme: PSPalette

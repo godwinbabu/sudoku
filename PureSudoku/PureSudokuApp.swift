@@ -53,7 +53,8 @@ struct RootView: View {
 
     private func updateDisplay() {
         controller.updateFirstNight()
-        brightness.update(lower: ScreenBrightnessController.shouldLower(phase: scenePhase, isNight: controller.isNight))
+        let night = ScreenBrightnessController.shouldLower(phase: scenePhase, isNight: controller.isNight)
+        brightness.update(target: night ? PSPalette.backlight(glow: controller.settings.glow) : nil)
         SystemAppearance.apply(controller.palette)
     }
 }

@@ -351,11 +351,12 @@ final class AppController: ObservableObject {
         showsNightSheet = false // one modal at a time
     }
 
-    /// "Use this" in Find my lowest glow: the pick is the floor, and glow starts 4 above it.
+    /// "Use this" in Find my lowest glow: the pick is the floor. Glow starts at Lights out, or 4 above
+    /// the floor if that is higher, so the first night isn't drawn at the edge of readable.
     func calibrate(pick: Double) {
         updateSettings {
             $0.glowFloor = pick
-            $0.glow = min(100, pick + 4)
+            $0.glow = min(100, max(NightPreset.lightsOut.glow, pick + 4))
             $0.calibrated = true
         }
     }

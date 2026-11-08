@@ -551,8 +551,8 @@ enum Appearance: String, Codable {
 	•	Night palette (computed from glow, warmth and Clarity; never hard-coded):
 	•	K = warmth mapped 6500 → 1200 K, interpolated in mireds, rounded to 50 K. Warmth 0 / 45 / 75 / 100 = 6500 / 2200 / 1500 / 1200 K.
 	•	base = blackbody colour of K (Tanner Helland approximation). accent = blackbody of warmth × 0.55 + 52.
-	•	s = floor + (1 − floor) × (glow / 100)^1.15, with floor 0.20 / 0.30 / 0.38 for Clarity Standard / Large / Bold. Increase Contrast uses the Bold floor.
-	•	bg is always #000 (OLED pixels off). Every other token is base or accent times a fixed share of s (Design/v2/README.md, “Night palette”).
+	•	s = floor + (1 − floor) × min(1, glow / 40)^0.9 (above 40, glow drives the backlight, Section 12.3), with floor 0.20 / 0.30 / 0.38 for Clarity Standard / Large / Bold. Increase Contrast uses the Bold floor.
+	•	bg is always #000 (OLED pixels off). Every other token is base or accent times a fixed share of s (Design/v2/README.md, “Night palette”), except that the shares that carry readable text and outlines are raised for contrast: ink2 0.78, ink3 0.62, accentDim 0.65, line 0.22, lineMajor 0.60, hair 0.25.
 	•	Never use a black overlay to dim; it dims everything by the same amount and makes small marks unreadable first.
 	•	Night rules: no filled shapes behind text; primary buttons are outlines (1.5 pt accentDim stroke, accent text); cards are transparent with a 1 pt hair border (popovers over the board, such as the More menu and confirmations, fill #000 so the board does not show through).
 	•	The tab bar, tab headers, Home and Journal follow the same rules: hairlines, no fills behind text at night (Day keeps the surface fill on cards).
@@ -802,13 +802,15 @@ Testing requirements:
 
 Night replaces the v1 Sleep theme, Bedtime Mode and display profiles.
 Why: total light, not colour, is what affects sleep, and people differ widely. So brightness (Glow) and colour (Warmth) are separate continuous controls, and Clarity trades a higher floor for readability.
-	•	Glow 0–100: how much light the screen gives off. Implemented in two layers:
-	1.	While the app is in front in Night, set UIScreen brightness to its minimum. Restore the player’s brightness when the app goes to the background. Keep it low while inactive (Control Center), so it does not flash up.
-	2.	Below the hardware minimum, the palette’s luminance scale (Section 7.2) does the rest.
+	•	Glow 0–100: how much light the screen gives off. Implemented in two layers, so the whole slider visibly changes the screen:
+	1.	Glow 0–40: the screen backlight sits at its hardware minimum and the palette’s luminance scale (Section 7.2) rises from the Clarity floor to full strength: s = floor + (1 − floor)·(glow / 40)^0.9.
+	2.	Glow 40–100: the palette stays at full strength and UIScreen brightness rises in a straight line from its minimum to 0.6 at glow 100.
+	3.	While the app is in front in Night it owns the backlight. Restore the player’s brightness when the app goes to the background or Night ends. Keep it while inactive (Control Center), so it does not flash. If the player changes brightness themselves, keep their choice until Glow changes.
+	•	Glow scale migration: settings saved before this scale (no glowScale key, or glowScale 1) map glowFloor to the same palette strength (40·(floor/100)^(1.15/0.9)) and restart glow at Lights out, or the floor if higher. The old scale was too dark to read.
 	•	Warmth 0–100: colour temperature 6500 → 1200 K. Warmth is a comfort setting. The app must not claim that warm colours protect sleep.
 	•	Clarity: Standard / Large / Bold. Bigger, heavier digits and stronger lines, and a higher Night floor.
-	•	Presets: Reading lamp (glow 55, warmth 45), Lights out (18, 75), Red light (10, 100). A preset never sets glow below glowFloor.
-	•	Find my lowest glow: six 76 pt tiles drawn in the night ink at glow 0 / 6 / 14 / 24 / 38 / 56. “Use this” sets glowFloor = pick, glow = min(100, pick + 4) and calibrated = true. The slider and presets never set glow below glowFloor.
+	•	Presets: Reading lamp (glow 70, warmth 45), Lights out (45, 65; the default, mid-range so a first night is readable), Red light (30, 100). A preset never sets glow below glowFloor.
+	•	Find my lowest glow: six 76 pt tiles drawn in the night ink at glow 0 / 4 / 8 / 14 / 22 / 32 (all inside the palette layer). “Use this” sets glowFloor = pick, glow = max(Lights out, pick + 4) and calibrated = true. The slider and presets never set glow below glowFloor.
 	•	First night (FirstNightView): the first time Night is active while calibrated is false, a full black screen shows welcome → Find my lowest glow (no Cancel) → result (“Glow set to N%.”, the Kelvin, a sample strip, Start playing). “Skip for now — use Lights out” applies Lights out and sets calibrated. It appears once: calibrated is saved before the result screen. It is drawn above everything: the camera picker closes first, the More menu closes, and a running game timer pauses until the flow ends. It keeps the Night palette for its whole run, even if Night ends while it is open. VoiceOver treats it as modal. UI tests launch with -uiTestSkipFirstNight (Debug only); -uiTestFirstNight starts in Day before the first night, to walk through the flow.
 	•	Drift (DriftController): during a night game with Drift on, every 90 s glow −1 and warmth +1, up to 20 each. Glow never goes below glowFloor (and Drift never raises it). It is a session offset: never saved, reset when the game closes or Night ends, and reset after a gap of 30 minutes or more between updates (the app was away, for example through a whole day). The change fades over 600 ms.
 	•	Limits the app must respect: it cannot go below the system brightness minimum, cannot read room light, and cannot turn on Reduce White Point.
@@ -890,7 +892,7 @@ Testing requirements:
 12.7 Night shortcut and silence
 	•	Bedtime Mode is replaced by Night (Section 7.1). The moon on every tab, on Import and in the game header opens the Night sheet. The old main-menu Night bar is removed.
 	•	Night sheet (NightSheetView): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge, 36 × 5 grabber. Backdrop black at 55% at night, warm at 18% in Day; tapping it or × closes the sheet. At least 56 pt of backdrop always shows; when the controls do not fit (iPhone SE, large text) the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live.
-	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” under 35, else “How much light the screen gives off.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”); Clarity; then, unless Day: Drift and Find my lowest glow (Start).
+	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” up to 40, else “Above 40%, the screen itself gets brighter.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”); Clarity; then, unless Day: Drift and Find my lowest glow (Start).
 	•	At night the selected segment is an accentDim ring, not a fill, and the Warmth track is capped at 75% of the ink’s light, so no fill is brighter than ink. The sheet, the first-night screen and every screen but the game hide the white system status bar at night; the game follows Hide status bar in games.
 	•	The one accepted system alert is the iOS location permission prompt. It appears only after the player taps After dark (or “Use sunset and sunrise”), and it follows the dark colour scheme at night.
 	•	Hush and Goodnight (Section 3.2) go to pure black in one tap.
