@@ -18,6 +18,17 @@ struct Stats: Codable, Equatable {
     /// Solve times kept per level; shortcut: the median of the last 50, enough for "typical".
     static let keptTimes = 50
     static let keptDays = 14
+    /// A night of play runs until 4 am local time: a solve at 00:30 belongs to the evening before
+    /// (CODESPEC 3.3).
+    static let rolloverHour = 4
+
+    /// The calendar day a solve at `date` counts for. Uses the local hour, not "minus 4 hours", so
+    /// daylight-saving days move nothing across the boundary.
+    static func playDay(_ date: Date, calendar: Calendar = .current) -> Date {
+        let day = calendar.startOfDay(for: date)
+        guard calendar.component(.hour, from: date) < rolloverHour else { return day }
+        return calendar.date(byAdding: .day, value: -1, to: day) ?? day
+    }
 
     init(streakDays: Int = 0, lastCompletionDate: Date? = nil, bestTimes: [Difficulty: Int] = [:], puzzlesSolved: [Difficulty: Int] = [:], importedPuzzlesSolved: Int = 0, totalPuzzlesSolved: Int = 0, totalTimeSeconds: Int = 0) {
         self.streakDays = streakDays
@@ -30,8 +41,11 @@ struct Stats: Codable, Equatable {
     }
 
     /// Per CODESPEC "Streak rules", only puzzles completed without Reveal update stats. An assisted
-    /// solve keeps the streak and counts, but sets no best time (CODESPEC 6.3.1).
-    mutating func recordCompletion(for difficulty: Difficulty, time: Int, usedReveal: Bool, assisted: Bool = false, source: GameSource = .generated, date: Date = Date(), calendar: Calendar = .current) {
+    /// solve keeps the streak and counts, but sets no best time (CODESPEC 6.3.1). Neither does a
+    /// puzzle with several solutions (`setsTimes` false: an import any valid fill solves).
+    mutating func recordCompletion(for difficulty: Difficulty, time: Int, usedReveal: Bool, assisted: Bool = false,
+                                   setsTimes: Bool = true, source: GameSource = .generated, date: Date = Date(),
+                                   calendar: Calendar = .current) {
         guard !usedReveal else { return }
         totalPuzzlesSolved += 1
         totalTimeSeconds += time
@@ -42,20 +56,18 @@ struct Stats: Codable, Equatable {
 
         if assisted {
             assistedSolves += 1
-        } else {
-            bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
-            solveTimes[difficulty, default: []].append(time)
-            solveTimes[difficulty] = solveTimes[difficulty]?.suffix(Self.keptTimes)
+        } else if setsTimes {
+            recordTime(for: difficulty, time: time)
         }
-        let day = calendar.startOfDay(for: date)
+        let day = Self.playDay(date, calendar: calendar)
         if !solvedDays.contains(where: { calendar.isDate($0, inSameDayAs: day) }) {
             solvedDays = (solvedDays + [day]).suffix(Self.keptDays)
         }
 
         if let lastDate = lastCompletionDate {
-            if calendar.isDate(date, inSameDayAs: lastDate) {
+            if calendar.isDate(day, inSameDayAs: lastDate) {
                 // same day, streak unchanged
-            } else if let next = calendar.date(byAdding: .day, value: -1, to: date), calendar.isDate(next, inSameDayAs: lastDate) {
+            } else if let previous = calendar.date(byAdding: .day, value: -1, to: day), calendar.isDate(previous, inSameDayAs: lastDate) {
                 streakDays += 1
             } else {
                 streakDays = 1
@@ -64,7 +76,23 @@ struct Stats: Codable, Equatable {
             streakDays = 1
         }
 
-        lastCompletionDate = calendar.startOfDay(for: date)
+        lastCompletionDate = day
+    }
+
+    /// Imports whose late time is recorded (`recordLateTime`), so a retried handoff adds it once.
+    var lateTimeIDs: Set<String> = []
+
+    /// An import's time that waited for its solution count; a second call with the same id does nothing.
+    mutating func recordLateTime(id: String, for difficulty: Difficulty, time: Int) {
+        guard lateTimeIDs.insert(id).inserted else { return }
+        recordTime(for: difficulty, time: time)
+    }
+
+    /// Adds a solve's time to the best and typical times only; the solve itself is counted elsewhere.
+    mutating func recordTime(for difficulty: Difficulty, time: Int) {
+        bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
+        solveTimes[difficulty, default: []].append(time)
+        solveTimes[difficulty] = solveTimes[difficulty]?.suffix(Self.keptTimes)
     }
 
     func solvedCount(for difficulty: Difficulty) -> Int {
@@ -83,10 +111,10 @@ struct Stats: Codable, Equatable {
         return times.count.isMultiple(of: 2) ? (times[middle - 1] + times[middle]) / 2 : times[middle]
     }
 
-    /// The streak as of `date`: zero once a whole day has passed without a solve.
+    /// The streak as of `date`: zero once a whole day (to 4 am) has passed without a solve.
     func currentStreak(at date: Date = Date(), calendar: Calendar = .current) -> Int {
         guard let last = lastCompletionDate else { return 0 }
-        let today = calendar.startOfDay(for: date)
+        let today = Self.playDay(date, calendar: calendar)
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: last), to: today).day ?? 0
         return days <= 1 ? streakDays : 0
     }
@@ -107,6 +135,7 @@ struct Stats: Codable, Equatable {
         case solveTimes
         case assistedSolves
         case solvedDays
+        case lateTimeIDs
     }
 
     init(from decoder: Decoder) throws {
@@ -122,6 +151,7 @@ struct Stats: Codable, Equatable {
         assistedSolves = try container.decodeIfPresent(Int.self, forKey: .assistedSolves) ?? 0
         // Files from before the Journal week know only the last solve day; start the week from it.
         solvedDays = try container.decodeIfPresent([Date].self, forKey: .solvedDays) ?? (lastCompletionDate.map { [$0] } ?? [])
+        lateTimeIDs = try container.decodeIfPresent(Set<String>.self, forKey: .lateTimeIDs) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -136,5 +166,6 @@ struct Stats: Codable, Equatable {
         try container.encode(solveTimes, forKey: .solveTimes)
         try container.encode(assistedSolves, forKey: .assistedSolves)
         try container.encode(solvedDays, forKey: .solvedDays)
+        try container.encode(lateTimeIDs, forKey: .lateTimeIDs)
     }
 }

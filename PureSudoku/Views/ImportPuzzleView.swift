@@ -71,9 +71,10 @@ struct ImportPuzzleView: View {
             HeaderIconButton(theme: theme, symbol: "xmark", label: "Discard") { dismiss() }
                 .accessibilityIdentifier("importDiscard")
             Text(viewModel.step == .review ? "CHECK THE GRID" : "")
-                .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink3)
+                .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink2)
                 .frame(maxWidth: .infinity)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityHidden(viewModel.step != .review) // empty on the other steps
             NightButton()
         }
         .padding(.horizontal, 10)

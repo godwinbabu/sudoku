@@ -30,7 +30,7 @@ struct NumberPadView: View {
                         if remaining != nil {
                             Text(isDone ? " " : "\(left ?? 0)")
                                 .font(.system(size: 10.5, weight: .medium).monospacedDigit())
-                                .foregroundColor(theme.ink3)
+                                .foregroundColor(theme.ink2)
                         }
                     }
                     .frame(maxWidth: .infinity, minHeight: keyHeight)

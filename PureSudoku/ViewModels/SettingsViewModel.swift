@@ -77,6 +77,10 @@ final class SettingsViewModel: ObservableObject {
         controller.calibrate(pick: pick)
     }
 
+    func setCoachWhenStuck(_ value: Bool) {
+        controller.updateSettings { $0.coachWhenStuck = value }
+    }
+
     func setShowTimer(_ value: Bool) {
         controller.updateSettings { $0.showTimer = value }
     }
