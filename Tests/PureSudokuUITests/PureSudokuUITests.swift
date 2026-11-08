@@ -104,7 +104,9 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "candidates 2", in: app), cell.label)
         app.buttons["moreButton"].tap()
         app.buttons["menu_restart"].tap()
-        app.buttons["confirm_action"].tap()
+        let confirm = app.buttons["confirm_action"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 2), "the confirmation fades in after the menu closes")
+        confirm.tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
 
