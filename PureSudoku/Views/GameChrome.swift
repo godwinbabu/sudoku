@@ -8,12 +8,17 @@ struct PSButtonStyle: ButtonStyle {
     let theme: PSPalette
     var kind = Kind.primary
     var height: CGFloat = 40
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeBody(configuration: Configuration) -> some View {
         let primary = kind == .primary
+        let fontSize: CGFloat = height < 40 ? 14 : 15
+        // The capsule grows with its text (CODESPEC 9); at the default size it is `height`.
+        let height = height * PSFont.scaledSize(fontSize, at: dynamicTypeSize) / fontSize
         configuration.label
-            .font(.system(size: height < 40 ? 14 : 15, weight: .semibold))
-            .padding(.horizontal, height < 40 ? 14 : 18)
+            .psFont(fontSize, weight: .semibold)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, fontSize < 15 ? 14 : 18)
             .frame(minHeight: max(height, 44))
             .foregroundColor(primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
             .background(
@@ -56,6 +61,8 @@ struct ToolButton: View {
         }
         .buttonStyle(PressFillStyle(theme: theme))
         .opacity(isEnabled ? 1 : 0.35)
+        // Fixed size so the tool row fits; a long press shows it large (CODESPEC 9).
+        .accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
     }
 
     /// ON/OFF badge. Day ON is an `accent` fill; at night both are outlines.
@@ -89,6 +96,7 @@ struct HeaderIconButton: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
     }
 }
 
@@ -118,10 +126,10 @@ struct MenuRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack {
-                Text(title).font(.system(size: 15)).foregroundColor(theme.ink)
-                Spacer()
-                if let detail { Text(detail).font(.system(size: 12)).foregroundColor(theme.ink3) }
+            PSAdaptiveStack {
+                Text(title).psFont(15).foregroundColor(theme.ink)
+                Spacer(minLength: 0)
+                if let detail { Text(detail).psFont(12).foregroundColor(theme.ink3) }
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 46)
@@ -145,14 +153,14 @@ struct SolvedPanel: View {
     var body: some View {
         VStack(spacing: 10) {
             Text("Solved.")
-                .font(.system(size: 44, weight: .medium, design: .serif))
+                .psFont(44, weight: .medium, design: .serif)
                 .foregroundColor(theme.ink)
             Text(summary)
-                .font(.system(size: 15).monospacedDigit())
+                .psFont(15, monospacedDigit: true)
                 .foregroundColor(theme.ink2)
             if let note {
                 Text(note)
-                    .font(.system(size: 13))
+                    .psFont(13)
                     .foregroundColor(theme.ink2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -160,11 +168,11 @@ struct SolvedPanel: View {
             }
             if let techniques {
                 Text(techniques)
-                    .font(.system(size: 13))
+                    .psFont(13)
                     .foregroundColor(theme.ink3)
                     .padding(.top, 4)
             }
-            HStack(spacing: 10) {
+            PSButtonRow(trailing: false) {
                 Button("Another", action: onAnother)
                     .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
                     .accessibilityIdentifier("solved_another")
@@ -195,7 +203,7 @@ struct BlackoutView: View {
             .ignoresSafeArea()
             .overlay {
                 Text(text)
-                    .font(serif ? .system(size: 30, weight: .medium, design: .serif) : .system(size: 13))
+                    .psFont(serif ? 30 : 13, weight: serif ? .medium : .regular, design: serif ? .serif : .default)
                     .foregroundColor(theme.ink3)
                     .opacity(showsText ? 1 : 0)
             }

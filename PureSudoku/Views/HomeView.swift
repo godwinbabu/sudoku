@@ -5,6 +5,7 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var viewModel: MainMenuViewModel
     let onContinue: (Difficulty) -> Void
     let onNew: (Difficulty) -> Void
@@ -18,7 +19,7 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ScreenHead(title: "Pure Sudoku")
                 Text(viewModel.subLine())
-                    .font(.system(size: 14))
+                    .psFont(14)
                     .foregroundColor(theme.ink3)
                     .padding(.horizontal, 22)
                     .padding(.bottom, 20)
@@ -45,11 +46,11 @@ struct HomeView: View {
             HStack(spacing: 16) {
                 MiniBoard(cells: game.cells, theme: theme).frame(width: 112, height: 112)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("CONTINUE").font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink3)
+                    Text("CONTINUE").psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink3)
                     Text(game.puzzle.difficulty.displayName)
-                        .font(.system(size: 24, weight: .medium, design: .serif)).foregroundColor(theme.ink)
+                        .psFont(24, weight: .medium, design: .serif).foregroundColor(theme.ink)
                     Text("\(GameView.timeString(game.elapsedSeconds)) · \(filled) of 81")
-                        .font(.system(size: 14).monospacedDigit()).foregroundColor(theme.ink2)
+                        .psFont(14, monospacedDigit: true).foregroundColor(theme.ink2)
                     GeometryReader { proxy in
                         Capsule().fill(theme.hair)
                             .overlay(alignment: .leading) {
@@ -85,19 +86,20 @@ struct HomeView: View {
                 } label: {
                     HStack(spacing: 14) {
                         TierGlyph(lit: level.rank, theme: theme)
+                        // At accessibility sizes the best time goes under the name instead of beside it.
+                        let bestBeside = !dynamicTypeSize.isAccessibilitySize
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(level.displayName).font(.system(size: 17, weight: .medium)).foregroundColor(theme.ink)
-                            Text(level.techniqueSummary).font(.system(size: 13)).foregroundColor(theme.ink3)
+                            Text(level.displayName).psFont(17, weight: .medium).foregroundColor(theme.ink)
+                            Text(level.techniqueSummary).psFont(13).foregroundColor(theme.ink3)
+                            if !bestBeside { bestTime(level) }
                         }
-                        Spacer()
-                        if let best = viewModel.stats.bestTime(for: level) {
-                            Text("Best \(GameView.timeString(best))")
-                                .font(.system(size: 13).monospacedDigit()).foregroundColor(theme.ink3)
-                        }
-                        Image(systemName: "chevron.right").font(.system(size: 14)).foregroundColor(theme.ink3)
+                        Spacer(minLength: 0)
+                        if bestBeside { bestTime(level) }
+                        Image(systemName: "chevron.right").psFont(14).foregroundColor(theme.ink3)
                     }
                     .padding(.horizontal, 6)
-                    .frame(height: 64)
+                    .padding(.vertical, 8)
+                    .frame(minHeight: 64)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -109,11 +111,19 @@ struct HomeView: View {
         .padding(.horizontal, 16)
     }
 
+    @ViewBuilder
+    private func bestTime(_ level: Difficulty) -> some View {
+        if let best = viewModel.stats.bestTime(for: level) {
+            Text("Best \(GameView.timeString(best))")
+                .psFont(13, monospacedDigit: true).foregroundColor(theme.ink3)
+        }
+    }
+
     private var importRow: some View {
         Button(action: onImport) {
             HStack(spacing: 10) {
-                Image(systemName: "camera").font(.system(size: 20))
-                Text("Import a puzzle from a photo").font(.system(size: 15))
+                Image(systemName: "camera").psFont(20)
+                Text("Import a puzzle from a photo").psFont(15)
             }
             .foregroundColor(theme.ink2)
             .frame(minHeight: 44)
@@ -139,13 +149,13 @@ struct HomeView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(imported.gameState.puzzle.difficulty.displayName)
-                                        .font(.system(size: 16)).foregroundColor(theme.ink)
+                                        .psFont(16).foregroundColor(theme.ink)
                                     Text(imported.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                        .font(.system(size: 13)).foregroundColor(theme.ink3)
+                                        .psFont(13).foregroundColor(theme.ink3)
                                 }
                                 Spacer()
                                 Text("\(imported.gameState.cells.filter { $0.value != nil }.count) of 81")
-                                    .font(.system(size: 13).monospacedDigit()).foregroundColor(theme.ink3)
+                                    .psFont(13, monospacedDigit: true).foregroundColor(theme.ink3)
                             }
                             .frame(minHeight: 52)
                             .contentShape(Rectangle())
@@ -205,12 +215,11 @@ struct ConfirmPanel: View {
                 .onTapGesture(perform: onDismiss)
             PopoverCard(theme: theme) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(title).font(.system(size: 17, weight: .semibold)).foregroundColor(theme.ink)
+                    Text(title).psFont(17, weight: .semibold).foregroundColor(theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(message).font(.system(size: 15)).foregroundColor(theme.ink2)
+                    Text(message).psFont(15).foregroundColor(theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: 10) {
-                        Spacer()
+                    PSButtonRow {
                         Button(cancel, action: onCancel)
                             .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
                             .accessibilityIdentifier(cancelID)

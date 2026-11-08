@@ -68,7 +68,9 @@
 		00000000000000000000006A /* PersistenceManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000035 /* PersistenceManagerTests.swift */; };
 		00000000000000000000006B /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* Mocks.swift */; };
 		00000000000000000000006D /* PureSudokuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* PureSudokuUITests.swift */; };
+		000000000000000000000173 /* PureSudokuUITests+DynamicType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000172 /* PureSudokuUITests+DynamicType.swift */; };
 		0000000000000000000000AF /* SheetTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AE /* SheetTheme.swift */; };
+		000000000000000000000171 /* PSFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000170 /* PSFont.swift */; };
 		0000000000000000000000D5 /* SystemAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000D4 /* SystemAppearance.swift */; };
 		0000000000000000000000CF /* ScreenBrightnessController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CE /* ScreenBrightnessController.swift */; };
 		0000000000000000000000CD /* NightPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000CC /* NightPalette.swift */; };
@@ -175,10 +177,12 @@
 		000000000000000000000035 /* PersistenceManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManagerTests.swift; sourceTree = "<group>"; };
 		000000000000000000000036 /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
 		000000000000000000000037 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		000000000000000000000172 /* PureSudokuUITests+DynamicType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PureSudokuUITests+DynamicType.swift"; sourceTree = "<group>"; };
 		000000000000000000000038 /* PureSudokuUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PureSudokuUITests.swift; sourceTree = "<group>"; };
 		000000000000000000000039 /* PureSudoku.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PureSudoku.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		00000000000000000000003A /* PureSudokuTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PureSudokuTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		00000000000000000000003B /* PureSudokuUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PureSudokuUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		000000000000000000000170 /* PSFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PSFont.swift; sourceTree = "<group>"; };
 		0000000000000000000000AE /* SheetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SheetTheme.swift; sourceTree = "<group>"; };
 		0000000000000000000000D4 /* SystemAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAppearance.swift; sourceTree = "<group>"; };
 		0000000000000000000000CE /* ScreenBrightnessController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenBrightnessController.swift; sourceTree = "<group>"; };
@@ -405,6 +409,7 @@
 			children = (
 				000000000000000000000037 /* Info.plist */,
 				000000000000000000000038 /* PureSudokuUITests.swift */,
+				000000000000000000000172 /* PureSudokuUITests+DynamicType.swift */,
 			);
 			path = PureSudokuUITests;
 			sourceTree = "<group>";
@@ -430,6 +435,7 @@
 			isa = PBXGroup;
 			children = (
 				0000000000000000000000AE /* SheetTheme.swift */,
+				000000000000000000000170 /* PSFont.swift */,
 				0000000000000000000000D4 /* SystemAppearance.swift */,
 				0000000000000000000000CE /* ScreenBrightnessController.swift */,
 				0000000000000000000000CC /* NightPalette.swift */,
@@ -629,6 +635,7 @@
 				00000000000000000000009C /* ImportPuzzleView.swift in Sources */,
 				00000000000000000000009D /* ImagePicker.swift in Sources */,
 				0000000000000000000000AF /* SheetTheme.swift in Sources */,
+				000000000000000000000171 /* PSFont.swift in Sources */,
 				0000000000000000000000D5 /* SystemAppearance.swift in Sources */,
 				0000000000000000000000CF /* ScreenBrightnessController.swift in Sources */,
 				0000000000000000000000FB /* FirstNightView.swift in Sources */,
@@ -673,6 +680,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				00000000000000000000006D /* PureSudokuUITests.swift in Sources */,
+				000000000000000000000173 /* PureSudokuUITests+DynamicType.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

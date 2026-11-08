@@ -7,7 +7,7 @@ final class PureSudokuUITests: XCTestCase {
 
     /// Launches past the first-night flow, which would otherwise cover the app whenever the
     /// simulator clock is after dark (CODESPEC 12.3).
-    private func launchApp(_ arguments: [String] = [], skipFirstNight: Bool = true) -> XCUIApplication {
+    func launchApp(_ arguments: [String] = [], skipFirstNight: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = (skipFirstNight ? ["-uiTestSkipFirstNight"] : []) + arguments
         app.launch()
@@ -15,12 +15,12 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// Finds a screen or overlay by identifier regardless of its element type.
-    private func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
+    func element(_ identifier: String, in app: XCUIApplication) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
     }
 
     /// Returns a stable query for the first empty cell (puzzles are random).
-    private func firstEmptyCell(in app: XCUIApplication) -> XCUIElement {
+    func firstEmptyCell(in app: XCUIApplication) -> XCUIElement {
         let empty = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label ENDSWITH ' empty'")).firstMatch
         XCTAssertTrue(empty.waitForExistence(timeout: 2))
         return app.buttons[empty.identifier]
@@ -217,7 +217,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// Taps a level on Home. A game left unfinished by an earlier test asks first; take New.
-    private func startLevel(_ level: String, in app: XCUIApplication) {
+    func startLevel(_ level: String, in app: XCUIApplication) {
         app.buttons["difficulty_\(level)"].tap()
         let replace = app.buttons["confirm_action"]
         if replace.waitForExistence(timeout: 1), element("confirmDialog", in: app).exists { replace.tap() }
@@ -409,7 +409,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// Taps Next until the lesson's last step shows Practise.
-    private func stepToPractise(in app: XCUIApplication) {
+    func stepToPractise(in app: XCUIApplication) {
         let next = app.buttons["lesson_next"]
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         for _ in 0..<8 where next.exists { next.tap() }
@@ -435,7 +435,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// Learn tab → the Pointing lesson.
-    private func openPointingLesson(in app: XCUIApplication) {
+    func openPointingLesson(in app: XCUIApplication) {
         app.buttons["tab_learn"].tap()
         XCTAssertTrue(element("learnView", in: app).waitForExistence(timeout: 2))
         let lesson = app.buttons["learn_pointing"]
@@ -444,12 +444,12 @@ final class PureSudokuUITests: XCTestCase {
         lesson.tap()
     }
 
-    private func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+    func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
         let gone = NSPredicate(format: "exists == false")
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: gone, object: element)], timeout: timeout) == .completed
     }
 
-    private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
+    func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if element.exists && element.isHittable { return true }

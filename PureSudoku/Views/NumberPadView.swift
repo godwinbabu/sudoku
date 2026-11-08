@@ -39,6 +39,7 @@ struct NumberPadView: View {
                 .buttonStyle(PressFillStyle(theme: theme))
                 .opacity(isDone ? 0.28 : 1)
                 .disabled(isDone)
+                .accessibilityShowsLargeContentViewer { Text("\(digit)") } // fixed size so the keypad fits (CODESPEC 9)
                 .accessibilityIdentifier("number_\(digit)")
                 .accessibilityLabel("\(digit)")
                 .accessibilityValue(left.map { isDone ? "none left" : "\($0) left" } ?? "")

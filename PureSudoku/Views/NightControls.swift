@@ -18,7 +18,7 @@ struct PSSegmented<Value: Hashable>: View {
                 let on = value == selection
                 Button { onSelect(value) } label: {
                     Text(title)
-                        .font(.system(size: 14, weight: on ? .semibold : .regular))
+                        .psFont(14, weight: on ? .semibold : .regular)
                         .foregroundColor(on ? theme.ink : theme.ink2)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -138,13 +138,13 @@ struct SliderRow<Control: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(label).font(.system(size: 16)).foregroundColor(theme.ink)
-                Spacer()
-                Text(value).font(.system(size: 15).monospacedDigit()).foregroundColor(theme.ink2)
+            PSAdaptiveStack(alignment: .firstTextBaseline) {
+                Text(label).psFont(16).foregroundColor(theme.ink)
+                Spacer(minLength: 0)
+                Text(value).psFont(15, monospacedDigit: true).foregroundColor(theme.ink2)
             }
             control
-            Text(sub).font(.system(size: 13)).foregroundColor(theme.ink3)
+            Text(sub).psFont(13).foregroundColor(theme.ink3)
         }
         .padding(.horizontal, 22)
         .padding(.bottom, 16)
@@ -192,7 +192,7 @@ struct PresetChips: View {
                 let on = preset == current
                 Button { onSelect(preset) } label: {
                     Text(preset.title)
-                        .font(.system(size: 13, weight: .medium))
+                        .psFont(13, weight: .medium)
                         .foregroundColor(on ? theme.accent : theme.ink2)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
@@ -219,11 +219,11 @@ struct SettingRow<Trailing: View>: View {
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
-        HStack(spacing: 12) {
+        PSAdaptiveStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 16)).foregroundColor(theme.ink)
+                Text(label).psFont(16).foregroundColor(theme.ink)
                 if let sub {
-                    Text(sub).font(.system(size: 13)).foregroundColor(theme.ink3).fixedSize(horizontal: false, vertical: true)
+                    Text(sub).psFont(13).foregroundColor(theme.ink3).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -244,7 +244,7 @@ struct LinkButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 15, weight: .medium)).foregroundColor(theme.accent)
+            Text(title).psFont(15, weight: .medium).foregroundColor(theme.accent)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
         }
@@ -271,7 +271,7 @@ struct SectionLabel: View {
 
     var body: some View {
         Text(title.uppercased())
-            .font(.system(size: 12, weight: .semibold))
+            .psFont(12, weight: .semibold)
             .tracking(0.96)
             .foregroundColor(theme.ink3)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -347,11 +347,11 @@ struct CalibrateView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Which is the faintest you can read?")
-                .font(.system(size: 24, weight: .medium, design: .serif))
+                .psFont(24, weight: .medium, design: .serif)
                 .foregroundColor(theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Give your eyes a moment in the dark first. Tap the dimmest digit you can read without effort.")
-                .font(.system(size: 14))
+                .psFont(14)
                 .foregroundColor(theme.ink3)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 6)
@@ -375,8 +375,7 @@ struct CalibrateView: View {
                     .accessibilityIdentifier("calibrate_\(Int(glow))")
                 }
             }
-            HStack(spacing: 10) {
-                Spacer()
+            PSButtonRow {
                 if let onCancel {
                     Button("Cancel", action: onCancel)
                         .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
