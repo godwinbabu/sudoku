@@ -81,6 +81,30 @@ extension PureSudokuUITests {
 
     /// At accessibility text size AX-XL the chrome scales, and the board, tools and keypad still fit
     /// one screen (CODESPEC 9).
+    /// At the largest size, a clash warning and a Check result together scroll inside the hint slot
+    /// instead of clipping or pushing the keypad off screen (PR 54 review).
+    func testLargestTextSizeHintSlotMessagesStayReadable() {
+        let app = launchApp(Self.largestText)
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        // A digit already in the first empty cell's row makes a clash.
+        let empty = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label ENDSWITH ' empty'")).firstMatch
+        XCTAssertTrue(empty.waitForExistence(timeout: 2))
+        let row = empty.identifier.split(separator: "_")[1]
+        let given = (0..<9).lazy.compactMap { col -> String? in
+            let label = app.buttons["cell_\(row)_\(col)"].label
+            return label.range(of: " value ").map { String(label[$0.upperBound...]) }
+        }.first
+        empty.tap()
+        app.buttons["number_\(given ?? "1")"].tap()
+        app.buttons["moreButton"].tap()
+        app.buttons["menu_check"].tap()
+        XCTAssertTrue(element("checkMessage", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(element("contradictionWarning", in: app).exists)
+        for id in ["number_1", "number_9", "tool_hint"] { XCTAssertTrue(app.buttons[id].isHittable, id) }
+        attachScreenshot(app, "ax5-hint-slot-messages")
+    }
+
     func testAccessibilityTextSizeKeepsTheGameOnOneScreen() {
         let app = launchApp(Self.largeText)
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))

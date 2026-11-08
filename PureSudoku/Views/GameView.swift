@@ -255,6 +255,16 @@ struct GameView: View {
 
     @ViewBuilder
     private func hintSlot(theme: PSPalette) -> some View {
+        // At accessibility sizes the messages can outgrow the slot (small phone, several at once):
+        // they scroll rather than clip. Not ViewThatFits: it hung layout in this slot.
+        if dynamicTypeSize.isAccessibilitySize {
+            ScrollView { slotMessages(theme: theme).frame(maxWidth: .infinity).padding(.vertical, 4) }
+        } else {
+            slotMessages(theme: theme).frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func slotMessages(theme: PSPalette) -> some View {
         VStack(spacing: 6) {
             if viewModel.state.hasContradiction && !viewModel.state.isCompleted && controller.settings.mistakes != .never {
                 Text("Two of the same digit share a row, column or box.")
@@ -276,7 +286,6 @@ struct GameView: View {
         }
         .psFont(13)
         .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func tools(theme: PSPalette) -> some View {
