@@ -130,18 +130,21 @@ final class AppController: ObservableObject {
             let counted = await Task.detached(priority: .utility) {
                 pending.map { (id: $0.id, unique: SolutionCounter.count($0.values, limit: 2) == 1) }
             }.value
+            var late: [(difficulty: Difficulty, time: Int)] = []
             for result in counted {
                 guard let index = importedGames.firstIndex(where: { $0.id == result.id }) else { continue }
                 importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
                 // Solved before the count finished (maybe before a relaunch): the solve is counted, its
                 // time waited for this.
                 let game = importedGames[index].gameState
-                if result.unique, game.timeAwaitingCount {
-                    updateStats { $0.recordTime(for: game.puzzle.difficulty, time: game.elapsedSeconds) }
-                }
-                importedGames[index].gameState.timeAwaitingCount = false
+                if result.unique, let time = game.timeAwaitingCount { late.append((game.puzzle.difficulty, time)) }
+                importedGames[index].gameState.timeAwaitingCount = nil
             }
-            persistImportedGames()
+            // Imports first: if this write fails, the next launch counts again; stats saved first
+            // would then add the time twice.
+            if persistImportedGames(), !late.isEmpty {
+                updateStats { stats in late.forEach { stats.recordTime(for: $0.difficulty, time: $0.time) } }
+            }
         }
     }
 
@@ -468,7 +471,7 @@ final class AppController: ObservableObject {
             state.puzzle.hasUniqueSolution = importedGames[index].gameState.puzzle.hasUniqueSolution
         }
         // The view model's copy never sets this; keep the stored flag until the count clears it.
-        state.timeAwaitingCount = state.timeAwaitingCount || importedGames[index].gameState.timeAwaitingCount
+        state.timeAwaitingCount = state.timeAwaitingCount ?? importedGames[index].gameState.timeAwaitingCount
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
         persistImportedGames()
@@ -482,7 +485,9 @@ final class AppController: ObservableObject {
             state.puzzle.hasUniqueSolution = importedGames.first { $0.id == id }?.gameState.puzzle.hasUniqueSolution
         }
         // Saved with the game, so a relaunch before the count ends still gets the time.
-        state.timeAwaitingCount = state.puzzle.hasUniqueSolution == nil && !state.counted && !state.usedReveal && !state.assisted
+        if state.puzzle.hasUniqueSolution == nil, !state.counted, !state.usedReveal, !state.assisted {
+            state.timeAwaitingCount = state.elapsedSeconds
+        }
         record(state, at: state.puzzle.difficulty)
         if !state.usedReveal { state.counted = true }
         persistImported(state: state, id: id)
@@ -506,14 +511,16 @@ final class AppController: ObservableObject {
     }
 
     /// Saves the imported list, then removes images no game uses (only after a successful save).
-    private func persistImportedGames() {
+    @discardableResult
+    private func persistImportedGames() -> Bool {
         do {
             try persistence.save(importedGames, to: File.importedGames.rawValue)
         } catch {
             self.lastPersistenceError = error
-            return
+            return false
         }
         cleanupImportImages()
+        return true
     }
 }
 

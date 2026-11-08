@@ -292,7 +292,8 @@ final class AppControllerTests: XCTestCase {
         solved.isCompleted = true
         solved.counted = true
         solved.elapsedSeconds = 120
-        solved.timeAwaitingCount = true
+        solved.timeAwaitingCount = 120
+        solved.elapsedSeconds = 5 // a replay since: the saved solve time still wins
         try persistence.save([ImportedGame(gameState: solved)], to: "imported_games.json")
         let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(),
                                        imageStore: ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true)))
@@ -300,7 +301,7 @@ final class AppControllerTests: XCTestCase {
             try await Task.sleep(nanoseconds: 20_000_000)
         }
         XCTAssertEqual(controller.stats.bestTime(for: .easy), 120)
-        XCTAssertEqual(controller.importedGames.first?.gameState.timeAwaitingCount, false, "added once")
+        XCTAssertNil(controller.importedGames.first?.gameState.timeAwaitingCount, "added once")
         XCTAssertEqual(controller.stats.totalPuzzlesSolved, 0, "the solve was counted before the quit")
     }
 
