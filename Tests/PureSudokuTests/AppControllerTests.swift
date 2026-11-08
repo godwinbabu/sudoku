@@ -265,6 +265,7 @@ final class AppControllerTests: XCTestCase {
 
         controller.deleteImportedGame(id: game.id)
         XCTAssertFalse(FileManager.default.fileExists(atPath: stray.path), "a change to the imports cleans up")
+    }
 
     // MARK: - QA fixes (#33, #39, #37)
 
