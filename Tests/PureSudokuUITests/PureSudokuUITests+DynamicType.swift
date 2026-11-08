@@ -1,8 +1,73 @@
 import XCTest
 
-/// Dynamic Type at accessibility size AX-XL (CODESPEC 9). Screenshots are kept for review.
+/// Dynamic Type at accessibility sizes AX-XL and AX5 (CODESPEC 9). Screenshots are kept for review.
 extension PureSudokuUITests {
     private static let largeText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL"]
+    private static let largestText = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"]
+
+    /// At the largest text size (AX5) the segmented options, preset chips and confirmation buttons
+    /// stack or scroll, so each one can still be reached (CODESPEC 9).
+    func testLargestTextSizeKeepsOptionsAndConfirmationsReachable() {
+        let app = launchApp(Self.largestText)
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        firstEmptyCell(in: app).tap()
+        app.buttons["number_1"].tap()
+
+        app.buttons["nightButton"].tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        attachScreenshot(app, "night-sheet", size: "ax5")
+        let sheetOptions = ["day", "night", "afterDark"].map { "night_appearance_\($0)" }
+            + ["standard", "large", "bold"].map { "night_clarity_\($0)" }
+        for id in sheetOptions { assertReachable(app.buttons[id], id, in: app) }
+        app.buttons["night_close"].tap()
+        XCTAssertTrue(waitForAbsence(sheet, timeout: 6))
+        app.buttons["backButton"].tap()
+
+        app.buttons["difficulty_easy"].tap()
+        XCTAssertTrue(element("confirmDialog", in: app).waitForExistence(timeout: 2), "asks before replacing")
+        attachScreenshot(app, "replace-confirm", size: "ax5")
+        // XCUITest never reports Home's dialog buttons as hittable, at any text size, so check that
+        // each sits fully on screen above the tab bar, then tap one.
+        let tabTop = app.buttons["tab_play"].frame.minY
+        for id in ["confirm_continue", "confirm_action"] {
+            let frame = app.buttons[id].frame
+            XCTAssertTrue(app.buttons[id].exists, id)
+            XCTAssertTrue(frame.minY >= 0 && frame.maxY <= tabTop, "\(id) at \(frame)")
+        }
+        app.buttons["confirm_continue"].tap()
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        app.buttons["backButton"].tap()
+
+        app.buttons["tab_journal"].tap()
+        let display = element("settings_display", in: app)
+        for _ in 0..<10 where !display.isHittable { app.swipeUp() }
+        display.tap()
+        XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
+        attachScreenshot(app, "display-night", size: "ax5")
+        let displayOptions = ["day", "night", "afterDark"].map { "display_appearance_\($0)" }
+            + ["readingLamp", "lightsOut", "redLight"].map { "display_preset_\($0)" }
+            + ["standard", "large", "bold"].map { "display_clarity_\($0)" }
+        for id in displayOptions {
+            assertReachable(app.buttons[id], id, in: app)
+            if id == "display_preset_redLight" || id == "display_clarity_bold" {
+                attachScreenshot(app, "display-night-" + id, size: "ax5")
+            }
+        }
+    }
+
+    /// Scrolls toward `button` until it can be tapped, then asserts it. The drag runs down the right
+    /// edge, outside the sliders, which would take it, and without a fling that could pass the button.
+    private func assertReachable(_ button: XCUIElement, _ id: String, in app: XCUIApplication) {
+        XCTAssertTrue(button.waitForExistence(timeout: 2), id)
+        for _ in 0..<10 where !waitUntilHittable(button, timeout: 1) {
+            let up = button.frame.midY > app.frame.midY
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.7 : 0.35))
+            from.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.35 : 0.7)))
+        }
+        XCTAssertTrue(button.isHittable, id)
+    }
 
     /// At accessibility text size AX-XL the chrome scales, and the board, tools and keypad still fit
     /// one screen (CODESPEC 9).
@@ -62,9 +127,9 @@ extension PureSudokuUITests {
         app.swipeDown()
     }
 
-    private func attachScreenshot(_ app: XCUIApplication, _ name: String) {
+    private func attachScreenshot(_ app: XCUIApplication, _ name: String, size: String = "ax-xl") {
         let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = "dynamic-type-ax-xl-" + name
+        attachment.name = "dynamic-type-\(size)-" + name
         attachment.lifetime = .keepAlways
         add(attachment)
     }

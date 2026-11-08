@@ -333,31 +333,10 @@ struct GameView: View {
     @ViewBuilder
     private func confirmation(theme: PSPalette) -> some View {
         if let action = viewModel.pendingAction {
-            ZStack {
-                Color.black.opacity(theme.isNight ? 0.55 : 0.18)
-                    .ignoresSafeArea()
-                    .onTapGesture { viewModel.pendingAction = nil }
-                PopoverCard(theme: theme) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(action.title).psFont(17, weight: .semibold).foregroundColor(theme.ink)
-                        Text(action.message).psFont(15).foregroundColor(theme.ink2)
-                        PSButtonRow {
-                            Button("Cancel") { viewModel.pendingAction = nil }
-                                .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
-                                .accessibilityIdentifier("confirm_cancel")
-                            Button(action.confirmLabel) { viewModel.handle(pendingAction: action) }
-                                .buttonStyle(PSButtonStyle(theme: theme))
-                                .accessibilityIdentifier("confirm_action")
-                        }
-                        .padding(.top, 10)
-                    }
-                    .padding(16)
-                }
-                .frame(maxWidth: 320)
-                .padding(.horizontal, 24)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("confirmDialog")
-            }
+            ConfirmPanel(theme: theme, title: action.title, message: action.message,
+                         cancel: "Cancel", confirm: action.confirmLabel,
+                         onCancel: { viewModel.pendingAction = nil }, onDismiss: { viewModel.pendingAction = nil },
+                         onConfirm: { viewModel.handle(pendingAction: action) })
             .transition(.opacity)
         }
     }

@@ -8,27 +8,25 @@ struct PSButtonStyle: ButtonStyle {
     let theme: PSPalette
     var kind = Kind.primary
     var height: CGFloat = 40
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func makeBody(configuration: Configuration) -> some View {
         let primary = kind == .primary
         let fontSize: CGFloat = height < 40 ? 14 : 15
-        // The capsule grows with its text (CODESPEC 9); at the default size it is `height`.
-        let height = height * PSFont.scaledSize(fontSize, at: dynamicTypeSize) / fontSize
         configuration.label
             .psFont(fontSize, weight: .semibold)
             .multilineTextAlignment(.center)
             .padding(.horizontal, fontSize < 15 ? 14 : 18)
-            .frame(minHeight: max(height, 44))
+            .padding(.vertical, 6)
+            // The capsule grows with its label (CODESPEC 9), so wrapped text stays inside it.
+            .frame(minHeight: height)
             .foregroundColor(primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
-            .background(
-                Capsule().fill(primary && !theme.isNight ? theme.accent : .clear).frame(height: height)
-            )
+            .background(Capsule().fill(primary && !theme.isNight ? theme.accent : .clear))
             .overlay(
                 Capsule()
                     .strokeBorder(primary ? (theme.isNight ? theme.accentDim : .clear) : theme.hair, lineWidth: primary ? 1.5 : 1)
-                    .frame(height: height)
             )
+            // The target is at least 44 pt tall.
+            .padding(.vertical, max(0, (44 - height) / 2))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Capsule())
     }
@@ -161,6 +159,7 @@ struct SolvedPanel: View {
             if let note {
                 Text(note)
                     .psFont(13)
+                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
                     .foregroundColor(theme.ink2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -169,6 +168,7 @@ struct SolvedPanel: View {
             if let techniques {
                 Text(techniques)
                     .psFont(13)
+                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
                     .foregroundColor(theme.ink3)
                     .padding(.top, 4)
             }

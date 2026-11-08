@@ -22,9 +22,9 @@ struct HintCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // The top row and footer keep their size so the text gets the room (CODESPEC 9).
+            // The top row stops at xxLarge and the footer keeps its size, so the text gets the room (CODESPEC 9).
             topRow
-                .dynamicTypeSize(...DynamicTypeSize.large)
+                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             // Full size, then one size smaller; text that still doesn't fit scrolls, never truncates.
             ViewThatFits(in: .vertical) {
                 bodyText(size: session.level == 1 ? 16 : Self.bodySize)

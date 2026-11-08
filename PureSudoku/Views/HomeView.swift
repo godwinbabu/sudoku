@@ -214,29 +214,38 @@ struct ConfirmPanel: View {
                 .ignoresSafeArea()
                 .onTapGesture(perform: onDismiss)
             PopoverCard(theme: theme) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(title).psFont(17, weight: .semibold).foregroundColor(theme.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(message).psFont(15).foregroundColor(theme.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    PSButtonRow {
-                        Button(cancel, action: onCancel)
-                            .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
-                            .accessibilityIdentifier(cancelID)
-                        Button(confirm, action: onConfirm)
-                            .buttonStyle(PSButtonStyle(theme: theme))
-                            .accessibilityIdentifier("confirm_action")
-                    }
-                    .padding(.top, 10)
+                // Scrolls only when the text is too tall for the screen (CODESPEC 9).
+                ViewThatFits(in: .vertical) {
+                    content
+                    ScrollView { content }
                 }
-                .padding(16)
             }
             .frame(maxWidth: 320)
             .padding(.horizontal, 24)
+            .padding(.vertical, 16)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
             .accessibilityIdentifier("confirmDialog")
         }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).psFont(17, weight: .semibold).foregroundColor(theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(message).psFont(15).foregroundColor(theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            PSButtonRow {
+                Button(cancel, action: onCancel)
+                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
+                    .accessibilityIdentifier(cancelID)
+                Button(confirm, action: onConfirm)
+                    .buttonStyle(PSButtonStyle(theme: theme))
+                    .accessibilityIdentifier("confirm_action")
+            }
+            .padding(.top, 10)
+        }
+        .padding(16)
     }
 }
 

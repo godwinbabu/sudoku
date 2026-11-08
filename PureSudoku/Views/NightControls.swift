@@ -4,41 +4,49 @@ import SwiftUI
 // All are drawn from the palette, so nothing renders system white at night (CODESPEC 12.4).
 
 /// Segmented control: 34 pt segments in a 1 pt hair ring. Day marks the choice with a surface2
-/// fill; Night with an accentDim ring, because nothing lit may sit behind text.
+/// fill; Night with an accentDim ring, because nothing lit may sit behind text. At accessibility
+/// text sizes the options stack, full width, and each shape grows with its text (CODESPEC 9).
 struct PSSegmented<Value: Hashable>: View {
     let theme: PSPalette
     let options: [(Value, String)]
     let selection: Value?
     var idPrefix = ""
     let onSelect: (Value) -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: 0) {
+        let stacked = dynamicTypeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+        layout {
             ForEach(options, id: \.0) { value, title in
                 let on = value == selection
                 Button { onSelect(value) } label: {
                     Text(title)
                         .psFont(14, weight: on ? .semibold : .regular)
                         .foregroundColor(on ? theme.ink : theme.ink2)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .lineLimit(stacked ? nil : 1)
+                        .minimumScaleFactor(stacked ? 1 : 0.8)
+                        .fixedSize(horizontal: false, vertical: stacked)
+                        .padding(.vertical, stacked ? 8 : 0)
+                        .frame(maxWidth: .infinity, minHeight: stacked ? 44 : 34)
                         .background(
                             RoundedRectangle(cornerRadius: 9)
                                 .fill(on && !theme.isNight ? theme.surface2 : .clear)
                                 .overlay(RoundedRectangle(cornerRadius: 9)
                                     .strokeBorder(on && theme.isNight ? theme.accentDim : .clear, lineWidth: 1))
-                                .frame(height: 34)
                         )
+                        .padding(.vertical, stacked ? 3 : 5)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityShowsLargeContentViewer()
                 .accessibilityIdentifier("\(idPrefix)\(value)")
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .padding(.horizontal, 3)
-        .background(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.hair, lineWidth: 1).frame(height: 40))
+        .padding(.vertical, stacked ? 3 : 0)
+        .background(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.hair, lineWidth: 1).frame(height: stacked ? nil : 40))
     }
 }
 
@@ -180,27 +188,35 @@ struct NightSliders: View {
 }
 
 /// Three preset chips: 36 pt tall (44 pt target), a 1.5 pt ring that is accentDim when active.
+/// At accessibility text sizes they stack, full width, and each ring grows with its text (CODESPEC 9).
 struct PresetChips: View {
     let theme: PSPalette
     let current: NightPreset?
     var idPrefix = "preset_"
     let onSelect: (NightPreset) -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        HStack(spacing: 8) {
+        let stacked = dynamicTypeSize.isAccessibilitySize
+        let layout = stacked ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+        layout {
             ForEach(NightPreset.allCases) { preset in
                 let on = preset == current
                 Button { onSelect(preset) } label: {
                     Text(preset.title)
                         .psFont(13, weight: .medium)
                         .foregroundColor(on ? theme.accent : theme.ink2)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .background(Capsule().strokeBorder(on ? theme.accentDim : theme.hair, lineWidth: 1.5).frame(height: 36))
+                        .lineLimit(stacked ? nil : 1)
+                        .minimumScaleFactor(stacked ? 1 : 0.8)
+                        .fixedSize(horizontal: false, vertical: stacked)
+                        .padding(.vertical, stacked ? 8 : 0)
+                        .frame(maxWidth: .infinity, minHeight: stacked ? 44 : 36)
+                        .background(Capsule().strokeBorder(on ? theme.accentDim : theme.hair, lineWidth: 1.5))
+                        .padding(.vertical, stacked ? 0 : 4)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityShowsLargeContentViewer()
                 .accessibilityIdentifier("\(idPrefix)\(preset.rawValue)")
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
