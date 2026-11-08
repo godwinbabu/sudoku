@@ -69,7 +69,7 @@ struct GameView: View {
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
                     .padding(.bottom, 4)
-                    .opacity(isDone ? 0.3 : 1)
+                    .opacity(isDone || viewModel.isPaused ? 0.3 : 1) // disabled while paused, so it looks it
                     .disabled(isDone || viewModel.isPaused)
             }
             .frame(width: geometry.size.width)
@@ -191,7 +191,8 @@ struct GameView: View {
                     highlight: viewModel.hintHighlight
                 ) { viewModel.select(cell: $0) }
                     .frame(width: side, height: side)
-                    .opacity(isDone ? 0.3 : 1)
+                    // Faint enough that the Solved summary on top reads cleanly, Day and Night (QA #45).
+                    .opacity(isDone ? 0.1 : 1)
                     .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: isDone)
                     .allowsHitTesting(!isDone)
             }
@@ -243,7 +244,9 @@ struct GameView: View {
                     .foregroundColor(theme.err)
                     .accessibilityIdentifier("contradictionWarning")
             }
-            if viewModel.inputMode == .candidate && !viewModel.state.isCompleted {
+            if let message = viewModel.checkMessage {
+                Text(message).foregroundColor(theme.ink2).accessibilityIdentifier("checkMessage")
+            } else if viewModel.inputMode == .candidate && !viewModel.state.isCompleted {
                 Text("Notes on — digits go in as pencil marks").foregroundColor(theme.ink3)
             }
         }

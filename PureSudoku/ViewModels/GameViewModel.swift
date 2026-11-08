@@ -8,6 +8,8 @@ final class GameViewModel: ObservableObject {
     @Published var showTimer: Bool
     /// The open hint, if any (CODESPEC 6.3.1).
     @Published private(set) var hint: HintSession?
+    /// What the last Check found, shown in the hint slot until the next move or hint (QA #49).
+    @Published private(set) var checkMessage: String?
 
     var onCompletion: ((GameState) -> Void)?
     var onNewGame: (() async -> GameState?)?
@@ -365,6 +367,8 @@ final class GameViewModel: ObservableObject {
         }
         updateContradictionFlag(on: &newState)
         self.state = newState
+        let wrong = newState.cells.filter { !$0.given && $0.value != nil && $0.isError }.count
+        checkMessage = wrong == 0 ? "No mistakes so far." : "\(wrong) wrong digit\(wrong == 1 ? "" : "s"), marked with a bar."
     }
 
     func revealCell() {
@@ -810,6 +814,7 @@ extension GameViewModel {
 
     /// Closes the open hint and records it in the hint log.
     func endHint(applied: Bool = false) {
+        checkMessage = nil // any move, selection or hint ends the Check message
         guard let session = hint else { return }
         hint = nil
         let name: String
@@ -828,7 +833,9 @@ extension GameViewModel {
         guard solution.count == 81 else { return nil }
         let cells = state.cells.sorted { $0.index < $1.index }
         if let wrong = cells.first(where: { !$0.given && $0.value != nil && $0.value != solution[$0.index] }) {
-            return (wrong.index, .wrongDigit(wrong.value ?? 0))
+            let digit = wrong.value ?? 0
+            let clash = SolverBoard.peers[wrong.index].sorted().first { peer in cells[peer].value == digit }
+            return (wrong.index, .wrongDigit(digit, clash: clash))
         }
         let suspects = cells.filter { $0.value == nil && !$0.candidates.isEmpty && !$0.candidates.contains(solution[$0.index]) }
         // An import may have several solutions: a note is only wrong if none of its digits can work.

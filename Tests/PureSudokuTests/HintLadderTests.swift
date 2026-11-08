@@ -31,7 +31,8 @@ final class HintLadderTests: XCTestCase {
         let before = values(viewModel)
 
         viewModel.requestHint()
-        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: cell.index, kind: .wrongDigit(wrong)))
+        let clash = SolverBoard.peers[cell.index].first { peer in viewModel.state.cells.first { $0.index == peer }?.value == wrong }
+        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: cell.index, kind: .wrongDigit(wrong, clash: clash)))
         XCTAssertEqual(viewModel.hint?.level, 1)
         XCTAssertEqual(viewModel.hint?.stepLabel, "Where to look")
         XCTAssertEqual(viewModel.hintHighlight.areaCells, Set(House(kind: .box, index: SolverBoard.box(of: cell.index)).cells))
@@ -49,8 +50,18 @@ final class HintLadderTests: XCTestCase {
     }
 
     func testMistakeTextNamesTheDigitAndCell() {
-        let session = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7)), level: 2)
-        XCTAssertEqual(session.text(.plain), "The 7 in row 3, column 3 can't be right — the puzzle doesn't solve with it.")
+        var session = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7)), level: 2)
+        XCTAssertEqual(session.text(.plain), "The 7 in row 3, column 3 can't be right.")
+        session.next()
+        XCTAssertTrue(session.text(.plain).hasPrefix("Nothing on the board clashes"), "step 3 explains, not repeats")
+
+        // A visible clash: name the cell it repeats, ring it, and say which house.
+        var clash = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7, clash: 24)), level: 2)
+        XCTAssertEqual(clash.text(.plain), "The 7 in row 3, column 3 repeats the 7 in row 3, column 7.")
+        XCTAssertEqual(clash.highlight.evidenceCells, [24])
+        XCTAssertTrue(clash.highlight.areaCells.isSuperset(of: House(kind: .row, index: 2).cells))
+        clash.next()
+        XCTAssertEqual(clash.text(.grid), "Each digit goes once in a row, column and box. R3 already has a 7 in R3C7, so this one has to go.")
         XCTAssertEqual(HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7))).text(.grid), "Something in B1 doesn't fit.")
     }
 
@@ -574,5 +585,19 @@ extension HintLadderTests {
             else { state.cells[index].candidates = Set(SolverBoard.digits(in: stuck.candidates[state.cells[index].index])) }
         }
         return state
+    }
+
+    // MARK: - Check feedback (QA #49)
+
+    func testCheckSaysWhatItFound() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        viewModel.checkPuzzle()
+        XCTAssertEqual(viewModel.checkMessage, "No mistakes so far.")
+        let cell = emptyCell(viewModel)
+        viewModel.select(cell: cell)
+        XCTAssertNil(viewModel.checkMessage, "the next move clears it")
+        viewModel.setDigit(solution[cell.index] % 9 + 1)
+        viewModel.checkPuzzle()
+        XCTAssertEqual(viewModel.checkMessage, "1 wrong digit, marked with a bar.")
     }
 }

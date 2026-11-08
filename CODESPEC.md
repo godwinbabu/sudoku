@@ -248,7 +248,7 @@ Testing requirements:
 	•	Restart puzzle asks first, with a custom confirmation styled like the menu.
 	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops.
 	•	Hush: a two-finger tap anywhere, or the More menu, pauses the game and shows pure black. “Tap anywhere to return” fades out after about 3.5 s. Any tap returns and resumes.
-	•	Solved: the board fades to 30% over 600 ms. Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: “Assisted · counts for your streak, not best times”), and the techniques the grid needs, by name: “This grid took Hidden Single ×38, Naked Single ×9.” They come from LogicalSolver.techniquesNeeded(for:), which replays the hint engine from the givens once, off the main thread. Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
+	•	Solved: the board fades to 10% over 600 ms (30% left its digits competing with the summary). Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: “Assisted · counts for your streak, not best times”), and the techniques the grid needs, by name: “This grid took Hidden Single ×38, Naked Single ×9.” They come from LogicalSolver.techniquesNeeded(for:), which replays the hint engine from the givens once, off the main thread. Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
 	•	Goodnight: pure black with “Sleep well.” fading out. A tap returns to Home.
 	•	In a Night game the status bar is hidden (hideStatusBarInGames) and the home indicator auto-hides.
 	•	Drift (Section 12.3) applies to the game's palette while Night and the Drift setting are on.
@@ -423,8 +423,8 @@ Hint and Reveal Cell are two separate actions. Hint teaches; Reveal Cell fills a
 	•	Mistake first (always checked, whatever Show mistakes is set to):
 	•	A wrong digit, or a cell whose notes leave out its correct digit. Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored.
 	•	Step 1 “Where to look”: “Something in box 4 doesn’t fit.” (the box is spotlit). Button: Show me.
-	•	Step 2 “Mistake”: “The 7 in row 3, column 4 can’t be right — the puzzle doesn’t solve with it.” (dashed ring on the cell). Button: Show me why.
-	•	Step 3 “Why”: the same sentence. Button: Clear it. It clears the digit (or the notes) as one undoable edit and does not mark the solve assisted.
+	•	Step 2 “Mistake”: when a peer already holds the digit, “The 7 in row 3, column 4 repeats the 7 in row 3, column 8.” (dashed ring on the cell, solid ring on the peer, their shared row, column or box spotlit). Otherwise “The 7 in row 3, column 4 can’t be right.” Button: Show me why.
+	•	Step 3 “Why”: with a peer, “Each digit goes once in a row, column and box. Row 3 already has a 7 in row 3, column 8, so this one has to go.” Otherwise “Nothing on the board clashes with it yet, but the puzzle has one solution, and it has a different digit here.” Button: Clear it. It clears the digit (or the notes) as one undoable edit and does not mark the solve assisted.
 	•	Imports whose entries fit no solution: one card, “Some of your entries don’t fit together. Try undoing recent moves.”, with Undo.
 	•	Technique steps (from the logical solver, Section 13.3: the simplest step on the player’s board, using their notes where they exist; the same board always gives the same hint):
 	•	Step 1 “Where to look”: the nudge, with a spotlight on the focus cells. “Look at box 4. Where can 5 go?”

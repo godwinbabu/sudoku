@@ -161,7 +161,7 @@ struct SolvedPanel: View {
             if let techniques {
                 Text(techniques)
                     .font(.system(size: 13))
-                    .foregroundColor(theme.ink3)
+                    .foregroundColor(theme.ink2)
                     .padding(.top, 4)
             }
             HStack(spacing: 10) {

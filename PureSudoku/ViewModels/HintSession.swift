@@ -5,8 +5,9 @@ import Foundation
 /// through the step-3 action.
 struct HintSession: Equatable {
     enum MistakeKind: Equatable {
-        /// A placed digit is wrong.
-        case wrongDigit(Int)
+        /// A placed digit is wrong. `clash` is a peer cell that already holds the same digit, if any:
+        /// the plain reason the player can see.
+        case wrongDigit(Int, clash: Int? = nil)
         /// A cell's notes leave out its correct digit.
         case missingNote
         /// Imported puzzle: the entries fit no solution, and no single cell can be blamed.
@@ -115,10 +116,25 @@ struct HintSession: Equatable {
     private func mistakeText(cell: Int?, kind: MistakeKind, names: CellNotation) -> String {
         guard let cell else { return "Some of your entries don't fit together. Try undoing recent moves." }
         if level == 1 { return "Something in \(names.box(SolverBoard.box(of: cell))) doesn't fit." }
-        if case .wrongDigit(let digit) = kind {
-            return "The \(digit) in \(names.cell(cell)) can't be right — the puzzle doesn't solve with it."
+        if case let .wrongDigit(digit, clash) = kind {
+            if let clash {
+                let house = names.house(Self.sharedHouse(cell, clash))
+                return level == 2
+                    ? "The \(digit) in \(names.cell(cell)) repeats the \(digit) in \(names.cell(clash))."
+                    : "Each digit goes once in a row, column and box. \(house.capitalizedFirst) already has \(CellNotation.withArticle(digit)) in \(names.cell(clash)), so this one has to go."
+            }
+            return level == 2
+                ? "The \(digit) in \(names.cell(cell)) can't be right."
+                : "Nothing on the board clashes with it yet, but the puzzle has one solution, and it has a different digit here."
         }
         return "The notes in \(names.cell(cell)) leave out its digit."
+    }
+
+    /// The row, column or box two peer cells share (row first, then column, then box).
+    static func sharedHouse(_ a: Int, _ b: Int) -> House {
+        if SolverBoard.row(of: a) == SolverBoard.row(of: b) { return House(kind: .row, index: SolverBoard.row(of: a)) }
+        if SolverBoard.column(of: a) == SolverBoard.column(of: b) { return House(kind: .column, index: SolverBoard.column(of: a)) }
+        return House(kind: .box, index: SolverBoard.box(of: a))
     }
 
     /// The card's main button.
@@ -146,10 +162,14 @@ struct HintSession: Equatable {
     var highlight: HintHighlight {
         var result = HintHighlight()
         switch content {
-        case let .mistake(cell, _):
+        case let .mistake(cell, kind):
             guard let cell else { return result }
             result.areaCells = Set(House(kind: .box, index: SolverBoard.box(of: cell)).cells)
             if level >= 2 { result.targetCells = [cell] }
+            if level >= 2, case let .wrongDigit(_, clash?) = kind {
+                result.areaCells.formUnion(Self.sharedHouse(cell, clash).cells)
+                result.evidenceCells = [clash] // ring the digit it repeats
+            }
         case let .step(step, board):
             result.areaCells = step.focus
             if level >= 2 {
