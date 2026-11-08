@@ -142,4 +142,31 @@ final class StatsTests: XCTestCase {
         XCTAssertEqual(stats.streakDays, 1)
         XCTAssertEqual(stats.assistedSolves, 0)
     }
+
+    /// The 4 am boundary is local time, also on daylight-saving days (New York 2026).
+    func testPlayDayOnDaylightSavingDays() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        func at(_ month: Int, _ day: Int, _ hour: Int, _ minute: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute))!
+        }
+        func day(_ month: Int, _ day: Int) -> Date { calendar.date(from: DateComponents(year: 2026, month: month, day: day))! }
+        XCTAssertEqual(Stats.playDay(at(11, 1, 3, 30), calendar: calendar), day(10, 31), "fall back: 03:30 is still last night")
+        XCTAssertEqual(Stats.playDay(at(11, 1, 4, 30), calendar: calendar), day(11, 1))
+        XCTAssertEqual(Stats.playDay(at(3, 8, 4, 30), calendar: calendar), day(3, 8), "spring forward: 04:30 is the new day")
+        XCTAssertEqual(Stats.playDay(at(3, 8, 3, 30), calendar: calendar), day(3, 7))
+    }
+
+    @MainActor
+    func testJournalWeekBeforeFourOnMondayIsLastWeek() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        let sunday = calendar.date(from: DateComponents(year: 2026, month: 11, day: 8, hour: 23))!
+        let mondayNight = calendar.date(from: DateComponents(year: 2026, month: 11, day: 9, hour: 0, minute: 30))!
+        let (controller, _) = makeTestController()
+        controller.updateStats { $0.recordCompletion(for: .easy, time: 100, usedReveal: false, date: mondayNight, calendar: calendar) }
+        let model = StatsViewModel(controller: controller)
+        XCTAssertEqual(model.week(at: mondayNight, calendar: calendar).last?.solved, true, "the 00:30 solve shows on Sunday")
+        XCTAssertEqual(model.week(at: sunday, calendar: calendar).last?.solved, true)
+    }
 }

@@ -210,4 +210,51 @@ final class AppControllerTests: XCTestCase {
         guard case let .noStep(cell, _)? = viewModel.hint?.content else { return XCTFail("expected a no-step hint") }
         XCTAssertEqual(cell, chosen.index)
     }
+
+    func testRevealThenRestartThenSolveCountsOnce() async {
+        let (controller, _) = makeTestController()
+        await controller.startNewGame(for: .easy, mode: .seeded(7))
+        let viewModel = controller.makeGameViewModel(for: .easy)
+        viewModel.revealPuzzle()
+        XCTAssertFalse(viewModel.state.counted, "a revealed solve never reached the stats")
+        viewModel.resetPuzzle()
+        solve(viewModel)
+        XCTAssertEqual(controller.stats.totalPuzzlesSolved, 1, "the honest solve after a reveal counts")
+    }
+
+    func testAReplayAndARestartKeepTheirPlayedTime() async {
+        let clock = AdvancingTimeProvider()
+        let (controller, _) = makeTestController(timeProvider: clock)
+        await controller.startNewGame(for: .easy, mode: .seeded(7))
+        let viewModel = controller.makeGameViewModel(for: .easy)
+        viewModel.handleSceneDidAppear()
+        clock.advance(300)
+        solve(viewModel)
+        XCTAssertEqual(controller.stats.totalTimeSeconds, 300)
+        viewModel.resetPuzzle()
+        clock.advance(120)
+        solve(viewModel)
+        XCTAssertEqual(controller.stats.totalTimeSeconds, 420, "the replay's time counts, not another solve")
+        XCTAssertEqual(controller.stats.totalPuzzlesSolved, 1)
+        viewModel.resetPuzzle()
+        clock.advance(50)
+        viewModel.resetPuzzle()
+        XCTAssertEqual(controller.stats.totalTimeSeconds, 470, "Restart of an unfinished game keeps its time")
+    }
+
+    /// Right away marks conflicts; a reopened game must not turn them into permanent Check marks.
+    func testReopenedConflictMarksClearWhenFixed() {
+        var state = TestData.newGameState()
+        let solution = Array(state.puzzle.solutionGrid).map { Int(String($0))! }
+        let row = state.cells.filter { $0.row == 0 && $0.value == nil }
+        let (a, b) = (state.cells.firstIndex { $0.id == row[0].id }!, state.cells.firstIndex { $0.id == row[1].id }!)
+        state.cells[a].value = solution[state.cells[a].index] // correct
+        state.cells[b].value = solution[state.cells[a].index] // same digit: a conflict, marks both
+        state.cells[a].isError = true
+        state.cells[b].isError = true
+        let viewModel = GameViewModel(state: state, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        viewModel.select(cell: viewModel.state.cells[b])
+        viewModel.clearSelectedCell()
+        XCTAssertFalse(viewModel.state.cells[a].isError, "the correct digit is no longer marked")
+    }
 }

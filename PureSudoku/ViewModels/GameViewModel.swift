@@ -12,6 +12,8 @@ final class GameViewModel: ObservableObject {
     var onCompletion: ((GameState) -> Void)?
     var onNewGame: (() async -> GameState?)?
     var onSave: ((GameState) -> Void)?
+    /// Restart threw away this many seconds of an unfinished game; the played total keeps them.
+    var onTimeDiscarded: ((Int) -> Void)?
     /// Learning (CODESPEC 13.4): the player found a technique without a hint (technique, puzzle id).
     /// The move comes along so progress can credit each move of each puzzle once, across sessions.
     var onTechniqueFound: (@MainActor (Technique, String, MasteryJudge.Move) -> Void)?
@@ -96,8 +98,15 @@ final class GameViewModel: ObservableObject {
         self.hintService = hintService
         self.inputMode = .normal
         self.showTimer = settings.showTimer
-        // A reopened game keeps the marks its last Check left (When I check), so they survive a settings change.
-        checkedWrongIDs = Set(state.cells.filter { !$0.given && $0.isError && $0.value != nil }.map(\.id))
+        // When I check: a reopened game keeps the marks its last Check left, so they survive a settings
+        // change. Only wrong digits: Right away also marks conflicts, which must clear when fixed.
+        if settings.mistakes == .onCheck {
+            let solution = Array(state.puzzle.solutionGrid).map { Int(String($0)) }
+            checkedWrongIDs = Set(state.cells.filter { cell in
+                guard !cell.given, cell.isError, let value = cell.value, solution.count == 81 else { return false }
+                return solution[cell.index] != value
+            }.map(\.id))
+        }
     }
 
     deinit {
@@ -429,7 +438,8 @@ final class GameViewModel: ObservableObject {
     }
 
     func resetPuzzle() {
-        _ = calculateAndStopTimer()
+        let discarded = state.elapsedSeconds + calculateAndStopTimer()
+        if !state.isCompleted, discarded > 0 { onTimeDiscarded?(discarded) }
         checkedWrongIDs.removeAll()
         var newState = self.state
         newState.resetToInitial(now: timeProvider.now())
@@ -598,7 +608,7 @@ final class GameViewModel: ObservableObject {
     private func reportCompletion(_ completed: GameState) {
         saveTask?.cancel()
         onCompletion?(completed)
-        state.counted = true
+        if !completed.usedReveal { state.counted = true } // a revealed solve never reached the stats
     }
 
     /// Imported puzzles may have several solutions (BYOS.md). If the player's entries differ from the

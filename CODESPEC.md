@@ -637,7 +637,8 @@ Streak rules:
 	•	Add the day to solvedDays.
 	•	Add to totalSecondsPlayed. Time on an unfinished level game counts too when a new game replaces it, so the total never goes down.
 	•	A puzzle with several solutions (an import any valid fill solves) counts like an unassisted solve but sets no best or typical time.
-	•	Each puzzle counts once: GameState.counted is set when its completion reaches the stats and survives Restart (Section 6.5). Saves from before the field read it from isCompleted.
+	•	Each puzzle counts once: GameState.counted is set when its completion reaches the stats (so not for a revealed solve) and survives Restart (Section 6.5). A replay of a counted puzzle adds its time to totalSecondsPlayed but no solve. Saves from before the field read it as isCompleted && !usedReveal.
+	•	Restart of an unfinished game keeps its time in totalSecondsPlayed.
 	•	Streak logic based on lastSolvedDate vs. today, where a day runs from 4 am to 4 am.
 
 Testing requirements:

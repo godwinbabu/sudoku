@@ -18,12 +18,16 @@ struct Stats: Codable, Equatable {
     /// Solve times kept per level; shortcut: the median of the last 50, enough for "typical".
     static let keptTimes = 50
     static let keptDays = 14
-    /// A night of play runs until 4 am: a solve at 00:30 belongs to the evening before (CODESPEC 3.3).
-    static let nightRollover: TimeInterval = 4 * 3600
+    /// A night of play runs until 4 am local time: a solve at 00:30 belongs to the evening before
+    /// (CODESPEC 3.3).
+    static let rolloverHour = 4
 
-    /// The calendar day a solve at `date` counts for.
+    /// The calendar day a solve at `date` counts for. Uses the local hour, not "minus 4 hours", so
+    /// daylight-saving days move nothing across the boundary.
     static func playDay(_ date: Date, calendar: Calendar = .current) -> Date {
-        calendar.startOfDay(for: date.addingTimeInterval(-nightRollover))
+        let day = calendar.startOfDay(for: date)
+        guard calendar.component(.hour, from: date) < rolloverHour else { return day }
+        return calendar.date(byAdding: .day, value: -1, to: day) ?? day
     }
 
     init(streakDays: Int = 0, lastCompletionDate: Date? = nil, bestTimes: [Difficulty: Int] = [:], puzzlesSolved: [Difficulty: Int] = [:], importedPuzzlesSolved: Int = 0, totalPuzzlesSolved: Int = 0, totalTimeSeconds: Int = 0) {

@@ -71,8 +71,8 @@ struct GameState: Codable, Equatable {
         assisted = try container.decodeIfPresent(Bool.self, forKey: .assisted)
             ?? container.decodeIfPresent(Bool.self, forKey: .usedHint) ?? false
         hintLog = try container.decodeIfPresent([HintLogEntry].self, forKey: .hintLog) ?? []
-        // Saves from before this field: a completed game was counted when it completed.
-        counted = try container.decodeIfPresent(Bool.self, forKey: .counted) ?? isCompleted
+        // Saves from before this field: a completed game reached the stats unless it was revealed.
+        counted = try container.decodeIfPresent(Bool.self, forKey: .counted) ?? (isCompleted && !usedReveal)
     }
 
     func encode(to encoder: Encoder) throws {

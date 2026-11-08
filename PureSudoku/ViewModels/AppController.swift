@@ -151,6 +151,7 @@ final class AppController: ObservableObject {
         viewModel.onSave = { [weak self] updatedState in
             self?.persist(state: updatedState, for: difficulty)
         }
+        viewModel.onTimeDiscarded = { [weak self] seconds in self?.updateStats { $0.totalTimeSeconds += seconds } }
         connectLearning(viewModel)
         return viewModel
     }
@@ -262,6 +263,7 @@ final class AppController: ObservableObject {
         viewModel.onSave = { [weak self] updatedState in
             self?.persistImported(state: updatedState, id: id)
         }
+        viewModel.onTimeDiscarded = { [weak self] seconds in self?.updateStats { $0.totalTimeSeconds += seconds } }
         connectLearning(viewModel)
         return viewModel
     }
@@ -443,7 +445,7 @@ final class AppController: ObservableObject {
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
         var state = state
         record(state, at: difficulty)
-        state.counted = true
+        if !state.usedReveal { state.counted = true }
         activeGames[difficulty] = state
         do {
             try persistence.save(state, to: File.game(difficulty).rawValue)
@@ -466,15 +468,24 @@ final class AppController: ObservableObject {
 
     private func handleImportedCompletion(state: GameState, id: String) {
         var state = state
+        // An open game may predate the background solution count: take uniqueness from the stored
+        // import first, so a unique puzzle still sets times.
+        if state.puzzle.hasUniqueSolution == nil {
+            state.puzzle.hasUniqueSolution = importedGames.first { $0.id == id }?.gameState.puzzle.hasUniqueSolution
+        }
         record(state, at: state.puzzle.difficulty)
-        state.counted = true
+        if !state.usedReveal { state.counted = true }
         persistImported(state: state, id: id)
     }
 
     /// Adds a solve to the stats once per puzzle (a restarted solve is already counted). Puzzles with
     /// several solutions set no best or typical time.
     private func record(_ state: GameState, at difficulty: Difficulty) {
-        guard !state.counted else { return }
+        guard !state.counted else {
+            // A replay of a counted puzzle: not another solve, but its time still counts as played.
+            if !state.usedReveal { updateStats { $0.totalTimeSeconds += state.elapsedSeconds } }
+            return
+        }
         updateStats { stats in
             stats.recordCompletion(
                 for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
