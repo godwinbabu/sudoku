@@ -56,7 +56,7 @@ struct LearnView: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("UP NEXT · \(Lesson.stepCount(for: technique)) STEPS")
-                        .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink3)
+                        .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink2)
                     Text(technique.displayName)
                         .font(.system(size: 24, weight: .medium, design: .serif)).foregroundColor(theme.ink)
                     Text(reason).font(.system(size: 14)).foregroundColor(theme.ink2)
@@ -199,7 +199,7 @@ struct LessonView: View {
             HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
                 .accessibilityIdentifier("lesson_back")
             Text("\(technique.learnTier.displayName) · Lesson".uppercased())
-                .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink3)
+                .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink2)
                 .frame(maxWidth: .infinity)
             Color.clear.frame(width: 44, height: 44)
         }

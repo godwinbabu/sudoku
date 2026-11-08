@@ -121,6 +121,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// A two-finger tap anywhere in a game hushes the screen; a tap brings it back (CODESPEC 12.7).
+    /// Over the Night sheet it does nothing.
     func testTwoFingerTapShowsHush() {
         let app = launchApp()
         startLevel("easy", in: app)
@@ -132,6 +133,11 @@ final class PureSudokuUITests: XCTestCase {
         hush.tap()
         XCTAssertTrue(app.buttons["tool_notes"].waitForExistence(timeout: 2))
         XCTAssertFalse(hush.exists)
+        app.buttons["nightButton"].tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        app.windows.firstMatch.twoFingerTap()
+        XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 
     func testNotesBadgeToggles() {
@@ -264,7 +270,7 @@ final class PureSudokuUITests: XCTestCase {
     private func setShowTimer(_ on: Bool, in app: XCUIApplication) -> Bool {
         if !app.buttons["tab_journal"].exists { app.buttons["backButton"].tap() }
         app.buttons["tab_journal"].tap()
-        let toggle = app.buttons["journal_showTimer"]
+        let toggle = element("journal_showTimer", in: app) // a switch on iOS 17+, a button on 16
         XCTAssertTrue(toggle.waitForExistence(timeout: 2))
         for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
         let wasOn = toggle.value as? String == "On"
@@ -571,7 +577,7 @@ extension PureSudokuUITests {
     func testJournalShowTimerHidesTheTimer() {
         let app = launchApp()
         app.buttons["tab_journal"].tap()
-        let timer = app.buttons["journal_showTimer"]
+        let timer = element("journal_showTimer", in: app) // a switch on iOS 17+, a button on 16
         XCTAssertTrue(timer.waitForExistence(timeout: 2))
         for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
         XCTAssertTrue(app.buttons["journal_mistakes_never"].exists)

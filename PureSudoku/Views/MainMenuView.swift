@@ -139,7 +139,7 @@ private struct ImportRoute: Hashable, Identifiable {
 // MARK: - Shared chrome for the tab screens
 
 /// The tab bar: Play, Learn, Journal. `bg` fill and a 1 pt `hair` top border; the active tab is
-/// `accent` with a semibold label, the others `ink3` (Design/v2/README.md).
+/// `accent` with a semibold label, the others `ink2`, readable at night (Design/v2/README.md, QA #29).
 struct PSTabBar: View {
     @Environment(\.psPalette) private var theme
     @Binding var selection: AppTab
@@ -154,7 +154,7 @@ struct PSTabBar: View {
                             .accessibilityHidden(true) // the label names the tab once
                         Text(item.title).font(.system(size: 11, weight: on ? .semibold : .medium))
                     }
-                    .foregroundColor(on ? theme.accent : theme.ink3)
+                    .foregroundColor(on ? theme.accent : theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .contentShape(Rectangle())
                 }

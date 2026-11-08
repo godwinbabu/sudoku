@@ -45,7 +45,7 @@ struct HomeView: View {
             HStack(spacing: 16) {
                 MiniBoard(cells: game.cells, theme: theme).frame(width: 112, height: 112)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("CONTINUE").font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink3)
+                    Text("CONTINUE").font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink2)
                     Text(game.puzzle.difficulty.displayName)
                         .font(.system(size: 24, weight: .medium, design: .serif)).foregroundColor(theme.ink)
                     Text("\(GameView.timeString(game.elapsedSeconds)) · \(filled) of 81")
@@ -226,6 +226,7 @@ struct ConfirmPanel: View {
             .padding(.horizontal, 24)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
+            .accessibilityAction(.escape, onDismiss)
             .accessibilityIdentifier("confirmDialog")
         }
     }
