@@ -632,7 +632,7 @@ Persist:
 	•	keepImportImages
 	•	v1 keys (theme, bedtimeMode, sleepBrightness, display profiles, autoCheckMistakes, autoRemoveCandidates) are read once and mapped (Section 7.1), never written.
 	3.	Technique progress (phase 5): one TechniqueProgress per technique (Section 2.3).
-	4.	Imported games (BYOS.md). Every unfinished import is kept, but only the 20 most recently played solved ones; older solved imports are dropped on the next save. Unused import photos are cleaned up only when the set of photos in use changes, not on every autosave.
+	4.	Imported games (BYOS.md). Every unfinished import is kept, but only the 20 most recently played solved ones (plus any still waiting to hand off a late best time, until their count finishes); older solved imports are dropped on the next save. Unused import photos are cleaned up only when the set of photos in use changes, not on every autosave.
 	5.	Stats:
 struct Stats: Codable {
     var totalPuzzlesSolved: Int

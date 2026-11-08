@@ -233,7 +233,6 @@ final class AppControllerTests: XCTestCase {
         }
     }
 
-    /// The import being saved is kept even when 20 others look newer because the clock moved back.
     /// A solved import whose late time is still waiting is never pruned, so the time can't be lost.
     func testPruningKeepsAnImportWaitingForItsLateTime() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -254,6 +253,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertTrue(saved.contains { $0.id == "import-99" }, "the waiting game stays until its time is handed off")
     }
 
+    /// The import being saved is kept even when 20 others look newer because the clock moved back.
     func testSavingASolvedImportKeepsItWhenOthersAreDatedInTheFuture() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let now = Date(timeIntervalSince1970: 1_000_000)

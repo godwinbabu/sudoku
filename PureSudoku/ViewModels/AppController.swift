@@ -572,7 +572,8 @@ final class AppController: ObservableObject {
 
 extension AppController {
     /// Keeps every unfinished import, the one being saved (`savedID`, even if the clock moved), and
-    /// only the `keptSolvedImports` most recently played other solved ones.
+    /// only the `keptSolvedImports` most recently played other solved ones. A solved game still waiting
+    /// to hand off its late time is kept on top, until its count finishes.
     fileprivate func pruneSolvedImports(keeping savedID: String?) {
         // A game still waiting to hand off its late time stays until it has (it would lose the time).
         let solved = importedGames.filter { $0.gameState.isCompleted && $0.id != savedID && $0.gameState.timeAwaitingCount == nil }
