@@ -273,7 +273,7 @@ Testing requirements:
 
 3.3 Journal (stats and settings)
 	•	SwiftUI view: JournalView (Design/v2/README.md, “Journal”). It replaces the old SettingsView and StatsView.
-	•	Streak: the current streak (NY 56, zero once a whole day passes without a solve) over “nights in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled dot; other days are rings, so shape carries it, not hue. VoiceOver reads the full weekday (“Tuesday, solved”). Stats files from before the week seed it with the last solve day.
+	•	Streak: the current streak (NY 56, zero once a whole day passes without a solve; a night runs until 4 am, so a solve at 00:30 counts for the evening before, Stats.playDay) over “nights in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled dot; other days are rings, so shape carries it, not hue. VoiceOver reads the full weekday (“Tuesday, solved”). Stats files from before the week seed it with the last solve day.
 	•	SOLVED: a table of level, Solved, Best and Typical. Typical is the median of the last 50 unassisted solve times at that level. A dash means none yet. Under it: “N assisted solves kept your streak but don’t set best times.” and “N solved in all · N imported · h:mm:ss played”.
 	•	SETTINGS: a Display & Night row that pushes DisplaySettingsView. Display & Night holds, top to bottom:
 	•	A live preview strip: five 52 pt cells (given 5, entered 3, selected 7, mistake 4, notes).
@@ -587,7 +587,7 @@ enum Appearance: String, Codable {
 	•	Duplicate entry:
 	•	With Show mistakes set to Right away:
 	•	Immediately mark conflicting cells as error (error marker, see 7.2).
-	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks.
+	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks. Check marks are saved with the game (GameState.checkedWrong), apart from duplicate marks: a Check mark stays until its cell is edited, in any mode, and a duplicate mark never becomes one.
 	•	Cell states (Design/v2/README.md, “Cell states”):
 	•	Given: ink, given weight. Entered: accent, entered weight.
 	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill.
@@ -651,8 +651,11 @@ Streak rules:
 	•	Update counts.
 	•	Update best time and add to solveTimes, only if assisted is also false (Section 6.3). An assisted solve adds to assistedSolves instead.
 	•	Add the day to solvedDays.
-	•	Add to totalSecondsPlayed.
-	•	Streak logic based on lastSolvedDate vs. today.
+	•	Add to totalSecondsPlayed. Time on an unfinished level game counts too when a new game replaces it, so the total never goes down.
+	•	A puzzle with several solutions (an import any valid fill solves) counts like an unassisted solve but sets no best or typical time. An old import solved while its solution count is still running gets its best and typical time when the count finds one solution (Stats.recordTime), not another solve.
+	•	Each puzzle counts once: GameState.counted is set when its completion reaches the stats (so not for a revealed solve) and survives Restart (Section 6.5). A replay of a counted puzzle adds its time to totalSecondsPlayed but no solve. Saves from before the field read it as isCompleted && !usedReveal.
+	•	Restart of an unfinished game keeps its time in totalSecondsPlayed.
+	•	Streak logic based on lastSolvedDate vs. today, where a day runs from 4 am to 4 am.
 
 Testing requirements:
 	•	Unit tests:
