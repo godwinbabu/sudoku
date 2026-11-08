@@ -43,6 +43,7 @@ struct DisplaySettingsView: View {
             }
             .padding(.bottom, 40)
         }
+        .statusBackdrop(theme.bg)
         .background(theme.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(controller.isNight)
@@ -52,6 +53,7 @@ struct DisplaySettingsView: View {
 
     @ViewBuilder
     private func content(_ settings: Settings) -> some View {
+        let night = settings.palette(isNight: true)
         Text("Display & Night")
             .font(.system(size: 30, weight: .medium, design: .serif))
             .foregroundColor(theme.ink)
@@ -73,11 +75,20 @@ struct DisplaySettingsView: View {
         .padding(.bottom, 24)
 
         SectionLabel(theme: theme, title: "Night screen")
+        if !theme.isNight {
+            // By day the strip above uses Day colours; this one shows what the sliders do at night.
+            SamplePreview(theme: night, type: type)
+                .background(RoundedRectangle(cornerRadius: 18).fill(Color.black))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 12)
+                .accessibilityLabel("Night preview")
+                .accessibilityIdentifier("display_nightPreview")
+        }
         PresetChips(theme: theme, current: viewModel.currentPreset, idPrefix: "display_preset_", onSelect: viewModel.applyPreset)
             .padding(.bottom, 8)
         NightSliders(theme: theme, settings: settings,
                      glowNote: theme.isNight ? NightSheetView.glowNote(settings.glow) : "Applies when Night is on.",
-                     warmthNote: "Higher is warmer, with less blue light.",
+                     warmthNote: NightSheetView.warmthNote(night.blueReduction),
                      idPrefix: "display_", onGlow: viewModel.setGlow, onWarmth: viewModel.setWarmth)
 
         SectionLabel(theme: theme, title: "Your eyes").padding(.top, 8)
@@ -86,7 +97,7 @@ struct DisplaySettingsView: View {
                 Text("Clarity").font(.system(size: 16)).foregroundColor(theme.ink)
                 PSSegmented(theme: theme, options: Clarity.allCases.map { ($0, $0.displayName) }, selection: settings.clarity,
                             idPrefix: "display_clarity_", onSelect: viewModel.setClarity)
-                Text("Bigger, heavier digits and stronger lines. Day and Night.")
+                Text(NightSheetView.clarityNote)
                     .font(.system(size: 13)).foregroundColor(theme.ink3)
             }
             .padding(.horizontal, 16)

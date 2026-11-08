@@ -138,7 +138,8 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["nightButton"].tap()
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
-        app.twoFingerTap() // the app element, which has a tap point on every phone size
+        // On the sheet's title: the app, window and sheet container have no gesture point on iPhone Duo.
+        sheet.staticTexts.firstMatch.twoFingerTap()
         XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 
@@ -594,16 +595,19 @@ extension PureSudokuUITests {
 
 /// Import (CODESPEC 3.4).
 extension PureSudokuUITests {
-    /// On short screens the Import row can start under the tab bar (XCUITest still calls it hittable),
-    /// so scroll Home to the bottom first.
-    private func openImport(in app: XCUIApplication) {
-        element("homeView", in: app).swipeUp()
-        app.buttons["importPuzzleButton"].tap()
+    /// On short screens (iPhone Duo) the button sits under the tab bar until Home scrolls.
+    private func tapImportButton(in app: XCUIApplication) {
+        let button = app.buttons["importPuzzleButton"]
+        XCTAssertTrue(button.waitForExistence(timeout: 2))
+        let tabTop = app.buttons["tab_play"].frame.minY
+        for _ in 0..<4 where button.frame.maxY > tabTop { app.swipeUp() }
+        XCTAssertLessThanOrEqual(button.frame.maxY, tabTop, "Import still under the tab bar")
+        button.tap()
     }
 
     func testImportButtonOpensImportScreen() {
         let app = launchApp()
-        openImport(in: app)
+        tapImportButton(in: app)
         XCTAssertTrue(element("importPuzzleView", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(element("importSource", in: app).exists, "import starts on Source")
         XCTAssertTrue(app.buttons["importChoosePhoto"].exists)
@@ -613,7 +617,7 @@ extension PureSudokuUITests {
     /// Type it in → Check the grid: a repeated digit is named and blocks Start; clearing it lifts that.
     func testImportCheckTheGridFlagsAConflict() {
         let app = launchApp()
-        openImport(in: app)
+        tapImportButton(in: app)
         app.buttons["importTypeItIn"].tap()
         XCTAssertTrue(element("importReview", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["CHECK THE GRID"].exists)

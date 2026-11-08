@@ -51,6 +51,16 @@ struct PSType: Equatable {
         uiScale = ui
     }
 
+    /// At night givens go one weight heavier, so entered digits differ by shape, not only hue.
+    func givenWeight(night: Bool) -> Font.Weight {
+        guard night else { return givenWeight }
+        switch givenWeight {
+        case .semibold: return .bold
+        case .bold: return .heavy
+        default: return .black
+        }
+    }
+
     var minorLine: CGFloat { max(1, lineScale.rounded()) }
     var boxLine: CGFloat { 1 + lineScale.rounded() }
 }

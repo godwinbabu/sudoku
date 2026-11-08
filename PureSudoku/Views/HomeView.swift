@@ -229,7 +229,8 @@ struct ConfirmPanel: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(theme.isNight ? 0.55 : 0.18)
+            // Near-black at night, so the screen behind does not show around the card.
+            Color.black.opacity(theme.isNight ? 0.92 : 0.18)
                 .ignoresSafeArea()
                 .onTapGesture(perform: onDismiss)
             PopoverCard(theme: theme) {
@@ -254,6 +255,8 @@ struct ConfirmPanel: View {
             .frame(maxWidth: 320)
             .padding(.horizontal, 24)
             .accessibilityElement(children: .contain)
+            // Needed here too: this wrapper is its own container (see PopoverCard).
+            .accessibilitySortPriority(-1)
             .accessibilityAddTraits(.isModal)
             .accessibilityAction(.escape, onDismiss)
             .accessibilityIdentifier("confirmDialog")

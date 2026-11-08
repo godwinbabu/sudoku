@@ -34,9 +34,11 @@ struct LearnView: View {
         .accessibilityIdentifier("learnView")
     }
 
-    /// Techniques the player has used or met in a hint.
-    private var inHand: Int {
-        Lesson.techniques.filter { controller.progress(for: $0).level != .new }.count
+    private var inHand: Int { Self.inHandCount { controller.progress(for: $0).level } }
+
+    /// Mastered techniques only: half-learned ones are not yet "in your hands".
+    static func inHandCount(_ level: (Technique) -> TechniqueProgress.Level) -> Int {
+        Lesson.techniques.filter { level($0) == .mastered }.count
     }
 
     /// The first technique in curriculum order that isn't mastered yet.

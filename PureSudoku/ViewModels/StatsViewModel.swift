@@ -52,6 +52,13 @@ final class StatsViewModel: ObservableObject {
         }
     }
 
+    /// "Last solved Tuesday." when the streak is 0 but this week has a solve, so 0 beside filled dots reads true.
+    func lastSolvedLine(at date: Date = Date(), calendar: Calendar = .current) -> String? {
+        guard stats.currentStreak(at: date, calendar: calendar) == 0,
+              let day = week(at: date, calendar: calendar).last(where: \.solved) else { return nil }
+        return "Last solved \(day.name)."
+    }
+
     func formattedBestTime(for difficulty: Difficulty) -> String {
         stats.bestTime(for: difficulty).map(Self.format) ?? "—"
     }

@@ -210,6 +210,7 @@ private struct TabBarModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .statusBackdrop(theme.bg)
             .safeAreaInset(edge: .bottom, spacing: 0) { PSTabBar(selection: $tab) }
             .background(theme.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
@@ -222,5 +223,12 @@ extension View {
     /// A tab's root screen: the tab bar below it, no system navigation bar, no status bar at night.
     func tabBar(_ tab: Binding<AppTab>) -> some View {
         modifier(TabBarModifier(tab: tab))
+    }
+
+    /// An opaque strip behind the status bar, so scrolled content never sits under the clock.
+    func statusBackdrop(_ color: Color) -> some View {
+        safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear.frame(height: 0).background(color, ignoresSafeAreaEdges: .top)
+        }
     }
 }

@@ -21,6 +21,9 @@ final class AppController: ObservableObject {
     @Published private(set) var resetCopies: [String] = []
     /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
     @Published var showsNightSheet = false
+    /// Set by a game during Night, Hush and Goodnight. The root hides the home indicator for it, so
+    /// the setting reaches the window from inside a pushed game.
+    @Published var hidesHomeIndicator = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
     @Published private(set) var showsFirstNight = false
     /// This game's Drift steps, set by the game screen: the backlight follows the drifted glow.

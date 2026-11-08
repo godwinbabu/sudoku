@@ -103,13 +103,15 @@ struct GameView: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isGoodnight)
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(isHushed || isGoodnight || (theme.isNight && controller.settings.hideStatusBarInGames))
-        .persistentSystemOverlays(theme.isNight || isHushed || isGoodnight ? .hidden : .automatic)
+        .onChange(of: theme.isNight || isHushed || isGoodnight) { controller.hidesHomeIndicator = $0 }
         .onAppear {
+            controller.hidesHomeIndicator = theme.isNight || isHushed || isGoodnight
             viewModel.apply(settings: controller.settings)
             viewModel.handleSceneDidAppear()
             updateDrift()
         }
         .onDisappear {
+            controller.hidesHomeIndicator = false
             viewModel.handleSceneDidDisappear()
             drift.update(active: false)
             controller.driftSteps = 0
@@ -372,7 +374,8 @@ struct GameView: View {
     private func confirmation(theme: PSPalette) -> some View {
         if let action = viewModel.pendingAction {
             ZStack {
-                Color.black.opacity(theme.isNight ? 0.55 : 0.18)
+                // Near-black at night, so the board and its notes do not show around the card.
+                Color.black.opacity(theme.isNight ? 0.92 : 0.18)
                     .ignoresSafeArea()
                     .onTapGesture { viewModel.pendingAction = nil }
                 PopoverCard(theme: theme) {
@@ -395,6 +398,8 @@ struct GameView: View {
                 .frame(maxWidth: 320)
                 .padding(.horizontal, 24)
                 .accessibilityElement(children: .contain)
+                // Needed here too: this wrapper is its own container (see PopoverCard).
+                .accessibilitySortPriority(-1)
                 .accessibilityAction(.escape) { viewModel.pendingAction = nil }
                 .accessibilityIdentifier("confirmDialog")
             }
