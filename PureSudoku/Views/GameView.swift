@@ -246,6 +246,8 @@ struct GameView: View {
             }
             if let message = viewModel.checkMessage {
                 Text(message).foregroundColor(theme.ink2).accessibilityIdentifier("checkMessage")
+                    .id(message) // a new result is a new view, so it is announced again
+                    .onAppear { UIAccessibility.post(notification: .announcement, argument: message) }
             } else if viewModel.inputMode == .candidate && !viewModel.state.isCompleted {
                 Text("Notes on — digits go in as pencil marks").foregroundColor(theme.ink3)
             }

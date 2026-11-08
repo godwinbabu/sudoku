@@ -337,6 +337,7 @@ final class GameViewModel: ObservableObject {
 
     func checkPuzzle() {
         guard settings.mistakes != .never else { return }
+        endHint() // the result shows in the hint slot, so an open hint closes first
         var newState = self.state
         // A second tap with nothing new to check hides the green "correct" marks. Any unchecked entry
         // is checked instead, so new mistakes are never skipped. Wrong values stay flagged (CODESPEC 6.2).
@@ -451,6 +452,7 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.selectedCellID = nil
         hint = nil // the old board's hint no longer applies
+        checkMessage = nil
         undoStack.removeAll()
         updateCanUndo()
         startTimerIfNeeded()
@@ -483,6 +485,7 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.showTimer = settings.showTimer
         hint = nil // the old board's hint no longer applies
+        checkMessage = nil
         undoStack.removeAll()
         isTimerRunning = false
         isManuallyPaused = false
@@ -511,6 +514,7 @@ final class GameViewModel: ObservableObject {
                     self.load(state: newState)
                 }
                 self.hint = nil
+                self.checkMessage = nil
                 self.isPreparingNewPuzzle = false
             case .reset:
                 self.resetPuzzle()
@@ -834,7 +838,9 @@ extension GameViewModel {
         let cells = state.cells.sorted { $0.index < $1.index }
         if let wrong = cells.first(where: { !$0.given && $0.value != nil && $0.value != solution[$0.index] }) {
             let digit = wrong.value ?? 0
-            let clash = SolverBoard.peers[wrong.index].sorted().first { peer in cells[peer].value == digit }
+            // Prefer a clash whose digit is right, so the step-3 text never vouches for another mistake.
+            let clashes = SolverBoard.peers[wrong.index].filter { cells[$0].value == digit }
+            let clash = clashes.first { solution[$0] == digit } ?? clashes.first
             return (wrong.index, .wrongDigit(digit, clash: clash))
         }
         let suspects = cells.filter { $0.value == nil && !$0.candidates.isEmpty && !$0.candidates.contains(solution[$0.index]) }

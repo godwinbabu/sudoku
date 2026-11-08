@@ -246,7 +246,7 @@ Testing requirements:
 	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen. Check puzzle is left out when mistakes are set to Never, since it would mark nothing.
 	•	Fill all notes writes, in every empty cell, the digits its row, column and box still allow. One Undo reverts it.
 	•	Restart puzzle asks first, with a custom confirmation styled like the menu.
-	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops.
+	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops. The keypad dims to 30% and is disabled, like the tools.
 	•	Hush: a two-finger tap anywhere, or the More menu, pauses the game and shows pure black. “Tap anywhere to return” fades out after about 3.5 s. Any tap returns and resumes.
 	•	Solved: the board fades to 10% over 600 ms (30% left its digits competing with the summary). Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: “Assisted · counts for your streak, not best times”), and the techniques the grid needs, by name: “This grid took Hidden Single ×38, Naked Single ×9.” They come from LogicalSolver.techniquesNeeded(for:), which replays the hint engine from the givens once, off the main thread. Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
 	•	Goodnight: pure black with “Sleep well.” fading out. A tap returns to Home.
@@ -398,6 +398,7 @@ Testing requirements:
 	•	Set an incorrect value and call checkCell(); verify isError == true.
 
 6.2 Check Puzzle
+	•	After a check, the hint slot says “No mistakes so far.” or “N wrong digit(s), marked with a bar.” (VoiceOver announces it). The next move, selection, hint, restart or new puzzle clears it.
 	•	When user taps Check Puzzle:
 	•	Iterate all cells with value:
 	•	Compare each value to solutionGrid.

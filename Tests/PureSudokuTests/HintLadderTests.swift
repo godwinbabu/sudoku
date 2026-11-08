@@ -599,5 +599,24 @@ extension HintLadderTests {
         viewModel.setDigit(solution[cell.index] % 9 + 1)
         viewModel.checkPuzzle()
         XCTAssertEqual(viewModel.checkMessage, "1 wrong digit, marked with a bar.")
+        viewModel.resetPuzzle()
+        XCTAssertNil(viewModel.checkMessage, "Restart clears it with the marks")
+    }
+
+    /// Check with a hint open: the hint closes and the result shows (it used to hide behind the card).
+    func testCheckClosesAnOpenHint() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        viewModel.requestHint()
+        XCTAssertNotNil(viewModel.hint)
+        viewModel.checkPuzzle()
+        XCTAssertNil(viewModel.hint)
+        XCTAssertEqual(viewModel.checkMessage, "No mistakes so far.")
+    }
+
+    func testANewPuzzleClearsTheCheckMessage() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        viewModel.checkPuzzle()
+        viewModel.load(state: TestData.newGameState())
+        XCTAssertNil(viewModel.checkMessage)
     }
 }
