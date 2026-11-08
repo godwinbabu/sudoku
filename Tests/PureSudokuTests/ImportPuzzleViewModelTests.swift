@@ -117,4 +117,14 @@ final class ImportPuzzleViewModelTests: XCTestCase {
             deleteImage: { _ in }
         )
     }
+
+    /// The empty grid says what to do; the line goes once a digit is in (issue 51).
+    func testEmptyGridHint() {
+        let viewModel = makeViewModel()
+        viewModel.enterByHand()
+        XCTAssertEqual(viewModel.emptyGridHint, "Type the digits printed in the puzzle: tap a cell, then a number.")
+        viewModel.selectedIndex = 0
+        viewModel.setDigit(5)
+        XCTAssertNil(viewModel.emptyGridHint)
+    }
 }

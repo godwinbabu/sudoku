@@ -7,19 +7,21 @@ import SwiftUI
 final class NightPaletteTests: XCTestCase {
     // MARK: Palette
 
-    /// Snapshots from Design/v2/styles.css (.ps-night-lamp / -out / -red).
+    /// Preset snapshots on glow scale 2 (CODESPEC 7.2, 12.3). They replace the styles.css snapshots,
+    /// which were too dark to read.
     private let snapshots: [(NightPreset, [String: [Int]])] = [
-        (.readingLamp, ["surface": [11, 6, 2], "surface2": [17, 10, 3], "ink": [154, 88, 24],
-                        "ink2": [108, 62, 17], "ink3": [77, 44, 12],
-                        "accent": [147, 63, 0], "accentDim": [77, 33, 0],
-                        "line": [26, 15, 4], "lineMajor": [65, 37, 10], "hair": [23, 13, 4],
-                        "sel": [31, 13, 0], "peer": [8, 5, 1], "same": [18, 8, 0], "err": [146, 40, 37], "status": [68, 39, 10]]),
-        (.lightsOut, ["surface": [6, 2, 0], "surface2": [9, 4, 0], "ink": [79, 34, 0], "ink2": [56, 24, 0], "ink3": [40, 17, 0],
-                      "accent": [76, 27, 0], "accentDim": [40, 14, 0], "line": [13, 6, 0], "lineMajor": [33, 14, 0], "hair": [12, 5, 0],
-                      "sel": [16, 6, 0], "peer": [4, 2, 0], "same": [10, 3, 0], "err": [75, 21, 19], "status": [35, 15, 0]]),
-        (.redLight, ["surface": [5, 2, 0], "surface2": [7, 2, 0], "ink": [65, 22, 0], "ink2": [46, 15, 0], "ink3": [33, 11, 0],
-                     "accent": [63, 21, 0], "accentDim": [33, 11, 0], "line": [11, 4, 0], "lineMajor": [27, 9, 0], "hair": [10, 3, 0],
-                     "sel": [13, 4, 0], "peer": [4, 1, 0], "same": [8, 3, 0], "err": [62, 17, 16], "status": [29, 10, 0]])
+        (.readingLamp, ["surface": [18, 10, 3], "surface2": [28, 16, 4], "ink": [255, 146, 39], "ink2": [199, 114, 31],
+                        "ink3": [158, 91, 24], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [56, 32, 9],
+                        "lineMajor": [153, 88, 23], "hair": [64, 37, 10], "sel": [51, 22, 0], "peer": [14, 8, 2],
+                        "same": [31, 13, 0], "err": [242, 66, 61], "status": [112, 64, 17]]),
+        (.lightsOut, ["surface": [18, 8, 0], "surface2": [28, 13, 0], "ink": [255, 121, 0], "ink2": [199, 94, 0],
+                      "ink3": [158, 75, 0], "accent": [245, 94, 0], "accentDim": [166, 64, 0], "line": [56, 27, 0],
+                      "lineMajor": [153, 72, 0], "hair": [64, 30, 0], "sel": [51, 20, 0], "peer": [14, 7, 0],
+                      "same": [31, 12, 0], "err": [242, 66, 61], "status": [112, 53, 0]]),
+        (.redLight, ["surface": [15, 5, 0], "surface2": [23, 8, 0], "ink": [208, 70, 0], "ink2": [163, 55, 0],
+                     "ink3": [129, 44, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [46, 15, 0],
+                     "lineMajor": [125, 42, 0], "hair": [52, 18, 0], "sel": [42, 14, 0], "peer": [11, 4, 0],
+                     "same": [25, 8, 0], "err": [198, 54, 50], "status": [92, 31, 0]])
     ]
 
     private func channels(_ color: Color) -> [Int] {
@@ -93,7 +95,7 @@ final class NightPaletteTests: XCTestCase {
         for v1 in [["bedtimeMode": true], ["theme": "sleep"]] as [[String: Any]] {
             let settings = try decodeV1(v1.merging(["sleepBrightness": "normal"]) { $1 })
             XCTAssertEqual(settings.appearance, .night)
-            XCTAssertEqual(settings.glow, NightPreset.lightsOut.glow)
+            XCTAssertEqual(settings.glow, NightPreset.lightsOut.glow, "v1 brightness was glow scale 1, so glow restarts")
             XCTAssertEqual(settings.warmth, NightPreset.lightsOut.warmth)
         }
     }
@@ -107,7 +109,7 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertTrue(light.calibrated)
         XCTAssertEqual(try decodeV1(["theme": "dark"]).appearance, .night)
         XCTAssertEqual(try decodeV1(["theme": "system"]).appearance, .matchSystem)
-        XCTAssertEqual(try decodeV1(["theme": "dark", "sleepBrightness": "dim"]).glow, 30)
+        XCTAssertEqual(try decodeV1(["theme": "dark", "sleepBrightness": "dim"]).glow, NightPreset.lightsOut.glow)
     }
 
     func testV1DisplayProfileCarriesBrightnessAndWarmth() throws {
@@ -117,7 +119,7 @@ final class NightPaletteTests: XCTestCase {
         let other: [String: Any] = ["id": UUID().uuidString, "name": "Other", "dimness": 0.1, "contrast": 0.5, "warmth": 0.1,
                                     "textSize": 0.5, "lowersScreenBrightness": false]
         let settings = try decodeV1(["theme": "dark", "displayProfiles": [other, profile], "activeDisplayProfileID": id.uuidString])
-        XCTAssertEqual(settings.glow, 30)
+        XCTAssertEqual(settings.glow, NightPreset.lightsOut.glow)
         XCTAssertEqual(settings.warmth, 80)
     }
 
@@ -136,11 +138,11 @@ final class NightPaletteTests: XCTestCase {
         json["hasCalibratedDisplay"] = true
         settings = try decodeV1(json)
         XCTAssertEqual(settings.appearance, .night)
-        XCTAssertEqual([settings.glow, settings.warmth], [48, 30])
+        XCTAssertEqual([settings.glow, settings.warmth], [NightPreset.lightsOut.glow, 30])
 
         json["bedtimeMode"] = true
         settings = try decodeV1(json)
-        XCTAssertEqual([settings.glow, settings.warmth], [6, 100])
+        XCTAssertEqual([settings.glow, settings.warmth], [NightPreset.lightsOut.glow, 100])
     }
 
     func testAfterDarkFallbackHours() {
@@ -161,31 +163,128 @@ final class NightPaletteTests: XCTestCase {
 
     func testPresetNeverGoesBelowTheFloor() {
         var settings = Settings()
-        settings.glowFloor = 14
+        settings.glowFloor = 32
         settings.apply(.redLight)
-        XCTAssertEqual(settings.glow, 14)
+        XCTAssertEqual(settings.glow, 32)
         XCTAssertEqual(settings.warmth, 100)
     }
 
     // MARK: Brightness
 
-    func testScreenStaysLowWhenControlCenterOpens() {
-        XCTAssertTrue(ScreenBrightnessController.shouldLower(phase: .active, isNight: true))
-        XCTAssertTrue(ScreenBrightnessController.shouldLower(phase: .inactive, isNight: true), "no flash on Control Center")
-        XCTAssertFalse(ScreenBrightnessController.shouldLower(phase: .background, isNight: true))
-        XCTAssertFalse(ScreenBrightnessController.shouldLower(phase: .active, isNight: false), "only at night")
+    func testGlowDrivesThePaletteThenTheBacklight() {
+        XCTAssertEqual(PSPalette.night(glow: 0, warmth: 65, clarity: .standard).luminance, 0.20, accuracy: 0.001)
+        XCTAssertEqual(PSPalette.night(glow: 40, warmth: 65, clarity: .standard).luminance, 1, accuracy: 0.001)
+        XCTAssertEqual(PSPalette.night(glow: 80, warmth: 65, clarity: .standard).luminance, 1, accuracy: 0.001)
+        XCTAssertEqual(PSPalette.backlight(glow: 0), 0)
+        XCTAssertEqual(PSPalette.backlight(glow: 40), 0)
+        XCTAssertEqual(PSPalette.backlight(glow: 70), 0.3, accuracy: 0.001)
+        XCTAssertEqual(PSPalette.backlight(glow: 100), 0.6, accuracy: 0.001)
+    }
+
+    func testDefaultNightIsReadable() {
+        // WCAG contrast of ink on black at the default (Lights out) must clear 4.5:1.
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        let ink = PSPalette.night(glow: Settings().glow, warmth: Settings().warmth, clarity: .standard).ink
+        UIColor(ink).getRed(&r, green: &g, blue: &b, alpha: &a)
+        func linear(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        let contrast = (0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b) + 0.05) / 0.05
+        XCTAssertGreaterThan(contrast, 4.5)
+    }
+
+    func testGlowScale1SettingsRestartAtLightsOut() throws {
+        let old = try JSONSerialization.data(withJSONObject: ["appearance": "night", "glow": 18, "glowFloor": 24, "calibrated": true])
+        let settings = try JSONDecoder().decode(Settings.self, from: old)
+        XCTAssertEqual(settings.glowFloor, Settings.glowOnScale2(fromScale1: 24))
+        XCTAssertEqual(settings.glowFloor, 6, "the same palette strength on the new scale")
+        XCTAssertEqual(settings.glow, NightPreset.lightsOut.glow)
+        let again = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(again, settings, "scale-2 files are not migrated twice")
     }
 
     func testScreenBrightnessIsRestored() {
         var screen: CGFloat = 0.7
         let controller = ScreenBrightnessController(read: { screen }, write: { screen = $0 })
-        controller.update(lower: true)
+        controller.update(target: 0)
         XCTAssertEqual(screen, 0)
-        controller.update(lower: true)
-        controller.update(lower: false)
+        controller.update(target: 0.3)
+        XCTAssertEqual(screen, 0.3, "glow above 40 raises the backlight")
+        controller.update(target: nil)
         XCTAssertEqual(screen, 0.7, "the player's own brightness comes back")
-        controller.update(lower: false)
+        controller.update(target: nil)
         XCTAssertEqual(screen, 0.7)
+    }
+
+    // MARK: Copy (issues 47, 48)
+
+    /// The first-night welcome greets by the hour, not always "Good evening.".
+    func testFirstNightGreetingFollowsTheHour() {
+        XCTAssertEqual(FirstNightView.greeting(hour: 9), "Good morning.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 5), "Good morning.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 12), "Good afternoon.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 17), "Good afternoon.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 18), "Good evening.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 2), "Good evening.")
+    }
+
+    /// Above 95% the Warmth note stops quoting a number; Red light is above it.
+    func testWarmthNoteAboveNinetyFivePercent() {
+        XCTAssertEqual(NightSheetView.warmthNote(95), "Blue light about 95% lower than daylight white.")
+        XCTAssertEqual(NightSheetView.warmthNote(96), "Almost no blue light.")
+        let red = PSPalette.night(glow: NightPreset.redLight.glow, warmth: NightPreset.redLight.warmth, clarity: .standard)
+        XCTAssertEqual(NightSheetView.warmthNote(red.blueReduction), "Almost no blue light.")
+    }
+
+    /// At night givens are one weight heavier, so entered digits differ by shape as well as hue.
+    func testNightGivensAreHeavier() {
+        XCTAssertEqual(PSType(.standard).givenWeight(night: false), .semibold)
+        XCTAssertEqual(PSType(.standard).givenWeight(night: true), .bold)
+        XCTAssertEqual(PSType(.large).givenWeight(night: true), .heavy)
+        XCTAssertEqual(PSType(.bold).givenWeight(night: true), .black)
+    }
+
+    func testPlayersOwnBrightnessWinsUntilGlowChanges() {
+        var screen: CGFloat = 0.7
+        let controller = ScreenBrightnessController(read: { screen }, write: { screen = $0 })
+        controller.update(target: 0.1, request: 50)
+        screen = 0.4 // the player raises brightness in Control Center
+        controller.update(target: 0.1, request: 50) // the app comes back to the foreground
+        XCTAssertEqual(screen, 0.4)
+        controller.update(target: 0.08, request: 50) // a Drift step
+        XCTAssertEqual(screen, 0.4, "Drift doesn't undo the player's choice")
+        controller.update(target: 0.2, request: 60) // the player moves Glow
+        XCTAssertEqual(screen, 0.2)
+        controller.update(target: nil)
+        XCTAssertEqual(screen, 0.7)
+    }
+
+    /// Glow 30 → 10 is a Glow change even though both targets are the minimum.
+    func testGlowChangesBelow40ClearTheOverride() {
+        var screen: CGFloat = 0.7
+        let controller = ScreenBrightnessController(read: { screen }, write: { screen = $0 })
+        controller.update(target: 0, request: 30)
+        screen = 0.4
+        controller.update(target: 0, request: 30)
+        XCTAssertEqual(screen, 0.4)
+        controller.update(target: 0, request: 10)
+        XCTAssertEqual(screen, 0)
+    }
+
+    func testBacklightFollowsDriftAndCalibration() {
+        let (controller, _) = makeTestController()
+        controller.updateSettings { $0.glow = 70 }
+        XCTAssertEqual(controller.nightBacklight, 0.3, accuracy: 0.001)
+        controller.driftSteps = 20
+        XCTAssertEqual(controller.nightBacklight, 0.1, accuracy: 0.001, "Drift dims the backlight above glow 40")
+    }
+
+    func testCalibrationHoldsTheMinimumByDayAndNight() {
+        let target = ScreenBrightnessController.target
+        XCTAssertEqual(target(.active, false, true, 0.3), 0, "Day: Check again still judges at the minimum")
+        XCTAssertEqual(target(.active, true, true, 0.3), 0)
+        XCTAssertEqual(target(.active, true, false, 0.3), 0.3)
+        XCTAssertNil(target(.active, false, false, 0.3), "Day leaves the screen to the player")
+        XCTAssertEqual(target(.inactive, true, false, 0.3), 0.3, "Control Center keeps it")
+        XCTAssertNil(target(.background, true, true, 0.3))
     }
 }
 

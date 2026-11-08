@@ -59,23 +59,23 @@ Open the files in a desktop browser. A Mac with Safari or Chrome shows the real 
 K      = kelvin(warmth)  : mired-interpolated 6500 → 1200 K, rounded to 50 K
 base   = blackbody(K)    : Tanner Helland approximation (0…255)
 accent = blackbody(kelvin(min(100, 0.55·warmth + 52)))
-s      = floor + (1 − floor) · (glow/100)^1.15      floor = 0.20 / 0.30 / 0.38 (Clarity)
+s      = floor + (1 − floor) · min(1, glow/40)^0.9  floor = 0.20 / 0.30 / 0.38 (Clarity)
 lift   = 1 / 1.25 / 1.5 (Clarity)
 ```
 | Token | Value |
 |---|---|
 | bg | `#000000` always |
 | surface / surface2 | base × 0.07s / 0.11s |
-| ink / ink2 / ink3 | base × s / 0.70s / 0.50s |
-| accent / accentDim | accent × 0.96s / 0.50s |
-| line / lineMajor | base × 0.17s·lift / 0.42s·lift |
-| hair | base × 0.15s |
+| ink / ink2 / ink3 | base × s / 0.78s / 0.62s |
+| accent / accentDim | accent × 0.96s / 0.65s |
+| line / lineMajor | base × 0.22s·lift / 0.60s·lift |
+| hair | base × 0.25s |
 | sel / same / peer | accent × 0.20s / accent × 0.12s / base × 0.055s |
 | err | (255, 70, 64) × 0.95s |
 | status (status bar on non-game screens) | base × 0.44s |
-| focusDim | 0.22 |
+| focusDim | 0.45 (raised from 0.22 so the rest of the board stays readable, QA #29) |
 
-Presets: **Reading lamp** (glow 55, warmth 45 → 2200 K), **Lights out** (18, 75 → 1500 K), **Red light** (10, 100 → 1200 K). Snapshot CSS for each preset is in `styles.css` (`.ps-night-lamp/out/red`).
+Presets: **Reading lamp** (glow 70, warmth 45 → 2200 K), **Lights out** (45, 65, the default), **Red light** (30, 100 → 1200 K). Glow above 40 also raises the screen backlight (CODESPEC 12.3). The `styles.css` preset snapshots predate this scale and are superseded by `NightPaletteTests`.
 
 **Night rules** (required, and testable):
 - No filled shapes behind text.
@@ -115,12 +115,12 @@ The All Screens IDs are in brackets. Measurements are at 390 pt width.
 ### Arrive
 - **Launch [1.3]:** pure black with "Pure Sudoku" in New York 30 at `ink3`. The `UILaunchScreen` background is black.
 - **First night — welcome [1.4]:** shown when Night first becomes active and `calibrated == false`. 30 pt side padding; top padding 150.
-  - Moon symbol 30 pt `accent`, then "Good evening." (NY 36), then body 17 `ink2`: *"Before your first puzzle, let's set the screen for your eyes and this room. It takes twenty seconds, and nothing will flash."*
+  - Moon symbol 30 pt `accent`, then "Good evening." (NY 36; "Good morning." 5–12 h, "Good afternoon." 12–18 h), then body 17 `ink2`: *"Before your first puzzle, let's set the screen for your eyes and this room. It takes twenty seconds, and nothing will flash."*
   - Pinned to the bottom: a full-width 50 pt primary button **Find my lowest glow**, and the text link *"Skip for now — use Lights out"* (15, `ink3`). Skipping sets glow 18 / warmth 75 and `calibrated = true`.
-- **Find my lowest glow [1.5]:** title *"Which is the faintest you can read?"* (NY 24), then hint text 14 `ink3`.
+- **Find my lowest glow [1.5]:** title *"Which is the faintest you can read?"* (NY 24; `ink3` at night, so it never outshines the tiles), then hint text 14 `ink3`. Centred vertically on the first-night screen.
   - Six 76 pt-tall tiles in a row (8 pt gap, radius 12, 1 pt `hair` ring). Each shows a digit (8, 3, 6, 5, 9, 2) in the night `ink` computed at glow 0 / 6 / 14 / 24 / 38 / 56.
   - The selected tile gets a 2 pt `accent` ring.
-  - **Use this** sets `glowFloor = pick` and `glow = pick + 4`. First-run shows no Cancel.
+  - **Use this** sets `glowFloor = pick` and `glow = max(Lights out, pick + 4)`. First-run shows no Cancel.
 - **Result [1.6]:** *"Glow set to N%."* (NY 36), a line giving the Kelvin value, a 5-cell sample strip, and **Start playing**.
 
 ### Play tab (Home) [2.1, 2.2]
@@ -168,7 +168,7 @@ Vertical stack:
 **Cell states.** Meaning must never depend on hue alone.
 | State | Fill | Ring | Digit |
 |---|---|---|---|
-| Given | — | — | `ink`, given weight |
+| Given | — | — | `ink`, given weight (one step heavier at night) |
 | Entered | — | — | `accent`, entered weight |
 | Selected | `sel` | 2 pt inset `accent` | — |
 | Peer (row / col / box of selected) | `peer` | — | — |
@@ -203,7 +203,7 @@ Vertical stack:
 - **Hint text grammar** (port from `engine.js`): nudge, technique name, one-line definition, why-sentence, and focus/evidence/pattern/elim/target cell lists.
 
 ### Endings [3.6–3.8]
-- **Solved:** the board fades to 30% over 600 ms. Centred over it: *Solved.* (NY 44), then *"Easy · 6:24 · 2 hints"* (15 `ink2`).
+- **Solved:** the board fades to 10% over 600 ms (was 30%; the digits fought the summary, QA #45). Centred over it: *Solved.* (NY 44), then *"Easy · 6:24 · 2 hints"* (15 `ink2`).
   - If assisted, a pill reads *"Assisted · counts for your streak, not best times"* (13, `hair` ring).
   - Then *"This grid took Hidden Single ×38, Naked Single ×9."* (13 `ink3`), from replaying the hint engine.
   - Buttons: **Another** (ghost) and **Goodnight** (primary).
@@ -216,11 +216,11 @@ Vertical stack:
   1. "Night" (NY 26) and a close button.
   2. Segmented control: Day · Night · After dark. The segments are 34 pt tall, radius 9, inside a 1 pt `hair` ring; the selected one is `surface2` and semibold.
   3. (Night only) three preset chips: 36 pt tall, radius 18, 1.5 pt ring (`accentDim` when active).
-  4. (Night only) **Glow** slider with its % value. Sub-text: *"Below your iPhone's lowest brightness."* when glow < 35, else *"How much light the screen gives off."*
-  5. (Night only) **Warmth** slider with its Kelvin value (e.g. "1,500 K"). The track is a gradient of real Kelvin colours at 75% of the current luminance. Sub-text: *"Blue light about N% lower than daylight white."*
-  6. **Clarity** segmented control: Standard · Large · Bold, with *"Bigger, heavier digits and stronger lines. Readable at lower glow."*
+  4. (Night only) **Glow** slider with its % value. Sub-text: *"Below your iPhone's lowest brightness."* up to glow 40, else *"Above 40%, the screen itself gets brighter."* (CODESPEC 12.3: glow above 40 drives the backlight)
+  5. (Night only) **Warmth** slider with its Kelvin value (e.g. "1,500 K"). The track is a gradient of real Kelvin colours at 75% of the current luminance. Sub-text: *"Blue light about N% lower than daylight white."*, or *"Almost no blue light."* above 95%.
+  6. **Clarity** segmented control: Standard · Large · Bold, with *"Bigger, heavier digits and stronger lines, by day and at night."* (the same on Display & Night).
   7. Rows: **Drift** (toggle) and **Find my lowest glow** (Start).
-- Sliders: 6 pt track (`hair`), 28 pt `ink` thumb with a 5 pt `bg` halo.
+- Sliders: 6 pt track (`hair`), 28 pt `ink` thumb with a 5 pt `bg` halo. At night the thumb is a 2 pt `ink2` ring on black.
 
 ### Display & Night page (Journal → Settings) [4.3, 4.4]
 - Back button; title "Display & Night" (NY 30); a card holding the live preview strip (five 52 pt cells: given 5, entered 3, selected 7, mistake 4, notes).
@@ -233,14 +233,14 @@ Vertical stack:
   - With location: *"Tonight · Sunset 6:12 PM → sunrise 6:41 AM"* and *"Worked out on this iPhone from your rough location and the date. Nothing leaves the phone."*
   - Without: *"Hours · 9:00 PM → 6:30 AM"* (editable).
   - A switch-source chip.
-- **NIGHT SCREEN:** presets, Glow and Warmth, as in the sheet.
+- **NIGHT SCREEN:** presets, Glow and Warmth, as in the sheet. In Day, a second preview strip drawn in the Night palette on black sits above them.
 - **YOUR EYES:** Clarity; **Lowest readable glow** *"Set at N%. Glow and Drift never go below it."* with **Check again**.
 - **QUIET:** Drift; Hide status bar in games; Sounds; Vibration (*"Night always keeps sound and vibration off."*).
 - Footnote explaining Hush.
 
 ### Learn [5.1–5.6]
 - **List:**
-  - Title "Learn" and the sub-line *"6 of 17 techniques in your hands"*.
+  - Title "Learn" and the sub-line *"6 of 17 techniques in your hands"* (mastered only).
   - **Up next** card: label "UP NEXT · 3 MIN", NY 24 name, and a reason line.
   - Then 5 tiers, each with a label and rows: a status dot (12 pt; mastered = filled `accent`, learning = half-filled, new = `ink3` ring), name (16), one-liner (13 `ink3`), and "112×" seen-count or "Lesson".
   - Techniques by tier:
@@ -258,7 +258,7 @@ Vertical stack:
 - **Mastery:** a technique is mastered after about 10 unaided uses. For each manual placement, run the hint engine on the board *before* the move. If it would have suggested the same cell and digit, credit that technique.
 
 ### Journal [6.1, 6.2]
-- Big streak number (NY 56) with "nights in a row" and 7 week-day dots (10 pt).
+- Big streak number (NY 56) with "nights in a row" and 7 week-day dots (10 pt). At 0 with solves this week, *"Last solved Tuesday."* (13 `ink3`) under it.
 - **SOLVED** card: a 4-column table (level, Solved, Best, Typical); the footer line reads *"N assisted solves kept your streak but don't set best times."*
 - **SETTINGS:** Display & Night row.
 - **ASSISTS:**
@@ -277,7 +277,8 @@ Vertical stack:
   - Board with low-confidence cells ringed and conflicts underlined.
   - Legend lines: *"3 unsure. Ringed cells were hard to read — tap to confirm or fix."* and *"Two 4s in row 4. Fix one before starting."*
   - A 1×9 keypad (52 pt).
-  - **Clear cell** and **Start puzzle**. Start is disabled until there are no conflicts and the puzzle is solvable.
+  - **Clear cell** and **Start puzzle**. Start is disabled until there are no conflicts and the puzzle is solvable; disabled, it is a `hair` outline with `ink3` text.
+  - An empty grid shows *"Type the digits printed in the puzzle: tap a cell, then a number."*
 
 ---
 

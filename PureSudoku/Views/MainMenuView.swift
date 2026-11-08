@@ -139,7 +139,7 @@ private struct ImportRoute: Hashable, Identifiable {
 // MARK: - Shared chrome for the tab screens
 
 /// The tab bar: Play, Learn, Journal. `bg` fill and a 1 pt `hair` top border; the active tab is
-/// `accent` with a semibold label, the others `ink3` (Design/v2/README.md).
+/// `accent` with a semibold label, the others `ink2`, readable at night (Design/v2/README.md, QA #29).
 struct PSTabBar: View {
     @Environment(\.psPalette) private var theme
     @Binding var selection: AppTab
@@ -154,7 +154,7 @@ struct PSTabBar: View {
                             .accessibilityHidden(true) // the label names the tab once
                         Text(item.title).font(.system(size: 11, weight: on ? .semibold : .medium))
                     }
-                    .foregroundColor(on ? theme.accent : theme.ink3)
+                    .foregroundColor(on ? theme.accent : theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .contentShape(Rectangle())
                 }
@@ -211,6 +211,7 @@ private struct TabBarModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            .statusBackdrop(theme.bg)
             .safeAreaInset(edge: .bottom, spacing: 0) { PSTabBar(selection: $tab) }
             .background(theme.bg.ignoresSafeArea())
             .toolbar(.hidden, for: .navigationBar)
@@ -223,5 +224,12 @@ extension View {
     /// A tab's root screen: the tab bar below it, no system navigation bar, no status bar at night.
     func tabBar(_ tab: Binding<AppTab>) -> some View {
         modifier(TabBarModifier(tab: tab))
+    }
+
+    /// An opaque strip behind the status bar, so scrolled content never sits under the clock.
+    func statusBackdrop(_ color: Color) -> some View {
+        safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear.frame(height: 0).background(color, ignoresSafeAreaEdges: .top)
+        }
     }
 }

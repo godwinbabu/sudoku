@@ -34,9 +34,11 @@ struct LearnView: View {
         .accessibilityIdentifier("learnView")
     }
 
-    /// Techniques the player has used or met in a hint.
-    private var inHand: Int {
-        Lesson.techniques.filter { controller.progress(for: $0).level != .new }.count
+    private var inHand: Int { Self.inHandCount { controller.progress(for: $0).level } }
+
+    /// Mastered techniques only: half-learned ones are not yet "in your hands".
+    static func inHandCount(_ level: (Technique) -> TechniqueProgress.Level) -> Int {
+        Lesson.techniques.filter { level($0) == .mastered }.count
     }
 
     /// The first technique in curriculum order that isn't mastered yet.
@@ -56,7 +58,7 @@ struct LearnView: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("UP NEXT · \(Lesson.stepCount(for: technique)) STEPS")
-                        .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink3)
+                        .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
                     Text(technique.displayName)
                         .psFont(24, weight: .medium, design: .serif).foregroundColor(theme.ink)
                     Text(reason).psFont(14).foregroundColor(theme.ink2)
@@ -199,7 +201,7 @@ struct LessonView: View {
             HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
                 .accessibilityIdentifier("lesson_back")
             Text("\(technique.learnTier.displayName) · Lesson".uppercased())
-                .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink3)
+                .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
                 .frame(maxWidth: .infinity)
             Color.clear.frame(width: 44, height: 44)
         }

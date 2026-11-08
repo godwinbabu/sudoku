@@ -104,7 +104,9 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "candidates 2", in: app), cell.label)
         app.buttons["moreButton"].tap()
         app.buttons["menu_restart"].tap()
-        app.buttons["confirm_action"].tap()
+        let confirm = app.buttons["confirm_action"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 2), "the confirmation fades in after the menu closes")
+        confirm.tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
 
@@ -121,6 +123,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// A two-finger tap anywhere in a game hushes the screen; a tap brings it back (CODESPEC 12.7).
+    /// Over the Night sheet it does nothing.
     func testTwoFingerTapShowsHush() {
         let app = launchApp()
         startLevel("easy", in: app)
@@ -132,6 +135,11 @@ final class PureSudokuUITests: XCTestCase {
         hush.tap()
         XCTAssertTrue(app.buttons["tool_notes"].waitForExistence(timeout: 2))
         XCTAssertFalse(hush.exists)
+        app.buttons["nightButton"].tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        app.twoFingerTap() // the app element, which has a tap point on every phone size
+        XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 
     func testNotesBadgeToggles() {
@@ -184,6 +192,42 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertEqual(filled.count, filledBefore, "one Undo reverts the hint")
     }
 
+    /// The coach from a hint: All patterns → page → Show me → Place · assisted → Undo (CODESPEC 6.3.3).
+    func testCoachWalksPatternsAndApplies() {
+        let app = launchApp()
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        let filled = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' value '"))
+        let filledBefore = filled.count
+        let keyFrame = app.buttons["number_1"].frame
+
+        app.buttons["tool_hint"].tap()
+        app.buttons["hint_coach"].tap()
+        XCTAssertTrue(element("coachPanel", in: app).waitForExistence(timeout: 2))
+        XCTAssertFalse(element("hintPanel", in: app).exists)
+        XCTAssertEqual(app.buttons["number_1"].frame, keyFrame, "the keypad does not move")
+        let position = element("coachPosition", in: app)
+        XCTAssertTrue(position.label.hasPrefix("Pattern 1 of"), position.label)
+        if app.buttons["coach_forward"].isEnabled {
+            app.buttons["coach_forward"].tap()
+            XCTAssertTrue(position.label.hasPrefix("Pattern 2 of"), position.label)
+            app.buttons["coach_back"].tap()
+        }
+        app.buttons["coach_definition"].tap()
+        XCTAssertTrue(app.buttons["coach_lesson"].exists, "the definition offers the lesson")
+        XCTAssertEqual(filled.count, filledBefore, "browsing changes nothing")
+
+        app.buttons["coach_reveal"].tap()
+        let apply = app.buttons["coach_apply"]
+        XCTAssertTrue(apply.waitForExistence(timeout: 2))
+        XCTAssertTrue(apply.label.hasSuffix("· assisted"), apply.label)
+        apply.tap()
+        XCTAssertFalse(element("coachPanel", in: app).exists)
+        XCTAssertGreaterThan(filled.count, filledBefore, "the simplest pattern on an Easy board places a digit")
+        app.buttons["tool_undo"].tap()
+        XCTAssertEqual(filled.count, filledBefore)
+    }
+
     /// A digit that repeats in the row is always wrong; the hint must point at it first and clear it.
     func testMistakeHintClearsTheWrongDigit() {
         let app = launchApp()
@@ -228,7 +272,7 @@ final class PureSudokuUITests: XCTestCase {
     private func setShowTimer(_ on: Bool, in app: XCUIApplication) -> Bool {
         if !app.buttons["tab_journal"].exists { app.buttons["backButton"].tap() }
         app.buttons["tab_journal"].tap()
-        let toggle = app.buttons["journal_showTimer"]
+        let toggle = element("journal_showTimer", in: app) // a switch on iOS 17+, a button on 16
         XCTAssertTrue(toggle.waitForExistence(timeout: 2))
         for _ in 0..<4 where !toggle.isHittable { app.swipeUp() }
         let wasOn = toggle.value as? String == "On"
@@ -364,7 +408,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertFalse(app.buttons["calibrate_cancel"].exists, "first run has no Cancel")
         tile.tap()
         app.buttons["calibrate_use"].tap()
-        XCTAssertTrue(app.staticTexts["Glow set to 18%."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Glow set to 45%."].waitForExistence(timeout: 2))
         app.buttons["firstNight_start"].tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
         let day = app.buttons["display_appearance_day"]
@@ -535,7 +579,7 @@ extension PureSudokuUITests {
     func testJournalShowTimerHidesTheTimer() {
         let app = launchApp()
         app.buttons["tab_journal"].tap()
-        let timer = app.buttons["journal_showTimer"]
+        let timer = element("journal_showTimer", in: app) // a switch on iOS 17+, a button on 16
         XCTAssertTrue(timer.waitForExistence(timeout: 2))
         for _ in 0..<4 where !timer.isHittable { app.swipeUp() }
         XCTAssertTrue(app.buttons["journal_mistakes_never"].exists)

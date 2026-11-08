@@ -20,13 +20,10 @@ struct FirstNightView: View {
             Color.black.ignoresSafeArea()
             switch step {
             case .calibrate:
-                ScrollView(showsIndicators: false) {
-                    CalibrateView(theme: theme, settings: controller.settings) { pick in
-                        controller.calibrate(pick: pick)
-                        go(.result)
-                    }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 76)
+                // Centred, so the eye rests on the tiles; scrolls when large text no longer fits.
+                ViewThatFits(in: .vertical) {
+                    calibrate
+                    ScrollView(showsIndicators: false) { calibrate.padding(.top, 76) }
                 }
             case .welcome, .result:
                 // Large text that no longer fits the screen scrolls (CODESPEC 9).
@@ -45,6 +42,14 @@ struct FirstNightView: View {
         .accessibilityIdentifier("firstNight")
     }
 
+    private var calibrate: some View {
+        CalibrateView(theme: theme, settings: controller.settings) { pick in
+            controller.calibrate(pick: pick)
+            go(.result)
+        }
+        .padding(.horizontal, 22)
+    }
+
     private var message: some View {
         let done = step == .result
         let kelvin = NightSheetView.kelvinText(controller.settings.warmth)
@@ -56,7 +61,8 @@ struct FirstNightView: View {
                 .psFont(30)
                 .foregroundColor(theme.accent)
                 .accessibilityHidden(true)
-            Text(done ? "Glow set to \(Int(controller.settings.glow))%." : "Good evening.")
+            let greeting = Self.greeting(hour: Calendar.current.component(.hour, from: Date()))
+            Text(done ? "Glow set to \(Int(controller.settings.glow))%." : greeting)
                 .psFont(36, weight: .medium, design: .serif)
                 .foregroundColor(theme.ink)
                 .padding(.top, 22)
@@ -81,7 +87,7 @@ struct FirstNightView: View {
             if !done {
                 Button("Skip for now — use Lights out") { controller.skipFirstNight() }
                     .psFont(15)
-                    .foregroundColor(theme.ink3)
+                    .foregroundColor(theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                     .buttonStyle(.plain)
@@ -92,6 +98,15 @@ struct FirstNightView: View {
         .padding(.horizontal, 30)
         .padding(.top, 96)
         .padding(.bottom, 24)
+    }
+
+    /// The welcome heading by time of day: Night can first come on at any hour (Match iPhone, Night).
+    static func greeting(hour: Int) -> String {
+        switch hour {
+        case 5..<12: return "Good morning."
+        case 12..<18: return "Good afternoon."
+        default: return "Good evening."
+        }
     }
 
     private func go(_ next: Step) {

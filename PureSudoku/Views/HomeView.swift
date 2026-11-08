@@ -46,7 +46,7 @@ struct HomeView: View {
             HStack(spacing: 16) {
                 MiniBoard(cells: game.cells, theme: theme).frame(width: 112, height: 112)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("CONTINUE").psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink3)
+                    Text("CONTINUE").psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
                     Text(game.puzzle.difficulty.displayName)
                         .psFont(24, weight: .medium, design: .serif).foregroundColor(theme.ink)
                     Text("\(GameView.timeString(game.elapsedSeconds)) · \(filled) of 81")
@@ -210,7 +210,8 @@ struct ConfirmPanel: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(theme.isNight ? 0.55 : 0.18)
+            // Near-black at night, so the screen behind does not show around the card.
+            Color.black.opacity(theme.isNight ? 0.92 : 0.18)
                 .ignoresSafeArea()
                 .onTapGesture(perform: onDismiss)
             PopoverCard(theme: theme) {
@@ -225,6 +226,7 @@ struct ConfirmPanel: View {
             .padding(.vertical, 16)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
+            .accessibilityAction(.escape, onDismiss)
             .accessibilityIdentifier("confirmDialog")
         }
     }

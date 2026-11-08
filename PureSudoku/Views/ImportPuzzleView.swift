@@ -71,9 +71,10 @@ struct ImportPuzzleView: View {
             HeaderIconButton(theme: theme, symbol: "xmark", label: "Discard") { dismiss() }
                 .accessibilityIdentifier("importDiscard")
             Text(viewModel.step == .review ? "CHECK THE GRID" : "")
-                .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink3)
+                .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
                 .frame(maxWidth: .infinity)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityHidden(viewModel.step != .review) // empty on the other steps
             NightButton()
         }
         .padding(.horizontal, 10)
@@ -233,7 +234,6 @@ struct ImportPuzzleView: View {
             }
             .buttonStyle(PSButtonStyle(theme: theme, height: 46))
             .disabled(!viewModel.canStart)
-            .opacity(viewModel.canStart ? 1 : 0.4)
             .accessibilityIdentifier("importStartPuzzle")
         }
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the grid, keypad and these share one screen
@@ -258,6 +258,11 @@ struct ImportPuzzleView: View {
                 }
                 .accessibilityIdentifier("importConflictLegend")
             } else {
+                if let hint = viewModel.emptyGridHint {
+                    Text(hint).psFont(14).foregroundColor(theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("importEmptyHint")
+                }
                 if let message = viewModel.detectionMessage {
                     Text(message).psFont(14).foregroundColor(theme.ink2)
                 }

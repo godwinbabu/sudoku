@@ -43,12 +43,20 @@ final class StatsViewModel: ObservableObject {
         var monday = Calendar(identifier: .gregorian)
         monday.timeZone = calendar.timeZone
         monday.firstWeekday = 2
-        guard let start = monday.dateInterval(of: .weekOfYear, for: date)?.start else { return [] }
+        // Until 4 am it is still last night, so Monday 00:30 shows the week that night belongs to.
+        guard let start = monday.dateInterval(of: .weekOfYear, for: Stats.playDay(date, calendar: calendar))?.start else { return [] }
         let names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         return names.enumerated().map { offset, name in
             let day = monday.date(byAdding: .day, value: offset, to: start) ?? start
             return WeekDay(day: String(name.prefix(1)), name: name, solved: stats.solved(on: day, calendar: calendar))
         }
+    }
+
+    /// "Last solved Tuesday." when the streak is 0 but this week has a solve, so 0 beside filled dots reads true.
+    func lastSolvedLine(at date: Date = Date(), calendar: Calendar = .current) -> String? {
+        guard stats.currentStreak(at: date, calendar: calendar) == 0,
+              let day = week(at: date, calendar: calendar).last(where: \.solved) else { return nil }
+        return "Last solved \(day.name)."
     }
 
     func formattedBestTime(for difficulty: Difficulty) -> String {

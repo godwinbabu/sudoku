@@ -11,6 +11,8 @@ struct HintCardView: View {
     /// Undo for entries that clash (imports); nil hides the button.
     let onUndo: (() -> Void)?
     let onLesson: (Technique) -> Void
+    /// Opens the coach on this board; shown at step 1 of a technique hint.
+    var onCoach: (() -> Void)?
     let onClose: () -> Void
 
     /// Text sizes and the room the text gets inside the 124 pt slot: 124 − 24 padding − 20 top row
@@ -42,6 +44,10 @@ struct HintCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(theme.hair, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("hintPanel")
+        // Each new step is read out, as lesson steps are.
+        .onChange(of: session.level) { _ in
+            UIAccessibility.post(notification: .announcement, argument: session.accessibilityText(names))
+        }
     }
 
     private func bodyText(size: CGFloat) -> some View {
@@ -78,19 +84,19 @@ struct HintCardView: View {
                     Text(session.stepLabel.uppercased())
                         .psFont(11, weight: .semibold)
                         .tracking(0.9)
-                        .foregroundColor(theme.ink3)
+                        .foregroundColor(theme.ink2)
                 }
             }
             .accessibilityIdentifier("hintStep")
             .accessibilityLabel("Step \(session.level) of \(HintSession.stepCount): \(session.title ?? session.stepLabel)")
             if let tier = session.tierLabel {
-                Text("· \(tier)").psFont(11).foregroundColor(theme.ink3).fixedSize()
+                Text("· \(tier)").psFont(11).foregroundColor(theme.ink2).fixedSize()
             }
             Spacer(minLength: 0)
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .psFont(13, weight: .medium)
-                    .foregroundColor(theme.ink3)
+                    .foregroundColor(theme.ink2)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -113,6 +119,14 @@ struct HintCardView: View {
                     .buttonStyle(.plain)
                     .accessibilityShowsLargeContentViewer()
                     .accessibilityIdentifier("hint_lesson")
+            } else if session.level == 1, session.step != nil, let onCoach {
+                Button("All patterns →", action: onCoach)
+                    .psFont(13)
+                    .foregroundColor(theme.ink2)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("hint_coach")
             }
             Spacer(minLength: 0)
             if session.canGoNext, let label = session.actionLabel {

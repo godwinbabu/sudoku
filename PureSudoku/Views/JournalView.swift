@@ -73,6 +73,9 @@ struct JournalView: View {
                     .psFont(56, weight: .medium, design: .serif, monospacedDigit: true)
                     .foregroundColor(theme.ink)
                 Text("nights in a row").psFont(14).foregroundColor(theme.ink3)
+                if let line = viewModel.lastSolvedLine() {
+                    Text(line).psFont(13).foregroundColor(theme.ink3)
+                }
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("journal_streak")
@@ -174,6 +177,12 @@ struct JournalView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
+            SettingRow(theme: theme, label: "Coach when I'm stuck",
+                       sub: "After two minutes without a new digit, Hint walks you through the patterns on your board.") {
+                PSToggle(theme: theme, isOn: settings.coachWhenStuck, label: "Coach when I'm stuck",
+                         onChange: settingsModel.setCoachWhenStuck)
+                    .accessibilityIdentifier("journal_coachWhenStuck")
+            }
             SettingRow(theme: theme, label: "Show timer", last: true) {
                 PSToggle(theme: theme, isOn: settings.showTimer, label: "Show timer", onChange: settingsModel.setShowTimer)
                     .accessibilityIdentifier("journal_showTimer")

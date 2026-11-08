@@ -8,9 +8,11 @@ struct PSButtonStyle: ButtonStyle {
     let theme: PSPalette
     var kind = Kind.primary
     var height: CGFloat = 40
+    /// Disabled buttons are a hair outline with ink3 text: at least 3:1 in Day, unlike a faded fill.
+    @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let primary = kind == .primary
+        let primary = kind == .primary && isEnabled
         let fontSize: CGFloat = height < 40 ? 14 : 15
         configuration.label
             .psFont(fontSize, weight: .semibold)
@@ -19,7 +21,8 @@ struct PSButtonStyle: ButtonStyle {
             .padding(.vertical, 6)
             // The capsule grows with its label (CODESPEC 9), so wrapped text stays inside it.
             .frame(minHeight: height)
-            .foregroundColor(primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
+            .foregroundColor(!isEnabled ? theme.ink3
+                             : primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
             .background(Capsule().fill(primary && !theme.isNight ? theme.accent : .clear))
             .overlay(
                 Capsule()
@@ -111,6 +114,9 @@ struct PopoverCard<Content: View>: View {
             .background(RoundedRectangle(cornerRadius: 14).fill(theme.isNight ? theme.bg : theme.surface2))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.hair, lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            // VoiceOver stays inside the menu or confirmation, not on the board behind it.
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
     }
 }
 
@@ -169,7 +175,7 @@ struct SolvedPanel: View {
                 Text(techniques)
                     .psFont(13)
                     .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                    .foregroundColor(theme.ink3)
+                    .foregroundColor(theme.ink2)
                     .padding(.top, 4)
             }
             PSButtonRow(trailing: false) {
@@ -214,7 +220,7 @@ struct BlackoutView: View {
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.6)) { showsText = false }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
+            .accessibilityAddTraits([.isButton, .isModal])
     }
 }
 

@@ -36,6 +36,7 @@ struct RootView: View {
         .environment(\.psPalette, controller.palette)
         .environment(\.psType, PSType(controller.settings.clarity))
         .preferredColorScheme(controller.preferredColorScheme)
+        .persistentSystemOverlays(controller.hidesHomeIndicator || controller.showsFirstNight ? .hidden : .automatic)
         .onChange(of: scenePhase) { _ in
             controller.objectWillChange.send() // After dark and Match iPhone may have changed while away
             updateDisplay()
@@ -43,6 +44,8 @@ struct RootView: View {
         .onChange(of: controller.settings) { _ in updateDisplay() }
         // After dark can flip on any redraw (e.g. an autosave); Match iPhone flips with iOS dark mode.
         .onChange(of: controller.isNight) { _ in updateDisplay() }
+        .onChange(of: controller.driftSteps) { _ in updateDisplay() }
+        .onChange(of: controller.isCalibrating) { _ in updateDisplay() }
         .onChange(of: colorScheme) { _ in controller.objectWillChange.send() }
         .onAppear(perform: updateDisplay)
         .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.darkerSystemColorsStatusDidChangeNotification)) { _ in
@@ -53,7 +56,10 @@ struct RootView: View {
 
     private func updateDisplay() {
         controller.updateFirstNight()
-        brightness.update(lower: ScreenBrightnessController.shouldLower(phase: scenePhase, isNight: controller.isNight))
+        let target = ScreenBrightnessController.target(phase: scenePhase, isNight: controller.isNight,
+                                                       isCalibrating: controller.isCalibrating,
+                                                       nightBacklight: controller.nightBacklight)
+        brightness.update(target: target, request: [controller.settings.glow, controller.isCalibrating ? 1 : 0])
         SystemAppearance.apply(controller.palette)
     }
 }
