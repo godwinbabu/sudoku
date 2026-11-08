@@ -364,7 +364,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertFalse(app.buttons["calibrate_cancel"].exists, "first run has no Cancel")
         tile.tap()
         app.buttons["calibrate_use"].tap()
-        XCTAssertTrue(app.staticTexts["Glow set to 18%."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Glow set to 45%."].waitForExistence(timeout: 2))
         app.buttons["firstNight_start"].tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
         let day = app.buttons["display_appearance_day"]

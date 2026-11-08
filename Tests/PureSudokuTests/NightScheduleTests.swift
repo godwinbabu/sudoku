@@ -411,7 +411,7 @@ final class NightScheduleTests: XCTestCase {
         controller.updateFirstNight()
         controller.calibrate(pick: 14)
         XCTAssertEqual(controller.settings.glowFloor, 14)
-        XCTAssertEqual(controller.settings.glow, 18)
+        XCTAssertEqual(controller.settings.glow, NightPreset.lightsOut.glow, "glow starts mid-range, not at the edge of readable")
         XCTAssertTrue(controller.settings.calibrated)
         XCTAssertTrue(controller.showsFirstNight, "the result screen stays until Start playing")
         controller.endFirstNight()
@@ -429,9 +429,9 @@ final class NightScheduleTests: XCTestCase {
     func testPresetsRespectTheFloorAndStillMatch() {
         let (controller, _) = makeTestController()
         let viewModel = SettingsViewModel(controller: controller)
-        controller.calibrate(pick: 24)
-        viewModel.applyPreset(.lightsOut)
-        XCTAssertEqual(controller.settings.glow, 24)
-        XCTAssertEqual(NightPreset.matching(controller.settings), .lightsOut)
+        controller.calibrate(pick: 32) // the brightest tile, above Red light's glow 30
+        viewModel.applyPreset(.redLight)
+        XCTAssertEqual(controller.settings.glow, 32)
+        XCTAssertEqual(NightPreset.matching(controller.settings), .redLight)
     }
 }

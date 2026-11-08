@@ -128,6 +128,15 @@ struct Settings: Codable, Equatable {
         return [start..<end]
     }
 
+    /// 2: glow 0–40 scales the palette and 40–100 the backlight (CODESPEC 12.3).
+    static let glowScale = 2
+
+    /// The scale-2 glow that draws the palette as strongly as `glow` did on scale 1, where strength
+    /// grew with (glow / 100)^1.15 and the backlight stayed at its minimum.
+    static func glowOnScale2(fromScale1 glow: Double) -> Double {
+        (PSPalette.paletteGlowRange * pow(min(100, max(0, glow)) / 100, 1.15 / 0.9)).rounded()
+    }
+
     mutating func apply(_ preset: NightPreset) {
         glow = max(preset.glow, glowFloor)
         warmth = preset.warmth
@@ -136,21 +145,20 @@ struct Settings: Codable, Equatable {
     // MARK: Codable, with migration from the v1 keys
 
     private enum CodingKeys: String, CodingKey {
-        case appearance, glow, warmth, clarity, glowFloor, calibrated, drift, hideStatusBarInGames
+        case appearance, glow, warmth, clarity, glowFloor, glowScale, calibrated, drift, hideStatusBarInGames
         case useLocationForAfterDark, afterDarkStart, afterDarkEnd
         case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer
         case notation, keepImportImages
         // Read only: v1 keys, and cellNameStyle (short/long) from before `notation`.
         // askBeforeHintResult is no longer read: the hint card has no "Try it yourself first?" step.
         case cellNameStyle
-        case theme, bedtimeMode, sleepBrightness, autoRemoveCandidates, autoCheckMistakes
+        case theme, bedtimeMode, autoRemoveCandidates, autoCheckMistakes
         case hasCalibratedDisplay, displayProfiles, activeDisplayProfileID, bedtimeDisplayProfileID
     }
 
     /// The part of a v1 display profile we carry over.
     private struct LegacyProfile: Decodable {
         let id: UUID
-        let dimness: Double
         let warmth: Double
     }
 
@@ -162,7 +170,6 @@ struct Settings: Codable, Equatable {
         }
 
         var appearance = defaults.appearance
-        var glow = defaults.glow
         var warmth = defaults.warmth
         // v1: theme light → Day, dark → Night, system → Match iPhone, sleep or Bedtime Mode → Night with Lights out.
         if let theme: String = try? c.decodeIfPresent(String.self, forKey: .theme) {
@@ -171,35 +178,35 @@ struct Settings: Codable, Equatable {
             case "dark", "sleep": appearance = .night
             default: appearance = .matchSystem
             }
-            switch value(.sleepBrightness, "extraDim") {
-            case "normal": glow = 55
-            case "dim": glow = 30
-            default: glow = 18
-            }
             let bedtime = value(.bedtimeMode, false)
             let sleepy = theme == "sleep" || bedtime
             if sleepy {
                 appearance = .night
-                glow = NightPreset.lightsOut.glow
                 warmth = NightPreset.lightsOut.warmth
             }
-            // A v1 display profile is the player's own tuning: keep its brightness and warmth. Sleep players
-            // got an untuned profile until they calibrated, so for them only a calibrated one beats Lights out.
+            // A v1 display profile is the player's own tuning: keep its warmth (its brightness was glow scale 1,
+            // reset below). Sleep players got an untuned profile until they calibrated, so for them only a
+            // calibrated one beats Lights out.
             let profiles: [LegacyProfile] = value(.displayProfiles, [])
             let activeID: UUID? = value(.activeDisplayProfileID, nil)
             let wantedID: UUID? = bedtime ? (value(.bedtimeDisplayProfileID, nil) ?? activeID) : activeID
             if !sleepy || value(.hasCalibratedDisplay, false),
                let profile = profiles.first(where: { $0.id == wantedID }) ?? profiles.first {
-                glow = ((1 - profile.dimness) * 60).rounded()
                 warmth = (profile.warmth * 100).rounded()
             }
         }
 
         self.appearance = value(.appearance, appearance)
-        self.glow = value(.glow, glow)
+        self.glow = value(.glow, defaults.glow)
         self.warmth = value(.warmth, warmth)
         clarity = value(.clarity, defaults.clarity)
         glowFloor = value(.glowFloor, defaults.glowFloor)
+        // Glow scale 1 (before glow drove the backlight) was far too dark, so its glow is not kept: the
+        // floor maps to the same palette strength, and glow restarts at Lights out, above the floor.
+        if value(.glowScale, 1) < Self.glowScale {
+            glowFloor = Self.glowOnScale2(fromScale1: glowFloor)
+            self.glow = max(NightPreset.lightsOut.glow, glowFloor)
+        }
         calibrated = value(.calibrated, value(.hasCalibratedDisplay, defaults.calibrated))
         drift = value(.drift, defaults.drift)
         hideStatusBarInGames = value(.hideStatusBarInGames, defaults.hideStatusBarInGames)
@@ -224,6 +231,7 @@ struct Settings: Codable, Equatable {
         try c.encode(warmth, forKey: .warmth)
         try c.encode(clarity, forKey: .clarity)
         try c.encode(glowFloor, forKey: .glowFloor)
+        try c.encode(Self.glowScale, forKey: .glowScale)
         try c.encode(calibrated, forKey: .calibrated)
         try c.encode(drift, forKey: .drift)
         try c.encode(hideStatusBarInGames, forKey: .hideStatusBarInGames)

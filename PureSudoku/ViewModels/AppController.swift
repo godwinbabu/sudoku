@@ -20,6 +20,16 @@ final class AppController: ObservableObject {
     @Published var showsNightSheet = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
     @Published private(set) var showsFirstNight = false
+    /// This game's Drift steps, set by the game screen: the backlight follows the drifted glow.
+    @Published var driftSteps = 0
+    /// Find my lowest glow is on screen: the backlight sits at its minimum so the tiles show the
+    /// palette layer alone (CODESPEC 12.3).
+    @Published var isCalibrating = false
+
+    /// The screen backlight Night wants now.
+    var nightBacklight: CGFloat {
+        PSPalette.backlight(glow: DriftController.apply(steps: driftSteps, to: settings).glow)
+    }
     let afterDark: AfterDarkScheduler
     private var suppressesFirstNight = false
 
@@ -351,11 +361,12 @@ final class AppController: ObservableObject {
         showsNightSheet = false // one modal at a time
     }
 
-    /// "Use this" in Find my lowest glow: the pick is the floor, and glow starts 4 above it.
+    /// "Use this" in Find my lowest glow: the pick is the floor. Glow starts at Lights out, or 4 above
+    /// the floor if that is higher, so the first night isn't drawn at the edge of readable.
     func calibrate(pick: Double) {
         updateSettings {
             $0.glowFloor = pick
-            $0.glow = min(100, pick + 4)
+            $0.glow = min(100, max(NightPreset.lightsOut.glow, pick + 4))
             $0.calibrated = true
         }
     }
