@@ -139,13 +139,50 @@ final class AppControllerTests: XCTestCase {
         let first = launch()
         XCTAssertEqual(first.resetData, ["stats", "learning progress"])
         XCTAssertEqual(first.resetNotice, "Some saved data couldn’t be read, so your stats and learning progress started over. "
-                       + "A copy of the old file was kept on this iPhone.")
+                       + "The old data was kept on this iPhone.")
         XCTAssertEqual(launch().resetData, ["stats", "learning progress"], "kept until dismissed")
 
         launch().dismissResetNotice()
         let after = launch()
         XCTAssertTrue(after.resetData.isEmpty, "each incident is shown once")
         XCTAssertNil(after.resetNotice)
+    }
+
+    /// The notice comes from the set-aside copies on disk, so a failed save cannot lose it (#53).
+    func testResetNoticeSurvivesAFailedAcknowledgement() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("stats.json"))
+        let launch = { AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider()) }
+        let ackFile = dir.appendingPathComponent("reset_notice.json")
+        // A folder in place of the acknowledgement file: it cannot be read, so saving it fails.
+        try FileManager.default.createDirectory(at: ackFile, withIntermediateDirectories: true)
+
+        let first = launch()
+        XCTAssertEqual(first.resetData, ["stats"])
+        first.dismissResetNotice()
+        XCTAssertNil(first.resetNotice)
+        XCTAssertEqual(launch().resetData, ["stats"], "a failed acknowledgement shows the notice again")
+
+        try FileManager.default.removeItem(at: ackFile)
+        launch().dismissResetNotice()
+        XCTAssertNil(launch().resetNotice, "acknowledged")
+
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("settings.json"))
+        let later = launch()
+        XCTAssertEqual(later.resetData, ["settings"], "a new corruption shows only the new copy")
+        XCTAssertEqual(later.resetCopies.count, 1)
+    }
+
+    func testDamagedAcknowledgementFileCountsAsNothingAcknowledged() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("stats.json"))
+        let launch = { AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider()) }
+        launch().dismissResetNotice()
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("reset_notice.json"))
+
+        XCTAssertEqual(launch().resetData, ["stats"])
     }
 
     func testCleanLaunchHasNoResetNotice() {
@@ -194,6 +231,23 @@ final class AppControllerTests: XCTestCase {
             let id = try XCTUnwrap(game.gameState.puzzle.importImageID)
             XCTAssertEqual(imageExists(id), saved.contains { $0.id == game.id }, "only images of kept games survive")
         }
+    }
+
+    /// The import being saved is kept even when 20 others look newer because the clock moved back.
+    func testSavingASolvedImportKeepsItWhenOthersAreDatedInTheFuture() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        var games = (0..<20).map { importedGame($0, solved: true, imageID: nil, opened: now + 86_400 + Double($0)) }
+        games.append(importedGame(50, solved: true, imageID: nil, opened: now - 60))
+        let persistence = PersistenceManager(directory: dir)
+        try persistence.save(games, to: "imported_games.json")
+        let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(date: now))
+
+        let viewModel = try XCTUnwrap(controller.makeImportedGameViewModel(id: "import-50"))
+        viewModel.onSave?(viewModel.state)
+
+        let saved = try XCTUnwrap(persistence.load([ImportedGame].self, from: "imported_games.json"))
+        XCTAssertTrue(saved.contains { $0.id == "import-50" }, "the game being saved is never pruned")
     }
 
     func testAutosaveOfAnImportDoesNotScanImages() throws {

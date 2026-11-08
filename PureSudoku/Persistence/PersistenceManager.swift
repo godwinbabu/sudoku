@@ -8,8 +8,6 @@ final class PersistenceManager {
 
     /// Files that failed to read this session; saving over them is refused.
     private var protectedFiles: Set<String> = []
-    /// Files moved aside as unreadable this session (`quarantine`), in order.
-    private(set) var setAsideFiles: [String] = []
 
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
@@ -83,7 +81,6 @@ final class PersistenceManager {
         }
         do {
             try fileManager.moveItem(at: url, to: backup)
-            setAsideFiles.append(fileName)
         } catch {
             protectedFiles.insert(fileName)
         }
@@ -96,6 +93,13 @@ final class PersistenceManager {
               let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return false }
         let prefix = (fileName as NSString).deletingPathExtension + ".corrupt-"
         return names.contains { $0.hasPrefix(prefix) }
+    }
+
+    /// The names of every copy set aside by `load` (`name.corrupt-<time>.json`) still on disk, sorted.
+    func setAsideCopies() -> [String] {
+        guard let directory = try? baseURL(),
+              let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return [] }
+        return names.filter { $0.contains(".corrupt-") }.sorted()
     }
 
     func delete(_ fileName: String) {

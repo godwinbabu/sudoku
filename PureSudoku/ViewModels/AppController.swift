@@ -16,9 +16,9 @@ final class AppController: ObservableObject {
     /// Which moves may still earn credit (CODESPEC 13.4), saved with the progress (`LearningFile`).
     private(set) var learningLedger = LearningLedger()
     @Published var lastPersistenceError: (any Error)?
-    /// Data that was reset because its file was unreadable and moved aside, until the player
-    /// dismisses the notice on Home (CODESPEC 8). Saved, so each incident is shown once.
-    @Published private(set) var resetData: [String] = []
+    /// Set-aside copies (`name.corrupt-<time>.json`) the player has not yet acknowledged on Home
+    /// (CODESPEC 8). Only acknowledged copy names are saved, in reset_notice.json.
+    @Published private(set) var resetCopies: [String] = []
     /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
     @Published var showsNightSheet = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
@@ -113,7 +113,7 @@ final class AppController: ObservableObject {
             learningLedger.prune(keeping: Set(activeGames.values.map(\.puzzle.id) + importedGames.map(\.gameState.puzzle.id)))
             if learningLedger != before { saveLearning() }
         }
-        recordResetData()
+        loadResetNotice()
         countSolutionsOfOldImports()
         #if DEBUG
         // UI tests start past the first-night flow, whatever the simulator clock says.
@@ -468,7 +468,7 @@ final class AppController: ObservableObject {
         }
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
-        persistImportedGames()
+        persistImportedGames(keeping: id)
     }
 
     private func handleImportedCompletion(state: GameState, id: String) {
@@ -483,8 +483,8 @@ final class AppController: ObservableObject {
 
     /// Prunes old solved imports, saves the list, then removes images no game uses (only after a
     /// successful save).
-    private func persistImportedGames() {
-        pruneSolvedImports()
+    private func persistImportedGames(keeping savedID: String? = nil) {
+        pruneSolvedImports(keeping: savedID)
         do {
             try persistence.save(importedGames, to: File.importedGames.rawValue)
         } catch {
@@ -498,9 +498,11 @@ final class AppController: ObservableObject {
 // MARK: Solved imports (CODESPEC 8)
 
 extension AppController {
-    /// Keeps every unfinished import and only the `keptSolvedImports` most recently played solved ones.
-    fileprivate func pruneSolvedImports() {
-        let solved = importedGames.filter(\.gameState.isCompleted).sorted { $0.lastOpened > $1.lastOpened }
+    /// Keeps every unfinished import, the one being saved (`savedID`, even if the clock moved), and
+    /// only the `keptSolvedImports` most recently played other solved ones.
+    fileprivate func pruneSolvedImports(keeping savedID: String?) {
+        let solved = importedGames.filter { $0.gameState.isCompleted && $0.id != savedID }
+            .sorted { $0.lastOpened > $1.lastOpened }
         let dropped = Set(solved.dropFirst(Self.keptSolvedImports).map(\.id))
         guard !dropped.isEmpty else { return }
         importedGames.removeAll { dropped.contains($0.id) }
@@ -510,27 +512,35 @@ extension AppController {
 // MARK: Reset notice (CODESPEC 8)
 
 extension AppController {
-    /// Adds the data whose file was moved aside at this launch to the saved notice list.
-    fileprivate func recordResetData() {
-        let saved = (try? persistence.load([String].self, from: File.resetNotice.rawValue)) ?? []
-        var names = saved
-        for name in persistence.setAsideFiles.compactMap(File.dataName) where !names.contains(name) {
+    /// Derives the notice from the set-aside copies on disk, minus those the player already
+    /// acknowledged, so it cannot be lost when a save fails.
+    fileprivate func loadResetNotice() {
+        // A damaged acknowledgement file counts as nothing acknowledged.
+        let acknowledged = Set((try? persistence.load([String].self, from: File.resetNotice.rawValue)) ?? [])
+        resetCopies = persistence.setAsideCopies().filter { !acknowledged.contains($0) && File.dataName(forCopy: $0) != nil }
+    }
+
+    /// What was reset, in words, for the copies not yet acknowledged.
+    var resetData: [String] {
+        var names: [String] = []
+        for name in resetCopies.compactMap(File.dataName(forCopy:)) where !names.contains(name) {
             names.append(name)
         }
-        resetData = names
-        if names != saved { try? persistence.save(names, to: File.resetNotice.rawValue) }
+        return names
     }
 
     /// The Home notice for `resetData`, or nil when there is nothing to tell.
     var resetNotice: String? {
         guard !resetData.isEmpty else { return nil }
         return "Some saved data couldn’t be read, so your \(resetData.formatted(.list(type: .and))) started over. "
-            + "A copy of the old file was kept on this iPhone."
+            + "The old data was kept on this iPhone."
     }
 
+    /// Saves every set-aside copy on disk as acknowledged. If that save fails, the notice shows
+    /// again at the next launch.
     func dismissResetNotice() {
-        resetData = []
-        persistence.delete(File.resetNotice.rawValue)
+        resetCopies = []
+        try? persistence.save(persistence.setAsideCopies(), to: File.resetNotice.rawValue)
     }
 }
 
@@ -555,8 +565,11 @@ private enum File: RawRepresentable {
         }
     }
 
-    /// What the player lost when `fileName` was moved aside, in words for the reset notice.
-    static func dataName(_ fileName: String) -> String? {
+    /// What the player lost when `copy` (`name.corrupt-<time>.json`) was set aside, in words for
+    /// the reset notice.
+    static func dataName(forCopy copy: String) -> String? {
+        guard let range = copy.range(of: ".corrupt-") else { return nil }
+        let fileName = String(copy[..<range.lowerBound]) + ".json"
         switch fileName {
         case File.settings.rawValue: return "settings"
         case File.stats.rawValue: return "stats"

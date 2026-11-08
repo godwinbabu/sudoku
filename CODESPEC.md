@@ -630,7 +630,7 @@ struct Stats: Codable {
     var solvedDays: [Date]               // last 14 days with a counted solve, for the Journal week
 }
 
-A file that reads but cannot be decoded is moved aside as name.corrupt-<time>.json and that data starts over. Home then shows a calm notice (a hairline box, no fill, with an outline OK button) naming what was reset and saying a copy was kept; it is saved in reset_notice.json, so it shows until dismissed and once per incident.
+A file that reads but cannot be decoded is moved aside as name.corrupt-<time>.json and that data starts over. Home then shows a calm notice (a hairline box, no fill, with an outline OK button) naming what was reset and saying "The old data was kept on this iPhone." The notice comes from the set-aside copies on disk, so it cannot be lost: it lists every copy the player has not acknowledged. Tapping OK saves the copy names as acknowledged in reset_notice.json. If that save fails, or that file is damaged, the notice simply shows again at the next launch. A later corruption shows the notice again for the new copy only.
 
 Streak rules:
 	•	Puzzle completed without usedReveal:
