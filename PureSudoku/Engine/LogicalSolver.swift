@@ -27,6 +27,20 @@ struct LogicalSolver {
         return SinglesDetector.hiddenSingles(board, in: House.rows, technique: .hiddenSingleLine).min(by: Self.isPreferred) ?? step
     }
 
+    /// Every pattern on `board` a person could use now, one per technique name, simplest first: what
+    /// the coach walks through (CODESPEC 6.3.3).
+    func patterns(_ board: SolverBoard) -> [TechniqueStep] {
+        guard !board.isSolved, !board.hasContradiction else { return [] }
+        var names: Set<String> = []
+        return Technique.allCases.compactMap { technique in
+            guard allowsUniqueness || !technique.needsUniqueSolution, !names.contains(technique.displayName),
+                  let best = Self.steps(for: technique, on: board).filter({ $0.changeCount > 0 }).min(by: Self.isPreferred)
+            else { return nil }
+            names.insert(technique.displayName)
+            return best
+        }
+    }
+
     struct Result {
         let steps: [TechniqueStep]
         let board: SolverBoard
