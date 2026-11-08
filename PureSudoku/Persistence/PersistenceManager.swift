@@ -8,6 +8,8 @@ final class PersistenceManager {
 
     /// Files that failed to read this session; saving over them is refused.
     private var protectedFiles: Set<String> = []
+    /// Files moved aside as unreadable this session (`quarantine`), in order.
+    private(set) var setAsideFiles: [String] = []
 
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
@@ -81,6 +83,7 @@ final class PersistenceManager {
         }
         do {
             try fileManager.moveItem(at: url, to: backup)
+            setAsideFiles.append(fileName)
         } catch {
             protectedFiles.insert(fileName)
         }

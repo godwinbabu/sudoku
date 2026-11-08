@@ -550,9 +550,16 @@ extension PureSudokuUITests {
 
 /// Import (CODESPEC 3.4).
 extension PureSudokuUITests {
+    /// On short screens the Import row can start under the tab bar (XCUITest still calls it hittable),
+    /// so scroll Home to the bottom first.
+    private func openImport(in app: XCUIApplication) {
+        element("homeView", in: app).swipeUp()
+        app.buttons["importPuzzleButton"].tap()
+    }
+
     func testImportButtonOpensImportScreen() {
         let app = launchApp()
-        app.buttons["importPuzzleButton"].tap()
+        openImport(in: app)
         XCTAssertTrue(element("importPuzzleView", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(element("importSource", in: app).exists, "import starts on Source")
         XCTAssertTrue(app.buttons["importChoosePhoto"].exists)
@@ -562,7 +569,7 @@ extension PureSudokuUITests {
     /// Type it in → Check the grid: a repeated digit is named and blocks Start; clearing it lifts that.
     func testImportCheckTheGridFlagsAConflict() {
         let app = launchApp()
-        app.buttons["importPuzzleButton"].tap()
+        openImport(in: app)
         app.buttons["importTypeItIn"].tap()
         XCTAssertTrue(element("importReview", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["CHECK THE GRID"].exists)

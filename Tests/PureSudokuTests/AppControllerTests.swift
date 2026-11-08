@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 @testable import PureSudoku
 
 @MainActor
@@ -124,5 +125,90 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(journal.rowLabel(for: .expert), "Expert: 1 solved, best 4:12, typical 4:12")
         XCTAssertEqual(journal.rowLabel(for: .master), "Master: solved none yet, best none yet, typical none yet")
         XCTAssertEqual(journal.week().map(\.name).first, "Monday")
+    }
+
+    // MARK: Reset notice (#36)
+
+    func testDamagedStatsShowResetNoticeOnceUntilDismissed() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("stats.json"))
+        try Data("not json".utf8).write(to: dir.appendingPathComponent("technique_progress.json"))
+        let launch = { AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider()) }
+
+        let first = launch()
+        XCTAssertEqual(first.resetData, ["stats", "learning progress"])
+        XCTAssertEqual(first.resetNotice, "Some saved data couldn’t be read, so your stats and learning progress started over. "
+                       + "A copy of the old file was kept on this iPhone.")
+        XCTAssertEqual(launch().resetData, ["stats", "learning progress"], "kept until dismissed")
+
+        launch().dismissResetNotice()
+        let after = launch()
+        XCTAssertTrue(after.resetData.isEmpty, "each incident is shown once")
+        XCTAssertNil(after.resetNotice)
+    }
+
+    func testCleanLaunchHasNoResetNotice() {
+        let (controller, _) = makeTestController()
+        XCTAssertNil(controller.resetNotice)
+    }
+
+    // MARK: Imported games pruning (#38)
+
+    private func importedGame(_ index: Int, solved: Bool, imageID: String?, opened: Date) -> ImportedGame {
+        let puzzle = SudokuPuzzle(id: "import-\(index)", difficulty: .easy, initialGrid: TestData.puzzle.initialGrid,
+                                  solutionGrid: TestData.puzzle.solutionGrid, source: .imported,
+                                  importImageID: imageID, hasUniqueSolution: true)
+        var state = GameState.newGame(for: puzzle)
+        state.isCompleted = solved
+        return ImportedGame(gameState: state, createdAt: opened, lastOpened: opened)
+    }
+
+    func testSavingImportsKeepsUnfinishedAndNewestSolved() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let imagesDir = dir.appendingPathComponent("ImportedImages", isDirectory: true)
+        let store = ImportedImageStore(directory: imagesDir)
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
+        let base = Date(timeIntervalSince1970: 1_000_000)
+        // 25 solved (index 0 oldest) and one unfinished game opened before all of them.
+        var games = try (0..<25).map { index in
+            importedGame(index, solved: true, imageID: try XCTUnwrap(store.save(image: image)),
+                         opened: base + Double(index) * 60)
+        }
+        let unfinishedImage = try XCTUnwrap(store.save(image: image))
+        games.append(importedGame(99, solved: false, imageID: unfinishedImage, opened: base - 3600))
+        let persistence = PersistenceManager(directory: dir)
+        try persistence.save(games, to: "imported_games.json")
+
+        let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(), imageStore: store)
+        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid))
+
+        let saved = try XCTUnwrap(persistence.load([ImportedGame].self, from: "imported_games.json"))
+        let solvedIDs = Set(saved.filter(\.gameState.isCompleted).map(\.id))
+        XCTAssertEqual(solvedIDs, Set((5..<25).map { "import-\($0)" }), "the 20 newest solved are kept")
+        XCTAssertTrue(saved.contains { $0.id == "import-99" }, "unfinished imports are never pruned")
+        XCTAssertEqual(saved.count, 22)
+        let imageExists = { (id: String) in FileManager.default.fileExists(atPath: imagesDir.appendingPathComponent("\(id).jpg").path) }
+        XCTAssertTrue(imageExists(unfinishedImage))
+        for game in games {
+            let id = try XCTUnwrap(game.gameState.puzzle.importImageID)
+            XCTAssertEqual(imageExists(id), saved.contains { $0.id == game.id }, "only images of kept games survive")
+        }
+    }
+
+    func testAutosaveOfAnImportDoesNotScanImages() throws {
+        let (controller, dir) = makeTestController()
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
+        let imageID = try XCTUnwrap(controller.saveImportedImage(image))
+        let game = try XCTUnwrap(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: imageID))
+        let stray = dir.appendingPathComponent("ImportedImages/stray.jpg")
+        try Data([0]).write(to: stray)
+
+        let viewModel = try XCTUnwrap(controller.makeImportedGameViewModel(id: game.id))
+        viewModel.onSave?(viewModel.state)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: stray.path), "an autosave leaves the image folder alone")
+
+        controller.deleteImportedGame(id: game.id)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stray.path), "a change to the imports cleans up")
     }
 }
