@@ -17,8 +17,6 @@ struct GameView: View {
     @State private var lessonTechnique: Technique?
     @State private var techniqueLine: String?
     @StateObject private var drift = DriftController()
-    /// Drift is checked often; it only steps every 90 s.
-    private let driftTick = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let difficulty: Difficulty
 
     init(viewModel: GameViewModel, difficulty: Difficulty) {
@@ -36,6 +34,7 @@ struct GameView: View {
 
     private func updateDrift() {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) { drift.update(active: driftIsActive) }
+        if controller.driftSteps != drift.steps { controller.driftSteps = drift.steps } // the backlight drifts too
     }
 
     /// Header, board top gap, hint slot, tools and keypad (everything but the board).
@@ -52,7 +51,9 @@ struct GameView: View {
                     .padding(.top, 6)
                 // The hint card fills this slot; the tools and keypad below keep their place.
                 Group {
-                    if let session = viewModel.hint, !isDone {
+                    if let coach = viewModel.coach, !isDone {
+                        coachCard(coach, theme: theme)
+                    } else if let session = viewModel.hint, !isDone {
                         hintCard(session, theme: theme)
                     } else {
                         hintSlot(theme: theme)
@@ -88,7 +89,13 @@ struct GameView: View {
         }
         .background(TwoFingerTapCatcher(action: hush))
         .environment(\.psPalette, theme)
-        .onReceive(driftTick) { _ in updateDrift() }
+        // Drift is checked every 10 s; it only steps every 90 s. The loop ends with the screen.
+        .task {
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) } catch { return }
+                updateDrift()
+            }
+        }
         .onChange(of: driftIsActive) { _ in updateDrift() }
         .onChange(of: controller.showsFirstNight, perform: firstNightChanged)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
@@ -105,6 +112,7 @@ struct GameView: View {
         .onDisappear {
             viewModel.handleSceneDidDisappear()
             drift.update(active: false)
+            controller.driftSteps = 0
         }
         .onChange(of: controller.settings) { viewModel.apply(settings: $0) }
         .onChange(of: scenePhase) { phase in
@@ -153,6 +161,7 @@ struct GameView: View {
             .disabled(viewModel.state.isCompleted)
             .accessibilityIdentifier("timerToggle")
             .accessibilityLabel(viewModel.isPaused ? "Resume timer" : "Pause timer")
+            .accessibilityValue(viewModel.showTimer ? Self.timeString(viewModel.state.elapsedSeconds) : "")
             HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: "Night") {
                 showsMenu = false
                 controller.showsNightSheet = true
@@ -246,6 +255,11 @@ struct GameView: View {
             if viewModel.inputMode == .candidate && !viewModel.state.isCompleted {
                 Text("Notes on — digits go in as pencil marks").foregroundColor(theme.ink3)
             }
+            if viewModel.isStuck {
+                Text("Stuck? Tap Coach to see the patterns on your board.")
+                    .foregroundColor(theme.ink2)
+                    .accessibilityIdentifier("stuckNote")
+            }
         }
         .font(.system(size: 13))
         .multilineTextAlignment(.center)
@@ -265,11 +279,34 @@ struct GameView: View {
             }
             .accessibilityIdentifier("tool_notes")
             .accessibilityValue(notesOn ? "On" : "Off")
-            ToolButton(theme: theme, symbol: "lightbulb", label: viewModel.hint == nil ? "Hint" : "Next step",
-                       isActive: viewModel.hint != nil) { viewModel.hintTool() }
+            ToolButton(theme: theme, symbol: "lightbulb", label: hintToolLabel,
+                       isActive: viewModel.hint != nil || viewModel.coach != nil || viewModel.isStuck) { viewModel.hintTool() }
                 .accessibilityIdentifier("tool_hint")
         }
         .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+    }
+
+    /// Hint; Next step while a hint is open; Show me / Apply in the coach; Coach once stuck.
+    private var hintToolLabel: String {
+        if let coach = viewModel.coach { return coach.revealed ? "Apply" : "Show me" }
+        if viewModel.hint != nil { return "Next step" }
+        return viewModel.isStuck ? "Coach" : "Hint"
+    }
+
+    private func coachCard(_ session: CoachSession, theme: PSPalette) -> some View {
+        CoachCardView(
+            session: session,
+            names: controller.settings.notation,
+            theme: theme,
+            onBack: viewModel.coachBack,
+            onForward: viewModel.coachForward,
+            onDefinition: viewModel.coachToggleDefinition,
+            onReveal: viewModel.coachReveal,
+            onApply: viewModel.applyCoach,
+            onLesson: { lessonTechnique = $0 },
+            onClose: { viewModel.endHint() }
+        )
+        .disabled(viewModel.isPaused)
     }
 
     private func hintCard(_ session: HintSession, theme: PSPalette) -> some View {
@@ -281,6 +318,7 @@ struct GameView: View {
             onApply: viewModel.applyHint,
             onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
             onLesson: { lessonTechnique = $0 },
+            onCoach: { viewModel.openCoach() },
             onClose: { viewModel.endHint() }
         )
         .disabled(viewModel.isPaused)
@@ -312,6 +350,7 @@ struct GameView: View {
                         .accessibilityIdentifier("menu_hush")
                 }
                 .frame(width: 230)
+                .accessibilityAction(.escape) { showsMenu = false }
                 .padding(.top, 50)
                 .padding(.trailing, 12)
             }
@@ -351,6 +390,7 @@ struct GameView: View {
                 .frame(maxWidth: 320)
                 .padding(.horizontal, 24)
                 .accessibilityElement(children: .contain)
+                .accessibilityAction(.escape) { viewModel.pendingAction = nil }
                 .accessibilityIdentifier("confirmDialog")
             }
             .transition(.opacity)
@@ -360,7 +400,9 @@ struct GameView: View {
     /// Hush: pause and go black. A two-finger tap anywhere, or the More menu.
     private func hush() {
         // The recognizer is on the window, so it also fires on the pushed lesson.
-        guard !isHushed, !isGoodnight, lessonTechnique == nil else { return }
+        // Not behind the Night sheet, a confirmation or the first-night screen, which sit above the game.
+        guard !isHushed, !isGoodnight, lessonTechnique == nil, !controller.showsNightSheet,
+              !controller.showsFirstNight, viewModel.pendingAction == nil else { return }
         showsMenu = false
         pausedForHush = !viewModel.isPaused && !viewModel.state.isCompleted
         if pausedForHush { viewModel.pauseTimer() }

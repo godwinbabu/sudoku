@@ -23,6 +23,16 @@ final class AppController: ObservableObject {
     @Published var showsNightSheet = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
     @Published private(set) var showsFirstNight = false
+    /// This game's Drift steps, set by the game screen: the backlight follows the drifted glow.
+    @Published var driftSteps = 0
+    /// Find my lowest glow is on screen: the backlight sits at its minimum so the tiles show the
+    /// palette layer alone (CODESPEC 12.3).
+    @Published var isCalibrating = false
+
+    /// The screen backlight Night wants now.
+    var nightBacklight: CGFloat {
+        PSPalette.backlight(glow: DriftController.apply(steps: driftSteps, to: settings).glow)
+    }
     let afterDark: AfterDarkScheduler
     private var suppressesFirstNight = false
 
@@ -132,6 +142,7 @@ final class AppController: ObservableObject {
     /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
     /// until then `isUnique` is false, so uniqueness techniques stay off (CODESPEC 2.1).
     private func countSolutionsOfOldImports() {
+        settleLateTimes() // a handoff an earlier launch could not finish
         let pending = importedGames.filter { $0.gameState.puzzle.hasUniqueSolution == nil }
             .map { (id: $0.id, values: $0.gameState.puzzle.initialGrid.map { Int(String($0)) ?? 0 }) }
         guard !pending.isEmpty else { return }
@@ -143,8 +154,32 @@ final class AppController: ObservableObject {
                 guard let index = importedGames.firstIndex(where: { $0.id == result.id }) else { continue }
                 importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
             }
-            persistImportedGames()
+            if !settleLateTimes() { persistImportedGames() } // the counts themselves
         }
+    }
+
+    /// Imports solved before their count finished (maybe before a relaunch) get their best and typical
+    /// time once the count says unique. Stats record it by puzzle id first, so a retry is a no-op; only
+    /// then is the waiting time cleared. Any failed or interrupted write is retried on the next launch,
+    /// so a late time is neither lost nor added twice.
+    /// Returns true if it saved the imports.
+    @discardableResult
+    private func settleLateTimes() -> Bool {
+        let waiting = importedGames.filter { $0.gameState.timeAwaitingCount != nil && $0.gameState.puzzle.hasUniqueSolution != nil }
+        guard !waiting.isEmpty else { return false }
+        let late = waiting.filter { $0.gameState.puzzle.hasUniqueSolution == true }
+        let saved = late.isEmpty || updateStats { stats in
+            for game in late {
+                stats.recordLateTime(id: game.id, for: game.gameState.puzzle.difficulty, time: game.gameState.timeAwaitingCount ?? 0)
+            }
+        }
+        if saved {
+            for game in waiting {
+                if let index = importedGames.firstIndex(where: { $0.id == game.id }) { importedGames[index].gameState.timeAwaitingCount = nil }
+            }
+        }
+        persistImportedGames()
+        return true
     }
 
     func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
@@ -159,6 +194,7 @@ final class AppController: ObservableObject {
         viewModel.onSave = { [weak self] updatedState in
             self?.persist(state: updatedState, for: difficulty)
         }
+        viewModel.onTimeDiscarded = { [weak self] seconds in self?.updateStats { $0.totalTimeSeconds += seconds } }
         connectLearning(viewModel)
         return viewModel
     }
@@ -270,6 +306,7 @@ final class AppController: ObservableObject {
         viewModel.onSave = { [weak self] updatedState in
             self?.persistImported(state: updatedState, id: id)
         }
+        viewModel.onTimeDiscarded = { [weak self] seconds in self?.updateStats { $0.totalTimeSeconds += seconds } }
         connectLearning(viewModel)
         return viewModel
     }
@@ -282,6 +319,10 @@ final class AppController: ObservableObject {
             repository.generate(for: difficulty, mode: mode).puzzle
         }.value
         let newState = GameState.newGame(for: puzzle, now: timeProvider.now())
+        // Time spent on an unfinished game it replaces still counts as played (the Journal total).
+        if let old = activeGames[difficulty], !old.isCompleted, old.elapsedSeconds > 0 {
+            updateStats { $0.totalTimeSeconds += old.elapsedSeconds }
+        }
         activeGames[difficulty] = newState
         do {
             try persistence.save(newState, to: File.game(difficulty).rawValue)
@@ -359,11 +400,12 @@ final class AppController: ObservableObject {
         showsNightSheet = false // one modal at a time
     }
 
-    /// "Use this" in Find my lowest glow: the pick is the floor, and glow starts 4 above it.
+    /// "Use this" in Find my lowest glow: the pick is the floor. Glow starts at Lights out, or 4 above
+    /// the floor if that is higher, so the first night isn't drawn at the edge of readable.
     func calibrate(pick: Double) {
         updateSettings {
             $0.glowFloor = pick
-            $0.glow = min(100, pick + 4)
+            $0.glow = min(100, max(NightPreset.lightsOut.glow, pick + 4))
             $0.calibrated = true
         }
     }
@@ -427,12 +469,16 @@ final class AppController: ObservableObject {
         cleanedImageIDs = ids
     }
 
-    func updateStats(_ block: (inout Stats) -> Void) {
+    /// Returns false if the stats file could not be written.
+    @discardableResult
+    func updateStats(_ block: (inout Stats) -> Void) -> Bool {
         block(&stats)
         do {
             try persistence.save(stats, to: File.stats.rawValue)
+            return true
         } catch {
             lastPersistenceError = error
+            return false
         }
     }
 
@@ -448,9 +494,9 @@ final class AppController: ObservableObject {
     }
 
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
-        updateStats { stats in
-            stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, assisted: state.assisted, source: state.puzzle.source, date: self.timeProvider.now())
-        }
+        var state = state
+        record(state, at: difficulty)
+        if !state.usedReveal { state.counted = true }
         activeGames[difficulty] = state
         do {
             try persistence.save(state, to: File.game(difficulty).rawValue)
@@ -466,32 +512,59 @@ final class AppController: ObservableObject {
         if state.puzzle.hasUniqueSolution == nil {
             state.puzzle.hasUniqueSolution = importedGames[index].gameState.puzzle.hasUniqueSolution
         }
+        // The view model's copy may be older; keep the stored time until the count clears it.
+        state.timeAwaitingCount = state.timeAwaitingCount ?? importedGames[index].gameState.timeAwaitingCount
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
         persistImportedGames(keeping: id)
     }
 
     private func handleImportedCompletion(state: GameState, id: String) {
-        updateStats { stats in
-            stats.recordCompletion(
-                for: state.puzzle.difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
-                assisted: state.assisted, source: state.puzzle.source, date: self.timeProvider.now()
-            )
+        var state = state
+        // An open game may predate the background solution count: take uniqueness from the stored
+        // import first, so a unique puzzle still sets times.
+        if state.puzzle.hasUniqueSolution == nil {
+            state.puzzle.hasUniqueSolution = importedGames.first { $0.id == id }?.gameState.puzzle.hasUniqueSolution
         }
+        // Saved with the game, so a relaunch before the count ends still gets the time.
+        if state.puzzle.hasUniqueSolution == nil, !state.counted, !state.usedReveal, !state.assisted {
+            state.timeAwaitingCount = state.elapsedSeconds
+        }
+        record(state, at: state.puzzle.difficulty)
+        if !state.usedReveal { state.counted = true }
         persistImported(state: state, id: id)
     }
 
+    /// Adds a solve to the stats once per puzzle (a restarted solve is already counted). Puzzles with
+    /// several solutions set no best or typical time.
+    private func record(_ state: GameState, at difficulty: Difficulty) {
+        guard !state.counted else {
+            // A replay of a counted puzzle: not another solve, but its time still counts as played.
+            if !state.usedReveal { updateStats { $0.totalTimeSeconds += state.elapsedSeconds } }
+            return
+        }
+        updateStats { stats in
+            stats.recordCompletion(
+                for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
+                assisted: state.assisted, setsTimes: state.puzzle.isUnique, source: state.puzzle.source,
+                date: self.timeProvider.now()
+            )
+        }
+    }
+
     /// Prunes old solved imports, saves the list, then removes images no game uses (only after a
-    /// successful save).
-    private func persistImportedGames(keeping savedID: String? = nil) {
+    /// successful save). Returns false if the save failed.
+    @discardableResult
+    private func persistImportedGames(keeping savedID: String? = nil) -> Bool {
         pruneSolvedImports(keeping: savedID)
         do {
             try persistence.save(importedGames, to: File.importedGames.rawValue)
         } catch {
             self.lastPersistenceError = error
-            return
+            return false
         }
         cleanupImportImages()
+        return true
     }
 }
 

@@ -119,13 +119,23 @@ extension PSPalette {
         )
     }
 
+    /// Glow at which the palette reaches full strength; above it, glow raises the screen backlight
+    /// (CODESPEC 12.3).
+    static let paletteGlowRange: Double = 40
+
+    /// Screen brightness (0...1) for a Night glow: the hardware minimum up to `paletteGlowRange`,
+    /// then a straight ramp to 0.6 at glow 100.
+    static func backlight(glow: Double) -> CGFloat {
+        CGFloat(0.6 * max(0, min(100, glow) - paletteGlowRange) / (100 - paletteGlowRange))
+    }
+
     /// glow, warmth: 0...100. The canvas is always pure black (OLED pixels off).
     static func night(glow: Double, warmth: Double, clarity: Clarity) -> PSPalette {
         let kelvin = Blackbody.kelvin(forWarmth: warmth)
         let base = Blackbody.rgb(kelvin: kelvin)
         let acc = Blackbody.rgb(kelvin: Blackbody.kelvin(forWarmth: min(100, warmth * 0.55 + 52)))
         let floor = [0.20, 0.30, 0.38][clarity.rawValue]
-        let s = floor + (1 - floor) * pow(min(100, max(0, glow)) / 100, 1.15)
+        let s = floor + (1 - floor) * pow(min(1, max(0, glow) / paletteGlowRange), 0.9)
         let lift = [1.0, 1.25, 1.5][clarity.rawValue]
         func mul(_ c: RGB255, _ k: Double) -> Color {
             // Round to whole channels like the CSS snapshots, so tests and the prototype agree.
@@ -135,12 +145,12 @@ extension PSPalette {
         let errColor = RGB255(r: 255, g: 70, b: 64)
         return PSPalette(
             bg: .black, surface: mul(base, s * 0.07), surface2: mul(base, s * 0.11),
-            ink: mul(base, s), ink2: mul(base, s * 0.70), ink3: mul(base, s * 0.50),
-            accent: mul(acc, s * 0.96), accentDim: mul(acc, s * 0.50),
-            line: mul(base, s * 0.17 * lift), lineMajor: mul(base, s * 0.42 * lift), hair: mul(base, s * 0.15),
+            ink: mul(base, s), ink2: mul(base, s * 0.78), ink3: mul(base, s * 0.62),
+            accent: mul(acc, s * 0.96), accentDim: mul(acc, s * 0.65),
+            line: mul(base, s * 0.22 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: mul(base, s * 0.25),
             sel: mul(acc, s * 0.20), peer: mul(base, s * 0.055), same: mul(acc, s * 0.12),
             err: mul(errColor, s * 0.95), status: mul(base, s * 0.44),
-            focusDim: 0.22, isNight: true, kelvin: Int(kelvin),
+            focusDim: 0.45, isNight: true, kelvin: Int(kelvin),
             blueReduction: Int(((1 - (base.b / 255) * s) * 100).rounded()), luminance: s
         )
     }
@@ -159,15 +169,15 @@ enum NightPreset: String, CaseIterable, Identifiable {
     }
     var glow: Double {
         switch self {
-        case .readingLamp: return 55
-        case .lightsOut: return 18
-        case .redLight: return 10
+        case .readingLamp: return 70
+        case .lightsOut: return 45
+        case .redLight: return 30
         }
     }
     var warmth: Double {
         switch self {
         case .readingLamp: return 45
-        case .lightsOut: return 75
+        case .lightsOut: return 65
         case .redLight: return 100
         }
     }

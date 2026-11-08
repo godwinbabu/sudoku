@@ -148,7 +148,7 @@ struct NightSheetView: View {
     }
 
     static func glowNote(_ glow: Double) -> String {
-        glow < 35 ? "Below your iPhone’s lowest brightness." : "How much light the screen gives off."
+        glow <= PSPalette.paletteGlowRange ? "Below your iPhone’s lowest brightness." : "Above 40%, the screen itself gets brighter."
     }
 
     static func kelvinText(_ warmth: Double) -> String {

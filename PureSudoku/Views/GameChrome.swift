@@ -105,6 +105,9 @@ struct PopoverCard<Content: View>: View {
             .background(RoundedRectangle(cornerRadius: 14).fill(theme.isNight ? theme.bg : theme.surface2))
             .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.hair, lineWidth: 1))
             .clipShape(RoundedRectangle(cornerRadius: 14))
+            // VoiceOver stays inside the menu or confirmation, not on the board behind it.
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(.isModal)
     }
 }
 
@@ -206,7 +209,7 @@ struct BlackoutView: View {
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.6)) { showsText = false }
             }
             .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
+            .accessibilityAddTraits([.isButton, .isModal])
     }
 }
 

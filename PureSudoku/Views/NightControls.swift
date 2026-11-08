@@ -66,6 +66,14 @@ struct PSToggle: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .accessibilityValue(isOn ? "On" : "Off")
+        .modifier(ToggleTrait())
+    }
+}
+
+/// VoiceOver reads a switch, not a plain button (the trait is iOS 17+; the app targets iOS 16).
+private struct ToggleTrait: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 17, *) { content.accessibilityAddTraits(.isToggle) } else { content }
     }
 }
 
@@ -97,10 +105,11 @@ struct PSSlider: View {
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
-                let raw = range.lowerBound + (drag.location.x - 14) / usable * span
-                let next = min(range.upperBound, max(range.lowerBound, raw.rounded()))
-                if next != value { onChange(next) }
+            .gesture(SpatialTapGesture().onEnded { tap in set(tap.location.x, usable: usable, span: span) })
+            // Simultaneous, so a vertical drag still scrolls the parent; only mostly sideways movement sets the value.
+            .simultaneousGesture(DragGesture(minimumDistance: 4).onChanged { drag in
+                guard abs(drag.translation.width) >= abs(drag.translation.height) else { return }
+                set(drag.location.x, usable: usable, span: span)
             })
         }
         .frame(height: 44)
@@ -111,6 +120,12 @@ struct PSSlider: View {
             let step: Double = direction == .increment ? 5 : -5
             onChange(min(range.upperBound, max(range.lowerBound, value + step)))
         }
+    }
+
+    private func set(_ x: Double, usable: Double, span: Double) {
+        let raw = range.lowerBound + (x - 14) / usable * span
+        let next = min(range.upperBound, max(range.lowerBound, raw.rounded()))
+        if next != value { onChange(next) }
     }
 
     /// The Warmth track: real Kelvin colours at 75% of the current luminance. At night each stop is
@@ -273,7 +288,7 @@ struct SectionLabel: View {
         Text(title.uppercased())
             .font(.system(size: 12, weight: .semibold))
             .tracking(0.96)
-            .foregroundColor(theme.ink3)
+            .foregroundColor(theme.ink2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 22)
             .padding(.bottom, 8)
@@ -332,9 +347,9 @@ struct SamplePreview: View {
     }
 }
 
-/// Find my lowest glow: six tiles drawn in the night ink at glow 0 / 6 / 14 / 24 / 38 / 56.
+/// Find my lowest glow: six tiles drawn in the night ink at glow 0 / 4 / 8 / 14 / 22 / 32.
 struct CalibrateView: View {
-    static let levels: [Double] = [0, 6, 14, 24, 38, 56]
+    static let levels: [Double] = [0, 4, 8, 14, 22, 32]
     private static let digits = ["8", "3", "6", "5", "9", "2"]
 
     let theme: PSPalette
@@ -343,6 +358,7 @@ struct CalibrateView: View {
     var onCancel: (() -> Void)?
     let onUse: (Double) -> Void
     @State private var pick: Double?
+    @EnvironmentObject private var controller: AppController
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -358,7 +374,8 @@ struct CalibrateView: View {
                 .padding(.bottom, 22)
             HStack(spacing: 8) {
                 ForEach(Array(Self.levels.enumerated()), id: \.offset) { index, glow in
-                    let ink = PSPalette.night(glow: glow, warmth: settings.warmth, clarity: settings.clarity).ink
+                    // Drawn as the board would be (same warmth, Clarity, contrast floor), so the pick is honest.
+                    let ink = { var tile = settings; tile.glow = glow; return tile.palette(isNight: true).ink }()
                     let on = pick == glow
                     Button { pick = glow } label: {
                         Text(Self.digits[index])
@@ -392,6 +409,9 @@ struct CalibrateView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("calibrateView")
+        // The tiles show the palette layer only, so judge them at the minimum backlight (CODESPEC 12.3).
+        .onAppear { controller.isCalibrating = true }
+        .onDisappear { controller.isCalibrating = false }
     }
 }
 

@@ -240,7 +240,7 @@ Testing requirements:
 	•	From top to bottom:
 	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (opens the Night sheet, Section 12.2); More.
 	•	Board: 3×3 boxes on a lineMajor ground, each 3×3 cells on a line ground. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
-	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never).
+	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1), or the coach card (Section 6.3.3). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never), and offers the coach once the player is stuck (Section 6.3.3).
 	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
 	•	Keypad: 1×9. Each key shows how many of its digit are left. A digit with none left fades to 28% and is disabled. In Notes mode each key shows its digit small, at its pencil-mark position.
 	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen. Check puzzle is left out when mistakes are set to Never, since it would mark nothing.
@@ -273,7 +273,7 @@ Testing requirements:
 
 3.3 Journal (stats and settings)
 	•	SwiftUI view: JournalView (Design/v2/README.md, “Journal”). It replaces the old SettingsView and StatsView.
-	•	Streak: the current streak (NY 56, zero once a whole day passes without a solve) over “nights in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled dot; other days are rings, so shape carries it, not hue. VoiceOver reads the full weekday (“Tuesday, solved”). Stats files from before the week seed it with the last solve day.
+	•	Streak: the current streak (NY 56, zero once a whole day passes without a solve; a night runs until 4 am, so a solve at 00:30 counts for the evening before, Stats.playDay) over “nights in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled dot; other days are rings, so shape carries it, not hue. VoiceOver reads the full weekday (“Tuesday, solved”). Stats files from before the week seed it with the last solve day.
 	•	SOLVED: a table of level, Solved, Best and Typical. Typical is the median of the last 50 unassisted solve times at that level. A dash means none yet. Under it: “N assisted solves kept your streak but don’t set best times.” and “N solved in all · N imported · h:mm:ss played”.
 	•	SETTINGS: a Display & Night row that pushes DisplaySettingsView. Display & Night holds, top to bottom:
 	•	A live preview strip: five 52 pt cells (given 5, entered 3, selected 7, mistake 4, notes).
@@ -286,6 +286,7 @@ Testing requirements:
 	•	Show mistakes: Right away / When I check / Never. Never means no automatic marks and no Check; the hint still points at a mistake first.
 	•	Tidy notes (remove a placed digit from the notes it sees).
 	•	Cell names in hints (notation): “row 5, column 2” (plain, default) or “R5C2” (grid), with a line explaining the choice. Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
+	•	Coach when I'm stuck on/off (default on, Section 6.3.3).
 	•	Show timer on/off.
 	•	IMPORTS (kept from the old Settings screen): Keep import photos, and Clear imported photos, which asks first with a custom confirmation.
 	•	VoiceOver reads each table row as one line: “Expert: 3 solved, best 4:12, typical 5:00”, with “none yet” for a dash.
@@ -464,6 +465,21 @@ Testing requirements:
 	•	Tap Hint, step through the three steps (the keypad does not move), tap Place; verify the board changed and Undo restores it.
 	•	A digit repeated in its row is the first hint; Clear it empties the cell.
 
+6.3.3 Coach (patterns on the player's board)
+Why: a player who is stuck learns more from being shown what to look for than from being given the next digit. The coach walks through the patterns on their own board the way a friend would ("There's an X-Wing on the 7s here. Can you see what it rules out?"), so they finish the puzzle and learn the technique's name and shape.
+	•	CoachSession (ViewModels) over LogicalSolver.patterns(board): every technique that changes the board now, one step per technique name (Hidden Single box and line count once), simplest first in solver order, using the player's notes where they exist. Same board, same list.
+	•	Opening: from “All patterns →” on step 1 of a technique hint, or from the Hint tool once the player is stuck (below). A mistake (or clashing import entries) opens the mistake hint instead; with no pattern it opens the normal hint. Opening clears the selection, like a hint.
+	•	The card fills the 124 pt hint slot (nothing moves): the technique name (serif), its Learn tier, “2 of 5”, and ×. The body names the pattern on this board and asks the player to find the move: TechniqueStep.reason plus “Can you find the digit it places?” (placements) or “Can you see which candidates it rules out?” (eliminations). It never gives the result away before Show me.
+	•	The board shows the pattern as step 2 of a hint does (spotlight, pattern fill, ringed key candidates), never by hue alone.
+	•	Footer: ‹ › move between patterns (a pattern stays revealed once shown); “What is it?” swaps the body for the technique's one-line definition, with “Back” and “Lesson →” (Section 13.5) in place of the pagers; “Show me” reveals the move with step-3 marks and the step-3 text; then “Place 5 · assisted” / “Remove 5 · assisted” / “Apply · assisted” applies it exactly as the hint's step 3. While the coach is open the Hint tool reads Show me, then Apply.
+	•	Stats and learning: browsing patterns is free. It is not a hint, does not set assisted, and does not stop mastery credit, so a player who then makes the move themselves earns it (Section 13.4). Show me counts as one hint per revealed pattern (hint log, rung 3), logged when the coach closes, even after paging away, and tells the learning ledger the move was shown, like a hint. Applying sets assisted.
+	•	Stuck: with Coach when I'm stuck on (Journal → Assists, default on), after 120 s of play time (pauses don't count) without a new correct digit, the hint slot says “Stuck? Tap Coach to see the patterns on your board.” and the Hint tool reads Coach and opens the coach. No flash, sound, vibration or pop-up. A new correct digit, another puzzle, a restart or opening the coach starts the 120 s again.
+	•	VoiceOver: the card is a container; the body reads the full text (after Show me, the hint's step-3 reading); the position reads “Pattern 2 of 5”; the pagers are “Previous pattern” / “Next pattern”.
+
+Testing requirements:
+	•	Unit tests: patterns are distinct by name, start with nextStep's technique and all change the board; browsing is not a hint and does not report to the ledger; Show me counts one hint per revealed pattern, also after paging away; applying is assisted and places the step; restart closes the coach; the definition toggles; a mistake opens the mistake hint; stuck after 120 s, reset by a correct digit (also after an undo), off with the setting; the setting round-trips and defaults on.
+	•	UI test: open a hint, tap All patterns, page forward, Show me, apply; the board changes and Undo restores it.
+
 6.4 Reveal Puzzle
 	•	Confirmation dialog.
 	•	On confirm:
@@ -551,8 +567,8 @@ enum Appearance: String, Codable {
 	•	Night palette (computed from glow, warmth and Clarity; never hard-coded):
 	•	K = warmth mapped 6500 → 1200 K, interpolated in mireds, rounded to 50 K. Warmth 0 / 45 / 75 / 100 = 6500 / 2200 / 1500 / 1200 K.
 	•	base = blackbody colour of K (Tanner Helland approximation). accent = blackbody of warmth × 0.55 + 52.
-	•	s = floor + (1 − floor) × (glow / 100)^1.15, with floor 0.20 / 0.30 / 0.38 for Clarity Standard / Large / Bold. Increase Contrast uses the Bold floor.
-	•	bg is always #000 (OLED pixels off). Every other token is base or accent times a fixed share of s (Design/v2/README.md, “Night palette”).
+	•	s = floor + (1 − floor) × min(1, glow / 40)^0.9 (above 40, glow drives the backlight, Section 12.3), with floor 0.20 / 0.30 / 0.38 for Clarity Standard / Large / Bold. Increase Contrast uses the Bold floor.
+	•	bg is always #000 (OLED pixels off). Every other token is base or accent times a fixed share of s (Design/v2/README.md, “Night palette”), except that the shares that carry readable text and outlines are raised for contrast: ink2 0.78, ink3 0.62, accentDim 0.65, line 0.22, lineMajor 0.60, hair 0.25.
 	•	Never use a black overlay to dim; it dims everything by the same amount and makes small marks unreadable first.
 	•	Night rules: no filled shapes behind text; primary buttons are outlines (1.5 pt accentDim stroke, accent text); cards are transparent with a 1 pt hair border (popovers over the board, such as the More menu and confirmations, fill #000 so the board does not show through).
 	•	The tab bar, tab headers, Home and Journal follow the same rules: hairlines, no fills behind text at night (Day keeps the surface fill on cards).
@@ -571,13 +587,13 @@ enum Appearance: String, Codable {
 	•	Duplicate entry:
 	•	With Show mistakes set to Right away:
 	•	Immediately mark conflicting cells as error (error marker, see 7.2).
-	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks.
+	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks. Check marks are saved with the game (GameState.checkedWrong), apart from duplicate marks: a Check mark stays until its cell is edited, in any mode, and a duplicate mark never becomes one.
 	•	Cell states (Design/v2/README.md, “Cell states”):
 	•	Given: ink, given weight. Entered: accent, entered weight.
 	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill.
-	•	Mistake: err digit plus a 2 pt err bar under it (120% of its width).
+	•	Mistake: err digit plus a 3 pt bar under it (120% of its width): err by day, ink at night, where err and accent look alike. VoiceOver adds “mistake” (and “given” for givens) as the cell's value.
 	•	Notes: 3×3 at cell × 0.25; a note matching the selected digit is bold accent.
-	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
+	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim: 0.28 by day, 0.45 at night so the rest of the board stays readable), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit (75% at night) on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
 	•	By step: 1 spotlight; 2 adds the pattern fill; 3 adds evidence rings, the target and struck eliminations.
 	•	Hint highlights:
 	•	Fade in (about 0.15 s). Never blink or pulse.
@@ -637,8 +653,11 @@ Streak rules:
 	•	Update counts.
 	•	Update best time and add to solveTimes, only if assisted is also false (Section 6.3). An assisted solve adds to assistedSolves instead.
 	•	Add the day to solvedDays.
-	•	Add to totalSecondsPlayed.
-	•	Streak logic based on lastSolvedDate vs. today.
+	•	Add to totalSecondsPlayed. Time on an unfinished level game counts too when a new game replaces it, so the total never goes down.
+	•	A puzzle with several solutions (an import any valid fill solves) counts like an unassisted solve but sets no best or typical time. An old import solved while its solution count is still running gets its best and typical time when the count finds one solution (Stats.recordTime), not another solve.
+	•	Each puzzle counts once: GameState.counted is set when its completion reaches the stats (so not for a revealed solve) and survives Restart (Section 6.5). A replay of a counted puzzle adds its time to totalSecondsPlayed but no solve. Saves from before the field read it as isCompleted && !usedReveal.
+	•	Restart of an unfinished game keeps its time in totalSecondsPlayed.
+	•	Streak logic based on lastSolvedDate vs. today, where a day runs from 4 am to 4 am.
 
 Testing requirements:
 	•	Unit tests:
@@ -804,13 +823,15 @@ Testing requirements:
 
 Night replaces the v1 Sleep theme, Bedtime Mode and display profiles.
 Why: total light, not colour, is what affects sleep, and people differ widely. So brightness (Glow) and colour (Warmth) are separate continuous controls, and Clarity trades a higher floor for readability.
-	•	Glow 0–100: how much light the screen gives off. Implemented in two layers:
-	1.	While the app is in front in Night, set UIScreen brightness to its minimum. Restore the player’s brightness when the app goes to the background. Keep it low while inactive (Control Center), so it does not flash up.
-	2.	Below the hardware minimum, the palette’s luminance scale (Section 7.2) does the rest.
+	•	Glow 0–100: how much light the screen gives off. Implemented in two layers, so the whole slider visibly changes the screen:
+	1.	Glow 0–40: the screen backlight sits at its hardware minimum and the palette’s luminance scale (Section 7.2) rises from the Clarity floor to full strength: s = floor + (1 − floor)·(glow / 40)^0.9.
+	2.	Glow 40–100: the palette stays at full strength and UIScreen brightness rises in a straight line from its minimum to 0.6 at glow 100.
+	3.	While the app is in front in Night it owns the backlight. Restore the player’s brightness when the app goes to the background or Night ends. Keep it while inactive (Control Center), so it does not flash. If the player changes brightness themselves, keep their choice until Glow changes or they calibrate. Drift lowers the backlight too above glow 40 (it uses the drifted glow). Find my lowest glow holds the backlight at its minimum while it is on screen, by day as well, because its tiles show the palette layer alone.
+	•	Glow scale migration: settings saved before this scale (no glowScale key, or glowScale 1) map glowFloor to the same palette strength (40·(floor/100)^(1.15/0.9)) and restart glow at Lights out, or the floor if higher. The old scale was too dark to read.
 	•	Warmth 0–100: colour temperature 6500 → 1200 K. Warmth is a comfort setting. The app must not claim that warm colours protect sleep.
 	•	Clarity: Standard / Large / Bold. Bigger, heavier digits and stronger lines, and a higher Night floor.
-	•	Presets: Reading lamp (glow 55, warmth 45), Lights out (18, 75), Red light (10, 100). A preset never sets glow below glowFloor.
-	•	Find my lowest glow: six 76 pt tiles drawn in the night ink at glow 0 / 6 / 14 / 24 / 38 / 56. “Use this” sets glowFloor = pick, glow = min(100, pick + 4) and calibrated = true. The slider and presets never set glow below glowFloor.
+	•	Presets: Reading lamp (glow 70, warmth 45), Lights out (45, 65; the default, mid-range so a first night is readable), Red light (30, 100). A preset never sets glow below glowFloor.
+	•	Find my lowest glow: six 76 pt tiles drawn in the night ink at glow 0 / 4 / 8 / 14 / 22 / 32 (all inside the palette layer). “Use this” sets glowFloor = pick, glow = max(Lights out, pick + 4) and calibrated = true. The slider and presets never set glow below glowFloor.
 	•	First night (FirstNightView): the first time Night is active while calibrated is false, a full black screen shows welcome → Find my lowest glow (no Cancel) → result (“Glow set to N%.”, the Kelvin, a sample strip, Start playing). “Skip for now — use Lights out” applies Lights out and sets calibrated. It appears once: calibrated is saved before the result screen. It is drawn above everything: the camera picker closes first, the More menu closes, and a running game timer pauses until the flow ends. It keeps the Night palette for its whole run, even if Night ends while it is open. VoiceOver treats it as modal. UI tests launch with -uiTestSkipFirstNight (Debug only); -uiTestFirstNight starts in Day before the first night, to walk through the flow.
 	•	Drift (DriftController): during a night game with Drift on, every 90 s glow −1 and warmth +1, up to 20 each. Glow never goes below glowFloor (and Drift never raises it). It is a session offset: never saved, reset when the game closes or Night ends, and reset after a gap of 30 minutes or more between updates (the app was away, for example through a whole day). The change fades over 600 ms.
 	•	Limits the app must respect: it cannot go below the system brightness minimum, cannot read room light, and cannot turn on Reduce White Point.
@@ -892,7 +913,7 @@ Testing requirements:
 12.7 Night shortcut and silence
 	•	Bedtime Mode is replaced by Night (Section 7.1). The moon on every tab, on Import and in the game header opens the Night sheet. The old main-menu Night bar is removed.
 	•	Night sheet (NightSheetView): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge, 36 × 5 grabber. Backdrop black at 55% at night, warm at 18% in Day; tapping it or × closes the sheet. At least 56 pt of backdrop always shows; when the controls do not fit (iPhone SE, large text) the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live.
-	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” under 35, else “How much light the screen gives off.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”); Clarity; then, unless Day: Drift and Find my lowest glow (Start).
+	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” up to 40, else “Above 40%, the screen itself gets brighter.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”); Clarity; then, unless Day: Drift and Find my lowest glow (Start).
 	•	At night the selected segment is an accentDim ring, not a fill, and the Warmth track is capped at 75% of the ink’s light, so no fill is brighter than ink. The sheet, the first-night screen and every screen but the game hide the white system status bar at night; the game follows Hide status bar in games.
 	•	The one accepted system alert is the iOS location permission prompt. It appears only after the player taps After dark (or “Use sunset and sunrise”), and it follows the dark colour scheme at night.
 	•	Hush and Goodnight (Section 3.2) go to pure black in one tap.

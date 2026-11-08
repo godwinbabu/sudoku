@@ -59,23 +59,23 @@ Open the files in a desktop browser. A Mac with Safari or Chrome shows the real 
 K      = kelvin(warmth)  : mired-interpolated 6500 → 1200 K, rounded to 50 K
 base   = blackbody(K)    : Tanner Helland approximation (0…255)
 accent = blackbody(kelvin(min(100, 0.55·warmth + 52)))
-s      = floor + (1 − floor) · (glow/100)^1.15      floor = 0.20 / 0.30 / 0.38 (Clarity)
+s      = floor + (1 − floor) · min(1, glow/40)^0.9  floor = 0.20 / 0.30 / 0.38 (Clarity)
 lift   = 1 / 1.25 / 1.5 (Clarity)
 ```
 | Token | Value |
 |---|---|
 | bg | `#000000` always |
 | surface / surface2 | base × 0.07s / 0.11s |
-| ink / ink2 / ink3 | base × s / 0.70s / 0.50s |
-| accent / accentDim | accent × 0.96s / 0.50s |
-| line / lineMajor | base × 0.17s·lift / 0.42s·lift |
-| hair | base × 0.15s |
+| ink / ink2 / ink3 | base × s / 0.78s / 0.62s |
+| accent / accentDim | accent × 0.96s / 0.65s |
+| line / lineMajor | base × 0.22s·lift / 0.60s·lift |
+| hair | base × 0.25s |
 | sel / same / peer | accent × 0.20s / accent × 0.12s / base × 0.055s |
 | err | (255, 70, 64) × 0.95s |
 | status (status bar on non-game screens) | base × 0.44s |
-| focusDim | 0.22 |
+| focusDim | 0.45 (raised from 0.22 so the rest of the board stays readable, QA #29) |
 
-Presets: **Reading lamp** (glow 55, warmth 45 → 2200 K), **Lights out** (18, 75 → 1500 K), **Red light** (10, 100 → 1200 K). Snapshot CSS for each preset is in `styles.css` (`.ps-night-lamp/out/red`).
+Presets: **Reading lamp** (glow 70, warmth 45 → 2200 K), **Lights out** (45, 65, the default), **Red light** (30, 100 → 1200 K). Glow above 40 also raises the screen backlight (CODESPEC 12.3). The `styles.css` preset snapshots predate this scale and are superseded by `NightPaletteTests`.
 
 **Night rules** (required, and testable):
 - No filled shapes behind text.
@@ -120,7 +120,7 @@ The All Screens IDs are in brackets. Measurements are at 390 pt width.
 - **Find my lowest glow [1.5]:** title *"Which is the faintest you can read?"* (NY 24), then hint text 14 `ink3`.
   - Six 76 pt-tall tiles in a row (8 pt gap, radius 12, 1 pt `hair` ring). Each shows a digit (8, 3, 6, 5, 9, 2) in the night `ink` computed at glow 0 / 6 / 14 / 24 / 38 / 56.
   - The selected tile gets a 2 pt `accent` ring.
-  - **Use this** sets `glowFloor = pick` and `glow = pick + 4`. First-run shows no Cancel.
+  - **Use this** sets `glowFloor = pick` and `glow = max(Lights out, pick + 4)`. First-run shows no Cancel.
 - **Result [1.6]:** *"Glow set to N%."* (NY 36), a line giving the Kelvin value, a 5-cell sample strip, and **Start playing**.
 
 ### Play tab (Home) [2.1, 2.2]
@@ -216,7 +216,7 @@ Vertical stack:
   1. "Night" (NY 26) and a close button.
   2. Segmented control: Day · Night · After dark. The segments are 34 pt tall, radius 9, inside a 1 pt `hair` ring; the selected one is `surface2` and semibold.
   3. (Night only) three preset chips: 36 pt tall, radius 18, 1.5 pt ring (`accentDim` when active).
-  4. (Night only) **Glow** slider with its % value. Sub-text: *"Below your iPhone's lowest brightness."* when glow < 35, else *"How much light the screen gives off."*
+  4. (Night only) **Glow** slider with its % value. Sub-text: *"Below your iPhone's lowest brightness."* up to glow 40, else *"Above 40%, the screen itself gets brighter."* (CODESPEC 12.3: glow above 40 drives the backlight)
   5. (Night only) **Warmth** slider with its Kelvin value (e.g. "1,500 K"). The track is a gradient of real Kelvin colours at 75% of the current luminance. Sub-text: *"Blue light about N% lower than daylight white."*
   6. **Clarity** segmented control: Standard · Large · Bold, with *"Bigger, heavier digits and stronger lines. Readable at lower glow."*
   7. Rows: **Drift** (toggle) and **Find my lowest glow** (Start).
