@@ -111,6 +111,9 @@ struct PopoverCard<Content: View>: View {
             // VoiceOver stays inside the menu or confirmation, not on the board behind it.
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
+            // Sort after the board: accessibility order doubles as z-order for hit-testing, so a card
+            // sorted among the cells by position counts as under them and taps miss its rows.
+            .accessibilitySortPriority(-1)
     }
 }
 

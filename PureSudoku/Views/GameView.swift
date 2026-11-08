@@ -398,6 +398,7 @@ struct GameView: View {
                 .frame(maxWidth: 320)
                 .padding(.horizontal, 24)
                 .accessibilityElement(children: .contain)
+                .accessibilitySortPriority(-1)
                 .accessibilityAction(.escape) { viewModel.pendingAction = nil }
                 .accessibilityIdentifier("confirmDialog")
             }
