@@ -89,7 +89,7 @@ struct GameView: View {
         // Drift is checked every 10 s; it only steps every 90 s. The loop ends with the screen.
         .task {
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 10_000_000_000)
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) } catch { return }
                 updateDrift()
             }
         }
@@ -317,6 +317,7 @@ struct GameView: View {
                         .accessibilityIdentifier("menu_hush")
                 }
                 .frame(width: 230)
+                .accessibilityAction(.escape) { showsMenu = false }
                 .padding(.top, 50)
                 .padding(.trailing, 12)
             }
@@ -356,6 +357,7 @@ struct GameView: View {
                 .frame(maxWidth: 320)
                 .padding(.horizontal, 24)
                 .accessibilityElement(children: .contain)
+                .accessibilityAction(.escape) { viewModel.pendingAction = nil }
                 .accessibilityIdentifier("confirmDialog")
             }
             .transition(.opacity)

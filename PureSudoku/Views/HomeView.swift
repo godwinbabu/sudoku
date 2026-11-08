@@ -226,6 +226,7 @@ struct ConfirmPanel: View {
             .padding(.horizontal, 24)
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
+            .accessibilityAction(.escape, onDismiss)
             .accessibilityIdentifier("confirmDialog")
         }
     }

@@ -105,12 +105,11 @@ struct PSSlider: View {
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
-            // A few points of mostly sideways movement first, so a scroll over the slider stays a scroll.
-            .gesture(DragGesture(minimumDistance: 4).onChanged { drag in
+            .gesture(SpatialTapGesture().onEnded { tap in set(tap.location.x, usable: usable, span: span) })
+            // Simultaneous, so a vertical drag still scrolls the parent; only mostly sideways movement sets the value.
+            .simultaneousGesture(DragGesture(minimumDistance: 4).onChanged { drag in
                 guard abs(drag.translation.width) >= abs(drag.translation.height) else { return }
-                let raw = range.lowerBound + (drag.location.x - 14) / usable * span
-                let next = min(range.upperBound, max(range.lowerBound, raw.rounded()))
-                if next != value { onChange(next) }
+                set(drag.location.x, usable: usable, span: span)
             })
         }
         .frame(height: 44)
@@ -121,6 +120,12 @@ struct PSSlider: View {
             let step: Double = direction == .increment ? 5 : -5
             onChange(min(range.upperBound, max(range.lowerBound, value + step)))
         }
+    }
+
+    private func set(_ x: Double, usable: Double, span: Double) {
+        let raw = range.lowerBound + (x - 14) / usable * span
+        let next = min(range.upperBound, max(range.lowerBound, raw.rounded()))
+        if next != value { onChange(next) }
     }
 
     /// The Warmth track: real Kelvin colours at 75% of the current luminance. At night each stop is
@@ -346,13 +351,6 @@ struct SamplePreview: View {
 struct CalibrateView: View {
     static let levels: [Double] = [0, 6, 14, 24, 38, 56]
 
-    /// A tile at `glow`, drawn as the board would be: same warmth and Clarity, and Increase Contrast's
-    /// floor when it is on (QA #29), so the floor is picked from what the board will really show.
-    static func tileSettings(_ settings: Settings, glow: Double) -> Settings {
-        var tile = settings
-        tile.glow = glow
-        return tile
-    }
     private static let digits = ["8", "3", "6", "5", "9", "2"]
 
     let theme: PSPalette
@@ -376,7 +374,8 @@ struct CalibrateView: View {
                 .padding(.bottom, 22)
             HStack(spacing: 8) {
                 ForEach(Array(Self.levels.enumerated()), id: \.offset) { index, glow in
-                    let ink = Self.tileSettings(settings, glow: glow).palette(isNight: true).ink
+                    // Drawn as the board would be (same warmth, Clarity, contrast floor), so the pick is honest.
+                    let ink = { var tile = settings; tile.glow = glow; return tile.palette(isNight: true).ink }()
                     let on = pick == glow
                     Button { pick = glow } label: {
                         Text(Self.digits[index])
