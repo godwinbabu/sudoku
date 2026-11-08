@@ -31,7 +31,8 @@ final class HintLadderTests: XCTestCase {
         let before = values(viewModel)
 
         viewModel.requestHint()
-        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: cell.index, kind: .wrongDigit(wrong)))
+        let clash = SolverBoard.peers[cell.index].first { peer in viewModel.state.cells.first { $0.index == peer }?.value == wrong }
+        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: cell.index, kind: .wrongDigit(wrong, clash: clash)))
         XCTAssertEqual(viewModel.hint?.level, 1)
         XCTAssertEqual(viewModel.hint?.stepLabel, "Where to look")
         XCTAssertEqual(viewModel.hintHighlight.areaCells, Set(House(kind: .box, index: SolverBoard.box(of: cell.index)).cells))
@@ -49,8 +50,18 @@ final class HintLadderTests: XCTestCase {
     }
 
     func testMistakeTextNamesTheDigitAndCell() {
-        let session = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7)), level: 2)
-        XCTAssertEqual(session.text(.plain), "The 7 in row 3, column 3 can't be right — the puzzle doesn't solve with it.")
+        var session = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7)), level: 2)
+        XCTAssertEqual(session.text(.plain), "The 7 in row 3, column 3 can't be right.")
+        session.next()
+        XCTAssertTrue(session.text(.plain).hasPrefix("Nothing on the board clashes"), "step 3 explains, not repeats")
+
+        // A visible clash: name the cell it repeats, ring it, and say which house.
+        var clash = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7, clash: 24)), level: 2)
+        XCTAssertEqual(clash.text(.plain), "The 7 in row 3, column 3 repeats the 7 in row 3, column 7.")
+        XCTAssertEqual(clash.highlight.evidenceCells, [24])
+        XCTAssertTrue(clash.highlight.areaCells.isSuperset(of: House(kind: .row, index: 2).cells))
+        clash.next()
+        XCTAssertEqual(clash.text(.grid), "Each digit goes once in a row, column and box. R3 already has a 7 in R3C7, so this one has to go.")
         XCTAssertEqual(HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7))).text(.grid), "Something in B1 doesn't fit.")
     }
 
@@ -574,5 +585,66 @@ extension HintLadderTests {
             else { state.cells[index].candidates = Set(SolverBoard.digits(in: stuck.candidates[state.cells[index].index])) }
         }
         return state
+    }
+
+    // MARK: - Check feedback (QA #49)
+
+    func testCheckSaysWhatItFound() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        viewModel.checkPuzzle()
+        XCTAssertEqual(viewModel.checkMessage, "No mistakes so far.")
+        let cell = emptyCell(viewModel)
+        viewModel.select(cell: cell)
+        XCTAssertNil(viewModel.checkMessage, "the next move clears it")
+        viewModel.setDigit(solution[cell.index] % 9 + 1)
+        viewModel.checkPuzzle()
+        XCTAssertEqual(viewModel.checkMessage, "1 wrong digit, marked with a bar.")
+        viewModel.resetPuzzle()
+        XCTAssertNil(viewModel.checkMessage, "Restart clears it with the marks")
+    }
+
+    /// Check with a hint open: the hint closes and the result shows (it used to hide behind the card).
+    func testCheckClosesAnOpenHint() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        viewModel.requestHint()
+        XCTAssertNotNil(viewModel.hint)
+        viewModel.checkPuzzle()
+        XCTAssertNil(viewModel.hint)
+        XCTAssertEqual(viewModel.checkMessage, "No mistakes so far.")
+    }
+
+    func testANewPuzzleClearsTheCheckMessage() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        viewModel.checkPuzzle()
+        viewModel.load(state: TestData.newGameState())
+        XCTAssertNil(viewModel.checkMessage)
+    }
+
+    /// A second Check with nothing new still says what it found, also after a hint was open.
+    func testASecondCheckStillShowsTheResult() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        let right = emptyCell(viewModel), wrong = emptyCell(viewModel, after: 1)
+        viewModel.select(cell: right)
+        viewModel.setDigit(solution[right.index])
+        viewModel.select(cell: wrong)
+        viewModel.setDigit(solution[wrong.index] % 9 + 1)
+        viewModel.checkPuzzle()
+        viewModel.requestHint()
+        viewModel.checkPuzzle() // nothing new: hides the green marks
+        XCTAssertNil(viewModel.hint)
+        XCTAssertEqual(viewModel.checkMessage, "1 wrong digit, marked with a bar.")
+    }
+
+    /// Two equal wrong digits in a row, and the right one as a given in the column: the hint names the
+    /// given, not the other wrong digit (which comes first by index).
+    func testTheNamedClashIsTheCorrectDigit() throws {
+        var state = TestData.newGameState()
+        let byIndex = Dictionary(uniqueKeysWithValues: state.cells.indices.map { (state.cells[$0].index, $0) })
+        XCTAssertEqual(state.cells[byIndex[66]!].value, 4, "TestData: a given 4 at row 8, column 4")
+        state.cells[byIndex[3]!].value = 4 // wrong (its answer is 6)
+        state.cells[byIndex[5]!].value = 4 // wrong too (its answer is 8)
+        let viewModel = GameViewModel(state: state, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        viewModel.requestHint()
+        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: 3, kind: .wrongDigit(4, clash: 66)))
     }
 }

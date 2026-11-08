@@ -104,7 +104,9 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForLabel(of: cell, endingWith: "candidates 2", in: app), cell.label)
         app.buttons["moreButton"].tap()
         app.buttons["menu_restart"].tap()
-        app.buttons["confirm_action"].tap()
+        let confirm = app.buttons["confirm_action"]
+        XCTAssertTrue(confirm.waitForExistence(timeout: 2), "the confirmation fades in after the menu closes")
+        confirm.tap()
         XCTAssertTrue(waitForLabel(of: cell, endingWith: " empty", in: app), cell.label)
     }
 
@@ -136,7 +138,7 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["nightButton"].tap()
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
-        app.windows.firstMatch.twoFingerTap()
+        app.twoFingerTap() // the app element, which has a tap point on every phone size
         XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 

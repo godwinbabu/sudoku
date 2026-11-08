@@ -203,7 +203,7 @@ Vertical stack:
 - **Hint text grammar** (port from `engine.js`): nudge, technique name, one-line definition, why-sentence, and focus/evidence/pattern/elim/target cell lists.
 
 ### Endings [3.6–3.8]
-- **Solved:** the board fades to 30% over 600 ms. Centred over it: *Solved.* (NY 44), then *"Easy · 6:24 · 2 hints"* (15 `ink2`).
+- **Solved:** the board fades to 10% over 600 ms (was 30%; the digits fought the summary, QA #45). Centred over it: *Solved.* (NY 44), then *"Easy · 6:24 · 2 hints"* (15 `ink2`).
   - If assisted, a pill reads *"Assisted · counts for your streak, not best times"* (13, `hair` ring).
   - Then *"This grid took Hidden Single ×38, Naked Single ×9."* (13 `ink3`), from replaying the hint engine.
   - Buttons: **Another** (ghost) and **Goodnight** (primary).
