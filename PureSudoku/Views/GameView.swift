@@ -36,6 +36,7 @@ struct GameView: View {
 
     private func updateDrift() {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) { drift.update(active: driftIsActive) }
+        if controller.driftSteps != drift.steps { controller.driftSteps = drift.steps } // the backlight drifts too
     }
 
     /// Header, board top gap, hint slot, tools and keypad (everything but the board).
@@ -105,6 +106,7 @@ struct GameView: View {
         .onDisappear {
             viewModel.handleSceneDidDisappear()
             drift.update(active: false)
+            controller.driftSteps = 0
         }
         .onChange(of: controller.settings) { viewModel.apply(settings: $0) }
         .onChange(of: scenePhase) { phase in

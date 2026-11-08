@@ -224,13 +224,37 @@ final class NightPaletteTests: XCTestCase {
     func testPlayersOwnBrightnessWinsUntilGlowChanges() {
         var screen: CGFloat = 0.7
         let controller = ScreenBrightnessController(read: { screen }, write: { screen = $0 })
-        controller.update(target: 0.1)
+        controller.update(target: 0.1, request: 50)
         screen = 0.4 // the player raises brightness in Control Center
-        controller.update(target: 0.1) // the app comes back to the foreground
+        controller.update(target: 0.1, request: 50) // the app comes back to the foreground
         XCTAssertEqual(screen, 0.4)
-        controller.update(target: 0.2) // the player moves Glow
+        controller.update(target: 0.08, request: 50) // a Drift step
+        XCTAssertEqual(screen, 0.4, "Drift doesn't undo the player's choice")
+        controller.update(target: 0.2, request: 60) // the player moves Glow
         XCTAssertEqual(screen, 0.2)
         controller.update(target: nil)
         XCTAssertEqual(screen, 0.7)
+    }
+
+    /// Glow 30 → 10 is a Glow change even though both targets are the minimum.
+    func testGlowChangesBelow40ClearTheOverride() {
+        var screen: CGFloat = 0.7
+        let controller = ScreenBrightnessController(read: { screen }, write: { screen = $0 })
+        controller.update(target: 0, request: 30)
+        screen = 0.4
+        controller.update(target: 0, request: 30)
+        XCTAssertEqual(screen, 0.4)
+        controller.update(target: 0, request: 10)
+        XCTAssertEqual(screen, 0)
+    }
+
+    func testBacklightFollowsDriftAndCalibration() {
+        let (controller, _) = makeTestController()
+        controller.updateSettings { $0.glow = 70 }
+        XCTAssertEqual(controller.nightBacklight, 0.3, accuracy: 0.001)
+        controller.driftSteps = 20
+        XCTAssertEqual(controller.nightBacklight, 0.1, accuracy: 0.001, "Drift dims the backlight above glow 40")
+        controller.isCalibrating = true
+        XCTAssertEqual(controller.nightBacklight, 0, "the calibration tiles are judged at the minimum")
     }
 }

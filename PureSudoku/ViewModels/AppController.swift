@@ -20,6 +20,16 @@ final class AppController: ObservableObject {
     @Published var showsNightSheet = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
     @Published private(set) var showsFirstNight = false
+    /// This game's Drift steps, set by the game screen: the backlight follows the drifted glow.
+    @Published var driftSteps = 0
+    /// Find my lowest glow is on screen: the backlight sits at its minimum so the tiles show the
+    /// palette layer alone (CODESPEC 12.3).
+    @Published var isCalibrating = false
+
+    /// The screen backlight Night wants now.
+    var nightBacklight: CGFloat {
+        isCalibrating ? 0 : PSPalette.backlight(glow: DriftController.apply(steps: driftSteps, to: settings).glow)
+    }
     let afterDark: AfterDarkScheduler
     private var suppressesFirstNight = false
 
