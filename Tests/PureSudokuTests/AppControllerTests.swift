@@ -277,6 +277,33 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(controller.stats.totalPuzzlesSolved, 1, "not another solve")
     }
 
+    /// Quit after solving but before the count: the time is still added on the next launch.
+    func testPendingImportTimeSurvivesARelaunch() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let persistence = PersistenceManager(directory: dir)
+        let puzzle = SudokuPuzzle(id: "old-unique", difficulty: .easy, initialGrid: TestData.puzzle.initialGrid,
+                                  solutionGrid: TestData.puzzle.solutionGrid, source: .imported)
+        var solved = GameState.newGame(for: puzzle)
+        solved.cells = solved.cells.map { cell in
+            var cell = cell
+            cell.value = Int(String(Array(puzzle.solutionGrid)[cell.index]))
+            return cell
+        }
+        solved.isCompleted = true
+        solved.counted = true
+        solved.elapsedSeconds = 120
+        solved.timeAwaitingCount = true
+        try persistence.save([ImportedGame(gameState: solved)], to: "imported_games.json")
+        let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(),
+                                       imageStore: ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true)))
+        for _ in 0..<100 where controller.importedGames.first?.gameState.puzzle.hasUniqueSolution == nil {
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(controller.stats.bestTime(for: .easy), 120)
+        XCTAssertEqual(controller.importedGames.first?.gameState.timeAwaitingCount, false, "added once")
+        XCTAssertEqual(controller.stats.totalPuzzlesSolved, 0, "the solve was counted before the quit")
+    }
+
     /// With no explainable step, the hint fills the selected empty cell, not the first one.
     func testNoStepHintUsesTheSelectedCell() throws {
         var state = TestData.newGameState()

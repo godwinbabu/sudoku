@@ -34,11 +34,6 @@ final class AppController: ObservableObject {
     /// True when imported_games.json could not be loaded. Its photos may still belong to the backup
     /// copy, so orphan cleanup is skipped for this session.
     private var importedGamesLoadFailed = false
-    // shortcut: kept in memory only, so quitting before the count ends drops that one time; persist it if counts get slow.
-    /// Imports solved while their count was still running: the time waits for the count
-    /// (best and typical times need a unique solution).
-    private var solvesAwaitingCount: [String: (difficulty: Difficulty, time: Int)] = [:]
-
     init(
         persistence: PersistenceManager = PersistenceManager(),
         puzzleRepository: SudokuPuzzleRepository? = nil,
@@ -136,13 +131,15 @@ final class AppController: ObservableObject {
                 pending.map { (id: $0.id, unique: SolutionCounter.count($0.values, limit: 2) == 1) }
             }.value
             for result in counted {
-                let waiting = solvesAwaitingCount.removeValue(forKey: result.id)
                 guard let index = importedGames.firstIndex(where: { $0.id == result.id }) else { continue }
                 importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
-                // Solved before the count finished: the solve is counted, its time waited for this.
-                if result.unique, let waiting {
-                    updateStats { $0.recordTime(for: waiting.difficulty, time: waiting.time) }
+                // Solved before the count finished (maybe before a relaunch): the solve is counted, its
+                // time waited for this.
+                let game = importedGames[index].gameState
+                if result.unique, game.timeAwaitingCount {
+                    updateStats { $0.recordTime(for: game.puzzle.difficulty, time: game.elapsedSeconds) }
                 }
+                importedGames[index].gameState.timeAwaitingCount = false
             }
             persistImportedGames()
         }
@@ -470,6 +467,8 @@ final class AppController: ObservableObject {
         if state.puzzle.hasUniqueSolution == nil {
             state.puzzle.hasUniqueSolution = importedGames[index].gameState.puzzle.hasUniqueSolution
         }
+        // The view model's copy never sets this; keep the stored flag until the count clears it.
+        state.timeAwaitingCount = state.timeAwaitingCount || importedGames[index].gameState.timeAwaitingCount
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
         persistImportedGames()
@@ -482,9 +481,8 @@ final class AppController: ObservableObject {
         if state.puzzle.hasUniqueSolution == nil {
             state.puzzle.hasUniqueSolution = importedGames.first { $0.id == id }?.gameState.puzzle.hasUniqueSolution
         }
-        if state.puzzle.hasUniqueSolution == nil, !state.counted, !state.usedReveal, !state.assisted {
-            solvesAwaitingCount[id] = (state.puzzle.difficulty, state.elapsedSeconds)
-        }
+        // Saved with the game, so a relaunch before the count ends still gets the time.
+        state.timeAwaitingCount = state.puzzle.hasUniqueSolution == nil && !state.counted && !state.usedReveal && !state.assisted
         record(state, at: state.puzzle.difficulty)
         if !state.usedReveal { state.counted = true }
         persistImported(state: state, id: id)
