@@ -79,8 +79,7 @@ extension PureSudokuUITests {
         XCTAssertTrue(button.isHittable, id)
     }
 
-    /// At accessibility text size AX-XL the chrome scales, and the board, tools and keypad still fit
-    /// one screen (CODESPEC 9).
+
     /// At the largest size, a clash warning and a Check result together scroll inside the hint slot
     /// instead of clipping or pushing the keypad off screen (PR 54 review).
     func testLargestTextSizeHintSlotMessagesStayReadable() {
@@ -105,6 +104,8 @@ extension PureSudokuUITests {
         attachScreenshot(app, "ax5-hint-slot-messages")
     }
 
+    /// At accessibility text size AX-XL the chrome scales, and the board, tools and keypad still fit
+    /// one screen (CODESPEC 9).
     func testAccessibilityTextSizeKeepsTheGameOnOneScreen() {
         let app = launchApp(Self.largeText)
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))
