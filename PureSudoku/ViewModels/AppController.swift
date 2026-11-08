@@ -18,6 +18,9 @@ final class AppController: ObservableObject {
     @Published var lastPersistenceError: (any Error)?
     /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
     @Published var showsNightSheet = false
+    /// Set by a game during Night, Hush and Goodnight. The root hides the home indicator for it, so
+    /// the setting reaches the window from inside a pushed game.
+    @Published var hidesHomeIndicator = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
     @Published private(set) var showsFirstNight = false
     let afterDark: AfterDarkScheduler

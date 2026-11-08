@@ -620,4 +620,22 @@ final class LearningTests: XCTestCase {
         }
         XCTAssertGreaterThanOrEqual(withLesson, 20, "most techniques have an example in the bundle")
     }
+
+    // MARK: - Learn copy (issue 50)
+
+    /// "N of 27 techniques in your hands" counts mastered techniques only.
+    func testLearnCountsOnlyFullyLearnedTechniques() {
+        XCTAssertEqual(LearnView.inHandCount { _ in .learning }, 0, "half-learned is not in your hands")
+        XCTAssertEqual(LearnView.inHandCount { $0 == .nakedSingle || $0 == .pointing ? .mastered : .learning }, 2)
+        XCTAssertEqual(LearnView.inHandCount { _ in .mastered }, Lesson.techniques.count)
+    }
+
+    /// Every Learn row has its own one-line description, and none says "house".
+    func testTechniqueDescriptionsAreDistinct() {
+        let definitions = Lesson.techniques.map(\.definition)
+        XCTAssertEqual(Set(definitions).count, definitions.count, "two techniques share a description")
+        for technique in Lesson.techniques {
+            XCTAssertFalse(technique.definition.lowercased().contains("house"), "\(technique) says house")
+        }
+    }
 }

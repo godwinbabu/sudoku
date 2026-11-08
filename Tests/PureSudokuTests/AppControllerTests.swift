@@ -125,4 +125,22 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(journal.rowLabel(for: .master), "Master: solved none yet, best none yet, typical none yet")
         XCTAssertEqual(journal.week().map(\.name).first, "Monday")
     }
+
+    /// With the streak at 0 but solves this week, the Journal names the last solved day (issue 51).
+    func testJournalLastSolvedLine() throws {
+        let (controller, _) = makeTestController()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let tuesday = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 3, hour: 21)))
+        let friday = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 6, hour: 21)))
+        let journal = StatsViewModel(controller: controller)
+        XCTAssertNil(journal.lastSolvedLine(at: friday, calendar: calendar), "no solves, no line")
+
+        controller.updateStats { $0.recordCompletion(for: .easy, time: 300, usedReveal: false, date: tuesday, calendar: calendar) }
+        let updated = StatsViewModel(controller: controller)
+        XCTAssertEqual(updated.streak(at: friday), 0)
+        XCTAssertEqual(updated.lastSolvedLine(at: friday, calendar: calendar), "Last solved Tuesday.")
+        let wednesday = tuesday.addingTimeInterval(86_400)
+        XCTAssertNil(updated.lastSolvedLine(at: wednesday, calendar: calendar), "the streak is still alive")
+    }
 }

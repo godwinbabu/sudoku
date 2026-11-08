@@ -187,4 +187,32 @@ final class NightPaletteTests: XCTestCase {
         controller.update(lower: false)
         XCTAssertEqual(screen, 0.7)
     }
+
+    // MARK: Copy (issues 47, 48)
+
+    /// The first-night welcome greets by the hour, not always "Good evening.".
+    func testFirstNightGreetingFollowsTheHour() {
+        XCTAssertEqual(FirstNightView.greeting(hour: 9), "Good morning.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 5), "Good morning.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 12), "Good afternoon.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 17), "Good afternoon.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 18), "Good evening.")
+        XCTAssertEqual(FirstNightView.greeting(hour: 2), "Good evening.")
+    }
+
+    /// Above 95% the Warmth note stops quoting a number; Red light is above it.
+    func testWarmthNoteAboveNinetyFivePercent() {
+        XCTAssertEqual(NightSheetView.warmthNote(95), "Blue light about 95% lower than daylight white.")
+        XCTAssertEqual(NightSheetView.warmthNote(96), "Almost no blue light.")
+        let red = PSPalette.night(glow: NightPreset.redLight.glow, warmth: NightPreset.redLight.warmth, clarity: .standard)
+        XCTAssertEqual(NightSheetView.warmthNote(red.blueReduction), "Almost no blue light.")
+    }
+
+    /// At night givens are one weight heavier, so entered digits differ by shape as well as hue.
+    func testNightGivensAreHeavier() {
+        XCTAssertEqual(PSType(.standard).givenWeight(night: false), .semibold)
+        XCTAssertEqual(PSType(.standard).givenWeight(night: true), .bold)
+        XCTAssertEqual(PSType(.large).givenWeight(night: true), .heavy)
+        XCTAssertEqual(PSType(.bold).givenWeight(night: true), .black)
+    }
 }

@@ -102,7 +102,7 @@ struct NightSheetView: View {
         if nightControls {
             PresetChips(theme: theme, current: viewModel.currentPreset, idPrefix: "night_preset_", onSelect: viewModel.applyPreset)
             NightSliders(theme: theme, settings: settings, glowNote: Self.glowNote(settings.glow),
-                         warmthNote: "Blue light about \(night.blueReduction)% lower than daylight white.",
+                         warmthNote: Self.warmthNote(night.blueReduction),
                          idPrefix: "night_", onGlow: viewModel.setGlow, onWarmth: viewModel.setWarmth)
         }
 
@@ -110,7 +110,7 @@ struct NightSheetView: View {
             Text("Clarity").font(.system(size: 16)).foregroundColor(theme.ink)
             PSSegmented(theme: theme, options: Clarity.allCases.map { ($0, $0.displayName) }, selection: settings.clarity,
                         idPrefix: "night_clarity_", onSelect: viewModel.setClarity)
-            Text("Bigger, heavier digits and stronger lines. Readable at lower glow.")
+            Text(Self.clarityNote)
                 .font(.system(size: 13))
                 .foregroundColor(theme.ink3)
                 .fixedSize(horizontal: false, vertical: true)
@@ -150,6 +150,14 @@ struct NightSheetView: View {
     static func glowNote(_ glow: Double) -> String {
         glow < 35 ? "Below your iPhone’s lowest brightness." : "How much light the screen gives off."
     }
+
+    /// The Warmth footnote, shared with Display & Night. Above 95% the number reads as false precision.
+    static func warmthNote(_ blueReduction: Int) -> String {
+        blueReduction > 95 ? "Almost no blue light." : "Blue light about \(blueReduction)% lower than daylight white."
+    }
+
+    /// The Clarity footnote, shared with Display & Night.
+    static let clarityNote = "Bigger, heavier digits and stronger lines, by day and at night."
 
     static func kelvinText(_ warmth: Double) -> String {
         "\(Int(Blackbody.kelvin(forWarmth: warmth)).formatted()) K"

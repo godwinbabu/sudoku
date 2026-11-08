@@ -20,15 +20,12 @@ struct FirstNightView: View {
             Color.black.ignoresSafeArea()
             switch step {
             case .calibrate:
-                VStack {
-                    CalibrateView(theme: theme, settings: controller.settings) { pick in
-                        controller.calibrate(pick: pick)
-                        go(.result)
-                    }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 76)
-                    Spacer()
+                // Centred, so the eye rests on the tiles.
+                CalibrateView(theme: theme, settings: controller.settings) { pick in
+                    controller.calibrate(pick: pick)
+                    go(.result)
                 }
+                .padding(.horizontal, 22)
             case .welcome, .result:
                 message
             }
@@ -53,7 +50,8 @@ struct FirstNightView: View {
                 .font(.system(size: 30))
                 .foregroundColor(theme.accent)
                 .accessibilityHidden(true)
-            Text(done ? "Glow set to \(Int(controller.settings.glow))%." : "Good evening.")
+            let greeting = Self.greeting(hour: Calendar.current.component(.hour, from: Date()))
+            Text(done ? "Glow set to \(Int(controller.settings.glow))%." : greeting)
                 .font(.system(size: 36, weight: .medium, design: .serif))
                 .foregroundColor(theme.ink)
                 .padding(.top, 22)
@@ -89,6 +87,15 @@ struct FirstNightView: View {
         .padding(.horizontal, 30)
         .padding(.top, 96)
         .padding(.bottom, 24)
+    }
+
+    /// The welcome heading by time of day: Night can first come on at any hour (Match iPhone, Night).
+    static func greeting(hour: Int) -> String {
+        switch hour {
+        case 5..<12: return "Good morning."
+        case 12..<18: return "Good afternoon."
+        default: return "Good evening."
+        }
     }
 
     private func go(_ next: Step) {

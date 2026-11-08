@@ -167,7 +167,8 @@ struct SudokuCellView: View {
         let digitSize = side * 0.6 * type.digitScale
         if let value = cell.value {
             Text("\(value)")
-                .font(.system(size: digitSize, weight: cell.given ? type.givenWeight : type.userWeight).monospacedDigit())
+                .font(.system(size: digitSize, weight: cell.given ? type.givenWeight(night: theme.isNight) : type.userWeight)
+                    .monospacedDigit())
                 .foregroundColor(cell.isError ? theme.err : cell.given ? theme.ink : theme.accent)
                 .overlay(alignment: .bottom) {
                     // A mistake also gets a bar under the digit, so it never depends on hue (CODESPEC 7.2).

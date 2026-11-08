@@ -233,7 +233,6 @@ struct ImportPuzzleView: View {
             }
             .buttonStyle(PSButtonStyle(theme: theme, height: 46))
             .disabled(!viewModel.canStart)
-            .opacity(viewModel.canStart ? 1 : 0.4)
             .accessibilityIdentifier("importStartPuzzle")
         }
         .padding(.horizontal, 16)
@@ -257,6 +256,11 @@ struct ImportPuzzleView: View {
                 }
                 .accessibilityIdentifier("importConflictLegend")
             } else {
+                if let hint = viewModel.emptyGridHint {
+                    Text(hint).font(.system(size: 14)).foregroundColor(theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("importEmptyHint")
+                }
                 if let message = viewModel.detectionMessage {
                     Text(message).font(.system(size: 14)).foregroundColor(theme.ink2)
                 }
