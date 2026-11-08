@@ -635,20 +635,16 @@ extension HintLadderTests {
         XCTAssertEqual(viewModel.checkMessage, "1 wrong digit, marked with a bar.")
     }
 
-    /// Two equal wrong digits plus the right one in a shared house: the hint names the right one.
+    /// Two equal wrong digits in a row, and the right one as a given in the column: the hint names the
+    /// given, not the other wrong digit (which comes first by index).
     func testTheNamedClashIsTheCorrectDigit() throws {
         var state = TestData.newGameState()
         let byIndex = Dictionary(uniqueKeysWithValues: state.cells.indices.map { (state.cells[$0].index, $0) })
-        // Find an empty cell whose correct digit is not given in its row, and two other empty cells
-        // in that row: put the right digit in one peer and the same digit, wrongly, in two cells.
-        let row = (0..<9).first { r in (0..<9).filter { state.cells[byIndex[r * 9 + $0]!].value == nil }.count >= 3 }!
-        let empties = (0..<9).map { row * 9 + $0 }.filter { state.cells[byIndex[$0]!].value == nil }
-        let (target, other) = (empties[0], empties[1])
-        let digit = solution[target]
-        state.cells[byIndex[target]!].value = digit // correct
-        state.cells[byIndex[other]!].value = digit // wrong: repeats it
+        XCTAssertEqual(state.cells[byIndex[66]!].value, 4, "TestData: a given 4 at row 8, column 4")
+        state.cells[byIndex[3]!].value = 4 // wrong (its answer is 6)
+        state.cells[byIndex[5]!].value = 4 // wrong too (its answer is 8)
         let viewModel = GameViewModel(state: state, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
         viewModel.requestHint()
-        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: other, kind: .wrongDigit(digit, clash: target)))
+        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: 3, kind: .wrongDigit(4, clash: 66)))
     }
 }
