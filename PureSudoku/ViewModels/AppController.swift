@@ -574,7 +574,8 @@ extension AppController {
     /// Keeps every unfinished import, the one being saved (`savedID`, even if the clock moved), and
     /// only the `keptSolvedImports` most recently played other solved ones.
     fileprivate func pruneSolvedImports(keeping savedID: String?) {
-        let solved = importedGames.filter { $0.gameState.isCompleted && $0.id != savedID }
+        // A game still waiting to hand off its late time stays until it has (it would lose the time).
+        let solved = importedGames.filter { $0.gameState.isCompleted && $0.id != savedID && $0.gameState.timeAwaitingCount == nil }
             .sorted { $0.lastOpened > $1.lastOpened }
         // The saved game is always kept; if it is solved it takes one of the slots.
         let savedIsSolved = importedGames.contains { $0.id == savedID && $0.gameState.isCompleted }

@@ -234,6 +234,26 @@ final class AppControllerTests: XCTestCase {
     }
 
     /// The import being saved is kept even when 20 others look newer because the clock moved back.
+    /// A solved import whose late time is still waiting is never pruned, so the time can't be lost.
+    func testPruningKeepsAnImportWaitingForItsLateTime() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        var games = (0..<20).map { importedGame($0, solved: true, imageID: nil, opened: now + Double($0)) }
+        var waiting = importedGame(99, solved: true, imageID: nil, opened: now - 86_400) // the oldest
+        waiting.gameState.timeAwaitingCount = 120
+        waiting.gameState.puzzle.hasUniqueSolution = nil // its count hasn't finished yet
+        games.append(waiting)
+        games.append(importedGame(100, solved: false, imageID: nil, opened: now))
+        let persistence = PersistenceManager(directory: dir)
+        try persistence.save(games, to: "imported_games.json")
+        let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(date: now))
+        let viewModel = try XCTUnwrap(controller.makeImportedGameViewModel(id: "import-100"))
+        viewModel.onSave?(viewModel.state) // saving another game prunes, before the count can finish
+
+        let saved = try XCTUnwrap(persistence.load([ImportedGame].self, from: "imported_games.json"))
+        XCTAssertTrue(saved.contains { $0.id == "import-99" }, "the waiting game stays until its time is handed off")
+    }
+
     func testSavingASolvedImportKeepsItWhenOthersAreDatedInTheFuture() throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let now = Date(timeIntervalSince1970: 1_000_000)
