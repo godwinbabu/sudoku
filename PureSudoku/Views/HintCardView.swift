@@ -11,6 +11,8 @@ struct HintCardView: View {
     /// Undo for entries that clash (imports); nil hides the button.
     let onUndo: (() -> Void)?
     let onLesson: (Technique) -> Void
+    /// Opens the coach on this board; shown at step 1 of a technique hint.
+    var onCoach: (() -> Void)?
     let onClose: () -> Void
 
     /// Text sizes and the room the text gets inside the 124 pt slot: 124 − 24 padding − 20 top row
@@ -109,6 +111,14 @@ struct HintCardView: View {
                     .contentShape(Rectangle())
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("hint_lesson")
+            } else if session.level == 1, session.step != nil, let onCoach {
+                Button("All patterns →", action: onCoach)
+                    .font(.system(size: 13))
+                    .foregroundColor(theme.ink2)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("hint_coach")
             }
             Spacer(minLength: 0)
             if session.canGoNext, let label = session.actionLabel {

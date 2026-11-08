@@ -47,6 +47,8 @@ struct Settings: Codable, Equatable {
     /// Remove a placed digit from the notes it sees.
     var tidyNotes: Bool
     var showTimer: Bool
+    /// After two minutes without a correct digit, the Hint tool offers the coach (CODESPEC 6.3.3).
+    var coachWhenStuck: Bool
     // Hints
     /// How hint text names cells: "row 5, column 2" or "R5C2".
     var notation: CellNotation
@@ -70,6 +72,7 @@ struct Settings: Codable, Equatable {
         mistakes: MistakeMode = .immediate,
         tidyNotes: Bool = true,
         showTimer: Bool = true,
+        coachWhenStuck: Bool = true,
         notation: CellNotation = .plain,
         keepImportImages: Bool = true
     ) {
@@ -89,6 +92,7 @@ struct Settings: Codable, Equatable {
         self.mistakes = mistakes
         self.tidyNotes = tidyNotes
         self.showTimer = showTimer
+        self.coachWhenStuck = coachWhenStuck
         self.notation = notation
         self.keepImportImages = keepImportImages
     }
@@ -138,7 +142,7 @@ struct Settings: Codable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case appearance, glow, warmth, clarity, glowFloor, calibrated, drift, hideStatusBarInGames
         case useLocationForAfterDark, afterDarkStart, afterDarkEnd
-        case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer
+        case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer, coachWhenStuck
         case notation, keepImportImages
         // Read only: v1 keys, and cellNameStyle (short/long) from before `notation`.
         // askBeforeHintResult is no longer read: the hint card has no "Try it yourself first?" step.
@@ -212,6 +216,7 @@ struct Settings: Codable, Equatable {
         mistakes = value(.mistakes, legacyMistakes)
         tidyNotes = value(.tidyNotes, value(.autoRemoveCandidates, defaults.tidyNotes))
         showTimer = value(.showTimer, defaults.showTimer)
+        coachWhenStuck = value(.coachWhenStuck, defaults.coachWhenStuck)
         let legacyNotation: CellNotation = value(.cellNameStyle, "long") == "short" ? .grid : defaults.notation
         notation = value(.notation, legacyNotation)
         keepImportImages = value(.keepImportImages, defaults.keepImportImages)
@@ -235,6 +240,7 @@ struct Settings: Codable, Equatable {
         try c.encode(mistakes, forKey: .mistakes)
         try c.encode(tidyNotes, forKey: .tidyNotes)
         try c.encode(showTimer, forKey: .showTimer)
+        try c.encode(coachWhenStuck, forKey: .coachWhenStuck)
         try c.encode(notation, forKey: .notation)
         try c.encode(keepImportImages, forKey: .keepImportImages)
     }

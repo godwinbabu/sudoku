@@ -8,6 +8,15 @@ final class GameViewModel: ObservableObject {
     @Published var showTimer: Bool
     /// The open hint, if any (CODESPEC 6.3.1).
     @Published private(set) var hint: HintSession?
+    /// The open coach, if any (CODESPEC 6.3.3). Never open at the same time as `hint`.
+    @Published private(set) var coach: CoachSession?
+    /// No correct placement for `stuckAfterSeconds` of play: the Hint tool offers the coach.
+    @Published private(set) var isStuck = false
+    static let stuckAfterSeconds = 120
+    /// Play time at the last correct placement (or when the coach last opened).
+    private var progressSeconds = 0
+    private var correctCount = 0
+    private var progressPuzzleID: String?
 
     var onCompletion: ((GameState) -> Void)?
     var onNewGame: (() async -> GameState?)?
@@ -650,6 +659,7 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         
         lastTickDate = now
+        updateStuck()
         if newState.elapsedSeconds % autosaveIntervalSeconds == 0 {
             onSave?(state)
         }
@@ -665,7 +675,7 @@ final class GameViewModel: ObservableObject {
 // MARK: - Hint ladder (CODESPEC 6.3.1)
 
 extension GameViewModel {
-    var hintHighlight: HintHighlight { hint?.highlight ?? HintHighlight() }
+    var hintHighlight: HintHighlight { coach?.highlight ?? hint?.highlight ?? HintHighlight() }
 
     /// Opens a hint: a mistake check first, then the simplest technique on the player's board.
     func requestHint() {
@@ -703,7 +713,8 @@ extension GameViewModel {
     /// The Hint tool: opens a hint, then reads "Next step" and does what the card's button does.
     /// A card with no action (no step, or clashing entries with nothing to undo) just closes.
     func hintTool() {
-        guard let session = hint else { return requestHint() }
+        if coach != nil { return coachTool() }
+        guard let session = hint else { return isStuck ? openCoach() : requestHint() }
         if session.canGoNext {
             hintNext()
         } else if session.canApply {
@@ -808,8 +819,13 @@ extension GameViewModel {
         }
     }
 
-    /// Closes the open hint and records it in the hint log.
+    /// Closes the open hint or coach and records it in the hint log. A coach counts as a hint only
+    /// once its move was shown.
     func endHint(applied: Bool = false) {
+        if let coach {
+            self.coach = nil
+            if coach.revealed { hint = coach.hint }
+        }
         guard let session = hint else { return }
         hint = nil
         let name: String
@@ -859,3 +875,75 @@ extension GameViewModel {
         state.cells.first { $0.index == index }?.id
     }
 }
+
+// MARK: - Coach (CODESPEC 6.3.3)
+
+extension GameViewModel {
+    /// Opens the coach on the player's board. Mistakes come first, as with a hint, since patterns on a
+    /// wrong board would mislead; with nothing to teach it falls back to the hint.
+    func openCoach() {
+        guard !state.isCompleted else { return }
+        endHint()
+        resetStuck()
+        var aligned = state
+        let entriesFit = alignImportedSolution(&aligned)
+        state = aligned
+        let board = SolverBoard(cells: state.cells)
+        let patterns = LogicalSolver(allowsUniqueness: state.puzzle.isUnique).patterns(board)
+        guard entriesFit, firstMistake() == nil, let session = CoachSession(board: board, patterns: patterns) else {
+            return requestHint()
+        }
+        selectedCellID = nil // the card hides the selection; the keypad must not type into it
+        coach = session
+    }
+
+    func coachForward() { coach?.forward() }
+    func coachBack() { coach?.back() }
+    func coachToggleDefinition() { coach?.toggleDefinition() }
+
+    /// "Show me": the move appears on the board. From here the player didn't find it alone, so the
+    /// learning ledger hears about it like a hint.
+    func coachReveal() {
+        guard let session = coach, !session.revealed else { return }
+        coach?.reveal()
+        let step = session.current
+        onHintShown?(step.technique, step.placements + step.eliminations, state.puzzle.id)
+    }
+
+    /// Applies the revealed move, as the hint's step 3 does (assisted).
+    func applyCoach() {
+        guard let session = coach, session.revealed else { return }
+        coach = nil
+        hint = session.hint
+        applyHint()
+    }
+
+    /// The Hint tool while the coach is open: Show me, then Apply.
+    private func coachTool() {
+        guard let session = coach else { return }
+        session.revealed ? applyCoach() : coachReveal()
+    }
+
+    /// Stuck: no new correct digit for `stuckAfterSeconds` of play (pauses don't count). Runs every timer tick.
+    func updateStuck() {
+        let correct = state.cells.filter { cell in
+            guard !cell.given, let value = cell.value else { return false }
+            return solutionDigit(at: cell.index).map { $0 == value } ?? true
+        }.count
+        // A new correct digit, another puzzle, or a restart (the clock went back) starts the count again.
+        if correct > correctCount || state.puzzle.id != progressPuzzleID || state.elapsedSeconds < progressSeconds {
+            correctCount = correct
+            progressSeconds = state.elapsedSeconds
+            progressPuzzleID = state.puzzle.id
+        }
+        let stuck = settings.coachWhenStuck && !state.isCompleted
+            && state.elapsedSeconds - progressSeconds >= Self.stuckAfterSeconds
+        if stuck != isStuck { isStuck = stuck }
+    }
+
+    private func resetStuck() {
+        progressSeconds = state.elapsedSeconds
+        if isStuck { isStuck = false }
+    }
+}
+

@@ -240,7 +240,7 @@ Testing requirements:
 	•	From top to bottom:
 	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (opens the Night sheet, Section 12.2); More.
 	•	Board: 3×3 boxes on a lineMajor ground, each 3×3 cells on a line ground. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
-	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never).
+	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1), or the coach card (Section 6.3.3). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never), and offers the coach once the player is stuck (Section 6.3.3).
 	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
 	•	Keypad: 1×9. Each key shows how many of its digit are left. A digit with none left fades to 28% and is disabled. In Notes mode each key shows its digit small, at its pencil-mark position.
 	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen. Check puzzle is left out when mistakes are set to Never, since it would mark nothing.
@@ -286,6 +286,7 @@ Testing requirements:
 	•	Show mistakes: Right away / When I check / Never. Never means no automatic marks and no Check; the hint still points at a mistake first.
 	•	Tidy notes (remove a placed digit from the notes it sees).
 	•	Cell names in hints (notation): “row 5, column 2” (plain, default) or “R5C2” (grid), with a line explaining the choice. Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
+	•	Coach when I'm stuck on/off (default on, Section 6.3.3).
 	•	Show timer on/off.
 	•	IMPORTS (kept from the old Settings screen): Keep import photos, and Clear imported photos, which asks first with a custom confirmation.
 	•	VoiceOver reads each table row as one line: “Expert: 3 solved, best 4:12, typical 5:00”, with “none yet” for a dash.
@@ -463,6 +464,21 @@ Testing requirements:
 	•	UI tests:
 	•	Tap Hint, step through the three steps (the keypad does not move), tap Place; verify the board changed and Undo restores it.
 	•	A digit repeated in its row is the first hint; Clear it empties the cell.
+
+6.3.3 Coach (patterns on the player's board)
+Why: a player who is stuck learns more from being shown what to look for than from being given the next digit. The coach walks through the patterns on their own board the way a friend would ("There's an X-Wing on the 7s here. Can you see what it rules out?"), so they finish the puzzle and learn the technique's name and shape.
+	•	CoachSession (ViewModels) over LogicalSolver.patterns(board): every technique that changes the board now, one step per technique name (Hidden Single box and line count once), simplest first in solver order, using the player's notes where they exist. Same board, same list.
+	•	Opening: from “All patterns →” on step 1 of a technique hint, or from the Hint tool once the player is stuck (below). A mistake (or clashing import entries) opens the mistake hint instead; with no pattern it opens the normal hint. Opening clears the selection, like a hint.
+	•	The card fills the 124 pt hint slot (nothing moves): the technique name (serif), its Learn tier, “2 of 5”, and ×. The body names the pattern on this board and asks the player to find the move: TechniqueStep.reason plus “Can you find the digit it places?” (placements) or “Can you see which candidates it rules out?” (eliminations). It never gives the result away before Show me.
+	•	The board shows the pattern as step 2 of a hint does (spotlight, pattern fill, ringed key candidates), never by hue alone.
+	•	Footer: ‹ › move between patterns (each starts hidden again); “What is it?” swaps the body for the technique's one-line definition, and then offers “Lesson →” (Section 13.5); “Show me” reveals the move with step-3 marks and the step-3 text; then “Place 5 · assisted” / “Remove 5 · assisted” / “Apply · assisted” applies it exactly as the hint's step 3. While the coach is open the Hint tool reads Show me, then Apply.
+	•	Stats and learning: browsing patterns is free. It is not a hint, does not set assisted, and does not stop mastery credit, so a player who then makes the move themselves earns it (Section 13.4). Show me counts as one hint (hint log, rung 3) and tells the learning ledger the move was shown, like a hint. Applying sets assisted.
+	•	Stuck: with Coach when I'm stuck on (Journal → Assists, default on), after 120 s of play time (pauses don't count) without a new correct digit, the hint slot says “Stuck? Tap Coach to see the patterns on your board.” and the Hint tool reads Coach and opens the coach. No flash, sound, vibration or pop-up. A new correct digit, another puzzle, a restart or opening the coach starts the 120 s again.
+	•	VoiceOver: the card is a container; the body reads the full text (after Show me, the hint's step-3 reading); the position reads “Pattern 2 of 5”; the pagers are “Previous pattern” / “Next pattern”.
+
+Testing requirements:
+	•	Unit tests: patterns are distinct by name, start with nextStep's technique and all change the board; browsing is not a hint and does not report to the ledger; Show me counts one hint; applying is assisted and places the step; paging resets the reveal; the definition toggles; a mistake opens the mistake hint; stuck after 120 s, reset by a correct digit, off with the setting; the setting round-trips and defaults on.
+	•	UI test: open a hint, tap All patterns, page forward, Show me, apply; the board changes and Undo restores it.
 
 6.4 Reveal Puzzle
 	•	Confirmation dialog.
