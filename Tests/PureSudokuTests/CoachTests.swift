@@ -123,16 +123,13 @@ final class CoachTests: XCTestCase {
         viewModel.select(cell: empties[0])
         viewModel.setDigit(solution[empties[0].index])
         time.advance(10)
-        viewModel.pauseTimer()
-        viewModel.updateStuck()
-        viewModel.undo()
-        viewModel.updateStuck()
+        viewModel.pauseTimer() // elapsed 10: the tick saw one correct digit
         viewModel.resumeTimer()
         time.advance(90)
+        viewModel.pauseTimer() // elapsed 100
+        viewModel.undo() // between ticks: no updateStuck() call here on purpose
         viewModel.select(cell: empties[1])
         viewModel.setDigit(solution[empties[1].index])
-        viewModel.pauseTimer()
-        viewModel.updateStuck() // elapsed 100: progress again
         viewModel.resumeTimer()
         time.advance(60)
         viewModel.pauseTimer()

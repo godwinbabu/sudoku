@@ -9,7 +9,7 @@ struct CoachSession: Equatable {
     /// Never empty.
     let patterns: [TechniqueStep]
     private(set) var index = 0
-    /// The move is shown (and the coach counts as a hint from here on).
+    /// The current pattern's move is shown.
     private(set) var revealed = false
     /// The body shows what the technique is, in general, instead of this board's pattern.
     private(set) var showsDefinition = false

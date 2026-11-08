@@ -2,7 +2,8 @@ import Foundation
 
 @MainActor
 final class GameViewModel: ObservableObject {
-    @Published private(set) var state: GameState
+    /// Every change (a move, an undo, a tick) also refreshes `isStuck`.
+    @Published private(set) var state: GameState { didSet { updateStuck() } }
     @Published var selectedCellID: UUID?
     @Published var inputMode: InputMode
     @Published var showTimer: Bool
@@ -662,7 +663,6 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         
         lastTickDate = now
-        updateStuck()
         if newState.elapsedSeconds % autosaveIntervalSeconds == 0 {
             onSave?(state)
         }
@@ -935,24 +935,26 @@ extension GameViewModel {
         session.revealed ? applyCoach() : coachReveal()
     }
 
-    /// Stuck: no new correct digit for `stuckAfterSeconds` of play (pauses don't count). Runs every timer tick.
+    /// Stuck: no new correct digit for `stuckAfterSeconds` of play (pauses don't count). Runs on every
+    /// state change, so a move between timer ticks counts at once.
     func updateStuck() {
         let correct = state.cells.filter { cell in
             guard !cell.given, let value = cell.value else { return false }
             return solutionDigit(at: cell.index).map { $0 == value } ?? true
         }.count
-        // A new correct digit, another puzzle, or a restart (the clock went back) starts the count again.
+        // Play time now: the saved seconds plus the stretch the timer is running (a move can land between ticks).
+        let played = state.elapsedSeconds + (lastTickDate.map { max(0, Int(timeProvider.now().timeIntervalSince($0))) } ?? 0)
         // A new correct digit (also after an undo or erase), another puzzle, or a restart (the clock went
         // back) starts the count again.
-        if correct > correctCount || state.puzzle.id != progressPuzzleID || state.elapsedSeconds < progressSeconds {
-            progressSeconds = state.elapsedSeconds
+        if correct > correctCount || state.puzzle.id != progressPuzzleID || played < progressSeconds {
+            progressSeconds = played
             progressPuzzleID = state.puzzle.id
         }
         correctCount = correct
-        let stuck = settings.coachWhenStuck && !state.isCompleted
-            && state.elapsedSeconds - progressSeconds >= Self.stuckAfterSeconds
+        let stuck = settings.coachWhenStuck && !state.isCompleted && played - progressSeconds >= Self.stuckAfterSeconds
         if stuck != isStuck { isStuck = stuck }
     }
+
 
     private func resetStuck() {
         progressSeconds = state.elapsedSeconds
