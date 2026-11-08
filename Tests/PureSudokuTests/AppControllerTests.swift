@@ -308,12 +308,12 @@ final class AppControllerTests: XCTestCase {
     /// Interrupted after the count saved uniqueness but before the time was handed off: the next
     /// launch finishes it, once (stats already holding the id means it was recorded).
     func testAnInterruptedHandoffFinishesOnce() async throws {
-        for alreadyRecorded in [false, true] {
+        for (alreadyRecorded, countSaved) in [(false, true), (true, true), (true, false)] {
             let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             let persistence = PersistenceManager(directory: dir)
             var puzzle = SudokuPuzzle(id: "old-unique", difficulty: .easy, initialGrid: TestData.puzzle.initialGrid,
                                       solutionGrid: TestData.puzzle.solutionGrid, source: .imported)
-            puzzle.hasUniqueSolution = true // the count finished and was saved
+            puzzle.hasUniqueSolution = countSaved ? true : nil // false: the app died before the count was saved
             var solved = GameState.newGame(for: puzzle)
             solved.isCompleted = true
             solved.counted = true
@@ -327,7 +327,10 @@ final class AppControllerTests: XCTestCase {
             }
             let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(),
                                            imageStore: ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true)))
-            XCTAssertEqual(controller.stats.solveTimes[.easy], [120], "recorded exactly once (already recorded: \(alreadyRecorded))")
+            for _ in 0..<100 where controller.importedGames.first?.gameState.timeAwaitingCount != nil {
+                try await Task.sleep(nanoseconds: 20_000_000)
+            }
+            XCTAssertEqual(controller.stats.solveTimes[.easy], [120], "once (recorded \(alreadyRecorded), count saved \(countSaved))")
             XCTAssertNil(controller.importedGames.first?.gameState.timeAwaitingCount)
         }
     }

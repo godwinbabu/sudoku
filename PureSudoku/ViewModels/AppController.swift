@@ -135,8 +135,7 @@ final class AppController: ObservableObject {
                 guard let index = importedGames.firstIndex(where: { $0.id == result.id }) else { continue }
                 importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
             }
-            settleLateTimes()
-            persistImportedGames() // the counts themselves
+            if !settleLateTimes() { persistImportedGames() } // the counts themselves
         }
     }
 
@@ -144,9 +143,11 @@ final class AppController: ObservableObject {
     /// time once the count says unique. Stats record it by puzzle id first, so a retry is a no-op; only
     /// then is the waiting time cleared. Any failed or interrupted write is retried on the next launch,
     /// so a late time is neither lost nor added twice.
-    private func settleLateTimes() {
+    /// Returns true if it saved the imports.
+    @discardableResult
+    private func settleLateTimes() -> Bool {
         let waiting = importedGames.filter { $0.gameState.timeAwaitingCount != nil && $0.gameState.puzzle.hasUniqueSolution != nil }
-        guard !waiting.isEmpty else { return }
+        guard !waiting.isEmpty else { return false }
         let late = waiting.filter { $0.gameState.puzzle.hasUniqueSolution == true }
         let saved = late.isEmpty || updateStats { stats in
             for game in late {
@@ -159,6 +160,7 @@ final class AppController: ObservableObject {
             }
         }
         persistImportedGames()
+        return true
     }
 
     func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
