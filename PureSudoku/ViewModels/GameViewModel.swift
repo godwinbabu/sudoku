@@ -9,6 +9,8 @@ final class GameViewModel: ObservableObject {
     @Published var showTimer: Bool
     /// The open hint, if any (CODESPEC 6.3.1).
     @Published private(set) var hint: HintSession?
+    /// What the last Check found, shown in the hint slot until the next move or hint (QA #49).
+    @Published private(set) var checkMessage: String?
     /// The open coach, if any (CODESPEC 6.3.3). Never open at the same time as `hint`.
     @Published private(set) var coach: CoachSession?
     /// No correct placement for `stuckAfterSeconds` of play: the Hint tool offers the coach.
@@ -345,6 +347,7 @@ final class GameViewModel: ObservableObject {
 
     func checkPuzzle() {
         guard settings.mistakes != .never else { return }
+        endHint() // the result shows in the hint slot, so an open hint closes first
         var newState = self.state
         // A second tap with nothing new to check hides the green "correct" marks. Any unchecked entry
         // is checked instead, so new mistakes are never skipped. Wrong values stay flagged (CODESPEC 6.2).
@@ -355,6 +358,7 @@ final class GameViewModel: ObservableObject {
                 newState.cells[idx].isVerifiedCorrect = false
             }
             self.state = newState
+            showCheckResult()
             return
         }
         alignImportedSolution(&newState)
@@ -375,6 +379,13 @@ final class GameViewModel: ObservableObject {
         }
         updateContradictionFlag(on: &newState)
         self.state = newState
+        showCheckResult()
+    }
+
+    /// The hint slot's one-line Check result (CODESPEC 6.2).
+    private func showCheckResult() {
+        let wrong = state.cells.filter { !$0.given && $0.value != nil && $0.isError }.count
+        checkMessage = wrong == 0 ? "No mistakes so far." : "\(wrong) wrong digit\(wrong == 1 ? "" : "s"), marked with a bar."
     }
 
     func revealCell() {
@@ -457,6 +468,7 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.selectedCellID = nil
         hint = nil // the old board's hint no longer applies
+        checkMessage = nil
         coach = nil
         undoStack.removeAll()
         updateCanUndo()
@@ -490,6 +502,7 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.showTimer = settings.showTimer
         hint = nil // the old board's hint no longer applies
+        checkMessage = nil
         coach = nil
         undoStack.removeAll()
         isTimerRunning = false
@@ -825,6 +838,7 @@ extension GameViewModel {
     /// Closes the open hint or coach and records it in the hint log. A coach counts as a hint only
     /// once its move was shown.
     func endHint(applied: Bool = false) {
+        checkMessage = nil // any move, selection or hint ends the Check message
         if let coach {
             self.coach = nil
             logRevealed(coach.revealedSteps)
@@ -847,7 +861,11 @@ extension GameViewModel {
         guard solution.count == 81 else { return nil }
         let cells = state.cells.sorted { $0.index < $1.index }
         if let wrong = cells.first(where: { !$0.given && $0.value != nil && $0.value != solution[$0.index] }) {
-            return (wrong.index, .wrongDigit(wrong.value ?? 0))
+            let digit = wrong.value ?? 0
+            // Prefer a clash whose digit is right, so the step-3 text never vouches for another mistake.
+            let clashes = SolverBoard.peers[wrong.index].filter { cells[$0].value == digit }
+            let clash = clashes.first { solution[$0] == digit } ?? clashes.first
+            return (wrong.index, .wrongDigit(digit, clash: clash))
         }
         let suspects = cells.filter { $0.value == nil && !$0.candidates.isEmpty && !$0.candidates.contains(solution[$0.index]) }
         // An import may have several solutions: a note is only wrong if none of its digits can work.
