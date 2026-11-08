@@ -113,4 +113,33 @@ final class StatsTests: XCTestCase {
         newStats.recordCompletion(for: .master, time: 500, usedReveal: false)
         XCTAssertEqual(try JSONDecoder().decode(Stats.self, from: JSONEncoder().encode(newStats)), newStats)
     }
+
+    // MARK: - QA fixes (#35, #34)
+
+    /// A night of play runs to 4 am: Monday 23:30 then Wednesday 00:30 is two nights in a row.
+    func testStreakSurvivesMidnight() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        func at(_ day: Int, _ hour: Int, _ minute: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+        }
+        var stats = Stats()
+        stats.recordCompletion(for: .easy, time: 100, usedReveal: false, date: at(2, 23, 30), calendar: calendar)
+        XCTAssertEqual(stats.currentStreak(at: at(3, 0, 5), calendar: calendar), 1, "still Monday night at 00:05")
+        stats.recordCompletion(for: .easy, time: 100, usedReveal: false, date: at(4, 0, 30), calendar: calendar)
+        XCTAssertEqual(stats.streakDays, 2, "Tuesday night, after midnight")
+        XCTAssertTrue(stats.solved(on: at(3, 12, 0), calendar: calendar), "the 00:30 solve counts for Tuesday")
+        XCTAssertEqual(stats.currentStreak(at: at(5, 3, 59), calendar: calendar), 2, "Wednesday night is not over until 4 am")
+        XCTAssertEqual(stats.currentStreak(at: at(6, 4, 1), calendar: calendar), 0, "a whole night missed")
+    }
+
+    func testSolveWithSeveralSolutionsSetsNoTimes() {
+        var stats = Stats()
+        stats.recordCompletion(for: .master, time: 30, usedReveal: false, setsTimes: false, source: .imported)
+        XCTAssertNil(stats.bestTime(for: .master))
+        XCTAssertNil(stats.typicalTime(for: .master))
+        XCTAssertEqual(stats.solvedCount(for: .master), 1, "it still counts as solved")
+        XCTAssertEqual(stats.streakDays, 1)
+        XCTAssertEqual(stats.assistedSolves, 0)
+    }
 }

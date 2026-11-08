@@ -274,6 +274,10 @@ final class AppController: ObservableObject {
             repository.generate(for: difficulty, mode: mode).puzzle
         }.value
         let newState = GameState.newGame(for: puzzle, now: timeProvider.now())
+        // Time spent on an unfinished game it replaces still counts as played (the Journal total).
+        if let old = activeGames[difficulty], !old.isCompleted, old.elapsedSeconds > 0 {
+            updateStats { $0.totalTimeSeconds += old.elapsedSeconds }
+        }
         activeGames[difficulty] = newState
         do {
             try persistence.save(newState, to: File.game(difficulty).rawValue)
@@ -437,9 +441,9 @@ final class AppController: ObservableObject {
     }
 
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
-        updateStats { stats in
-            stats.recordCompletion(for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal, assisted: state.assisted, source: state.puzzle.source, date: self.timeProvider.now())
-        }
+        var state = state
+        record(state, at: difficulty)
+        state.counted = true
         activeGames[difficulty] = state
         do {
             try persistence.save(state, to: File.game(difficulty).rawValue)
@@ -461,13 +465,23 @@ final class AppController: ObservableObject {
     }
 
     private func handleImportedCompletion(state: GameState, id: String) {
+        var state = state
+        record(state, at: state.puzzle.difficulty)
+        state.counted = true
+        persistImported(state: state, id: id)
+    }
+
+    /// Adds a solve to the stats once per puzzle (a restarted solve is already counted). Puzzles with
+    /// several solutions set no best or typical time.
+    private func record(_ state: GameState, at difficulty: Difficulty) {
+        guard !state.counted else { return }
         updateStats { stats in
             stats.recordCompletion(
-                for: state.puzzle.difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
-                assisted: state.assisted, source: state.puzzle.source, date: self.timeProvider.now()
+                for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
+                assisted: state.assisted, setsTimes: state.puzzle.isUnique, source: state.puzzle.source,
+                date: self.timeProvider.now()
             )
         }
-        persistImported(state: state, id: id)
     }
 
     /// Saves the imported list, then removes images no game uses (only after a successful save).

@@ -18,6 +18,13 @@ struct Stats: Codable, Equatable {
     /// Solve times kept per level; shortcut: the median of the last 50, enough for "typical".
     static let keptTimes = 50
     static let keptDays = 14
+    /// A night of play runs until 4 am: a solve at 00:30 belongs to the evening before (CODESPEC 3.3).
+    static let nightRollover: TimeInterval = 4 * 3600
+
+    /// The calendar day a solve at `date` counts for.
+    static func playDay(_ date: Date, calendar: Calendar = .current) -> Date {
+        calendar.startOfDay(for: date.addingTimeInterval(-nightRollover))
+    }
 
     init(streakDays: Int = 0, lastCompletionDate: Date? = nil, bestTimes: [Difficulty: Int] = [:], puzzlesSolved: [Difficulty: Int] = [:], importedPuzzlesSolved: Int = 0, totalPuzzlesSolved: Int = 0, totalTimeSeconds: Int = 0) {
         self.streakDays = streakDays
@@ -30,8 +37,11 @@ struct Stats: Codable, Equatable {
     }
 
     /// Per CODESPEC "Streak rules", only puzzles completed without Reveal update stats. An assisted
-    /// solve keeps the streak and counts, but sets no best time (CODESPEC 6.3.1).
-    mutating func recordCompletion(for difficulty: Difficulty, time: Int, usedReveal: Bool, assisted: Bool = false, source: GameSource = .generated, date: Date = Date(), calendar: Calendar = .current) {
+    /// solve keeps the streak and counts, but sets no best time (CODESPEC 6.3.1). Neither does a
+    /// puzzle with several solutions (`setsTimes` false: an import any valid fill solves).
+    mutating func recordCompletion(for difficulty: Difficulty, time: Int, usedReveal: Bool, assisted: Bool = false,
+                                   setsTimes: Bool = true, source: GameSource = .generated, date: Date = Date(),
+                                   calendar: Calendar = .current) {
         guard !usedReveal else { return }
         totalPuzzlesSolved += 1
         totalTimeSeconds += time
@@ -42,20 +52,20 @@ struct Stats: Codable, Equatable {
 
         if assisted {
             assistedSolves += 1
-        } else {
+        } else if setsTimes {
             bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
             solveTimes[difficulty, default: []].append(time)
             solveTimes[difficulty] = solveTimes[difficulty]?.suffix(Self.keptTimes)
         }
-        let day = calendar.startOfDay(for: date)
+        let day = Self.playDay(date, calendar: calendar)
         if !solvedDays.contains(where: { calendar.isDate($0, inSameDayAs: day) }) {
             solvedDays = (solvedDays + [day]).suffix(Self.keptDays)
         }
 
         if let lastDate = lastCompletionDate {
-            if calendar.isDate(date, inSameDayAs: lastDate) {
+            if calendar.isDate(day, inSameDayAs: lastDate) {
                 // same day, streak unchanged
-            } else if let next = calendar.date(byAdding: .day, value: -1, to: date), calendar.isDate(next, inSameDayAs: lastDate) {
+            } else if let previous = calendar.date(byAdding: .day, value: -1, to: day), calendar.isDate(previous, inSameDayAs: lastDate) {
                 streakDays += 1
             } else {
                 streakDays = 1
@@ -64,7 +74,7 @@ struct Stats: Codable, Equatable {
             streakDays = 1
         }
 
-        lastCompletionDate = calendar.startOfDay(for: date)
+        lastCompletionDate = day
     }
 
     func solvedCount(for difficulty: Difficulty) -> Int {
@@ -83,10 +93,10 @@ struct Stats: Codable, Equatable {
         return times.count.isMultiple(of: 2) ? (times[middle - 1] + times[middle]) / 2 : times[middle]
     }
 
-    /// The streak as of `date`: zero once a whole day has passed without a solve.
+    /// The streak as of `date`: zero once a whole day (to 4 am) has passed without a solve.
     func currentStreak(at date: Date = Date(), calendar: Calendar = .current) -> Int {
         guard let last = lastCompletionDate else { return 0 }
-        let today = calendar.startOfDay(for: date)
+        let today = Self.playDay(date, calendar: calendar)
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: last), to: today).day ?? 0
         return days <= 1 ? streakDays : 0
     }

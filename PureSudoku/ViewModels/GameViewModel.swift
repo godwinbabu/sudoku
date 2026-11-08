@@ -96,6 +96,8 @@ final class GameViewModel: ObservableObject {
         self.hintService = hintService
         self.inputMode = .normal
         self.showTimer = settings.showTimer
+        // A reopened game keeps the marks its last Check left (When I check), so they survive a settings change.
+        checkedWrongIDs = Set(state.cells.filter { !$0.given && $0.isError && $0.value != nil }.map(\.id))
     }
 
     deinit {
@@ -592,9 +594,11 @@ final class GameViewModel: ObservableObject {
 
     /// Reports completion right away, so stats get this exact state and a later reset or new game
     /// is saved after it (a delayed report could overwrite newer progress).
+    /// The app records stats unless `completed.counted` (a restarted solve); then it is counted.
     private func reportCompletion(_ completed: GameState) {
         saveTask?.cancel()
         onCompletion?(completed)
+        state.counted = true
     }
 
     /// Imported puzzles may have several solutions (BYOS.md). If the player's entries differ from the
@@ -671,6 +675,7 @@ extension GameViewModel {
     func requestHint() {
         guard !state.isCompleted else { return }
         endHint()
+        let target = revealTarget() // read before the selection clears: a no-step hint fills the selected cell
         selectedCellID = nil // the card hides the selection; the keypad must not type into it
         var aligned = state
         let entriesFit = alignImportedSolution(&aligned)
@@ -686,7 +691,7 @@ extension GameViewModel {
                 hint = HintSession(content: .step(step, board: board))
                 onHintShown?(step.technique, step.placements + step.eliminations, state.puzzle.id)
             } else {
-                let cell = revealTarget()
+                let cell = target
                 if let cell, let digit = solutionDigit(at: cell) {
                     onHintShown?(nil, [CellDigit(cell: cell, digit: digit)], state.puzzle.id)
                 }
