@@ -632,7 +632,7 @@ Persist:
 	•	keepImportImages
 	•	v1 keys (theme, bedtimeMode, sleepBrightness, display profiles, autoCheckMistakes, autoRemoveCandidates) are read once and mapped (Section 7.1), never written.
 	3.	Technique progress (phase 5): one TechniqueProgress per technique (Section 2.3).
-	4.	Imported games (BYOS.md).
+	4.	Imported games (BYOS.md). Every unfinished import is kept, but only the 20 most recently played solved ones (plus any still waiting to hand off a late best time, until their count finishes); older solved imports are dropped on the next save. Unused import photos are cleaned up only when the set of photos in use changes, not on every autosave.
 	5.	Stats:
 struct Stats: Codable {
     var totalPuzzlesSolved: Int
@@ -646,6 +646,8 @@ struct Stats: Codable {
     var assistedSolves: Int
     var solvedDays: [Date]               // last 14 days with a counted solve, for the Journal week
 }
+
+A file that reads but cannot be decoded is moved aside as name.corrupt-<time>.json and that data starts over. Home then shows a calm notice (a hairline box, no fill, with an outline OK button) naming what was reset and saying "The old data was kept on this iPhone." The notice comes from the set-aside copies on disk, so it cannot be lost: it lists every copy the player has not acknowledged. Tapping OK saves the copy names as acknowledged in reset_notice.json. If that save fails, or that file is damaged, the notice simply shows again at the next launch. A later corruption shows the notice again for the new copy only.
 
 Streak rules:
 	•	Puzzle completed without usedReveal:

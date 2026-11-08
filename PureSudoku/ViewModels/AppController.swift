@@ -16,6 +16,9 @@ final class AppController: ObservableObject {
     /// Which moves may still earn credit (CODESPEC 13.4), saved with the progress (`LearningFile`).
     private(set) var learningLedger = LearningLedger()
     @Published var lastPersistenceError: (any Error)?
+    /// Set-aside copies (`name.corrupt-<time>.json`) the player has not yet acknowledged on Home
+    /// (CODESPEC 8). Only acknowledged copy names are saved, in reset_notice.json.
+    @Published private(set) var resetCopies: [String] = []
     /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
     @Published var showsNightSheet = false
     /// Set by a game during Night, Hush and Goodnight. The root hides the home indicator for it, so
@@ -47,6 +50,11 @@ final class AppController: ObservableObject {
     /// True when imported_games.json could not be loaded. Its photos may still belong to the backup
     /// copy, so orphan cleanup is skipped for this session.
     private var importedGamesLoadFailed = false
+    /// The image IDs the last orphan cleanup kept; cleanup runs again only when this set changes.
+    private var cleanedImageIDs: Set<String>?
+    /// Solved imports kept in imported_games.json; older solved ones are dropped (CODESPEC 8).
+    static let keptSolvedImports = 20
+
     init(
         persistence: PersistenceManager = PersistenceManager(),
         puzzleRepository: SudokuPuzzleRepository? = nil,
@@ -118,6 +126,7 @@ final class AppController: ObservableObject {
             learningLedger.prune(keeping: Set(activeGames.values.map(\.puzzle.id) + importedGames.map(\.gameState.puzzle.id)))
             if learningLedger != before { saveLearning() }
         }
+        loadResetNotice()
         countSolutionsOfOldImports()
         #if DEBUG
         // UI tests start past the first-night flow, whatever the simulator clock says.
@@ -454,10 +463,13 @@ final class AppController: ObservableObject {
         imageStore.clearAll()
     }
 
+    /// Scans the image folder only when the set of images in use changed, not on every autosave.
     private func cleanupImportImages() {
         guard !importedGamesLoadFailed else { return }
-        let ids = Set(importedGames.compactMap { $0.gameState.puzzle.importImageID })
-        imageStore.removeOrphans(keeping: ids.union(pendingImageIDs))
+        let ids = Set(importedGames.compactMap { $0.gameState.puzzle.importImageID }).union(pendingImageIDs)
+        guard ids != cleanedImageIDs else { return }
+        imageStore.removeOrphans(keeping: ids)
+        cleanedImageIDs = ids
     }
 
     /// Returns false if the stats file could not be written.
@@ -507,7 +519,7 @@ final class AppController: ObservableObject {
         state.timeAwaitingCount = state.timeAwaitingCount ?? importedGames[index].gameState.timeAwaitingCount
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
-        persistImportedGames()
+        persistImportedGames(keeping: id)
     }
 
     private func handleImportedCompletion(state: GameState, id: String) {
@@ -543,9 +555,11 @@ final class AppController: ObservableObject {
         }
     }
 
-    /// Saves the imported list, then removes images no game uses (only after a successful save).
+    /// Prunes old solved imports, saves the list, then removes images no game uses (only after a
+    /// successful save). Returns false if the save failed.
     @discardableResult
-    private func persistImportedGames() -> Bool {
+    private func persistImportedGames(keeping savedID: String? = nil) -> Bool {
+        pruneSolvedImports(keeping: savedID)
         do {
             try persistence.save(importedGames, to: File.importedGames.rawValue)
         } catch {
@@ -557,6 +571,59 @@ final class AppController: ObservableObject {
     }
 }
 
+// MARK: Solved imports (CODESPEC 8)
+
+extension AppController {
+    /// Keeps every unfinished import, the one being saved (`savedID`, even if the clock moved), and
+    /// only the `keptSolvedImports` most recently played other solved ones. A solved game still waiting
+    /// to hand off its late time is kept on top, until its count finishes.
+    fileprivate func pruneSolvedImports(keeping savedID: String?) {
+        // A game still waiting to hand off its late time stays until it has (it would lose the time).
+        let solved = importedGames.filter { $0.gameState.isCompleted && $0.id != savedID && $0.gameState.timeAwaitingCount == nil }
+            .sorted { $0.lastOpened > $1.lastOpened }
+        // The saved game is always kept; if it is solved it takes one of the slots.
+        let savedIsSolved = importedGames.contains { $0.id == savedID && $0.gameState.isCompleted }
+        let dropped = Set(solved.dropFirst(Self.keptSolvedImports - (savedIsSolved ? 1 : 0)).map(\.id))
+        guard !dropped.isEmpty else { return }
+        importedGames.removeAll { dropped.contains($0.id) }
+    }
+}
+
+// MARK: Reset notice (CODESPEC 8)
+
+extension AppController {
+    /// Derives the notice from the set-aside copies on disk, minus those the player already
+    /// acknowledged, so it cannot be lost when a save fails.
+    fileprivate func loadResetNotice() {
+        // A damaged acknowledgement file counts as nothing acknowledged.
+        let acknowledged = Set((try? persistence.load([String].self, from: File.resetNotice.rawValue)) ?? [])
+        resetCopies = persistence.setAsideCopies().filter { !acknowledged.contains($0) && File.dataName(forCopy: $0) != nil }
+    }
+
+    /// What was reset, in words, for the copies not yet acknowledged.
+    var resetData: [String] {
+        var names: [String] = []
+        for name in resetCopies.compactMap(File.dataName(forCopy:)) where !names.contains(name) {
+            names.append(name)
+        }
+        return names
+    }
+
+    /// The Home notice for `resetData`, or nil when there is nothing to tell.
+    var resetNotice: String? {
+        guard !resetData.isEmpty else { return nil }
+        return "Some saved data couldn’t be read, so your \(resetData.formatted(.list(type: .and))) started over. "
+            + "The old data was kept on this iPhone."
+    }
+
+    /// Saves every set-aside copy on disk as acknowledged. If that save fails, the notice shows
+    /// again at the next launch.
+    func dismissResetNotice() {
+        resetCopies = []
+        try? persistence.save(persistence.setAsideCopies(), to: File.resetNotice.rawValue)
+    }
+}
+
 private enum File: RawRepresentable {
     typealias RawValue = String
 
@@ -565,6 +632,7 @@ private enum File: RawRepresentable {
     case game(Difficulty)
     case importedGames
     case techniqueProgress
+    case resetNotice
 
     var rawValue: String {
         switch self {
@@ -573,6 +641,22 @@ private enum File: RawRepresentable {
         case let .game(difficulty): return "game_\(difficulty.rawValue).json"
         case .importedGames: return "imported_games.json"
         case .techniqueProgress: return "technique_progress.json"
+        case .resetNotice: return "reset_notice.json"
+        }
+    }
+
+    /// What the player lost when `copy` (`name.corrupt-<time>.json`) was set aside, in words for
+    /// the reset notice.
+    static func dataName(forCopy copy: String) -> String? {
+        guard let range = copy.range(of: ".corrupt-") else { return nil }
+        let fileName = String(copy[..<range.lowerBound]) + ".json"
+        switch fileName {
+        case File.settings.rawValue: return "settings"
+        case File.stats.rawValue: return "stats"
+        case File.importedGames.rawValue: return "imported puzzles"
+        case File.techniqueProgress.rawValue: return "learning progress"
+        case _ where fileName.hasPrefix("game_"): return "saved games"
+        default: return nil
         }
     }
 

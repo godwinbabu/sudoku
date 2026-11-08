@@ -95,6 +95,13 @@ final class PersistenceManager {
         return names.contains { $0.hasPrefix(prefix) }
     }
 
+    /// The names of every copy set aside by `load` (`name.corrupt-<time>.json`) still on disk, sorted.
+    func setAsideCopies() -> [String] {
+        guard let directory = try? baseURL(),
+              let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return [] }
+        return names.filter { $0.contains(".corrupt-") }.sorted()
+    }
+
     func delete(_ fileName: String) {
         guard let url = try? baseURL().appendingPathComponent(fileName) else { return }
         try? fileManager.removeItem(at: url)
