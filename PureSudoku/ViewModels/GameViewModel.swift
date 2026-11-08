@@ -654,15 +654,14 @@ final class GameViewModel: ObservableObject {
         state = newState
     }
 
-    private func tick() async {
+    /// One timer tick. Internal for tests.
+    func tick() async {
         guard let start = lastTickDate else { return }
         let now = timeProvider.now()
-        
         var newState = self.state
         newState.elapsedSeconds += max(1, Int(now.timeIntervalSince(start)))
+        lastTickDate = now // before publishing: `state`'s observer counts time since the last tick
         self.state = newState
-        
-        lastTickDate = now
         if newState.elapsedSeconds % autosaveIntervalSeconds == 0 {
             onSave?(state)
         }
@@ -954,7 +953,6 @@ extension GameViewModel {
         let stuck = settings.coachWhenStuck && !state.isCompleted && played - progressSeconds >= Self.stuckAfterSeconds
         if stuck != isStuck { isStuck = stuck }
     }
-
 
     private func resetStuck() {
         progressSeconds = state.elapsedSeconds

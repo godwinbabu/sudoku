@@ -123,7 +123,8 @@ final class CoachTests: XCTestCase {
         viewModel.select(cell: empties[0])
         viewModel.setDigit(solution[empties[0].index])
         time.advance(10)
-        viewModel.pauseTimer() // elapsed 10: the tick saw one correct digit
+        viewModel.pauseTimer() // elapsed 10
+        viewModel.updateStuck() // stands in for the tick that saw one correct digit
         viewModel.resumeTimer()
         time.advance(90)
         viewModel.pauseTimer() // elapsed 100
@@ -207,5 +208,24 @@ final class CoachTests: XCTestCase {
         settings.coachWhenStuck = false
         XCTAssertEqual(try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(settings)), settings)
         XCTAssertTrue(try JSONDecoder().decode(Settings.self, from: Data("{}".utf8)).coachWhenStuck, "on by default")
+    }
+
+    /// A running tick counts its interval once: 110 s of play is not 120 (stuck 10 s early).
+    func testATickCountsItsIntervalOnce() async {
+        let time = AdvancingTimeProvider()
+        let viewModel = makeViewModel(time: time)
+        viewModel.handleSceneDidAppear()
+        let cell = viewModel.state.cells.first { $0.value == nil }!
+        viewModel.select(cell: cell)
+        viewModel.setDigit(solution[cell.index]) // progress at 0 s
+        time.advance(100)
+        await viewModel.tick()
+        time.advance(10)
+        await viewModel.tick()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 110)
+        XCTAssertFalse(viewModel.isStuck, "110 s since the last correct digit")
+        time.advance(10)
+        await viewModel.tick()
+        XCTAssertTrue(viewModel.isStuck, "120 s")
     }
 }
