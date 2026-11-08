@@ -138,7 +138,7 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["nightButton"].tap()
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
-        app.windows.firstMatch.twoFingerTap()
+        app.twoFingerTap() // the app element, which has a tap point on every phone size
         XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 
