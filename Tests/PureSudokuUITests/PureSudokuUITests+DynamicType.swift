@@ -68,10 +68,13 @@ extension PureSudokuUITests {
     /// edge, outside the sliders, which would take it, and without a fling that could pass the button.
     private func assertReachable(_ button: XCUIElement, _ id: String, in app: XCUIApplication) {
         XCTAssertTrue(button.waitForExistence(timeout: 2), id)
-        for _ in 0..<10 where !waitUntilHittable(button, timeout: 1) {
+        for attempt in 0..<10 where !waitUntilHittable(button, timeout: 1) {
             let up = button.frame.midY > app.frame.midY
-            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.7 : 0.35))
-            from.press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: up ? 0.35 : 0.7)))
+            // A drag that starts on a slider row can move nothing, so every other one starts higher.
+            let shift = attempt.isMultiple(of: 2) ? 0 : 0.1
+            let from = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: (up ? 0.7 : 0.35) - shift))
+            let to = app.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: (up ? 0.35 : 0.7) - shift))
+            from.press(forDuration: 0.05, thenDragTo: to)
         }
         XCTAssertTrue(button.isHittable, id)
     }
