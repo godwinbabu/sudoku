@@ -112,9 +112,9 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         case .xyzWing: return "Like an XY-Wing, but the pivot also holds the shared digit."
         case .wWing: return "Two cells with the same pair, joined by a strong link on one of the digits."
         case .simpleColoring: return "Color one digit's strong links in two colors: exactly one color is true."
-        case .uniqueRectangle1: return "Three corners of a rectangle hold only the same pair, so the fourth corner can't use it."
+        case .uniqueRectangle1: return "Three corners of a rectangle hold only the same pair, so the fourth corner can't hold either digit."
         case .uniqueRectangle2: return "Two corners hold the pair plus the same extra digit; cells seeing both corners lose it."
-        case .uniqueRectangle4: return "One pair digit must fill the two extra corners, so they lose the other pair digit."
+        case .uniqueRectangle4: return "One pair digit must go in one of the two extra corners, so both lose the other pair digit."
         case .bugPlusOne: return "All cells but one have two candidates; that one must break the tie."
         case .xyChain: return "A chain of two-candidate cells: one of its two ends must hold the same digit."
         }
