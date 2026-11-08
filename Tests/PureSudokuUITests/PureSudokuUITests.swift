@@ -190,6 +190,42 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertEqual(filled.count, filledBefore, "one Undo reverts the hint")
     }
 
+    /// The coach from a hint: All patterns → page → Show me → Place · assisted → Undo (CODESPEC 6.3.3).
+    func testCoachWalksPatternsAndApplies() {
+        let app = launchApp()
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        let filled = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' value '"))
+        let filledBefore = filled.count
+        let keyFrame = app.buttons["number_1"].frame
+
+        app.buttons["tool_hint"].tap()
+        app.buttons["hint_coach"].tap()
+        XCTAssertTrue(element("coachPanel", in: app).waitForExistence(timeout: 2))
+        XCTAssertFalse(element("hintPanel", in: app).exists)
+        XCTAssertEqual(app.buttons["number_1"].frame, keyFrame, "the keypad does not move")
+        let position = element("coachPosition", in: app)
+        XCTAssertTrue(position.label.hasPrefix("Pattern 1 of"), position.label)
+        if app.buttons["coach_forward"].isEnabled {
+            app.buttons["coach_forward"].tap()
+            XCTAssertTrue(position.label.hasPrefix("Pattern 2 of"), position.label)
+            app.buttons["coach_back"].tap()
+        }
+        app.buttons["coach_definition"].tap()
+        XCTAssertTrue(app.buttons["coach_lesson"].exists, "the definition offers the lesson")
+        XCTAssertEqual(filled.count, filledBefore, "browsing changes nothing")
+
+        app.buttons["coach_reveal"].tap()
+        let apply = app.buttons["coach_apply"]
+        XCTAssertTrue(apply.waitForExistence(timeout: 2))
+        XCTAssertTrue(apply.label.hasSuffix("· assisted"), apply.label)
+        apply.tap()
+        XCTAssertFalse(element("coachPanel", in: app).exists)
+        XCTAssertGreaterThan(filled.count, filledBefore, "the simplest pattern on an Easy board places a digit")
+        app.buttons["tool_undo"].tap()
+        XCTAssertEqual(filled.count, filledBefore)
+    }
+
     /// A digit that repeats in the row is always wrong; the hint must point at it first and clear it.
     func testMistakeHintClearsTheWrongDigit() {
         let app = launchApp()
@@ -370,7 +406,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertFalse(app.buttons["calibrate_cancel"].exists, "first run has no Cancel")
         tile.tap()
         app.buttons["calibrate_use"].tap()
-        XCTAssertTrue(app.staticTexts["Glow set to 18%."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Glow set to 45%."].waitForExistence(timeout: 2))
         app.buttons["firstNight_start"].tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
         let day = app.buttons["display_appearance_day"]

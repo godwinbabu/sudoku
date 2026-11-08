@@ -158,6 +158,12 @@ struct JournalView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
             .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
+            SettingRow(theme: theme, label: "Coach when I'm stuck",
+                       sub: "After two minutes without a new digit, Hint walks you through the patterns on your board.") {
+                PSToggle(theme: theme, isOn: settings.coachWhenStuck, label: "Coach when I'm stuck",
+                         onChange: settingsModel.setCoachWhenStuck)
+                    .accessibilityIdentifier("journal_coachWhenStuck")
+            }
             SettingRow(theme: theme, label: "Show timer", last: true) {
                 PSToggle(theme: theme, isOn: settings.showTimer, label: "Show timer", onChange: settingsModel.setShowTimer)
                     .accessibilityIdentifier("journal_showTimer")

@@ -11,6 +11,15 @@ struct GameState: Codable, Equatable {
     /// True once a hint placed a digit or removed candidates. The solve keeps the streak but sets no
     /// best time (CODESPEC 6.3.1). Hint steps 1-3 and clearing a mistake are free.
     var assisted: Bool = false
+    /// True once this puzzle's completion reached the stats. Restart keeps it, so solving the same
+    /// puzzle again never counts twice (CODESPEC 6.5).
+    var counted: Bool = false
+    /// The solve time of an import solved before its solution count finished: its best and typical
+    /// time wait for the count (CODESPEC 3.3). Saved, so a relaunch or a replay in between keeps it.
+    var timeAwaitingCount: Int?
+    /// Cells that Check Cell / Check Puzzle found wrong. Saved so the marks keep their source:
+    /// a Check mark stays until the cell is edited, a duplicate mark clears when fixed (CODESPEC 7.1).
+    var checkedWrong: Set<UUID> = []
     /// One entry per hint session (CODESPEC 2.3).
     var hintLog: [HintLogEntry] = []
     /// Hints opened in this puzzle (the Solved summary).
@@ -42,14 +51,17 @@ struct GameState: Codable, Equatable {
         return GameState(puzzle: puzzle, cells: cells, elapsedSeconds: 0, isCompleted: false, usedReveal: false, lastUpdated: now, hasContradiction: false)
     }
 
+    /// Back to the givens. `counted` survives, so a restarted solve doesn't count again.
     mutating func resetToInitial(now: Date = Date()) {
+        let counted = counted
         self = GameState.newGame(for: puzzle, now: now)
+        self.counted = counted
     }
 
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
-        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, assisted, hintLog
+        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, assisted, hintLog, counted, timeAwaitingCount, checkedWrong
         case usedHint // read only: the old name of `assisted`
     }
 
@@ -65,6 +77,10 @@ struct GameState: Codable, Equatable {
         assisted = try container.decodeIfPresent(Bool.self, forKey: .assisted)
             ?? container.decodeIfPresent(Bool.self, forKey: .usedHint) ?? false
         hintLog = try container.decodeIfPresent([HintLogEntry].self, forKey: .hintLog) ?? []
+        // Saves from before this field: a completed game reached the stats unless it was revealed.
+        counted = try container.decodeIfPresent(Bool.self, forKey: .counted) ?? (isCompleted && !usedReveal)
+        timeAwaitingCount = try container.decodeIfPresent(Int.self, forKey: .timeAwaitingCount)
+        checkedWrong = try container.decodeIfPresent(Set<UUID>.self, forKey: .checkedWrong) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -78,6 +94,9 @@ struct GameState: Codable, Equatable {
         try container.encode(hasContradiction, forKey: .hasContradiction)
         try container.encode(assisted, forKey: .assisted)
         try container.encode(hintLog, forKey: .hintLog)
+        try container.encode(counted, forKey: .counted)
+        try container.encodeIfPresent(timeAwaitingCount, forKey: .timeAwaitingCount)
+        try container.encode(checkedWrong, forKey: .checkedWrong)
     }
 }
 
