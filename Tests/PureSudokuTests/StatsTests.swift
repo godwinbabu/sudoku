@@ -182,4 +182,13 @@ final class StatsTests: XCTestCase {
         XCTAssertEqual(model.week(at: mondayNight, calendar: calendar).last?.solved, true, "the 00:30 solve shows on Sunday")
         XCTAssertEqual(model.week(at: sunday, calendar: calendar).last?.solved, true)
     }
+
+    func testALateTimeIsRecordedOncePerImport() {
+        var stats = Stats()
+        stats.recordLateTime(id: "a", for: .easy, time: 120)
+        stats.recordLateTime(id: "a", for: .easy, time: 120) // a retried handoff
+        XCTAssertEqual(stats.solveTimes[.easy], [120])
+        stats.recordLateTime(id: "b", for: .easy, time: 90)
+        XCTAssertEqual(stats.bestTime(for: .easy), 90)
+    }
 }

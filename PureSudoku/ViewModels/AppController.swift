@@ -123,6 +123,7 @@ final class AppController: ObservableObject {
     /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
     /// until then `isUnique` is false, so uniqueness techniques stay off (CODESPEC 2.1).
     private func countSolutionsOfOldImports() {
+        settleLateTimes() // a handoff an earlier launch could not finish
         let pending = importedGames.filter { $0.gameState.puzzle.hasUniqueSolution == nil }
             .map { (id: $0.id, values: $0.gameState.puzzle.initialGrid.map { Int(String($0)) ?? 0 }) }
         guard !pending.isEmpty else { return }
@@ -130,22 +131,34 @@ final class AppController: ObservableObject {
             let counted = await Task.detached(priority: .utility) {
                 pending.map { (id: $0.id, unique: SolutionCounter.count($0.values, limit: 2) == 1) }
             }.value
-            var late: [(difficulty: Difficulty, time: Int)] = []
             for result in counted {
                 guard let index = importedGames.firstIndex(where: { $0.id == result.id }) else { continue }
                 importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
-                // Solved before the count finished (maybe before a relaunch): the solve is counted, its
-                // time waited for this.
-                let game = importedGames[index].gameState
-                if result.unique, let time = game.timeAwaitingCount { late.append((game.puzzle.difficulty, time)) }
-                importedGames[index].gameState.timeAwaitingCount = nil
             }
-            // Imports first: if this write fails, the next launch counts again; stats saved first
-            // would then add the time twice.
-            if persistImportedGames(), !late.isEmpty {
-                updateStats { stats in late.forEach { stats.recordTime(for: $0.difficulty, time: $0.time) } }
+            settleLateTimes()
+            persistImportedGames() // the counts themselves
+        }
+    }
+
+    /// Imports solved before their count finished (maybe before a relaunch) get their best and typical
+    /// time once the count says unique. Stats record it by puzzle id first, so a retry is a no-op; only
+    /// then is the waiting time cleared. Any failed or interrupted write is retried on the next launch,
+    /// so a late time is neither lost nor added twice.
+    private func settleLateTimes() {
+        let waiting = importedGames.filter { $0.gameState.timeAwaitingCount != nil && $0.gameState.puzzle.hasUniqueSolution != nil }
+        guard !waiting.isEmpty else { return }
+        let late = waiting.filter { $0.gameState.puzzle.hasUniqueSolution == true }
+        let saved = late.isEmpty || updateStats { stats in
+            for game in late {
+                stats.recordLateTime(id: game.id, for: game.gameState.puzzle.difficulty, time: game.gameState.timeAwaitingCount ?? 0)
             }
         }
+        if saved {
+            for game in waiting {
+                if let index = importedGames.firstIndex(where: { $0.id == game.id }) { importedGames[index].gameState.timeAwaitingCount = nil }
+            }
+        }
+        persistImportedGames()
     }
 
     func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
@@ -431,12 +444,16 @@ final class AppController: ObservableObject {
         imageStore.removeOrphans(keeping: ids.union(pendingImageIDs))
     }
 
-    func updateStats(_ block: (inout Stats) -> Void) {
+    /// Returns false if the stats file could not be written.
+    @discardableResult
+    func updateStats(_ block: (inout Stats) -> Void) -> Bool {
         block(&stats)
         do {
             try persistence.save(stats, to: File.stats.rawValue)
+            return true
         } catch {
             lastPersistenceError = error
+            return false
         }
     }
 
@@ -470,7 +487,7 @@ final class AppController: ObservableObject {
         if state.puzzle.hasUniqueSolution == nil {
             state.puzzle.hasUniqueSolution = importedGames[index].gameState.puzzle.hasUniqueSolution
         }
-        // The view model's copy never sets this; keep the stored flag until the count clears it.
+        // The view model's copy may be older; keep the stored time until the count clears it.
         state.timeAwaitingCount = state.timeAwaitingCount ?? importedGames[index].gameState.timeAwaitingCount
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()

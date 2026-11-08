@@ -79,6 +79,15 @@ struct Stats: Codable, Equatable {
         lastCompletionDate = day
     }
 
+    /// Imports whose late time is recorded (`recordLateTime`), so a retried handoff adds it once.
+    var lateTimeIDs: Set<String> = []
+
+    /// An import's time that waited for its solution count; a second call with the same id does nothing.
+    mutating func recordLateTime(id: String, for difficulty: Difficulty, time: Int) {
+        guard lateTimeIDs.insert(id).inserted else { return }
+        recordTime(for: difficulty, time: time)
+    }
+
     /// Adds a solve's time to the best and typical times only; the solve itself is counted elsewhere.
     mutating func recordTime(for difficulty: Difficulty, time: Int) {
         bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
@@ -126,6 +135,7 @@ struct Stats: Codable, Equatable {
         case solveTimes
         case assistedSolves
         case solvedDays
+        case lateTimeIDs
     }
 
     init(from decoder: Decoder) throws {
@@ -141,6 +151,7 @@ struct Stats: Codable, Equatable {
         assistedSolves = try container.decodeIfPresent(Int.self, forKey: .assistedSolves) ?? 0
         // Files from before the Journal week know only the last solve day; start the week from it.
         solvedDays = try container.decodeIfPresent([Date].self, forKey: .solvedDays) ?? (lastCompletionDate.map { [$0] } ?? [])
+        lateTimeIDs = try container.decodeIfPresent(Set<String>.self, forKey: .lateTimeIDs) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -155,5 +166,6 @@ struct Stats: Codable, Equatable {
         try container.encode(solveTimes, forKey: .solveTimes)
         try container.encode(assistedSolves, forKey: .assistedSolves)
         try container.encode(solvedDays, forKey: .solvedDays)
+        try container.encode(lateTimeIDs, forKey: .lateTimeIDs)
     }
 }
