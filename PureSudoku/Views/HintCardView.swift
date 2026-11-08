@@ -14,6 +14,7 @@ struct HintCardView: View {
     /// Opens the coach on this board; shown at step 1 of a technique hint.
     var onCoach: (() -> Void)?
     let onClose: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// Text sizes and the room the text gets inside the 124 pt slot: 124 − 24 padding − 20 top row
     /// − 34 footer − 2 × 4 spacing.
@@ -28,10 +29,17 @@ struct HintCardView: View {
             topRow
                 .dynamicTypeSize(...DynamicTypeSize.xxLarge)
             // Full size, then one size smaller; text that still doesn't fit scrolls, never truncates.
-            ViewThatFits(in: .vertical) {
-                bodyText(size: session.level == 1 ? 16 : Self.bodySize)
-                bodyText(size: Self.smallBodySize)
-                ScrollView { bodyText(size: Self.smallBodySize) }
+            // At accessibility sizes the slot is flexible, and ViewThatFits there can hang layout.
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    ScrollView { bodyText(size: session.level == 1 ? 16 : Self.bodySize) }
+                } else {
+                    ViewThatFits(in: .vertical) {
+                        bodyText(size: session.level == 1 ? 16 : Self.bodySize)
+                        bodyText(size: Self.smallBodySize)
+                        ScrollView { bodyText(size: Self.smallBodySize) }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             footer

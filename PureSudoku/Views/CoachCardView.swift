@@ -14,16 +14,24 @@ struct CoachCardView: View {
     let onApply: () -> Void
     let onLesson: (Technique) -> Void
     let onClose: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // The top row stops at xxLarge and the footer keeps its size, so the text gets the room (CODESPEC 9).
             topRow
                 .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-            ViewThatFits(in: .vertical) {
-                bodyText(size: HintCardView.bodySize)
-                bodyText(size: HintCardView.smallBodySize)
-                ScrollView { bodyText(size: HintCardView.smallBodySize) }
+            // At accessibility sizes the slot is flexible, and ViewThatFits there can hang layout.
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    ScrollView { bodyText(size: HintCardView.bodySize) }
+                } else {
+                    ViewThatFits(in: .vertical) {
+                        bodyText(size: HintCardView.bodySize)
+                        bodyText(size: HintCardView.smallBodySize)
+                        ScrollView { bodyText(size: HintCardView.smallBodySize) }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             footer

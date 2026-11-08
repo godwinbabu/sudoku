@@ -30,11 +30,18 @@ extension PureSudokuUITests {
         attachScreenshot(app, "replace-confirm", size: "ax5")
         // XCUITest never reports Home's dialog buttons as hittable, at any text size, so check that
         // each sits fully on screen above the tab bar, then tap one.
+        let dialog = element("confirmDialog", in: app)
         let tabTop = app.buttons["tab_play"].frame.minY
-        for id in ["confirm_continue", "confirm_action"] {
-            let frame = app.buttons[id].frame
-            XCTAssertTrue(app.buttons[id].exists, id)
-            XCTAssertTrue(frame.minY >= 0 && frame.maxY <= tabTop, "\(id) at \(frame)")
+        for id in ["confirm_action", "confirm_continue"] {
+            let button = app.buttons[id]
+            XCTAssertTrue(button.exists, id)
+            // On a small phone the panel scrolls; drag inside it, slowly, until the button is on screen.
+            for _ in 0..<6 where !(button.frame.minY >= 0 && button.frame.maxY <= tabTop) {
+                let up = button.frame.maxY > tabTop
+                let from = dialog.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: up ? 0.75 : 0.25))
+                from.press(forDuration: 0.05, thenDragTo: dialog.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: up ? 0.25 : 0.75)))
+            }
+            XCTAssertTrue(button.frame.minY >= 0 && button.frame.maxY <= tabTop, "\(id) at \(button.frame)")
         }
         app.buttons["confirm_continue"].tap()
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
@@ -89,7 +96,7 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("hintPanel", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["hint_close"].isHittable)
         attachScreenshot(app, "game-hint")
-        app.buttons["hint_close"].tap()
+        assertCoachAndCheckMessage(in: app)
 
         app.buttons["nightButton"].tap()
         let sheet = element("nightSheet", in: app)
@@ -119,12 +126,30 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["display_back"].isHittable)
         attachScreenshot(app, "display-night")
+        app.buttons["display_appearance_day"].tap() // Day shows the second, Night preview strip
+        attachScreenshot(app, "display-day")
         app.swipeUp()
         app.swipeUp()
         attachScreenshot(app, "display-night-lower")
         app.swipeDown()
         app.swipeDown()
         app.swipeDown()
+    }
+
+    /// From an open hint: the coach card, then the Check result in the hint slot.
+    private func assertCoachAndCheckMessage(in app: XCUIApplication) {
+        app.buttons["hint_coach"].tap()
+        XCTAssertTrue(element("coachPanel", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["coach_close"].isHittable)
+        XCTAssertTrue(app.buttons["coach_reveal"].isHittable)
+        attachScreenshot(app, "game-coach")
+        app.buttons["coach_close"].tap()
+
+        app.buttons["moreButton"].tap()
+        XCTAssertTrue(waitUntilHittable(app.buttons["menu_check"]))
+        app.buttons["menu_check"].tap()
+        XCTAssertTrue(element("checkMessage", in: app).waitForExistence(timeout: 2))
+        attachScreenshot(app, "game-check")
     }
 
     private func attachScreenshot(_ app: XCUIApplication, _ name: String, size: String = "ax-xl") {
