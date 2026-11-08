@@ -619,4 +619,36 @@ extension HintLadderTests {
         viewModel.load(state: TestData.newGameState())
         XCTAssertNil(viewModel.checkMessage)
     }
+
+    /// A second Check with nothing new still says what it found, also after a hint was open.
+    func testASecondCheckStillShowsTheResult() {
+        let viewModel = makeViewModel(mistakes: .onCheck)
+        let right = emptyCell(viewModel), wrong = emptyCell(viewModel, after: 1)
+        viewModel.select(cell: right)
+        viewModel.setDigit(solution[right.index])
+        viewModel.select(cell: wrong)
+        viewModel.setDigit(solution[wrong.index] % 9 + 1)
+        viewModel.checkPuzzle()
+        viewModel.requestHint()
+        viewModel.checkPuzzle() // nothing new: hides the green marks
+        XCTAssertNil(viewModel.hint)
+        XCTAssertEqual(viewModel.checkMessage, "1 wrong digit, marked with a bar.")
+    }
+
+    /// Two equal wrong digits plus the right one in a shared house: the hint names the right one.
+    func testTheNamedClashIsTheCorrectDigit() throws {
+        var state = TestData.newGameState()
+        let byIndex = Dictionary(uniqueKeysWithValues: state.cells.indices.map { (state.cells[$0].index, $0) })
+        // Find an empty cell whose correct digit is not given in its row, and two other empty cells
+        // in that row: put the right digit in one peer and the same digit, wrongly, in two cells.
+        let row = (0..<9).first { r in (0..<9).filter { state.cells[byIndex[r * 9 + $0]!].value == nil }.count >= 3 }!
+        let empties = (0..<9).map { row * 9 + $0 }.filter { state.cells[byIndex[$0]!].value == nil }
+        let (target, other) = (empties[0], empties[1])
+        let digit = solution[target]
+        state.cells[byIndex[target]!].value = digit // correct
+        state.cells[byIndex[other]!].value = digit // wrong: repeats it
+        let viewModel = GameViewModel(state: state, settings: Settings(), validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        viewModel.requestHint()
+        XCTAssertEqual(viewModel.hint?.content, .mistake(cell: other, kind: .wrongDigit(digit, clash: target)))
+    }
 }

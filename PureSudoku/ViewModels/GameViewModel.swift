@@ -348,6 +348,7 @@ final class GameViewModel: ObservableObject {
                 newState.cells[idx].isVerifiedCorrect = false
             }
             self.state = newState
+            showCheckResult()
             return
         }
         alignImportedSolution(&newState)
@@ -368,7 +369,12 @@ final class GameViewModel: ObservableObject {
         }
         updateContradictionFlag(on: &newState)
         self.state = newState
-        let wrong = newState.cells.filter { !$0.given && $0.value != nil && $0.isError }.count
+        showCheckResult()
+    }
+
+    /// The hint slot's one-line Check result (CODESPEC 6.2).
+    private func showCheckResult() {
+        let wrong = state.cells.filter { !$0.given && $0.value != nil && $0.isError }.count
         checkMessage = wrong == 0 ? "No mistakes so far." : "\(wrong) wrong digit\(wrong == 1 ? "" : "s"), marked with a bar."
     }
 
@@ -514,7 +520,6 @@ final class GameViewModel: ObservableObject {
                     self.load(state: newState)
                 }
                 self.hint = nil
-                self.checkMessage = nil
                 self.isPreparingNewPuzzle = false
             case .reset:
                 self.resetPuzzle()
