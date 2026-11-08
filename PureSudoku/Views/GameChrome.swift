@@ -111,6 +111,9 @@ struct PopoverCard<Content: View>: View {
             // VoiceOver stays inside the menu or confirmation, not on the board behind it.
             .accessibilityElement(children: .contain)
             .accessibilityAddTraits(.isModal)
+            // Sort after the board: XCUITest (and likely VoiceOver touch) picks tap points by accessibility
+            // order, so a card sorted among the cells counts as under them. Real touches are unaffected.
+            .accessibilitySortPriority(-1)
     }
 }
 
