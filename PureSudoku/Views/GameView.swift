@@ -17,8 +17,6 @@ struct GameView: View {
     @State private var lessonTechnique: Technique?
     @State private var techniqueLine: String?
     @StateObject private var drift = DriftController()
-    /// Drift is checked often; it only steps every 90 s.
-    private let driftTick = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
     private let difficulty: Difficulty
 
     init(viewModel: GameViewModel, difficulty: Difficulty) {
@@ -91,7 +89,13 @@ struct GameView: View {
         }
         .background(TwoFingerTapCatcher(action: hush))
         .environment(\.psPalette, theme)
-        .onReceive(driftTick) { _ in updateDrift() }
+        // Drift is checked every 10 s; it only steps every 90 s. The loop ends with the screen.
+        .task {
+            while !Task.isCancelled {
+                do { try await Task.sleep(nanoseconds: 10_000_000_000) } catch { return }
+                updateDrift()
+            }
+        }
         .onChange(of: driftIsActive) { _ in updateDrift() }
         .onChange(of: controller.showsFirstNight, perform: firstNightChanged)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
@@ -157,6 +161,7 @@ struct GameView: View {
             .disabled(viewModel.state.isCompleted)
             .accessibilityIdentifier("timerToggle")
             .accessibilityLabel(viewModel.isPaused ? "Resume timer" : "Pause timer")
+            .accessibilityValue(viewModel.showTimer ? Self.timeString(viewModel.state.elapsedSeconds) : "")
             HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: "Night") {
                 showsMenu = false
                 controller.showsNightSheet = true
@@ -345,6 +350,7 @@ struct GameView: View {
                         .accessibilityIdentifier("menu_hush")
                 }
                 .frame(width: 230)
+                .accessibilityAction(.escape) { showsMenu = false }
                 .padding(.top, 50)
                 .padding(.trailing, 12)
             }
@@ -384,6 +390,7 @@ struct GameView: View {
                 .frame(maxWidth: 320)
                 .padding(.horizontal, 24)
                 .accessibilityElement(children: .contain)
+                .accessibilityAction(.escape) { viewModel.pendingAction = nil }
                 .accessibilityIdentifier("confirmDialog")
             }
             .transition(.opacity)
@@ -393,7 +400,9 @@ struct GameView: View {
     /// Hush: pause and go black. A two-finger tap anywhere, or the More menu.
     private func hush() {
         // The recognizer is on the window, so it also fires on the pushed lesson.
-        guard !isHushed, !isGoodnight, lessonTechnique == nil else { return }
+        // Not behind the Night sheet, a confirmation or the first-night screen, which sit above the game.
+        guard !isHushed, !isGoodnight, lessonTechnique == nil, !controller.showsNightSheet,
+              !controller.showsFirstNight, viewModel.pendingAction == nil else { return }
         showsMenu = false
         pausedForHush = !viewModel.isPaused && !viewModel.state.isCompleted
         if pausedForHush { viewModel.pauseTimer() }

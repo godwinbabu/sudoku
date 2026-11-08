@@ -591,9 +591,9 @@ enum Appearance: String, Codable {
 	•	Cell states (Design/v2/README.md, “Cell states”):
 	•	Given: ink, given weight. Entered: accent, entered weight.
 	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill.
-	•	Mistake: err digit plus a 2 pt err bar under it (120% of its width).
+	•	Mistake: err digit plus a 3 pt bar under it (120% of its width): err by day, ink at night, where err and accent look alike. VoiceOver adds “mistake” (and “given” for givens) as the cell's value.
 	•	Notes: 3×3 at cell × 0.25; a note matching the selected digit is bold accent.
-	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
+	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim: 0.28 by day, 0.45 at night so the rest of the board stays readable), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit (75% at night) on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
 	•	By step: 1 spotlight; 2 adds the pattern fill; 3 adds evidence rings, the target and struck eliminations.
 	•	Hint highlights:
 	•	Fade in (about 0.15 s). Never blink or pulse.

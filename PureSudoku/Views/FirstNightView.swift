@@ -78,7 +78,7 @@ struct FirstNightView: View {
             if !done {
                 Button("Skip for now — use Lights out") { controller.skipFirstNight() }
                     .font(.system(size: 15))
-                    .foregroundColor(theme.ink3)
+                    .foregroundColor(theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                     .buttonStyle(.plain)
