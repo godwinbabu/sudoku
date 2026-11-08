@@ -74,6 +74,7 @@ struct ImportPuzzleView: View {
                 .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink3)
                 .frame(maxWidth: .infinity)
                 .accessibilityAddTraits(.isHeader)
+                .accessibilityHidden(viewModel.step != .review) // empty on the other steps
             NightButton()
         }
         .padding(.horizontal, 10)

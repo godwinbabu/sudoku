@@ -73,7 +73,7 @@ lift   = 1 / 1.25 / 1.5 (Clarity)
 | sel / same / peer | accent × 0.20s / accent × 0.12s / base × 0.055s |
 | err | (255, 70, 64) × 0.95s |
 | status (status bar on non-game screens) | base × 0.44s |
-| focusDim | 0.22 |
+| focusDim | 0.45 (raised from 0.22 so the rest of the board stays readable, QA #29) |
 
 Presets: **Reading lamp** (glow 55, warmth 45 → 2200 K), **Lights out** (18, 75 → 1500 K), **Red light** (10, 100 → 1200 K). Snapshot CSS for each preset is in `styles.css` (`.ps-night-lamp/out/red`).
 

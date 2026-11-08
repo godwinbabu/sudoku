@@ -140,7 +140,7 @@ extension PSPalette {
             line: mul(base, s * 0.17 * lift), lineMajor: mul(base, s * 0.42 * lift), hair: mul(base, s * 0.15),
             sel: mul(acc, s * 0.20), peer: mul(base, s * 0.055), same: mul(acc, s * 0.12),
             err: mul(errColor, s * 0.95), status: mul(base, s * 0.44),
-            focusDim: 0.22, isNight: true, kelvin: Int(kelvin),
+            focusDim: 0.45, isNight: true, kelvin: Int(kelvin),
             blueReduction: Int(((1 - (base.b / 255) * s) * 100).rounded()), luminance: s
         )
     }

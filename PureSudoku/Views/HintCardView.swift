@@ -39,6 +39,10 @@ struct HintCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(theme.hair, lineWidth: 1))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("hintPanel")
+        // Each new step is read out, as lesson steps are.
+        .onChange(of: session.level) { _ in
+            UIAccessibility.post(notification: .announcement, argument: session.accessibilityText(names))
+        }
     }
 
     private func bodyText(size: CGFloat) -> some View {
@@ -75,19 +79,19 @@ struct HintCardView: View {
                     Text(session.stepLabel.uppercased())
                         .font(.system(size: 11, weight: .semibold))
                         .tracking(0.9)
-                        .foregroundColor(theme.ink3)
+                        .foregroundColor(theme.ink2)
                 }
             }
             .accessibilityIdentifier("hintStep")
             .accessibilityLabel("Step \(session.level) of \(HintSession.stepCount): \(session.title ?? session.stepLabel)")
             if let tier = session.tierLabel {
-                Text("· \(tier)").font(.system(size: 11)).foregroundColor(theme.ink3).fixedSize()
+                Text("· \(tier)").font(.system(size: 11)).foregroundColor(theme.ink2).fixedSize()
             }
             Spacer(minLength: 0)
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(theme.ink3)
+                    .foregroundColor(theme.ink2)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }

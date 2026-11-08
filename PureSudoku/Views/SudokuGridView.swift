@@ -14,6 +14,17 @@ struct SudokuGridView: View {
 
     @Environment(\.psType) private var type
     @Environment(\.displayScale) private var displayScale
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// What VoiceOver adds after the cell's label: given, mistake, and a hard-to-read import digit.
+    /// The label itself stays "Row r column c value N" (UI tests rely on it).
+    static func stateText(_ cell: SudokuCell, ringed: String?) -> String {
+        var parts: [String] = []
+        if cell.given { parts.append("given") }
+        if cell.isError { parts.append("mistake") }
+        if let ringed { parts.append(ringed) }
+        return parts.joined(separator: ", ")
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -41,7 +52,7 @@ struct SudokuGridView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .aspectRatio(1, contentMode: .fit)
-        .animation(.easeInOut(duration: 0.15), value: highlight)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: highlight)
     }
 
     private struct BoxLayout {
@@ -66,7 +77,8 @@ struct SudokuGridView: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
-                            .accessibilityValue(ringedText(index) ?? "")
+                            .accessibilityValue(Self.stateText(cell, ringed: ringedText(index)))
+                            .accessibilityAddTraits(cell.id == layout.selected?.id ? .isSelected : [])
                             .accessibilityHint(ringedText(index) == nil ? "" : "Hard to read. Double-tap to confirm.")
                         }
                     }
@@ -173,8 +185,9 @@ struct SudokuCellView: View {
                     // A mistake also gets a bar under the digit, so it never depends on hue (CODESPEC 7.2).
                     if cell.isError {
                         GeometryReader { proxy in
-                            Capsule().fill(theme.err)
-                                .frame(width: proxy.size.width * 1.2, height: 2)
+                            // In ink at night: err and accent are nearly the same there (QA #29).
+                            Capsule().fill(theme.isNight ? theme.ink : theme.err)
+                                .frame(width: proxy.size.width * 1.2, height: 3)
                                 .position(x: proxy.size.width / 2, y: proxy.size.height + side * 0.06)
                         }
                         .accessibilityHidden(true)
@@ -183,7 +196,7 @@ struct SudokuCellView: View {
         } else if let ghost = hint.ghost {
             Text("\(ghost)")
                 .font(.system(size: digitSize, weight: type.userWeight).monospacedDigit())
-                .foregroundColor(theme.accent.opacity(0.55))
+                .foregroundColor(theme.accent.opacity(theme.isNight ? 0.75 : 0.55))
                 .accessibilityIdentifier("hintGhost")
         } else if !hint.candidates(cell).isEmpty {
             notes

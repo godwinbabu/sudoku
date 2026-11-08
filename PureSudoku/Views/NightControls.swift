@@ -66,6 +66,14 @@ struct PSToggle: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .accessibilityValue(isOn ? "On" : "Off")
+        .modifier(ToggleTrait())
+    }
+}
+
+/// VoiceOver reads a switch, not a plain button (the trait is iOS 17+; the app targets iOS 16).
+private struct ToggleTrait: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 17, *) { content.accessibilityAddTraits(.isToggle) } else { content }
     }
 }
 
@@ -97,7 +105,9 @@ struct PSSlider: View {
             }
             .frame(maxHeight: .infinity)
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
+            // A few points of mostly sideways movement first, so a scroll over the slider stays a scroll.
+            .gesture(DragGesture(minimumDistance: 4).onChanged { drag in
+                guard abs(drag.translation.width) >= abs(drag.translation.height) else { return }
                 let raw = range.lowerBound + (drag.location.x - 14) / usable * span
                 let next = min(range.upperBound, max(range.lowerBound, raw.rounded()))
                 if next != value { onChange(next) }
@@ -273,7 +283,7 @@ struct SectionLabel: View {
         Text(title.uppercased())
             .font(.system(size: 12, weight: .semibold))
             .tracking(0.96)
-            .foregroundColor(theme.ink3)
+            .foregroundColor(theme.ink2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 22)
             .padding(.bottom, 8)
@@ -335,6 +345,14 @@ struct SamplePreview: View {
 /// Find my lowest glow: six tiles drawn in the night ink at glow 0 / 6 / 14 / 24 / 38 / 56.
 struct CalibrateView: View {
     static let levels: [Double] = [0, 6, 14, 24, 38, 56]
+
+    /// A tile at `glow`, drawn as the board would be: same warmth and Clarity, and Increase Contrast's
+    /// floor when it is on (QA #29), so the floor is picked from what the board will really show.
+    static func tileSettings(_ settings: Settings, glow: Double) -> Settings {
+        var tile = settings
+        tile.glow = glow
+        return tile
+    }
     private static let digits = ["8", "3", "6", "5", "9", "2"]
 
     let theme: PSPalette
@@ -358,7 +376,7 @@ struct CalibrateView: View {
                 .padding(.bottom, 22)
             HStack(spacing: 8) {
                 ForEach(Array(Self.levels.enumerated()), id: \.offset) { index, glow in
-                    let ink = PSPalette.night(glow: glow, warmth: settings.warmth, clarity: settings.clarity).ink
+                    let ink = Self.tileSettings(settings, glow: glow).palette(isNight: true).ink
                     let on = pick == glow
                     Button { pick = glow } label: {
                         Text(Self.digits[index])
