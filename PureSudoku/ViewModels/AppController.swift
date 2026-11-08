@@ -28,7 +28,7 @@ final class AppController: ObservableObject {
 
     /// The screen backlight Night wants now.
     var nightBacklight: CGFloat {
-        isCalibrating ? 0 : PSPalette.backlight(glow: DriftController.apply(steps: driftSteps, to: settings).glow)
+        PSPalette.backlight(glow: DriftController.apply(steps: driftSteps, to: settings).glow)
     }
     let afterDark: AfterDarkScheduler
     private var suppressesFirstNight = false

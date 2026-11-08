@@ -171,13 +171,6 @@ final class NightPaletteTests: XCTestCase {
 
     // MARK: Brightness
 
-    func testScreenStaysLowWhenControlCenterOpens() {
-        XCTAssertTrue(ScreenBrightnessController.shouldLower(phase: .active, isNight: true))
-        XCTAssertTrue(ScreenBrightnessController.shouldLower(phase: .inactive, isNight: true), "no flash on Control Center")
-        XCTAssertFalse(ScreenBrightnessController.shouldLower(phase: .background, isNight: true))
-        XCTAssertFalse(ScreenBrightnessController.shouldLower(phase: .active, isNight: false), "only at night")
-    }
-
     func testGlowDrivesThePaletteThenTheBacklight() {
         XCTAssertEqual(PSPalette.night(glow: 0, warmth: 65, clarity: .standard).luminance, 0.20, accuracy: 0.001)
         XCTAssertEqual(PSPalette.night(glow: 40, warmth: 65, clarity: .standard).luminance, 1, accuracy: 0.001)
@@ -254,7 +247,15 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertEqual(controller.nightBacklight, 0.3, accuracy: 0.001)
         controller.driftSteps = 20
         XCTAssertEqual(controller.nightBacklight, 0.1, accuracy: 0.001, "Drift dims the backlight above glow 40")
-        controller.isCalibrating = true
-        XCTAssertEqual(controller.nightBacklight, 0, "the calibration tiles are judged at the minimum")
+    }
+
+    func testCalibrationHoldsTheMinimumByDayAndNight() {
+        let target = ScreenBrightnessController.target
+        XCTAssertEqual(target(.active, false, true, 0.3), 0, "Day: Check again still judges at the minimum")
+        XCTAssertEqual(target(.active, true, true, 0.3), 0)
+        XCTAssertEqual(target(.active, true, false, 0.3), 0.3)
+        XCTAssertNil(target(.active, false, false, 0.3), "Day leaves the screen to the player")
+        XCTAssertEqual(target(.inactive, true, false, 0.3), 0.3, "Control Center keeps it")
+        XCTAssertNil(target(.background, true, true, 0.3))
     }
 }

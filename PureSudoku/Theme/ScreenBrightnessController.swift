@@ -19,10 +19,12 @@ final class ScreenBrightnessController {
         self.write = write
     }
 
-    /// Night owns the backlight while the app is on screen. `.inactive` (Control Center, a
-    /// notification banner) keeps it; restoring there would flash the screen up and back down.
-    static func shouldLower(phase: ScenePhase, isNight: Bool) -> Bool {
-        phase != .background && isNight
+    /// The backlight the app wants, or nil to leave it to the player. Find my lowest glow holds the
+    /// minimum whenever it is on screen, also by day, since its tiles show the palette layer alone.
+    static func target(phase: ScenePhase, isNight: Bool, isCalibrating: Bool, nightBacklight: CGFloat) -> CGFloat? {
+        guard phase != .background else { return nil }
+        if isCalibrating { return 0 }
+        return isNight ? nightBacklight : nil
     }
 
     /// `target` is the Night backlight, or nil to give the screen back to the player. `request` is
