@@ -48,7 +48,7 @@ struct HomeView: View {
     private func resetNotice(_ text: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text)
-                .font(.system(size: 14))
+                .psFont(14)
                 .foregroundColor(theme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
             Button("OK") {
