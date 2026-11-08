@@ -13,6 +13,7 @@ struct HomeView: View {
     let onOpenImport: (ImportedGame) -> Void
     @State private var deleting: ImportedGame?
     @State private var replacing: Difficulty?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -23,6 +24,9 @@ struct HomeView: View {
                     .foregroundColor(theme.ink3)
                     .padding(.horizontal, 22)
                     .padding(.bottom, 20)
+                if let notice = controller.resetNotice {
+                    resetNotice(notice)
+                }
                 if let game = viewModel.continueGame {
                     continueCard(game)
                 }
@@ -36,6 +40,31 @@ struct HomeView: View {
         .overlay { confirmation }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("homeView")
+    }
+
+    // MARK: Reset notice (CODESPEC 8)
+
+    /// A hairline box, no fill, so it stays calm at night; shown until dismissed.
+    private func resetNotice(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(text)
+                .font(.system(size: 14))
+                .foregroundColor(theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("OK") {
+                withAnimation(reduceMotion ? nil : .easeOut(duration: 0.3)) { controller.dismissResetNotice() }
+            }
+            .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 36))
+            .accessibilityIdentifier("resetNoticeDismiss")
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.hair, lineWidth: 1))
+        .padding(.horizontal, 16)
+        .padding(.bottom, 20)
+        .transition(.opacity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("resetNotice")
     }
 
     // MARK: Continue
