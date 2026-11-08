@@ -20,14 +20,17 @@ struct FirstNightView: View {
             Color.black.ignoresSafeArea()
             switch step {
             case .calibrate:
-                // Centred, so the eye rests on the tiles.
-                CalibrateView(theme: theme, settings: controller.settings) { pick in
-                    controller.calibrate(pick: pick)
-                    go(.result)
+                // Centred, so the eye rests on the tiles; scrolls when large text no longer fits.
+                ViewThatFits(in: .vertical) {
+                    calibrate
+                    ScrollView(showsIndicators: false) { calibrate.padding(.top, 76) }
                 }
-                .padding(.horizontal, 22)
             case .welcome, .result:
-                message
+                // Large text that no longer fits the screen scrolls (CODESPEC 9).
+                ViewThatFits(in: .vertical) {
+                    message
+                    ScrollView(showsIndicators: false) { message }
+                }
             }
         }
         .environment(\.psPalette, theme)
@@ -39,6 +42,14 @@ struct FirstNightView: View {
         .accessibilityIdentifier("firstNight")
     }
 
+    private var calibrate: some View {
+        CalibrateView(theme: theme, settings: controller.settings) { pick in
+            controller.calibrate(pick: pick)
+            go(.result)
+        }
+        .padding(.horizontal, 22)
+    }
+
     private var message: some View {
         let done = step == .result
         let kelvin = NightSheetView.kelvinText(controller.settings.warmth)
@@ -47,18 +58,18 @@ struct FirstNightView: View {
             : "Before your first puzzle, let’s set the screen for your eyes and this room. It takes twenty seconds, and nothing will flash."
         return VStack(alignment: .leading, spacing: 0) {
             Image(systemName: "moon")
-                .font(.system(size: 30))
+                .psFont(30)
                 .foregroundColor(theme.accent)
                 .accessibilityHidden(true)
             let greeting = Self.greeting(hour: Calendar.current.component(.hour, from: Date()))
             Text(done ? "Glow set to \(Int(controller.settings.glow))%." : greeting)
-                .font(.system(size: 36, weight: .medium, design: .serif))
+                .psFont(36, weight: .medium, design: .serif)
                 .foregroundColor(theme.ink)
                 .padding(.top, 22)
                 .padding(.bottom, 12)
                 .accessibilityAddTraits(.isHeader)
             Text(body)
-                .font(.system(size: 17))
+                .psFont(17)
                 .foregroundColor(theme.ink2)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
@@ -75,7 +86,7 @@ struct FirstNightView: View {
             .accessibilityIdentifier(done ? "firstNight_start" : "firstNight_calibrate")
             if !done {
                 Button("Skip for now — use Lights out") { controller.skipFirstNight() }
-                    .font(.system(size: 15))
+                    .psFont(15)
                     .foregroundColor(theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())

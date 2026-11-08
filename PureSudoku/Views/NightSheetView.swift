@@ -74,7 +74,7 @@ struct NightSheetView: View {
         let night = PSPalette.night(glow: settings.glow, warmth: settings.warmth, clarity: settings.clarity)
         HStack {
             Text("Night")
-                .font(.system(size: 26, weight: .medium, design: .serif))
+                .psFont(26, weight: .medium, design: .serif)
                 .foregroundColor(theme.ink)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
@@ -91,7 +91,7 @@ struct NightSheetView: View {
                         idPrefix: "night_appearance_", onSelect: viewModel.setAppearance)
             if settings.appearance == .afterDark {
                 Text(afterDarkNote(settings))
-                    .font(.system(size: 13))
+                    .psFont(13)
                     .foregroundColor(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -107,11 +107,11 @@ struct NightSheetView: View {
         }
 
         VStack(alignment: .leading, spacing: 4) {
-            Text("Clarity").font(.system(size: 16)).foregroundColor(theme.ink)
+            Text("Clarity").psFont(16).foregroundColor(theme.ink)
             PSSegmented(theme: theme, options: Clarity.allCases.map { ($0, $0.displayName) }, selection: settings.clarity,
                         idPrefix: "night_clarity_", onSelect: viewModel.setClarity)
             Text(Self.clarityNote)
-                .font(.system(size: 13))
+                .psFont(13)
                 .foregroundColor(theme.ink3)
                 .fixedSize(horizontal: false, vertical: true)
         }

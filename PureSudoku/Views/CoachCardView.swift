@@ -14,17 +14,28 @@ struct CoachCardView: View {
     let onApply: () -> Void
     let onLesson: (Technique) -> Void
     let onClose: () -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
+            // The top row stops at xxLarge and the footer keeps its size, so the text gets the room (CODESPEC 9).
             topRow
-            ViewThatFits(in: .vertical) {
-                bodyText(size: HintCardView.bodySize)
-                bodyText(size: HintCardView.smallBodySize)
-                ScrollView { bodyText(size: HintCardView.smallBodySize) }
+                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+            // At accessibility sizes the slot is flexible, and ViewThatFits there can hang layout.
+            Group {
+                if dynamicTypeSize.isAccessibilitySize {
+                    ScrollView { bodyText(size: HintCardView.bodySize) }
+                } else {
+                    ViewThatFits(in: .vertical) {
+                        bodyText(size: HintCardView.bodySize)
+                        bodyText(size: HintCardView.smallBodySize)
+                        ScrollView { bodyText(size: HintCardView.smallBodySize) }
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             footer
+                .dynamicTypeSize(...DynamicTypeSize.large)
         }
         .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 14))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -37,7 +48,7 @@ struct CoachCardView: View {
 
     private func bodyText(size: CGFloat) -> some View {
         Text(session.text(names))
-            .font(.system(size: size))
+            .psFont(size)
             .lineSpacing(HintCardView.lineSpacing)
             .foregroundColor(theme.ink)
             .fixedSize(horizontal: false, vertical: true)
@@ -49,22 +60,22 @@ struct CoachCardView: View {
     private var topRow: some View {
         HStack(spacing: 8) {
             Text(session.title)
-                .font(.system(size: 18, weight: .medium, design: .serif))
+                .psFont(18, weight: .medium, design: .serif)
                 .foregroundColor(theme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .accessibilityIdentifier("coachTitle")
-            Text("· \(session.tierLabel)").font(.system(size: 11)).foregroundColor(theme.ink2).fixedSize()
+            Text("· \(session.tierLabel)").psFont(11).foregroundColor(theme.ink2).fixedSize()
             Spacer(minLength: 0)
             Text(session.position)
-                .font(.system(size: 11, weight: .semibold))
+                .psFont(11, weight: .semibold)
                 .foregroundColor(theme.ink2)
                 .fixedSize()
                 .accessibilityLabel("Pattern \(session.position)")
                 .accessibilityIdentifier("coachPosition")
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .medium))
+                    .psFont(13, weight: .medium)
                     .foregroundColor(theme.ink2)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
@@ -105,7 +116,7 @@ struct CoachCardView: View {
     private func pager(_ symbol: String, label: String, id: String, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 15, weight: .medium))
+                .psFont(15, weight: .medium)
                 .foregroundColor(theme.ink2)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
@@ -120,7 +131,7 @@ struct CoachCardView: View {
 
     private func link(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
-            .font(.system(size: 13))
+            .psFont(13)
             .foregroundColor(theme.ink2)
             .frame(minHeight: 44)
             .padding(.leading, 6)

@@ -687,7 +687,8 @@ Testing requirements:
 	•	Hint latency: a hint (one solver step) must be ready within 50 ms on the oldest supported iPhone. Grading a puzzle may take longer but must run off the main thread.
 	•	Hint correctness (phase 2 onward): no hint may ever remove a correct candidate or place a wrong digit.
 	•	Accessibility:
-	•	Support Dynamic Type, including candidate marks (with a minimum size).
+	•	Support Dynamic Type. Chrome text (screen titles, rows, cards, Home, Learn, lessons, Journal, Display & Night, the Night sheet, hint and confirmation cards, Import, First night) scales from the design’s size at the default text size, following the nearest system text style. At accessibility sizes, a label and its control stack instead of sitting side by side, button pairs stack, and screens that no longer fit scroll.
+	•	The game screen must still fit one screen: the header, the tool row and the Solved panel stop growing at xxxLarge; the board and the 1×9 keypad keep a fixed size (the board has its own Clarity sizes, and candidate marks keep their minimum size). Keypad keys, tools, header icons and tab bar items show the Large Content Viewer on a long press. At accessibility sizes the hint slot also takes the free room above the tools; hint text that still does not fit steps down one size, then scrolls, and never truncates.
 	•	Color contrast:
 	•	Day: at least 4.5:1 for digits and text, 3:1 for grid lines and large or bold text.
 	•	Night: the player chooses the glow, and it may go below 4.5:1 (a dark room needs less contrast, and this is the player’s own choice). The Clarity floor still applies (ink at least 20% / 30% / 38% of the full blackbody colour).

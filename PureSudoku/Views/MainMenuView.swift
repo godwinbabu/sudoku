@@ -159,6 +159,7 @@ struct PSTabBar: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityShowsLargeContentViewer { Label(item.title, systemImage: item.symbol) }
                 .accessibilityIdentifier("tab_\(item.rawValue)")
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
@@ -177,7 +178,7 @@ struct ScreenHead: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.system(size: 30, weight: .medium, design: .serif))
+                .psFont(30, weight: .medium, design: .serif)
                 .tracking(-0.3)
                 .foregroundColor(theme.ink)
                 .accessibilityAddTraits(.isHeader)
@@ -186,7 +187,7 @@ struct ScreenHead: View {
         }
         .padding(.leading, 22)
         .padding(.trailing, 12)
-        .frame(height: 52)
+        .frame(minHeight: 52)
     }
 }
 

@@ -287,3 +287,21 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertNil(target(.background, true, true, 0.3))
     }
 }
+
+/// Chrome text scales with Dynamic Type and keeps the design's size at the default (CODESPEC 9).
+final class PSFontTests: XCTestCase {
+    func testScaledSizeKeepsTheDesignSizeAtLarge() {
+        for size: CGFloat in [11, 13, 15, 17, 24, 30, 56] {
+            XCTAssertEqual(PSFont.scaledSize(size, at: .large), size, accuracy: 0.01, "\(size)")
+        }
+    }
+
+    func testScaledSizeGrowsAtAccessibilitySizes() {
+        for size: CGFloat in [11, 15, 30] {
+            let xxxLarge = PSFont.scaledSize(size, at: .xxxLarge)
+            let accessibility3 = PSFont.scaledSize(size, at: .accessibility3)
+            XCTAssertGreaterThan(xxxLarge, size, "\(size)")
+            XCTAssertGreaterThan(accessibility3, xxxLarge, "\(size)")
+        }
+    }
+}

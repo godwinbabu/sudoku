@@ -55,7 +55,7 @@ struct DisplaySettingsView: View {
     private func content(_ settings: Settings) -> some View {
         let night = settings.palette(isNight: true)
         Text("Display & Night")
-            .font(.system(size: 30, weight: .medium, design: .serif))
+            .psFont(30, weight: .medium, design: .serif)
             .foregroundColor(theme.ink)
             .padding(.horizontal, 22)
             .padding(.bottom, 4)
@@ -94,11 +94,11 @@ struct DisplaySettingsView: View {
         SectionLabel(theme: theme, title: "Your eyes").padding(.top, 8)
         PSCard(theme: theme) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Clarity").font(.system(size: 16)).foregroundColor(theme.ink)
+                Text("Clarity").psFont(16).foregroundColor(theme.ink)
                 PSSegmented(theme: theme, options: Clarity.allCases.map { ($0, $0.displayName) }, selection: settings.clarity,
                             idPrefix: "display_clarity_", onSelect: viewModel.setClarity)
                 Text(NightSheetView.clarityNote)
-                    .font(.system(size: 13)).foregroundColor(theme.ink3)
+                    .psFont(13).foregroundColor(theme.ink3)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -136,7 +136,7 @@ struct DisplaySettingsView: View {
         .padding(.bottom, 24)
 
         Text("Hush: tap with two fingers anywhere in a game to turn the screen black. Tap again to come back.")
-            .font(.system(size: 13))
+            .psFont(13)
             .foregroundColor(theme.ink3)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 22)
@@ -146,12 +146,12 @@ struct DisplaySettingsView: View {
         Button { viewModel.setAppearance(appearance) } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(appearance.displayName).font(.system(size: 16)).foregroundColor(theme.ink)
-                    Text(sub).font(.system(size: 13)).foregroundColor(theme.ink3)
+                    Text(appearance.displayName).psFont(16).foregroundColor(theme.ink)
+                    Text(sub).psFont(13).foregroundColor(theme.ink3)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "checkmark")
-                    .font(.system(size: 17, weight: .semibold))
+                    .psFont(17, weight: .semibold)
                     .foregroundColor(theme.accent)
                     .opacity(selected ? 1 : 0)
                     .frame(width: 24)
@@ -172,18 +172,18 @@ struct DisplaySettingsView: View {
         let scheduler = controller.afterDark
         let tonight = settings.useLocationForAfterDark ? scheduler.tonight() : nil
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(tonight == nil ? "Hours" : "Tonight").font(.system(size: 15)).foregroundColor(theme.ink)
-                Spacer()
+            PSAdaptiveStack(alignment: .firstTextBaseline) {
+                Text(tonight == nil ? "Hours" : "Tonight").psFont(15).foregroundColor(theme.ink)
+                Spacer(minLength: 0)
                 Text(tonight.map { "Sunset \($0.sunset.shortTime) → sunrise \($0.sunrise.shortTime)" }
                      ?? "\(settings.afterDarkStart.formatted) → \(settings.afterDarkEnd.formatted)")
-                    .font(.system(size: 15).monospacedDigit())
+                    .psFont(15, monospacedDigit: true)
                     .foregroundColor(theme.ink2)
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("display_afterDarkHours")
             Text(afterDarkNote(settings, hasSun: tonight != nil, denied: scheduler.isLocationDenied))
-                .font(.system(size: 13))
+                .psFont(13)
                 .foregroundColor(theme.ink3)
                 .fixedSize(horizontal: false, vertical: true)
             if tonight == nil {
@@ -193,7 +193,7 @@ struct DisplaySettingsView: View {
             Button(settings.useLocationForAfterDark ? "Use fixed hours instead" : "Use sunset and sunrise") {
                 viewModel.setUsesSun(!settings.useLocationForAfterDark)
             }
-            .font(.system(size: 13))
+            .psFont(13)
             .foregroundColor(theme.ink2)
             .padding(.horizontal, 12)
             .frame(minHeight: 44)
@@ -216,15 +216,17 @@ struct DisplaySettingsView: View {
     }
 
     private func hourStepper(_ title: String, _ time: ClockTime, start: Bool) -> some View {
-        HStack(spacing: 4) {
-            Text(title).font(.system(size: 15)).foregroundColor(theme.ink2)
-            Spacer()
-            stepButton("minus", label: "Earlier") { viewModel.shiftAfterDark(start: start, by: -15) }
-            Text(time.formatted)
-                .font(.system(size: 15).monospacedDigit())
-                .foregroundColor(theme.ink)
-                .frame(minWidth: 76)
-            stepButton("plus", label: "Later") { viewModel.shiftAfterDark(start: start, by: 15) }
+        PSAdaptiveStack(spacing: 4) {
+            Text(title).psFont(15).foregroundColor(theme.ink2)
+            Spacer(minLength: 0)
+            HStack(spacing: 4) {
+                stepButton("minus", label: "Earlier") { viewModel.shiftAfterDark(start: start, by: -15) }
+                Text(time.formatted)
+                    .psFont(15, monospacedDigit: true)
+                    .foregroundColor(theme.ink)
+                    .frame(minWidth: 76)
+                stepButton("plus", label: "Later") { viewModel.shiftAfterDark(start: start, by: 15) }
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
@@ -233,7 +235,7 @@ struct DisplaySettingsView: View {
     private func stepButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 14, weight: .medium)) // fixed: it sits in a 32 pt ring
                 .foregroundColor(theme.ink2)
                 .frame(width: 44, height: 44)
                 .overlay(Circle().strokeBorder(theme.hair, lineWidth: 1).frame(width: 32, height: 32))

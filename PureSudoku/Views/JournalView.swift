@@ -5,6 +5,7 @@ import SwiftUI
 struct JournalView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @StateObject private var viewModel: StatsViewModel
     @StateObject private var settingsModel: SettingsViewModel
     @State private var confirmsClear = false
@@ -28,7 +29,7 @@ struct JournalView: View {
                         DisplaySettingsView(viewModel: SettingsViewModel(controller: controller))
                     } label: {
                         SettingRow(theme: theme, label: "Display & Night", sub: "Day, Night, glow, warmth, clarity, quiet", last: true) {
-                            Image(systemName: "chevron.right").font(.system(size: 14)).foregroundColor(theme.ink3)
+                            Image(systemName: "chevron.right").psFont(14).foregroundColor(theme.ink3)
                         }
                         .contentShape(Rectangle())
                     }
@@ -43,7 +44,7 @@ struct JournalView: View {
                 SectionLabel(theme: theme, title: "Privacy")
                 Text("Everything stays on this iPhone. No account, no network, no analytics. "
                      + "Silent by design — no sounds or vibration unless you turn them on.")
-                    .font(.system(size: 14))
+                    .psFont(14)
                     .lineSpacing(4)
                     .foregroundColor(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
@@ -66,14 +67,14 @@ struct JournalView: View {
     }
 
     private var streak: some View {
-        HStack(alignment: .bottom, spacing: 18) {
+        PSAdaptiveStack(alignment: .bottom, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(viewModel.streak())")
-                    .font(.system(size: 56, weight: .medium, design: .serif).monospacedDigit())
+                    .psFont(56, weight: .medium, design: .serif, monospacedDigit: true)
                     .foregroundColor(theme.ink)
-                Text("nights in a row").font(.system(size: 14)).foregroundColor(theme.ink3)
+                Text("nights in a row").psFont(14).foregroundColor(theme.ink3)
                 if let line = viewModel.lastSolvedLine() {
-                    Text(line).font(.system(size: 13)).foregroundColor(theme.ink3)
+                    Text(line).psFont(13).foregroundColor(theme.ink3)
                 }
             }
             .accessibilityElement(children: .combine)
@@ -86,7 +87,7 @@ struct JournalView: View {
                             .fill(item.solved ? theme.accent : .clear)
                             .overlay(Circle().strokeBorder(item.solved ? .clear : theme.ink3, lineWidth: 1.5))
                             .frame(width: 10, height: 10)
-                        Text(item.day).font(.system(size: 11)).foregroundColor(theme.ink3)
+                        Text(item.day).psFont(11).foregroundColor(theme.ink3)
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)
@@ -113,7 +114,7 @@ struct JournalView: View {
                 Text(viewModel.assistedLine).accessibilityIdentifier("journal_assisted")
                 Text(viewModel.totalsLine)
             }
-            .font(.system(size: 13))
+            .psFont(13)
             .foregroundColor(theme.ink3)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,14 +123,29 @@ struct JournalView: View {
         }
     }
 
+    @ViewBuilder
     private func tableRow(_ level: String, _ count: String, _ best: String, _ typical: String, header: Bool = false) -> some View {
-        HStack(spacing: 0) {
-            Text(level).foregroundColor(theme.ink).frame(maxWidth: .infinity, alignment: .leading)
-            Text(count).frame(width: 60, alignment: .trailing)
-            Text(best).frame(width: 70, alignment: .trailing)
-            Text(typical).frame(width: 70, alignment: .trailing)
+        Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                // Too wide for one line: the level above, its three numbers in equal columns below.
+                VStack(alignment: .leading, spacing: 2) {
+                    if !level.isEmpty { Text(level).foregroundColor(theme.ink) }
+                    HStack(spacing: 8) {
+                        ForEach(Array([count, best, typical].enumerated()), id: \.offset) {
+                            Text($0.element).frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+                    }
+                }
+            } else {
+                HStack(spacing: 0) {
+                    Text(level).foregroundColor(theme.ink).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(count).frame(width: 60, alignment: .trailing)
+                    Text(best).frame(width: 70, alignment: .trailing)
+                    Text(typical).frame(width: 70, alignment: .trailing)
+                }
+            }
         }
-        .font(.system(size: header ? 12 : 15).monospacedDigit())
+        .psFont(header ? 12 : 15, monospacedDigit: true)
         .foregroundColor(header ? theme.ink3 : theme.ink2)
         .padding(.horizontal, 16)
         .padding(.vertical, header ? 10 : 12)
@@ -140,7 +156,7 @@ struct JournalView: View {
     private func assists(_ settings: Settings) -> some View {
         PSCard(theme: theme) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Show mistakes").font(.system(size: 16)).foregroundColor(theme.ink)
+                Text("Show mistakes").psFont(16).foregroundColor(theme.ink)
                 PSSegmented(theme: theme, options: MistakeMode.allCases.map { ($0, $0.displayName) }, selection: settings.mistakes,
                             idPrefix: "journal_mistakes_", onSelect: settingsModel.setMistakes)
             }
@@ -152,11 +168,11 @@ struct JournalView: View {
                     .accessibilityIdentifier("journal_tidyNotes")
             }
             VStack(alignment: .leading, spacing: 10) {
-                Text("Cell names in hints").font(.system(size: 16)).foregroundColor(theme.ink)
+                Text("Cell names in hints").psFont(16).foregroundColor(theme.ink)
                 PSSegmented(theme: theme, options: CellNotation.allCases.map { ($0, $0.displayName) }, selection: settings.notation,
                             idPrefix: "journal_notation_", onSelect: settingsModel.setNotation)
                 Text(settings.notation == .grid ? "Short grid codes: R for row, C for column, B for box." : "Written out in words.")
-                    .font(.system(size: 13)).foregroundColor(theme.ink3)
+                    .psFont(13).foregroundColor(theme.ink3)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

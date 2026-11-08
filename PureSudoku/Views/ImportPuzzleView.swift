@@ -71,7 +71,7 @@ struct ImportPuzzleView: View {
             HeaderIconButton(theme: theme, symbol: "xmark", label: "Discard") { dismiss() }
                 .accessibilityIdentifier("importDiscard")
             Text(viewModel.step == .review ? "CHECK THE GRID" : "")
-                .font(.system(size: 12, weight: .semibold)).tracking(0.96).foregroundColor(theme.ink2)
+                .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
                 .frame(maxWidth: .infinity)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityHidden(viewModel.step != .review) // empty on the other steps
@@ -88,11 +88,11 @@ struct ImportPuzzleView: View {
             VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Import a puzzle")
-                        .font(.system(size: 32, weight: .medium, design: .serif))
+                        .psFont(32, weight: .medium, design: .serif)
                         .foregroundColor(theme.ink)
                         .accessibilityAddTraits(.isHeader)
                     Text("From a newspaper, a book or a screenshot. The photo is read on this iPhone and never uploaded.")
-                        .font(.system(size: 15)).lineSpacing(3).foregroundColor(theme.ink2)
+                        .psFont(15).lineSpacing(3).foregroundColor(theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 22)
@@ -114,7 +114,7 @@ struct ImportPuzzleView: View {
                 SectionLabel(theme: theme, title: "For a clean read") // pads itself to 22
                     .padding(.top, 26)
                 Text("Fill the frame with the grid · Good light, no glare · Pencil marks are ignored")
-                    .font(.system(size: 13)).lineSpacing(4).foregroundColor(theme.ink3)
+                    .psFont(13).lineSpacing(4).foregroundColor(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 22)
             }
@@ -143,10 +143,10 @@ struct ImportPuzzleView: View {
             }
             VStack(alignment: .leading, spacing: 0) {
                 Text("Reading digits…")
-                    .font(.system(size: 26, weight: .medium, design: .serif))
+                    .psFont(26, weight: .medium, design: .serif)
                     .foregroundColor(theme.ink)
                 Text(progress == nil ? "Looking for the grid…" : "Grid found · \(checked) of 81 cells checked")
-                    .font(.system(size: 15).monospacedDigit())
+                    .psFont(15, monospacedDigit: true)
                     .foregroundColor(theme.ink2)
                     .padding(.top, 6)
                     .accessibilityIdentifier("importReadProgress")
@@ -236,6 +236,7 @@ struct ImportPuzzleView: View {
             .disabled(!viewModel.canStart)
             .accessibilityIdentifier("importStartPuzzle")
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the grid, keypad and these share one screen
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
     }
@@ -258,15 +259,15 @@ struct ImportPuzzleView: View {
                 .accessibilityIdentifier("importConflictLegend")
             } else {
                 if let hint = viewModel.emptyGridHint {
-                    Text(hint).font(.system(size: 14)).foregroundColor(theme.ink)
+                    Text(hint).psFont(14).foregroundColor(theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("importEmptyHint")
                 }
                 if let message = viewModel.detectionMessage {
-                    Text(message).font(.system(size: 14)).foregroundColor(theme.ink2)
+                    Text(message).psFont(14).foregroundColor(theme.ink2)
                 }
                 Text(viewModel.validationMessage)
-                    .font(.system(size: 14)).foregroundColor(theme.ink2)
+                    .psFont(14).foregroundColor(theme.ink2)
                     .accessibilityIdentifier("importStatus")
             }
         }
@@ -277,7 +278,7 @@ struct ImportPuzzleView: View {
         HStack(alignment: .top, spacing: 10) {
             swatch().accessibilityHidden(true)
             (Text(bold).fontWeight(.semibold).foregroundColor(theme.ink) + Text(" " + rest))
-                .font(.system(size: 14)).lineSpacing(2).foregroundColor(theme.ink2)
+                .psFont(14).lineSpacing(2).foregroundColor(theme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -298,16 +299,16 @@ private struct OptionCard: View {
             PSCard(theme: theme) {
                 HStack(spacing: 16) {
                     Image(systemName: symbol)
-                        .font(.system(size: 24, weight: .regular))
+                        .psFont(24, weight: .regular)
                         .foregroundColor(theme.accent)
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(title).font(.system(size: 17)).foregroundColor(theme.ink)
-                        Text(subtitle).font(.system(size: 13)).foregroundColor(theme.ink3)
+                        Text(title).psFont(17).foregroundColor(theme.ink)
+                        Text(subtitle).psFont(13).foregroundColor(theme.ink3)
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .regular))
+                        .psFont(14, weight: .regular)
                         .foregroundColor(theme.ink3)
                 }
                 .padding(18)

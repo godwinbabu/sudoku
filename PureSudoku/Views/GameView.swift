@@ -8,6 +8,7 @@ struct GameView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.psPalette) private var basePalette
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @StateObject private var viewModel: GameViewModel
     @State private var showsMenu = false
     @State private var isHushed = false
@@ -46,6 +47,8 @@ struct GameView: View {
         GeometryReader { geometry in
             let side = min(geometry.size.width - 24, geometry.size.height - Self.chromeHeight, 440)
             VStack(spacing: 0) {
+                // The header, board, tools and keypad must fit one screen (CODESPEC 9): the board,
+                // tools and keys keep a fixed size and show the Large Content Viewer instead.
                 header(theme: theme)
                 boardArea(theme: theme, side: max(side, 200))
                     .padding(.top, 6)
@@ -59,7 +62,8 @@ struct GameView: View {
                         hintSlot(theme: theme)
                     }
                 }
-                .frame(height: 124)
+                // At accessibility sizes the slot also takes the free room above the tools.
+                .frame(minHeight: 124, maxHeight: dynamicTypeSize.isAccessibilitySize ? .infinity : 124)
                 .padding([.top, .horizontal], 12)
                 Spacer(minLength: 0)
                 tools(theme: theme)
@@ -143,19 +147,20 @@ struct GameView: View {
             Button(action: togglePause) {
                 VStack(spacing: 1) {
                     Text(difficulty.displayName.uppercased())
-                        .font(.system(size: 11, weight: .semibold))
+                        .psFont(11, weight: .semibold)
                         .tracking(0.9)
                         .foregroundColor(theme.ink3)
                     if viewModel.showTimer {
                         HStack(spacing: 5) {
                             Text(Self.timeString(viewModel.state.elapsedSeconds))
                                 .accessibilityIdentifier("timerLabel")
-                            if viewModel.isPaused { Image(systemName: "pause").font(.system(size: 11, weight: .semibold)) }
+                            if viewModel.isPaused { Image(systemName: "pause").psFont(11, weight: .semibold) }
                         }
-                        .font(.system(size: 15, weight: .medium).monospacedDigit())
+                        .psFont(15, weight: .medium, monospacedDigit: true)
                         .foregroundColor(theme.ink2)
                     }
                 }
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 48 pt tall
                 .frame(maxWidth: .infinity, minHeight: 44)
                 .contentShape(Rectangle())
             }
@@ -185,7 +190,7 @@ struct GameView: View {
             if viewModel.isPaused && !isDone {
                 VStack(spacing: 14) {
                     Text("Paused")
-                        .font(.system(size: 28, weight: .medium, design: .serif))
+                        .psFont(28, weight: .medium, design: .serif)
                         .foregroundColor(theme.ink)
                     Button("Resume") { viewModel.resumeTimer() }
                         .buttonStyle(PSButtonStyle(theme: theme))
@@ -210,6 +215,7 @@ struct GameView: View {
             if isDone {
                 SolvedPanel(theme: theme, summary: solvedSummary, note: solvedNote,
                             techniques: techniqueLine, onAnother: another, onGoodnight: { isGoodnight = true })
+                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // it sits on the board, so it must fit there
             }
         }
         .frame(maxWidth: .infinity)
@@ -249,6 +255,16 @@ struct GameView: View {
 
     @ViewBuilder
     private func hintSlot(theme: PSPalette) -> some View {
+        // At accessibility sizes the messages can outgrow the slot (small phone, several at once):
+        // they scroll rather than clip. Not ViewThatFits: it hung layout in this slot.
+        if dynamicTypeSize.isAccessibilitySize {
+            ScrollView { slotMessages(theme: theme).frame(maxWidth: .infinity).padding(.vertical, 4) }
+        } else {
+            slotMessages(theme: theme).frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private func slotMessages(theme: PSPalette) -> some View {
         VStack(spacing: 6) {
             if viewModel.state.hasContradiction && !viewModel.state.isCompleted && controller.settings.mistakes != .never {
                 Text("Two of the same digit share a row, column or box.")
@@ -268,9 +284,8 @@ struct GameView: View {
                     .accessibilityIdentifier("stuckNote")
             }
         }
-        .font(.system(size: 13))
+        .psFont(13)
         .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func tools(theme: PSPalette) -> some View {
@@ -356,7 +371,7 @@ struct GameView: View {
                     MenuRow(theme: theme, title: "Hush screen", detail: "2-finger tap") { closeMenu(hush) }
                         .accessibilityIdentifier("menu_hush")
                 }
-                .frame(width: 230)
+                .frame(width: dynamicTypeSize.isAccessibilitySize ? 300 : 230)
                 .accessibilityAction(.escape) { showsMenu = false }
                 .padding(.top, 50)
                 .padding(.trailing, 12)
@@ -373,36 +388,10 @@ struct GameView: View {
     @ViewBuilder
     private func confirmation(theme: PSPalette) -> some View {
         if let action = viewModel.pendingAction {
-            ZStack {
-                // Near-black at night, so the board and its notes do not show around the card.
-                Color.black.opacity(theme.isNight ? 0.92 : 0.18)
-                    .ignoresSafeArea()
-                    .onTapGesture { viewModel.pendingAction = nil }
-                PopoverCard(theme: theme) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(action.title).font(.system(size: 17, weight: .semibold)).foregroundColor(theme.ink)
-                        Text(action.message).font(.system(size: 15)).foregroundColor(theme.ink2)
-                        HStack(spacing: 10) {
-                            Spacer()
-                            Button("Cancel") { viewModel.pendingAction = nil }
-                                .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
-                                .accessibilityIdentifier("confirm_cancel")
-                            Button(action.confirmLabel) { viewModel.handle(pendingAction: action) }
-                                .buttonStyle(PSButtonStyle(theme: theme))
-                                .accessibilityIdentifier("confirm_action")
-                        }
-                        .padding(.top, 10)
-                    }
-                    .padding(16)
-                }
-                .frame(maxWidth: 320)
-                .padding(.horizontal, 24)
-                .accessibilityElement(children: .contain)
-                // Needed here too: this wrapper is its own container (see PopoverCard).
-                .accessibilitySortPriority(-1)
-                .accessibilityAction(.escape) { viewModel.pendingAction = nil }
-                .accessibilityIdentifier("confirmDialog")
-            }
+            ConfirmPanel(theme: theme, title: action.title, message: action.message,
+                         cancel: "Cancel", confirm: action.confirmLabel,
+                         onCancel: { viewModel.pendingAction = nil }, onDismiss: { viewModel.pendingAction = nil },
+                         onConfirm: { viewModel.handle(pendingAction: action) })
             .transition(.opacity)
         }
     }
