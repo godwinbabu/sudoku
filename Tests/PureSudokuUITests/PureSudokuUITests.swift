@@ -601,6 +601,7 @@ extension PureSudokuUITests {
         XCTAssertTrue(button.waitForExistence(timeout: 2))
         let tabTop = app.buttons["tab_play"].frame.minY
         for _ in 0..<4 where button.frame.maxY > tabTop { app.swipeUp() }
+        XCTAssertLessThanOrEqual(button.frame.maxY, tabTop, "Import still under the tab bar")
         button.tap()
     }
 

@@ -226,6 +226,7 @@ struct ConfirmPanel: View {
             .frame(maxWidth: 320)
             .padding(.horizontal, 24)
             .accessibilityElement(children: .contain)
+            // Needed here too: this wrapper is its own container (see PopoverCard).
             .accessibilitySortPriority(-1)
             .accessibilityAddTraits(.isModal)
             .accessibilityAction(.escape, onDismiss)
