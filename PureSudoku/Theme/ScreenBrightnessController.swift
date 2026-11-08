@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Sets the screen backlight from Glow while the app is open in Night (CODESPEC 12.3): the hardware
-/// minimum up to glow 40, then brighter. Puts the player's brightness back when the app leaves the
-/// foreground or Night ends. If the player changes brightness themselves (Control Center), that wins
-/// until Glow changes.
+/// Sets the screen backlight in Night from Glow (CODESPEC 12.3): the hardware minimum up to glow 40,
+/// then brighter. Find my lowest glow holds the minimum while it is open, by day too. Puts the
+/// player's brightness back when the app leaves the foreground or neither applies. If the player
+/// changes brightness themselves (Control Center), that wins until Glow changes or they calibrate.
 @MainActor
 final class ScreenBrightnessController {
     private let read: () -> CGFloat
@@ -27,7 +27,7 @@ final class ScreenBrightnessController {
         return isNight ? nightBacklight : nil
     }
 
-    /// `target` is the Night backlight, or nil to give the screen back to the player. `request` is
+    /// `target` is the backlight to hold (Night or calibrating), or nil to give the screen back. `request` is
     /// what the player asked for (their Glow, or calibrating): a brightness they set themselves is kept
     /// until it changes, even if the target moves on its own (Drift).
     func update(target: CGFloat?, request: AnyHashable = 0) {
