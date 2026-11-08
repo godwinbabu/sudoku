@@ -188,9 +188,93 @@ final class AppControllerTests: XCTestCase {
         let solution = Array(state.puzzle.solutionGrid).map { Int(String($0))! }
         state.cells[index].value = solution[state.cells[index].index] % 9 + 1
         state.cells[index].isError = true
+        state.checkedWrong = [state.cells[index].id]
         let viewModel = GameViewModel(state: state, settings: settings, validator: SudokuValidator(), timeProvider: MockTimeProvider())
         viewModel.apply(settings: settings)
         XCTAssertTrue(viewModel.state.cells[index].isError)
+    }
+
+    private func reopen(_ state: GameState, settings: Settings) throws -> GameViewModel {
+        let saved = try JSONDecoder().decode(GameState.self, from: JSONEncoder().encode(state))
+        let viewModel = GameViewModel(state: saved, settings: settings, validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        viewModel.apply(settings: settings)
+        return viewModel
+    }
+
+    /// Right away: a wrong digit with no duplicate is marked only by Check, and the mark survives a reopen.
+    func testCheckMarkUnderRightAwaySurvivesReopen() throws {
+        var settings = Settings()
+        settings.mistakes = .immediate
+        let state = TestData.newGameState()
+        let solution = Array(state.puzzle.solutionGrid).map { Int(String($0))! }
+        // An empty cell and a wrong digit that no peer holds, so only Check can mark it.
+        let (cell, digit) = try XCTUnwrap(state.cells.lazy.filter { $0.value == nil }.compactMap { cell -> (SudokuCell, Int)? in
+            let peerValues = Set(state.cells.filter { Board.peers[cell.index].contains($0.index) }.compactMap(\.value))
+            return (1...9).first { $0 != solution[cell.index] && !peerValues.contains($0) }.map { (cell, $0) }
+        }.first)
+        let viewModel = GameViewModel(state: state, settings: settings, validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        viewModel.select(cell: cell)
+        viewModel.setDigit(digit)
+        viewModel.checkCell()
+        XCTAssertTrue(viewModel.state.cells[cell.index].isError)
+
+        let reopened = try reopen(viewModel.state, settings: settings)
+        XCTAssertTrue(reopened.state.cells[cell.index].isError, "the Check mark is saved with the game")
+    }
+
+    /// Duplicates marked under Right away are not Check marks: after a switch to When I check and a
+    /// reopen, neither shows, and erasing the wrong one leaves nothing marked.
+    func testAutoMarksDoNotBecomeCheckMarksOnReopen() throws {
+        var settings = Settings()
+        settings.mistakes = .immediate
+        let state = TestData.newGameState()
+        let solution = Array(state.puzzle.solutionGrid).map { Int(String($0))! }
+        let row = try XCTUnwrap((0..<9).first { row in state.cells.filter { $0.row == row && $0.value == nil }.count >= 2 })
+        let empties = state.cells.filter { $0.row == row && $0.value == nil }
+        let (right, wrong) = (empties[0], empties[1])
+        let viewModel = GameViewModel(state: state, settings: settings, validator: SudokuValidator(), timeProvider: MockTimeProvider())
+        for cell in [right, wrong] {
+            viewModel.select(cell: cell)
+            viewModel.setDigit(solution[right.index])
+        }
+        XCTAssertTrue(viewModel.state.cells[right.index].isError)
+        XCTAssertTrue(viewModel.state.cells[wrong.index].isError)
+
+        settings.mistakes = .onCheck
+        let reopened = try reopen(viewModel.state, settings: settings)
+        XCTAssertFalse(reopened.state.cells[wrong.index].isError, "no Check was done")
+        XCTAssertFalse(reopened.state.cells[right.index].isError)
+        reopened.select(cell: reopened.state.cells[wrong.index])
+        reopened.clearSelectedCell()
+        XCTAssertFalse(reopened.state.cells[right.index].isError)
+    }
+
+    /// An import solved before its background count finished gets its time once the count says unique.
+    func testImportSolvedBeforeItsCountGetsItsTime() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let persistence = PersistenceManager(directory: dir)
+        let puzzle = SudokuPuzzle(id: "old-unique", difficulty: .easy, initialGrid: TestData.puzzle.initialGrid,
+                                  solutionGrid: TestData.puzzle.solutionGrid, source: .imported)
+        try persistence.save([ImportedGame(gameState: GameState.newGame(for: puzzle))], to: "imported_games.json")
+        let clock = AdvancingTimeProvider()
+        let controller = AppController(persistence: persistence, timeProvider: clock,
+                                       imageStore: ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true)))
+        // No await before the solve, so the count is still pending.
+        let viewModel = try XCTUnwrap(controller.makeImportedGameViewModel(id: try XCTUnwrap(controller.importedGames.first?.id)))
+        viewModel.handleSceneDidAppear()
+        clock.advance(120)
+        solve(viewModel)
+        XCTAssertTrue(viewModel.state.isCompleted)
+        XCTAssertEqual(controller.stats.totalPuzzlesSolved, 1)
+        XCTAssertNil(controller.stats.bestTime(for: .easy), "uniqueness not known yet")
+
+        for _ in 0..<100 where controller.importedGames.first?.gameState.puzzle.hasUniqueSolution == nil {
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
+        XCTAssertEqual(controller.importedGames.first?.gameState.puzzle.hasUniqueSolution, true)
+        XCTAssertEqual(controller.stats.bestTime(for: .easy), 120)
+        XCTAssertEqual(controller.stats.solveTimes[.easy], [120])
+        XCTAssertEqual(controller.stats.totalPuzzlesSolved, 1, "not another solve")
     }
 
     /// With no explainable step, the hint fills the selected empty cell, not the first one.

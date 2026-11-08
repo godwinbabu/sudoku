@@ -64,6 +64,19 @@ final class StatsTests: XCTestCase {
         XCTAssertEqual(stats.solveTimes[.easy]?.first, 11, "the oldest go first")
     }
 
+    /// A late time (uniqueness counted after the solve) sets best and typical, not another solve.
+    func testRecordTimeAddsOnlyTheTime() {
+        var stats = Stats()
+        stats.recordCompletion(for: .hard, time: 300, usedReveal: false, setsTimes: false)
+        stats.recordTime(for: .hard, time: 300)
+        stats.recordTime(for: .hard, time: 200)
+        XCTAssertEqual(stats.bestTime(for: .hard), 200)
+        XCTAssertEqual(stats.solveTimes[.hard], [300, 200])
+        XCTAssertEqual(stats.totalPuzzlesSolved, 1)
+        XCTAssertEqual(stats.solvedCount(for: .hard), 1)
+        XCTAssertEqual(stats.totalTimeSeconds, 300)
+    }
+
     func testWeekDaysAndCurrentStreak() {
         var stats = Stats()
         let calendar = Calendar(identifier: .gregorian)

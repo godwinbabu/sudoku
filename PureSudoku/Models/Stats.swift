@@ -57,9 +57,7 @@ struct Stats: Codable, Equatable {
         if assisted {
             assistedSolves += 1
         } else if setsTimes {
-            bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
-            solveTimes[difficulty, default: []].append(time)
-            solveTimes[difficulty] = solveTimes[difficulty]?.suffix(Self.keptTimes)
+            recordTime(for: difficulty, time: time)
         }
         let day = Self.playDay(date, calendar: calendar)
         if !solvedDays.contains(where: { calendar.isDate($0, inSameDayAs: day) }) {
@@ -79,6 +77,13 @@ struct Stats: Codable, Equatable {
         }
 
         lastCompletionDate = day
+    }
+
+    /// Adds a solve's time to the best and typical times only; the solve itself is counted elsewhere.
+    mutating func recordTime(for difficulty: Difficulty, time: Int) {
+        bestTimes[difficulty] = min(bestTimes[difficulty] ?? time, time)
+        solveTimes[difficulty, default: []].append(time)
+        solveTimes[difficulty] = solveTimes[difficulty]?.suffix(Self.keptTimes)
     }
 
     func solvedCount(for difficulty: Difficulty) -> Int {

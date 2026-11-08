@@ -14,6 +14,9 @@ struct GameState: Codable, Equatable {
     /// True once this puzzle's completion reached the stats. Restart keeps it, so solving the same
     /// puzzle again never counts twice (CODESPEC 6.5).
     var counted: Bool = false
+    /// Cells that Check Cell / Check Puzzle found wrong. Saved so the marks keep their source:
+    /// a Check mark stays until the cell is edited, a duplicate mark clears when fixed (CODESPEC 7.1).
+    var checkedWrong: Set<UUID> = []
     /// One entry per hint session (CODESPEC 2.3).
     var hintLog: [HintLogEntry] = []
     /// Hints opened in this puzzle (the Solved summary).
@@ -55,7 +58,7 @@ struct GameState: Codable, Equatable {
     // MARK: - Codable
 
     private enum CodingKeys: String, CodingKey {
-        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, assisted, hintLog, counted
+        case puzzle, cells, elapsedSeconds, isCompleted, usedReveal, lastUpdated, hasContradiction, assisted, hintLog, counted, checkedWrong
         case usedHint // read only: the old name of `assisted`
     }
 
@@ -73,6 +76,7 @@ struct GameState: Codable, Equatable {
         hintLog = try container.decodeIfPresent([HintLogEntry].self, forKey: .hintLog) ?? []
         // Saves from before this field: a completed game reached the stats unless it was revealed.
         counted = try container.decodeIfPresent(Bool.self, forKey: .counted) ?? (isCompleted && !usedReveal)
+        checkedWrong = try container.decodeIfPresent(Set<UUID>.self, forKey: .checkedWrong) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -87,6 +91,7 @@ struct GameState: Codable, Equatable {
         try container.encode(assisted, forKey: .assisted)
         try container.encode(hintLog, forKey: .hintLog)
         try container.encode(counted, forKey: .counted)
+        try container.encode(checkedWrong, forKey: .checkedWrong)
     }
 }
 

@@ -34,6 +34,10 @@ final class AppController: ObservableObject {
     /// True when imported_games.json could not be loaded. Its photos may still belong to the backup
     /// copy, so orphan cleanup is skipped for this session.
     private var importedGamesLoadFailed = false
+    // shortcut: kept in memory only, so quitting before the count ends drops that one time; persist it if counts get slow.
+    /// Imports solved while their count was still running: the time waits for the count
+    /// (best and typical times need a unique solution).
+    private var solvesAwaitingCount: [String: (difficulty: Difficulty, time: Int)] = [:]
 
     init(
         persistence: PersistenceManager = PersistenceManager(),
@@ -132,8 +136,13 @@ final class AppController: ObservableObject {
                 pending.map { (id: $0.id, unique: SolutionCounter.count($0.values, limit: 2) == 1) }
             }.value
             for result in counted {
+                let waiting = solvesAwaitingCount.removeValue(forKey: result.id)
                 guard let index = importedGames.firstIndex(where: { $0.id == result.id }) else { continue }
                 importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
+                // Solved before the count finished: the solve is counted, its time waited for this.
+                if result.unique, let waiting {
+                    updateStats { $0.recordTime(for: waiting.difficulty, time: waiting.time) }
+                }
             }
             persistImportedGames()
         }
@@ -472,6 +481,9 @@ final class AppController: ObservableObject {
         // import first, so a unique puzzle still sets times.
         if state.puzzle.hasUniqueSolution == nil {
             state.puzzle.hasUniqueSolution = importedGames.first { $0.id == id }?.gameState.puzzle.hasUniqueSolution
+        }
+        if state.puzzle.hasUniqueSolution == nil, !state.counted, !state.usedReveal, !state.assisted {
+            solvesAwaitingCount[id] = (state.puzzle.difficulty, state.elapsedSeconds)
         }
         record(state, at: state.puzzle.difficulty)
         if !state.usedReveal { state.counted = true }
