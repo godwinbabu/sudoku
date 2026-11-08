@@ -36,6 +36,7 @@ struct GameView: View {
 
     private func updateDrift() {
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.6)) { drift.update(active: driftIsActive) }
+        if controller.driftSteps != drift.steps { controller.driftSteps = drift.steps } // the backlight drifts too
     }
 
     /// Header, board top gap, hint slot, tools and keypad (everything but the board).
@@ -52,7 +53,9 @@ struct GameView: View {
                     .padding(.top, 6)
                 // The hint card fills this slot; the tools and keypad below keep their place.
                 Group {
-                    if let session = viewModel.hint, !isDone {
+                    if let coach = viewModel.coach, !isDone {
+                        coachCard(coach, theme: theme)
+                    } else if let session = viewModel.hint, !isDone {
                         hintCard(session, theme: theme)
                     } else {
                         hintSlot(theme: theme)
@@ -105,6 +108,7 @@ struct GameView: View {
         .onDisappear {
             viewModel.handleSceneDidDisappear()
             drift.update(active: false)
+            controller.driftSteps = 0
         }
         .onChange(of: controller.settings) { viewModel.apply(settings: $0) }
         .onChange(of: scenePhase) { phase in
@@ -251,6 +255,11 @@ struct GameView: View {
             } else if viewModel.inputMode == .candidate && !viewModel.state.isCompleted {
                 Text("Notes on — digits go in as pencil marks").foregroundColor(theme.ink3)
             }
+            if viewModel.isStuck {
+                Text("Stuck? Tap Coach to see the patterns on your board.")
+                    .foregroundColor(theme.ink2)
+                    .accessibilityIdentifier("stuckNote")
+            }
         }
         .font(.system(size: 13))
         .multilineTextAlignment(.center)
@@ -270,11 +279,34 @@ struct GameView: View {
             }
             .accessibilityIdentifier("tool_notes")
             .accessibilityValue(notesOn ? "On" : "Off")
-            ToolButton(theme: theme, symbol: "lightbulb", label: viewModel.hint == nil ? "Hint" : "Next step",
-                       isActive: viewModel.hint != nil) { viewModel.hintTool() }
+            ToolButton(theme: theme, symbol: "lightbulb", label: hintToolLabel,
+                       isActive: viewModel.hint != nil || viewModel.coach != nil || viewModel.isStuck) { viewModel.hintTool() }
                 .accessibilityIdentifier("tool_hint")
         }
         .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+    }
+
+    /// Hint; Next step while a hint is open; Show me / Apply in the coach; Coach once stuck.
+    private var hintToolLabel: String {
+        if let coach = viewModel.coach { return coach.revealed ? "Apply" : "Show me" }
+        if viewModel.hint != nil { return "Next step" }
+        return viewModel.isStuck ? "Coach" : "Hint"
+    }
+
+    private func coachCard(_ session: CoachSession, theme: PSPalette) -> some View {
+        CoachCardView(
+            session: session,
+            names: controller.settings.notation,
+            theme: theme,
+            onBack: viewModel.coachBack,
+            onForward: viewModel.coachForward,
+            onDefinition: viewModel.coachToggleDefinition,
+            onReveal: viewModel.coachReveal,
+            onApply: viewModel.applyCoach,
+            onLesson: { lessonTechnique = $0 },
+            onClose: { viewModel.endHint() }
+        )
+        .disabled(viewModel.isPaused)
     }
 
     private func hintCard(_ session: HintSession, theme: PSPalette) -> some View {
@@ -286,6 +318,7 @@ struct GameView: View {
             onApply: viewModel.applyHint,
             onUndo: viewModel.canUndo ? { viewModel.undo() } : nil,
             onLesson: { lessonTechnique = $0 },
+            onCoach: { viewModel.openCoach() },
             onClose: { viewModel.endHint() }
         )
         .disabled(viewModel.isPaused)

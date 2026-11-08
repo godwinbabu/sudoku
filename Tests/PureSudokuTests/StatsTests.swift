@@ -64,6 +64,19 @@ final class StatsTests: XCTestCase {
         XCTAssertEqual(stats.solveTimes[.easy]?.first, 11, "the oldest go first")
     }
 
+    /// A late time (uniqueness counted after the solve) sets best and typical, not another solve.
+    func testRecordTimeAddsOnlyTheTime() {
+        var stats = Stats()
+        stats.recordCompletion(for: .hard, time: 300, usedReveal: false, setsTimes: false)
+        stats.recordTime(for: .hard, time: 300)
+        stats.recordTime(for: .hard, time: 200)
+        XCTAssertEqual(stats.bestTime(for: .hard), 200)
+        XCTAssertEqual(stats.solveTimes[.hard], [300, 200])
+        XCTAssertEqual(stats.totalPuzzlesSolved, 1)
+        XCTAssertEqual(stats.solvedCount(for: .hard), 1)
+        XCTAssertEqual(stats.totalTimeSeconds, 300)
+    }
+
     func testWeekDaysAndCurrentStreak() {
         var stats = Stats()
         let calendar = Calendar(identifier: .gregorian)
@@ -112,5 +125,70 @@ final class StatsTests: XCTestCase {
         var newStats = Stats()
         newStats.recordCompletion(for: .master, time: 500, usedReveal: false)
         XCTAssertEqual(try JSONDecoder().decode(Stats.self, from: JSONEncoder().encode(newStats)), newStats)
+    }
+
+    // MARK: - QA fixes (#35, #34)
+
+    /// A night of play runs to 4 am: Monday 23:30 then Wednesday 00:30 is two nights in a row.
+    func testStreakSurvivesMidnight() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        func at(_ day: Int, _ hour: Int, _ minute: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: 11, day: day, hour: hour, minute: minute))!
+        }
+        var stats = Stats()
+        stats.recordCompletion(for: .easy, time: 100, usedReveal: false, date: at(2, 23, 30), calendar: calendar)
+        XCTAssertEqual(stats.currentStreak(at: at(3, 0, 5), calendar: calendar), 1, "still Monday night at 00:05")
+        stats.recordCompletion(for: .easy, time: 100, usedReveal: false, date: at(4, 0, 30), calendar: calendar)
+        XCTAssertEqual(stats.streakDays, 2, "Tuesday night, after midnight")
+        XCTAssertTrue(stats.solved(on: at(3, 12, 0), calendar: calendar), "the 00:30 solve counts for Tuesday")
+        XCTAssertEqual(stats.currentStreak(at: at(5, 3, 59), calendar: calendar), 2, "Wednesday night is not over until 4 am")
+        XCTAssertEqual(stats.currentStreak(at: at(6, 4, 1), calendar: calendar), 0, "a whole night missed")
+    }
+
+    func testSolveWithSeveralSolutionsSetsNoTimes() {
+        var stats = Stats()
+        stats.recordCompletion(for: .master, time: 30, usedReveal: false, setsTimes: false, source: .imported)
+        XCTAssertNil(stats.bestTime(for: .master))
+        XCTAssertNil(stats.typicalTime(for: .master))
+        XCTAssertEqual(stats.solvedCount(for: .master), 1, "it still counts as solved")
+        XCTAssertEqual(stats.streakDays, 1)
+        XCTAssertEqual(stats.assistedSolves, 0)
+    }
+
+    /// The 4 am boundary is local time, also on daylight-saving days (New York 2026).
+    func testPlayDayOnDaylightSavingDays() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        func at(_ month: Int, _ day: Int, _ hour: Int, _ minute: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: month, day: day, hour: hour, minute: minute))!
+        }
+        func day(_ month: Int, _ day: Int) -> Date { calendar.date(from: DateComponents(year: 2026, month: month, day: day))! }
+        XCTAssertEqual(Stats.playDay(at(11, 1, 3, 30), calendar: calendar), day(10, 31), "fall back: 03:30 is still last night")
+        XCTAssertEqual(Stats.playDay(at(11, 1, 4, 30), calendar: calendar), day(11, 1))
+        XCTAssertEqual(Stats.playDay(at(3, 8, 4, 30), calendar: calendar), day(3, 8), "spring forward: 04:30 is the new day")
+        XCTAssertEqual(Stats.playDay(at(3, 8, 3, 30), calendar: calendar), day(3, 7))
+    }
+
+    @MainActor
+    func testJournalWeekBeforeFourOnMondayIsLastWeek() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/New_York")!
+        let sunday = calendar.date(from: DateComponents(year: 2026, month: 11, day: 8, hour: 23))!
+        let mondayNight = calendar.date(from: DateComponents(year: 2026, month: 11, day: 9, hour: 0, minute: 30))!
+        let (controller, _) = makeTestController()
+        controller.updateStats { $0.recordCompletion(for: .easy, time: 100, usedReveal: false, date: mondayNight, calendar: calendar) }
+        let model = StatsViewModel(controller: controller)
+        XCTAssertEqual(model.week(at: mondayNight, calendar: calendar).last?.solved, true, "the 00:30 solve shows on Sunday")
+        XCTAssertEqual(model.week(at: sunday, calendar: calendar).last?.solved, true)
+    }
+
+    func testALateTimeIsRecordedOncePerImport() {
+        var stats = Stats()
+        stats.recordLateTime(id: "a", for: .easy, time: 120)
+        stats.recordLateTime(id: "a", for: .easy, time: 120) // a retried handoff
+        XCTAssertEqual(stats.solveTimes[.easy], [120])
+        stats.recordLateTime(id: "b", for: .easy, time: 90)
+        XCTAssertEqual(stats.bestTime(for: .easy), 90)
     }
 }

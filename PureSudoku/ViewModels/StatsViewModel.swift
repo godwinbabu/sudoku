@@ -43,7 +43,8 @@ final class StatsViewModel: ObservableObject {
         var monday = Calendar(identifier: .gregorian)
         monday.timeZone = calendar.timeZone
         monday.firstWeekday = 2
-        guard let start = monday.dateInterval(of: .weekOfYear, for: date)?.start else { return [] }
+        // Until 4 am it is still last night, so Monday 00:30 shows the week that night belongs to.
+        guard let start = monday.dateInterval(of: .weekOfYear, for: Stats.playDay(date, calendar: calendar))?.start else { return [] }
         let names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         return names.enumerated().map { offset, name in
             let day = monday.date(byAdding: .day, value: offset, to: start) ?? start
