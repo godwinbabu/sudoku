@@ -225,6 +225,8 @@ struct ConfirmPanel: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
             .accessibilityElement(children: .contain)
+            // Needed here too: this wrapper is its own container (see PopoverCard).
+            .accessibilitySortPriority(-1)
             .accessibilityAddTraits(.isModal)
             .accessibilityAction(.escape, onDismiss)
             .accessibilityIdentifier("confirmDialog")
