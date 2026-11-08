@@ -73,8 +73,71 @@ final class CoachTests: XCTestCase {
         viewModel.coachReveal()
         if viewModel.coach!.canGoForward {
             viewModel.coachForward()
-            XCTAssertFalse(viewModel.coach!.revealed, "each pattern starts hidden")
+            XCTAssertFalse(viewModel.coach!.revealed, "the next pattern starts hidden")
+            viewModel.coachBack()
+            XCTAssertTrue(viewModel.coach!.revealed, "a revealed pattern stays revealed")
         }
+    }
+
+    func testEveryRevealedPatternCountsAsAHintAfterPaging() throws {
+        let viewModel = makeViewModel()
+        viewModel.openCoach()
+        try XCTSkipUnless(viewModel.coach!.patterns.count > 1, "needs two patterns")
+        viewModel.coachReveal()
+        viewModel.coachForward()
+        viewModel.endHint()
+        XCTAssertEqual(viewModel.state.hints, 1, "Show me then paging away is still a hint")
+
+        viewModel.openCoach()
+        viewModel.coachReveal()
+        viewModel.coachForward()
+        viewModel.coachReveal()
+        viewModel.coachReveal() // twice on one page is one hint
+        viewModel.endHint()
+        XCTAssertEqual(viewModel.state.hints, 3, "two more revealed patterns")
+
+        viewModel.openCoach()
+        viewModel.coachReveal()
+        viewModel.coachForward()
+        viewModel.coachReveal()
+        viewModel.applyCoach()
+        XCTAssertEqual(viewModel.state.hints, 5, "applying logs the applied pattern and the other revealed one")
+        XCTAssertEqual(viewModel.state.hintLog.last?.applied, true)
+    }
+
+    func testRestartClosesTheCoach() {
+        let viewModel = makeViewModel()
+        viewModel.openCoach()
+        XCTAssertNotNil(viewModel.coach)
+        viewModel.resetPuzzle()
+        XCTAssertNil(viewModel.coach, "the old board's patterns no longer apply")
+        XCTAssertTrue(viewModel.hintHighlight.isEmpty)
+    }
+
+    func testACorrectDigitAfterAnUndoResetsStuck() {
+        let time = AdvancingTimeProvider()
+        let viewModel = makeViewModel(time: time)
+        viewModel.handleSceneDidAppear()
+        viewModel.updateStuck()
+        let empties = viewModel.state.cells.filter { $0.value == nil }
+        viewModel.select(cell: empties[0])
+        viewModel.setDigit(solution[empties[0].index])
+        time.advance(10)
+        viewModel.pauseTimer()
+        viewModel.updateStuck()
+        viewModel.undo()
+        viewModel.updateStuck()
+        viewModel.resumeTimer()
+        time.advance(90)
+        viewModel.select(cell: empties[1])
+        viewModel.setDigit(solution[empties[1].index])
+        viewModel.pauseTimer()
+        viewModel.updateStuck() // elapsed 100: progress again
+        viewModel.resumeTimer()
+        time.advance(60)
+        viewModel.pauseTimer()
+        viewModel.updateStuck()
+        XCTAssertFalse(viewModel.isStuck, "60 s since the last correct digit")
     }
 
     func testAMistakeComesBeforeTheCoach() {

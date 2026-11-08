@@ -80,11 +80,12 @@ struct CoachCardView: View {
 
     private var footer: some View {
         HStack(spacing: 2) {
-            pager("chevron.left", label: "Previous pattern", id: "coach_back", enabled: session.canGoBack, action: onBack)
-            pager("chevron.right", label: "Next pattern", id: "coach_forward", enabled: session.canGoForward, action: onForward)
-            if session.showsDefinition {
+            if session.showsDefinition { // the pagers make room for Back and Lesson on narrow phones
+                link("Back", id: "coach_definition", action: onDefinition)
                 link("Lesson →", id: "coach_lesson") { onLesson(session.current.technique) }
             } else {
+                pager("chevron.left", label: "Previous pattern", id: "coach_back", enabled: session.canGoBack, action: onBack)
+                pager("chevron.right", label: "Next pattern", id: "coach_forward", enabled: session.canGoForward, action: onForward)
                 link("What is it?", id: "coach_definition", action: onDefinition)
             }
             Spacer(minLength: 0)

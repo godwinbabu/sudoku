@@ -13,6 +13,8 @@ struct CoachSession: Equatable {
     private(set) var revealed = false
     /// The body shows what the technique is, in general, instead of this board's pattern.
     private(set) var showsDefinition = false
+    /// Every pattern the player has revealed, in order; each counts as one hint when the coach closes.
+    private(set) var revealedSteps: [TechniqueStep] = []
 
     init?(board: SolverBoard, patterns: [TechniqueStep]) {
         guard !patterns.isEmpty else { return nil }
@@ -31,13 +33,14 @@ struct CoachSession: Equatable {
         let target = index + delta
         guard patterns.indices.contains(target) else { return }
         index = target
-        revealed = false
         showsDefinition = false
+        syncReveal()
     }
 
     mutating func reveal() {
         revealed = true
         showsDefinition = false
+        if !revealedSteps.contains(current) { revealedSteps.append(current) }
     }
 
     mutating func toggleDefinition() { showsDefinition.toggle() }
@@ -54,6 +57,9 @@ struct CoachSession: Equatable {
     var position: String { "\(index + 1) of \(patterns.count)" }
     var title: String { current.technique.displayName }
     var tierLabel: String { current.technique.learnTier.displayName }
+
+    /// Paging back to a revealed pattern shows it revealed again.
+    private mutating func syncReveal() { revealed = revealedSteps.contains(current) }
 
     func text(_ names: CellNotation) -> String {
         if showsDefinition { return current.technique.definition }

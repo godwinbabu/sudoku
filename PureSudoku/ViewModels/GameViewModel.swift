@@ -456,6 +456,7 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.selectedCellID = nil
         hint = nil // the old board's hint no longer applies
+        coach = nil
         undoStack.removeAll()
         updateCanUndo()
         startTimerIfNeeded()
@@ -488,6 +489,7 @@ final class GameViewModel: ObservableObject {
         self.inputMode = .normal
         self.showTimer = settings.showTimer
         hint = nil // the old board's hint no longer applies
+        coach = nil
         undoStack.removeAll()
         isTimerRunning = false
         isManuallyPaused = false
@@ -516,6 +518,7 @@ final class GameViewModel: ObservableObject {
                     self.load(state: newState)
                 }
                 self.hint = nil
+                self.coach = nil
                 self.isPreparingNewPuzzle = false
             case .reset:
                 self.resetPuzzle()
@@ -824,7 +827,7 @@ extension GameViewModel {
     func endHint(applied: Bool = false) {
         if let coach {
             self.coach = nil
-            if coach.revealed { hint = coach.hint }
+            logRevealed(coach.revealedSteps)
         }
         guard let session = hint else { return }
         hint = nil
@@ -914,8 +917,16 @@ extension GameViewModel {
     func applyCoach() {
         guard let session = coach, session.revealed else { return }
         coach = nil
+        logRevealed(session.revealedSteps.filter { $0 != session.current }) // the applied one logs itself
         hint = session.hint
         applyHint()
+    }
+
+    /// One hint per pattern the player revealed (CODESPEC 6.3.3), even if they paged away from it.
+    private func logRevealed(_ steps: [TechniqueStep]) {
+        for step in steps {
+            state.hintLog.append(HintLogEntry(technique: step.technique.rawValue, deepestRung: HintSession.stepCount, applied: false))
+        }
     }
 
     /// The Hint tool while the coach is open: Show me, then Apply.
@@ -931,11 +942,13 @@ extension GameViewModel {
             return solutionDigit(at: cell.index).map { $0 == value } ?? true
         }.count
         // A new correct digit, another puzzle, or a restart (the clock went back) starts the count again.
+        // A new correct digit (also after an undo or erase), another puzzle, or a restart (the clock went
+        // back) starts the count again.
         if correct > correctCount || state.puzzle.id != progressPuzzleID || state.elapsedSeconds < progressSeconds {
-            correctCount = correct
             progressSeconds = state.elapsedSeconds
             progressPuzzleID = state.puzzle.id
         }
+        correctCount = correct
         let stuck = settings.coachWhenStuck && !state.isCompleted
             && state.elapsedSeconds - progressSeconds >= Self.stuckAfterSeconds
         if stuck != isStuck { isStuck = stuck }
