@@ -248,6 +248,7 @@ final class AppControllerTests: XCTestCase {
 
         let saved = try XCTUnwrap(persistence.load([ImportedGame].self, from: "imported_games.json"))
         XCTAssertTrue(saved.contains { $0.id == "import-50" }, "the game being saved is never pruned")
+        XCTAssertEqual(saved.filter { $0.gameState.isCompleted }.count, 20, "it takes one of the 20 solved slots")
     }
 
     func testAutosaveOfAnImportDoesNotScanImages() throws {

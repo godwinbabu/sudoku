@@ -503,7 +503,9 @@ extension AppController {
     fileprivate func pruneSolvedImports(keeping savedID: String?) {
         let solved = importedGames.filter { $0.gameState.isCompleted && $0.id != savedID }
             .sorted { $0.lastOpened > $1.lastOpened }
-        let dropped = Set(solved.dropFirst(Self.keptSolvedImports).map(\.id))
+        // The saved game is always kept; if it is solved it takes one of the slots.
+        let savedIsSolved = importedGames.contains { $0.id == savedID && $0.gameState.isCompleted }
+        let dropped = Set(solved.dropFirst(Self.keptSolvedImports - (savedIsSolved ? 1 : 0)).map(\.id))
         guard !dropped.isEmpty else { return }
         importedGames.removeAll { dropped.contains($0.id) }
     }
