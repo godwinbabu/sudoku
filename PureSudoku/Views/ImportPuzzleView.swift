@@ -228,7 +228,7 @@ struct ImportPuzzleView: View {
             .frame(width: 120)
             .accessibilityIdentifier("importClearCell")
             Button {
-                if let game = viewModel.createImportedGame() { onStart(game) }
+                Task { if let game = await viewModel.createImportedGame() { onStart(game) } }
             } label: {
                 Text("Start puzzle").frame(maxWidth: .infinity)
             }

@@ -26,13 +26,16 @@ final class ImportPuzzleViewModel: ObservableObject {
     @Published private(set) var unsureIndices: Set<Int> = []
     @Published private(set) var readProgress: SudokuImageDetector.ReadProgress?
     @Published private(set) var isEnteringByHand = false
+    /// True while Start builds the game off the main thread; Start stays disabled meanwhile.
+    @Published private(set) var isStarting = false
 
     private let generatorService: SudokuGeneratorService
     private let imageDetector: SudokuImageDetector
-    private let createGame: (String, String?) -> ImportedGame?
+    /// Grid, photo id, and a check that the import is still current when the game is ready to save.
+    private let createGame: (String, String?, @escaping () -> Bool) async -> ImportedGame?
     private let saveImage: (UIImage) -> String?
     private let deleteImage: (String) -> Void
-    private var solveWorkItem: DispatchWorkItem?
+    private var solveTask: Task<Void, Never>?
     /// Bumped by every new photo request and every manual edit; results for older tokens are dropped.
     private var requestToken = 0
     private var detectionTask: Task<Void, Never>?
@@ -44,7 +47,7 @@ final class ImportPuzzleViewModel: ObservableObject {
     init(
         generatorService: SudokuGeneratorService = SudokuGeneratorService(),
         imageDetector: SudokuImageDetector = SudokuImageDetector(),
-        createGame: @escaping (String, String?) -> ImportedGame?,
+        createGame: @escaping (String, String?, @escaping () -> Bool) async -> ImportedGame?,
         saveImage: @escaping (UIImage) -> String?,
         deleteImage: @escaping (String) -> Void
     ) {
@@ -65,8 +68,8 @@ final class ImportPuzzleViewModel: ObservableObject {
 
     convenience init(controller: AppController) {
         self.init(
-            createGame: { grid, imageID in
-                controller.createImportedGame(initialGrid: grid, imageID: imageID)
+            createGame: { grid, imageID, isCurrent in
+                await controller.createImportedGame(initialGrid: grid, imageID: imageID, isCurrent: isCurrent)
             },
             saveImage: { image in
                 controller.saveImportedImage(image)
@@ -78,7 +81,7 @@ final class ImportPuzzleViewModel: ObservableObject {
     }
 
     var canStart: Bool {
-        conflictIndices.isEmpty && solvableState == .solvable && filledCount >= minimumClues
+        conflictIndices.isEmpty && solvableState == .solvable && filledCount >= minimumClues && !isStarting
     }
 
     /// The empty grid's instruction (Type it in, or a read that found no digits).
@@ -198,8 +201,14 @@ final class ImportPuzzleViewModel: ObservableObject {
         }
     }
 
-    func createImportedGame() -> ImportedGame? {
-        guard canStart, let game = createGame(gridString(), imageID) else { return nil }
+    /// Nil if the grid changed or the screen closed while the game was being built.
+    func createImportedGame() async -> ImportedGame? {
+        guard canStart else { return nil }
+        isStarting = true
+        defer { isStarting = false }
+        let token = requestToken
+        let game = await createGame(gridString(), imageID) { [weak self] in self?.requestToken == token }
+        guard let game else { return nil }
         didStartGame = true
         return game
     }
@@ -270,19 +279,23 @@ final class ImportPuzzleViewModel: ObservableObject {
         validate()
     }
 
+    /// Debounced, solved off the main thread; a result for a grid that has since changed is dropped,
+    /// and the state stays "Checking" until the current grid's result arrives.
     private func scheduleSolveCheck() {
-        solveWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
-            if !self.conflictIndices.isEmpty {
-                self.solvableState = .unsolvable
-                return
-            }
-            let solution = self.generatorService.solve(initialGrid: self.gridString())
-            self.solvableState = solution == nil ? .unsolvable : .solvable
+        solveTask?.cancel()
+        let grid = gridString()
+        let hasConflicts = !conflictIndices.isEmpty
+        let service = generatorService
+        solveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard !Task.isCancelled else { return }
+            // shortcut: the solver can't be stopped mid-run, so a superseded solve finishes and is dropped.
+            let solvable = hasConflicts ? false : await Task.detached(priority: .userInitiated) {
+                service.solve(initialGrid: grid) != nil
+            }.value
+            guard let self, !Task.isCancelled, grid == self.gridString() else { return }
+            self.solvableState = solvable ? .solvable : .unsolvable
         }
-        solveWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 
     private func gridString() -> String {

@@ -25,18 +25,28 @@ final class AppControllerTests: XCTestCase {
     /// Only the first row is given, so the import has many solutions (CODESPEC 2.1).
     private let twoSolutionGrid = String(TestData.puzzle.solutionGrid.prefix(9)) + String(repeating: "0", count: 72)
 
-    func testImportsAreGradedAndFlaggedForUniqueness() throws {
+    func testImportsAreGradedAndFlaggedForUniqueness() async throws {
         let (controller, _) = makeTestController()
-        let unique = try XCTUnwrap(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid)).gameState.puzzle
+        let uniqueMade = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid)
+        let unique = try XCTUnwrap(uniqueMade).gameState.puzzle
         XCTAssertEqual(unique.hasUniqueSolution, true)
         XCTAssertEqual(unique.difficulty, .easy)
         XCTAssertNotNil(unique.grade)
 
-        let several = try XCTUnwrap(controller.createImportedGame(initialGrid: twoSolutionGrid)).gameState.puzzle
+        let severalMade = await controller.createImportedGame(initialGrid: twoSolutionGrid)
+        let several = try XCTUnwrap(severalMade).gameState.puzzle
         XCTAssertEqual(several.hasUniqueSolution, false)
         XCTAssertFalse(several.isUnique)
         XCTAssertNil(several.grade, "the solver can't finish a 9-clue puzzle")
         XCTAssertEqual(several.difficulty, .master, "beyond the solver: the top level")
+    }
+
+    /// The grid changed or the screen closed while the game was built: nothing is stored (issue 73).
+    func testStaleImportIsNotSaved() async {
+        let (controller, _) = makeTestController()
+        let made = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, isCurrent: { false })
+        XCTAssertNil(made)
+        XCTAssertTrue(controller.importedGames.isEmpty)
     }
 
     func testOldImportsAreRecountedAndSaved() async throws {
@@ -201,7 +211,7 @@ final class AppControllerTests: XCTestCase {
         return ImportedGame(gameState: state, createdAt: opened, lastOpened: opened)
     }
 
-    func testSavingImportsKeepsUnfinishedAndNewestSolved() throws {
+    func testSavingImportsKeepsUnfinishedAndNewestSolved() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let imagesDir = dir.appendingPathComponent("ImportedImages", isDirectory: true)
         let store = ImportedImageStore(directory: imagesDir)
@@ -218,7 +228,8 @@ final class AppControllerTests: XCTestCase {
         try persistence.save(games, to: "imported_games.json")
 
         let controller = AppController(persistence: persistence, timeProvider: MockTimeProvider(), imageStore: store)
-        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid))
+        let made = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid)
+        XCTAssertNotNil(made)
 
         let saved = try XCTUnwrap(persistence.load([ImportedGame].self, from: "imported_games.json"))
         let solvedIDs = Set(saved.filter(\.gameState.isCompleted).map(\.id))
@@ -271,11 +282,12 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(saved.filter { $0.gameState.isCompleted }.count, 20, "it takes one of the 20 solved slots")
     }
 
-    func testAutosaveOfAnImportDoesNotScanImages() throws {
+    func testAutosaveOfAnImportDoesNotScanImages() async throws {
         let (controller, dir) = makeTestController()
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
         let imageID = try XCTUnwrap(controller.saveImportedImage(image))
-        let game = try XCTUnwrap(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: imageID))
+        let gameMade = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: imageID)
+        let game = try XCTUnwrap(gameMade)
         let stray = dir.appendingPathComponent("ImportedImages/stray.jpg")
         try Data([0]).write(to: stray)
 

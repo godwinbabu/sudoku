@@ -28,6 +28,54 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.solvableState, .solvable)
     }
 
+    /// A solve result for an older grid never overwrites the newer grid's result (issue 73).
+    func testStaleSolveResultIsDropped() async throws {
+        let viewModel = makeViewModel()
+        let solvable = TestData.puzzle.initialGrid.map { Int(String($0)).flatMap { $0 > 0 ? $0 : nil } }
+        // A wrong digit in an empty cell that repeats nothing, so only the solver can reject it.
+        var unsolvable = solvable
+        let empty = try XCTUnwrap(solvable.firstIndex(of: nil))
+        let right = Int(String(Array(TestData.puzzle.solutionGrid)[empty]))
+        for digit in 1...9 where digit != right {
+            unsolvable[empty] = digit
+            if Board.conflictingPositions(in: Board.from(digits: unsolvable)).isEmpty { break }
+        }
+        XCTAssertTrue(Board.conflictingPositions(in: Board.from(digits: unsolvable)).isEmpty)
+
+        viewModel.loadGrid(solvable)
+        viewModel.loadGrid(unsolvable)
+        XCTAssertEqual(viewModel.solvableState, .unknown, "Checking until the new grid's result arrives")
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(viewModel.solvableState, .unsolvable)
+
+        viewModel.loadGrid(unsolvable)
+        viewModel.loadGrid(solvable)
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(viewModel.solvableState, .solvable)
+    }
+
+    /// An edit while Start builds the game makes the build stale; no game is returned (issue 73).
+    func testEditDuringStartDropsTheGame() async throws {
+        var viewModel: ImportPuzzleViewModel!
+        var stillCurrent: Bool?
+        viewModel = ImportPuzzleViewModel(
+            createGame: { _, _, isCurrent in
+                viewModel.selectedIndex = 0
+                viewModel.clearSelected()
+                stillCurrent = isCurrent()
+                return nil
+            },
+            saveImage: { _ in nil }, deleteImage: { _ in }
+        )
+        viewModel.loadGrid(TestData.puzzle.initialGrid.map { Int(String($0)).flatMap { $0 > 0 ? $0 : nil } })
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertTrue(viewModel.canStart)
+        let game = await viewModel.createImportedGame()
+        XCTAssertNil(game)
+        XCTAssertEqual(stillCurrent, false)
+        XCTAssertFalse(viewModel.isStarting)
+    }
+
     func testRequiresMinimumClues() {
         let viewModel = makeViewModel()
         viewModel.selectedIndex = 0
@@ -77,7 +125,7 @@ final class ImportPuzzleViewModelTests: XCTestCase {
     /// Start over drops the photo, the digits and Type it in, and goes back to Source.
     func testStartOverReturnsToSourceAndDeletesThePhoto() {
         var deleted: [String] = []
-        let viewModel = ImportPuzzleViewModel(createGame: { _, _ in nil }, saveImage: { _ in "photo-1" },
+        let viewModel = ImportPuzzleViewModel(createGame: { _, _, _ in nil }, saveImage: { _ in "photo-1" },
                                               deleteImage: { deleted.append($0) })
         viewModel.updateImage(UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8)).image { _ in })
         XCTAssertEqual(viewModel.step, .reading, "Reading shows at once, never Check the grid first")
@@ -112,7 +160,7 @@ final class ImportPuzzleViewModelTests: XCTestCase {
 
     private func makeViewModel() -> ImportPuzzleViewModel {
         ImportPuzzleViewModel(
-            createGame: { _, _ in nil },
+            createGame: { _, _, _ in nil },
             saveImage: { _ in nil },
             deleteImage: { _ in }
         )

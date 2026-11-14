@@ -335,17 +335,34 @@ final class AppController: ObservableObject {
         return newState
     }
 
+    /// Solves, counts and grades off the main thread (seconds on a sparse grid on an old phone), then
+    /// stores the game only if `isCurrent` still holds, so an edited or closed import saves nothing.
     @discardableResult
-    func createImportedGame(initialGrid: String, imageID: String? = nil, date: Date = Date()) -> ImportedGame? {
-        guard initialGrid.count == 81 else { return nil }
-        guard let solution = generatorService.solve(initialGrid: initialGrid) else { return nil }
+    func createImportedGame(
+        initialGrid: String, imageID: String? = nil, date: Date = Date(), isCurrent: () -> Bool = { true }
+    ) async -> ImportedGame? {
+        let service = generatorService
+        let made = await Task.detached(priority: .userInitiated) {
+            Self.makeImportedPuzzle(initialGrid: initialGrid, imageID: imageID, date: date, service: service)
+        }.value
+        guard let puzzle = made, isCurrent() else { return nil }
+        let gameState = GameState.newGame(for: puzzle, now: timeProvider.now())
+        let imported = ImportedGame(gameState: gameState, createdAt: date, lastOpened: date)
+        importedGames.append(imported)
+        if let imageID { pendingImageIDs.remove(imageID) }
+        persistImportedGames()
+        return imported
+    }
+
+    nonisolated private static func makeImportedPuzzle(
+        initialGrid: String, imageID: String?, date: Date, service: SudokuGeneratorService
+    ) -> SudokuPuzzle? {
+        guard initialGrid.count == 81, let solution = service.solve(initialGrid: initialGrid) else { return nil }
         let values = initialGrid.map { Int(String($0)) ?? 0 }
-        // shortcut: counting and grading run on the main thread (about 20 ms on a Mac at worst, more on
-        // old phones now that XY-Chain is tried); make this async like startNewGame if imports feel slow.
         // Level from the techniques needed; an import the solver can't finish is Master (CODESPEC 2.2).
         let unique = SolutionCounter.count(values, limit: 2) == 1
         let grade = PuzzleGrader.grade(values, allowsUniqueness: unique)?.grade
-        let puzzle = SudokuPuzzle(
+        return SudokuPuzzle(
             id: UUID().uuidString,
             difficulty: grade?.difficulty ?? .master,
             initialGrid: initialGrid,
@@ -356,12 +373,6 @@ final class AppController: ObservableObject {
             importImageID: imageID,
             hasUniqueSolution: unique
         )
-        let gameState = GameState.newGame(for: puzzle, now: timeProvider.now())
-        let imported = ImportedGame(gameState: gameState, createdAt: date, lastOpened: date)
-        importedGames.append(imported)
-        if let imageID { pendingImageIDs.remove(imageID) }
-        persistImportedGames()
-        return imported
     }
 
     // MARK: Display (CODESPEC 12)
