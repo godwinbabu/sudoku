@@ -3,7 +3,7 @@
 This repository contains **PureSudoku**, a no-frills iOS Sudoku app optimized for:
 - Clean, NYT-like gameplay
 - Offline, local-only behavior
-- Bedtime / partner-friendly use (Sleep theme + Bedtime Mode)
+- Bedtime / partner-friendly use (Night: Glow, Warmth, Hush; CODESPEC 12)
 
 All agents **must treat `CODESPEC.md` as the source of truth** for behavior, features, and tests.
 
@@ -37,7 +37,7 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
    - Never delete tests without a strong reason and a spec-backed explanation.
 
 5. **Respect Bedtime / Partner-Friendly constraints**
-   - Sleep theme / Bedtime Mode are first-class features, not “nice-to-have”.
+   - Night (CODESPEC 12.3, 12.7) is a first-class feature, not a “nice-to-have”.
    - Do not introduce:
      - Sound effects
      - Haptics
@@ -78,7 +78,7 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
   8. Persistence (games, settings, stats)
   9. MainMenuView with stats
   10. Theme & SettingsView
-  11. Bedtime / Partner-Friendly Mode behavior
+  11. Night behavior (CODESPEC 12; replaced the v1 Sleep theme and Bedtime Mode)
 
 - For incremental work:
   - Read the relevant sections in `CODESPEC.md`.
@@ -126,13 +126,13 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
   - Total time / puzzles solved
 - Persistence:
   - GameState and Stats round-trip (save/load equality)
-  - Settings persistence (theme, toggles, bedtimeMode)
-- Bedtime/Partner-friendly:
-  - Bedtime Mode forces:
-    - `AppTheme.sleep`
-    - `soundsEnabled == false`
-    - `hapticsEnabled == false`
-    - Dimming applied: the overlay until CODESPEC phase 3, then the bedtime display profile (CODESPEC 12.3)
+  - Settings persistence (appearance, glow, warmth, glowFloor, toggles)
+- Night (CODESPEC 12.3, 12.7):
+  - While Night is active:
+    - the Night palette and a dark colour scheme apply to every screen
+    - `soundsActive == false` and `hapticsActive == false`, whatever the saved settings say
+    - the app owns the backlight and restores the player's brightness when it goes to the background or Night ends
+  - Glow never goes below `glowFloor`; the first-night flow appears exactly once
 
 ---
 
@@ -175,8 +175,8 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
 **Responsibilities:**
 
 - Implement visual requirements:
-  - Light / Dark / Sleep themes.
-  - Sleep theme with warm, low-blue-light colors.
+  - Day and Night (Day · Night · After dark · Match iPhone, CODESPEC 12.7).
+  - Night with Glow (light) and Warmth (colour) as separate controls; never claim warm colours protect sleep.
 - Ensure layout is **one-handed friendly**:
   - Number pad and key actions reachable at bottom.
   - Tap targets at least 44x44 pt.
@@ -188,12 +188,12 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
 
 - Do not add:
   - Animations that flash or blink.
-  - Bright full-screen overlays, especially in Sleep theme.
+  - Bright full-screen overlays or fills brighter than the ink, especially at Night.
 - For any major visual change:
   - Confirm it behaves well in:
     - Light theme
     - Dark theme
-    - Sleep theme (with bedtime constraints)
+    - Night (at low Glow, with bedtime constraints)
 
 ---
 
@@ -203,7 +203,7 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
 
 1. Read the user request.
 2. Open and scan `CODESPEC.md`:
-   - Find relevant sections (e.g., 5. Input Modes, 12. Bedtime Mode).
+   - Find relevant sections (e.g., 5. Input Modes, 12. Night).
 3. Check existing implementation:
    - Models, ViewModels, Views, Tests.
 
@@ -238,14 +238,15 @@ For each change:
 
 ### 3.1 Bedtime / Partner-Friendly (“No Elbow Mode”)
 
-- Sleep theme must always be:
-  - Dark
-  - Warm-colored
+- Night must always be:
+  - Dark, with no fill brighter than the ink
+  - Warm-colored (per the player's Warmth)
   - Non-flashy
-- Bedtime Mode must:
-  - Force Sleep theme
-  - Disable sound and haptics
-  - Apply maximum dimming (the overlay until CODESPEC phase 3, then the player's bedtime display profile, CODESPEC 12.3)
+- While Night is active, the app must:
+  - Use the Night palette and dark appearance everywhere, including sheets (avoid system views that flash white)
+  - Turn sound and haptics off at runtime
+  - Follow the player's Glow, never below glowFloor, and restore their brightness on leaving (CODESPEC 12.3)
+- Hush and Goodnight go to pure black in one tap.
 - Any new feature must be evaluated for bedtime friendliness:
   - Does it create bright flashes?
   - Does it introduce noise/haptics?
