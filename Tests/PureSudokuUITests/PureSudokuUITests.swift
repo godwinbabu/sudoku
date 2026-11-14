@@ -143,6 +143,38 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 
+    /// In Night, the first tap after waking from Hush reaches the control under it (issue #67).
+    func testFirstTapAfterHushInNightWorks() {
+        let app = launchApp(["-uiTestSlowHushFade"]) // a 3 s fade, so Back lands while it runs
+        startLevel("easy", in: app)
+        let game = element("gameView", in: app)
+        XCTAssertTrue(game.waitForExistence(timeout: 2))
+        app.buttons["nightButton"].tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        app.buttons["night_appearance_night"].tap()
+        app.buttons["night_close"].tap()
+        XCTAssertTrue(waitForAbsence(sheet, timeout: 6))
+        let back = app.buttons["backButton"]
+        let backPoint = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: back.frame.midX, dy: back.frame.midY))
+        let hush = element("hushView", in: app)
+        // Waking right over Back must not also press it.
+        game.twoFingerTap()
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        backPoint.tap()
+        XCTAssertTrue(waitForAbsence(hush, timeout: 5))
+        XCTAssertFalse(element("homeView", in: app).exists, "the wake tap does not press Back")
+        game.twoFingerTap()
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        Thread.sleep(forTimeInterval: 4) // past the 3.5 s text fade, as in the report
+        let start = Date() // before the wake tap, so any idle wait inside either tap counts
+        hush.tap()
+        back.tap()
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2.5, "wake and Back both done while the 3 s fade still ran")
+        XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2), "the first tap on Back works")
+    }
+
     func testNotesBadgeToggles() {
         let app = launchApp()
         startLevel("easy", in: app)
