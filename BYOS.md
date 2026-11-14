@@ -114,7 +114,7 @@ Extend `SudokuPuzzle` with:
 - **Size cap:** downscale to max **2048 px** on the longest side.
 - **Compression:** JPEG at ~0.7 quality.
 - **Cleanup:** on each new import:
-  - delete oldest images beyond the limit.
+  - delete oldest images beyond the limit, but never one an import still uses (the folder can then hold more than the limit).
   - remove any orphaned images not referenced by active/imported puzzles.
 
 ### User Control (Settings)
