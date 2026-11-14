@@ -270,6 +270,9 @@ final class NightPaletteTests: XCTestCase {
             // Primary button (bg text on an accent fill), toggle, board ground and mistake bar.
             XCTAssertGreaterThanOrEqual(contrast(luminance(p.bg), luminance(p.accent)), 4.5, context)
             XCTAssertGreaterThanOrEqual(contrast(luminance(p.accent), luminance(p.surface)), 3, context)
+            for ground in [p.bg, p.surface] { // the off toggle's outline, on the page and on a card
+                XCTAssertGreaterThanOrEqual(contrast(luminance(PSToggle.offRing(p)), luminance(ground)), 3, context)
+            }
             XCTAssertGreaterThanOrEqual(contrast(luminance(p.lineMajor), luminance(p.bg)), 3, context)
             let fills = [p.bg, p.peer, p.same, p.sel].map { luminance($0) }
             let lightness = fills.map { $0 > 0.008856 ? 116 * pow($0, 1.0 / 3) - 16 : 903.3 * $0 }

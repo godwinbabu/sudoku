@@ -731,7 +731,7 @@ extension PureSudokuUITests {
         display.tap()
         let original = ["day", "night", "afterDark", "matchSystem"].first { app.buttons["display_appearance_\($0)"].isSelected }
         app.buttons["display_appearance_matchSystem"].tap()
-        XCTAssertFalse(element("firstNight", in: app).waitForExistence(timeout: 1), "Dark is not Night")
+        // No first-night check here: launchApp suppresses that flow. testMatchIPhoneDarkIsTheDarkThemeNotNight covers it.
         app.buttons["display_back"].tap()
         XCTAssertTrue(waitUntilHittable(app.buttons["tab_play"]))
         app.buttons["tab_play"].tap()

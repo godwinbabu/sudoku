@@ -57,8 +57,11 @@ struct PSToggle: View {
     let label: String
     let onChange: (Bool) -> Void
 
+    /// The off track's outline. Dark's hair is too faint on a card, so the off track uses ink3 there (3:1).
+    static func offRing(_ theme: PSPalette) -> Color { theme.isDark ? theme.ink3 : theme.hair }
+
     var body: some View {
-        let ring = isOn ? (theme.isNight ? theme.accentDim : .clear) : theme.hair
+        let ring = isOn ? (theme.isNight ? theme.accentDim : .clear) : Self.offRing(theme)
         let knob = isOn ? (theme.isNight ? theme.accent : theme.bg) : theme.ink3
         Button { onChange(!isOn) } label: {
             Capsule()
