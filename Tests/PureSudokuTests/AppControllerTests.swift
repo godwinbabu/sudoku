@@ -74,11 +74,18 @@ final class AppControllerTests: XCTestCase {
     func testCompletionThenResetKeepsTheResetGame() async {
         let (controller, _) = makeTestController()
         await controller.startNewGame(for: .easy, mode: .seeded(7))
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.revealPuzzle()
         viewModel.resetPuzzle()
         XCTAssertEqual(controller.activeGames[.easy]?.isCompleted, false)
         XCTAssertEqual(controller.stats, Stats(), "revealed games do not count")
+    }
+
+    /// A route whose game is gone resolves to no game, never to another level's game.
+    func testMissingGamesResolveToNoGame() {
+        let (controller, _) = makeTestController()
+        XCTAssertNil(controller.makeGameViewModel(for: .easy))
+        XCTAssertNil(controller.makeImportedGameViewModel(id: "missing"))
     }
 
     /// Home's Continue card resumes the unfinished game played last; a level row starts a new one
@@ -93,7 +100,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(controller.continueGame?.puzzle.difficulty, .hard)
 
         clock.advance(60)
-        let easy = controller.makeGameViewModel(for: .easy)
+        let easy = controller.makeGameViewModel(for: .easy)!
         let empty = easy.state.cells.first { $0.value == nil }!
         easy.select(cell: empty)
         easy.setDigit(1)
@@ -105,11 +112,11 @@ final class AppControllerTests: XCTestCase {
 
         let menu = MainMenuViewModel(controller: controller)
         let before = controller.activeGames[.easy]?.puzzle.id
-        let started = await menu.startNewGame(for: .easy)
+        let started = await menu.startNewGame(for: .easy)!
         XCTAssertNotEqual(started.state.puzzle.id, before, "a level row always starts a new puzzle")
         XCTAssertTrue(started.state.cells.allSatisfy { $0.given || $0.value == nil })
 
-        controller.makeGameViewModel(for: .hard).revealPuzzle()
+        controller.makeGameViewModel(for: .hard)!.revealPuzzle()
         for _ in 0..<50 where controller.activeGames[.hard]?.isCompleted != true {
             try? await Task.sleep(nanoseconds: 20_000_000)
         }
@@ -318,7 +325,7 @@ final class AppControllerTests: XCTestCase {
     func testRestartingASolvedPuzzleDoesNotCountItAgain() async throws {
         let (controller, _) = makeTestController()
         await controller.startNewGame(for: .easy, mode: .seeded(7))
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         solve(viewModel)
         XCTAssertTrue(viewModel.state.isCompleted)
         XCTAssertEqual(controller.stats.totalPuzzlesSolved, 1)
@@ -344,7 +351,7 @@ final class AppControllerTests: XCTestCase {
         let clock = AdvancingTimeProvider()
         let (controller, _) = makeTestController(timeProvider: clock)
         await controller.startNewGame(for: .easy, mode: .seeded(3))
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.handleSceneDidAppear()
         clock.advance(300)
         viewModel.handleSceneDidDisappear() // saves on the next main-actor turn
@@ -535,7 +542,7 @@ final class AppControllerTests: XCTestCase {
     func testRevealThenRestartThenSolveCountsOnce() async {
         let (controller, _) = makeTestController()
         await controller.startNewGame(for: .easy, mode: .seeded(7))
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.revealPuzzle()
         XCTAssertFalse(viewModel.state.counted, "a revealed solve never reached the stats")
         viewModel.resetPuzzle()
@@ -547,7 +554,7 @@ final class AppControllerTests: XCTestCase {
         let clock = AdvancingTimeProvider()
         let (controller, _) = makeTestController(timeProvider: clock)
         await controller.startNewGame(for: .easy, mode: .seeded(7))
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.handleSceneDidAppear()
         clock.advance(300)
         solve(viewModel)

@@ -185,8 +185,8 @@ final class AppController: ObservableObject {
         return true
     }
 
-    func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel {
-        let state = activeGames[difficulty]! // This will now be safely set by startNewGame
+    func makeGameViewModel(for difficulty: Difficulty) -> GameViewModel? {
+        guard let state = activeGames[difficulty] else { return nil }
         let viewModel = GameViewModel(state: state, settings: settings, validator: validator, timeProvider: timeProvider, hintService: generatorService)
         viewModel.onCompletion = { [weak self] completedState in
             self?.handleCompletion(state: completedState, difficulty: difficulty)

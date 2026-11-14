@@ -41,12 +41,12 @@ final class MainMenuViewModel: ObservableObject {
     }
 
     /// A level always starts a new puzzle (Design/v2/README.md, Home).
-    func startNewGame(for difficulty: Difficulty) async -> GameViewModel {
+    func startNewGame(for difficulty: Difficulty) async -> GameViewModel? {
         await controller.startNewGame(for: difficulty)
         return controller.makeGameViewModel(for: difficulty)
     }
 
-    func continueGame(for difficulty: Difficulty) -> GameViewModel {
+    func continueGame(for difficulty: Difficulty) -> GameViewModel? {
         controller.makeGameViewModel(for: difficulty)
     }
 
