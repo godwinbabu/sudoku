@@ -312,6 +312,22 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state.elapsedSeconds, 0, "state takes the time only when the timer stops")
     }
 
+    /// A second stop (lesson pushed, then the app backgrounded) keeps the carried part second (issue 70).
+    func testRepeatedStopsKeepThePartSecond() {
+        let time = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(),
+                                      timeProvider: time)
+        viewModel.handleSceneDidAppear()
+        time.advance(5.75)
+        viewModel.handleSceneDidDisappear() // a lesson is pushed: 5 s, 0.75 s carried
+        viewModel.pauseForBackground() // already stopped
+        viewModel.resumeFromBackground()
+        viewModel.handleSceneDidAppear()
+        time.advance(0.5)
+        viewModel.pauseTimer()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 6)
+    }
+
     func testBackgroundPauseResumesWithoutOverlay() {
         let clock = AdvancingTimeProvider()
         let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)

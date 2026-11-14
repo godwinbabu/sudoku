@@ -223,9 +223,12 @@ final class GameViewModel: ObservableObject {
 
     /// Stops the timer and returns the whole seconds of the stretch that just ended (not yet in `state`).
     private func calculateAndStopTimer() -> Int {
-        let running = max(0, runningSince.map { timeProvider.now().timeIntervalSince($0) } ?? 0)
-        let whole = Int(running)
-        carriedFraction = running - Double(whole)
+        var whole = 0
+        if let start = runningSince { // already stopped: keep the carried part second
+            let running = max(0, timeProvider.now().timeIntervalSince(start))
+            whole = Int(running)
+            carriedFraction = running - Double(whole)
+        }
         runningSince = nil
         nextAutosave = nil
         timer?.invalidate()
@@ -1010,7 +1013,7 @@ extension GameViewModel {
     }
 
     private func resetStuck() {
-        progressSeconds = state.elapsedSeconds
+        progressSeconds = liveSeconds
         if isStuck { isStuck = false }
     }
 }

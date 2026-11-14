@@ -114,6 +114,23 @@ final class CoachTests: XCTestCase {
         XCTAssertTrue(viewModel.hintHighlight.isEmpty)
     }
 
+    /// Opening the coach while the timer runs restarts the two minutes from the live time (issue 70).
+    func testOpeningTheCoachWhileRunningRestartsTheCount() async {
+        let time = AdvancingTimeProvider()
+        let viewModel = makeViewModel(time: time)
+        viewModel.handleSceneDidAppear()
+        viewModel.updateStuck() // the count starts at 0 s
+        time.advance(120)
+        await viewModel.tick()
+        XCTAssertTrue(viewModel.isStuck)
+        viewModel.openCoach()
+        viewModel.endHint()
+        XCTAssertFalse(viewModel.isStuck, "the count starts again at 120 s")
+        time.advance(60)
+        await viewModel.tick()
+        XCTAssertFalse(viewModel.isStuck)
+    }
+
     func testACorrectDigitAfterAnUndoResetsStuck() {
         let time = AdvancingTimeProvider()
         let viewModel = makeViewModel(time: time)
