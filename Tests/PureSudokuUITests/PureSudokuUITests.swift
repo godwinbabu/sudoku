@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class PureSudokuUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false

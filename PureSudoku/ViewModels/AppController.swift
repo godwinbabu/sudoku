@@ -339,7 +339,7 @@ final class AppController: ObservableObject {
     /// stores the game only if `isCurrent` still holds, so an edited or closed import saves nothing.
     @discardableResult
     func createImportedGame(
-        initialGrid: String, imageID: String? = nil, date: Date = Date(), isCurrent: () -> Bool = { true }
+        initialGrid: String, imageID: String? = nil, date: Date = Date(), isCurrent: @MainActor () -> Bool = { true }
     ) async -> ImportedGame? {
         let service = generatorService
         let made = await Task.detached(priority: .userInitiated) {

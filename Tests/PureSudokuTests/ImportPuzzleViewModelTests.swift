@@ -263,7 +263,7 @@ final class ImportPuzzleViewModelTests: XCTestCase {
 
 /// Holds async work until the test finishes it, so results can arrive in any order.
 @MainActor
-private final class Gate<Value> {
+private final class Gate<Value: Sendable> {
     private(set) var pending: [CheckedContinuation<Value, Never>] = []
     private var finished: Set<Int> = []
 
