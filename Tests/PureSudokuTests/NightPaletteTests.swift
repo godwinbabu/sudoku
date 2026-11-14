@@ -112,18 +112,18 @@ final class NightPaletteTests: XCTestCase {
         }
     }
 
-    /// The same-digit ring is Night only, and the selection and hint rings take precedence (CODESPEC 7.3).
+    /// The same-digit ring is Night and Dark only, and the selection and hint rings take precedence (CODESPEC 7.3).
     func testSameDigitRingPrecedence() {
         var state = CellState()
         state.isSameDigit = true
-        XCTAssertTrue(state.showsSameDigitRing(night: true))
-        XCTAssertFalse(state.showsSameDigitRing(night: false), "Day is unchanged")
+        XCTAssertTrue(state.showsSameDigitRing(enabled: true))
+        XCTAssertFalse(state.showsSameDigitRing(enabled: false), "Day is unchanged")
         for keyPath in [\CellState.isSelected, \CellState.isEvidence, \CellState.isTarget] {
             var ringed = state
             ringed[keyPath: keyPath] = true
-            XCTAssertFalse(ringed.showsSameDigitRing(night: true), "\(keyPath)")
+            XCTAssertFalse(ringed.showsSameDigitRing(enabled: true), "\(keyPath)")
         }
-        XCTAssertFalse(CellState().showsSameDigitRing(night: true))
+        XCTAssertFalse(CellState().showsSameDigitRing(enabled: true))
     }
 
     func testKelvinForWarmth() {
@@ -234,7 +234,51 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertFalse(settings.isNight(now: at(6, 30), systemIsDark: false, calendar: calendar))
         XCTAssertFalse(settings.isNight(now: at(12, 0), systemIsDark: true, calendar: calendar))
         settings.appearance = .matchSystem
-        XCTAssertTrue(settings.isNight(now: at(12, 0), systemIsDark: true, calendar: calendar))
+        XCTAssertFalse(settings.isNight(now: at(12, 0), systemIsDark: true, calendar: calendar), "Match iPhone never means Night")
+        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .dark)
+        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .day)
+        settings.appearance = .afterDark
+        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .night)
+        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .day, "After dark ignores iOS")
+    }
+
+    // MARK: Dark (CODESPEC 7.2)
+
+    /// Every Dark variant: text 4.5:1 on the ground, cards and cell fills; marks and controls 3:1; a visible
+    /// fill ladder with peer below the grid line.
+    func testDarkPaletteContrast() {
+        let variants = Clarity.allCases.map { PSPalette.dark(clarity: $0) } + [PSPalette.dark(clarity: .standard, increaseContrast: true)]
+        for (n, p) in variants.enumerated() {
+            let context = "variant \(n)"
+            XCTAssertTrue(p.isDark)
+            XCTAssertFalse(p.isNight)
+            XCTAssertTrue(p.ringsSameDigit)
+            for (textName, text) in [("ink", p.ink), ("ink2", p.ink2), ("ink3", p.ink3), ("accent", p.accent), ("err", p.err)] {
+                for (ground, fill) in [("bg", p.bg), ("surface", p.surface), ("surface2", p.surface2)] {
+                    XCTAssertGreaterThanOrEqual(contrast(luminance(text), luminance(fill)), 4.5, "\(textName) on \(ground), \(context)")
+                }
+            }
+            for (fillName, fill) in [("bg", p.bg), ("peer", p.peer), ("same", p.same), ("sel", p.sel)] {
+                for (name, text) in [("ink", p.ink), ("accent", p.accent), ("err", p.err)] {
+                    XCTAssertGreaterThanOrEqual(contrast(luminance(text), luminance(fill)), 4.5, "\(name) on \(fillName), \(context)")
+                }
+                for (name, mark) in [("ink2", luminance(p.ink2)), ("ink3", luminance(p.ink3)),
+                                     ("ghost", luminance(p.accent, opacity: 0.75, over: fill))] {
+                    XCTAssertGreaterThanOrEqual(contrast(mark, luminance(fill)), 3, "\(name) on \(fillName), \(context)")
+                }
+            }
+            // Primary button (bg text on an accent fill), toggle, board ground and mistake bar.
+            XCTAssertGreaterThanOrEqual(contrast(luminance(p.bg), luminance(p.accent)), 4.5, context)
+            XCTAssertGreaterThanOrEqual(contrast(luminance(p.accent), luminance(p.surface)), 3, context)
+            for ground in [p.bg, p.surface] { // the off toggle's outline, on the page and on a card
+                XCTAssertGreaterThanOrEqual(contrast(luminance(PSToggle.offRing(p)), luminance(ground)), 3, context)
+            }
+            XCTAssertGreaterThanOrEqual(contrast(luminance(p.lineMajor), luminance(p.bg)), 3, context)
+            let fills = [p.bg, p.peer, p.same, p.sel].map { luminance($0) }
+            let lightness = fills.map { $0 > 0.008856 ? 116 * pow($0, 1.0 / 3) - 16 : 903.3 * $0 }
+            for i in 1..<4 { XCTAssertGreaterThanOrEqual(lightness[i] - lightness[i - 1], 5, "step \(i), \(context)") }
+            XCTAssertLessThan(luminance(p.peer), luminance(p.line), context)
+        }
     }
 
     func testPresetNeverGoesBelowTheFloor() {

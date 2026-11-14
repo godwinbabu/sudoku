@@ -559,8 +559,10 @@ enum Appearance: String, Codable {
     case day          // warm paper palette
     case night        // black canvas, warm digits, silent
     case afterDark    // Night from sunset to sunrise; Day otherwise
-    case matchSystem  // Night when iOS is in Dark mode
+    case matchSystem  // Day or Dark with iOS Light and Dark mode; never Night
 }
+
+The resolved look (Look) is Day, Dark or Night; it is worked out on read and never saved. Match iPhone gives Day with iOS Light mode and Dark with iOS Dark mode, read from the screen's own traits (which ignore the app's override). Night or After dark inside its window gives Night; Day or After dark outside it gives Day. Only Night brings the bedtime behaviour: the backlight (12.3), Drift, the first-night flow and runtime silence (12.7). Dark is an ordinary theme: sounds and haptics follow settings, the player's brightness is untouched and Clarity applies. The display side effects (UIKit colours, brightness, first night) refresh whenever the look changes, including Day ↔ Dark.
 
 	•	Default: afterDark. AfterDarkScheduler decides the window:
 	•	With location (useLocationForAfterDark and a known place): sunset to sunrise, worked out on the device with the NOAA solar equations. No network.
@@ -570,12 +572,13 @@ enum Appearance: String, Codable {
 	•	Fixed hours are instants on the calendar: a wall time that happens twice (clocks go back) means its first occurrence; a skipped one (clocks go forward) means the next valid time. The Night check and the boundary list use the same rule.
 	•	The maths uses a Gregorian calendar in the device’s current time zone, whatever calendar the device shows.
 	•	A one-shot timer fires at the next boundary. It is re-armed after any settings change, a new place, a permission change, a clock change (significantTimeChangeNotification) or a time zone change. The palette then changes inside a 600 ms fade (instant with Reduce Motion).
-	•	Match iPhone leaves the colour scheme to iOS; the other choices pin it (Day = light, Night = dark).
+	•	Match iPhone leaves the colour scheme to iOS (so Dark is dark and Day light without feeding back); the other choices pin it (Day = light, Night = dark).
 	•	The palette (PSPalette) and type scale (PSType) are injected through the SwiftUI environment (psPalette, psType) from the app root. Views never hard-code colours.
 	•	v1 settings migrate once: theme light → Day, dark → Night, system → Match iPhone; sleepBrightness normal / dim / extraDim → glow 55 / 30 / 18; the active display profile (the bedtime profile when bedtimeMode is on) then sets glow = (1 − dimness) × 60 and warmth; theme sleep or bedtimeMode → Night with the Lights out preset, unless hasCalibratedDisplay, when the profile wins; autoCheckMistakes true → Right away, false → When I check; autoRemoveCandidates → tidyNotes; hasCalibratedDisplay → calibrated.
 
 7.2 Visual Rules
 	•	Day palette (fixed): bg #F4F1E9, surface #EBE6DA, surface2 #E2DCCD, ink #1B1A17, ink2 #57534B, ink3 #8A857A, accent #9A5712, accentDim #C9A27A, line #CFC8B8 (Clarity Large/Bold: #B9B1A0), lineMajor #2E2B25, hair #D8D1C1, sel #EFD9B0, peer #ECE6D9, same #F1E2C6, err #B3261E.
+	•	Dark palette (fixed; Match iPhone with iOS Dark mode): bg #161513, surface #22201D, surface2 #2D2A26, ink #F3EFE7, ink2 #C9C3B8, ink3 #A39D92, accent #F4B366, accentDim #8A6A44, line #3A3732 (Clarity Large/Bold or Increase Contrast: #4D4943), lineMajor #8C867B, hair #3A3732, sel #534022, peer #282521, same #42341E, err #FF9C90, status #F3EFE7, focusDim 0.45. Increase Contrast also uses ink2 #DDD8CF, ink3 #BFB9AE, lineMajor #A9A397, hair #4D4943. Text (ink, ink2, ink3, accent, err) keeps 4.5:1 on bg, surface and surface2, and ink, accent and err keep 4.5:1 on every cell fill; notes, ghost digits, rings, the accent button and toggle (the off toggle outline is ink3 in Dark) keep 3:1 against what they sit on. Fills step plain < peer < same < sel by at least 5 L*, and peer stays darker than line. Dark follows the Day rules for fills (filled primary buttons, cards and selected segments), with the same-digit ring and the 75% ghost digit of Night.
 	•	Night palette (computed from glow, warmth and Clarity; never hard-coded):
 	•	K = warmth mapped 6500 → 1200 K, interpolated in mireds, rounded to 50 K. Warmth 0 / 45 / 75 / 100 = 6500 / 2200 / 1500 / 1200 K.
 	•	base = blackbody colour of K (Tanner Helland approximation). accent = blackbody of warmth × 0.55 + 52.
@@ -586,7 +589,7 @@ enum Appearance: String, Codable {
 	•	The tab bar, tab headers, Home and Journal follow the same rules: hairlines, no fills behind text at night (Day keeps the surface fill on cards).
 	•	Every state must show by shape or weight, not hue alone (Day and Night):
 	•	Selection: a filled background plus a heavier outline.
-	•	Same digit (Night): the same fill plus a thinner, inset ring (Section 7.3).
+	•	Same digit (Night and Dark): the same fill plus a thinner, inset ring (Section 7.3).
 	•	Error: an underline bar plus the err colour.
 	•	Hint roles: rings for evidence and targets, strike-through for eliminations.
 	•	Import: unsure cells are ringed, conflicts underlined, and each legend line has a matching ring or underline swatch (Section 3.4).
@@ -603,7 +606,7 @@ enum Appearance: String, Codable {
 	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks. Check marks are saved with the game (GameState.checkedWrong), apart from duplicate marks: a Check mark stays until its cell is edited, in any mode, and a duplicate mark never becomes one.
 	•	Cell states (Design/v2/README.md, “Cell states”):
 	•	Given: ink, given weight. Entered: accent, entered weight. At night givens go one weight heavier (semibold → bold, bold → heavy, heavy → black), because at low glow ink and accent are close in colour.
-	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill; at night also a 1.5 pt accent ring, inset 3 pt with radius 4, so it shows by shape and never reads as the selection ring. The ring is skipped on the selected cell and on hint evidence and target cells (selection ring > hint rings > same-digit ring). It applies wherever the board is drawn (game, practice, import review).
+	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill; in Night and Dark also a 1.5 pt accent ring, inset 3 pt with radius 4, so it shows by shape and never reads as the selection ring. The ring is skipped on the selected cell and on hint evidence and target cells (selection ring > hint rings > same-digit ring). It applies wherever the board is drawn (game, practice, import review).
 	•	Mistake: err digit plus a 3 pt bar under it (120% of its width): err by day, ink at night, where err and accent look alike. VoiceOver adds “mistake” (and “given” for givens) as the cell's value.
 	•	Notes: 3×3 at cell × 0.25; a note matching the selected digit is bold accent.
 	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim: 0.28 by day, 0.45 at night so the rest of the board stays readable), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit (75% at night) on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
@@ -932,13 +935,13 @@ Testing requirements:
 
 12.7 Night shortcut and silence
 	•	Bedtime Mode is replaced by Night (Section 7.1). The moon on every tab, on Import and in the game header opens the Night sheet. The old main-menu Night bar is removed.
-	•	Night sheet (NightSheetView): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge, 36 × 5 grabber. Backdrop black at 55% at night, warm at 18% in Day; tapping it or × closes the sheet. At least 56 pt of backdrop always shows; when the controls do not fit (iPhone SE, large text) the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live.
-	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone, which adds the line “Used when your iPhone is in Dark mode.”; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” up to 40, else “Above 40%, the screen itself gets brighter.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”, or “Almost no blue light.” above 95%); Clarity (“Bigger, heavier digits and stronger lines, by day and at night.”, the same sentence on Display & Night); then, unless Day: Drift and Find my lowest glow (Start).
+	•	Night sheet (NightSheetView): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge, 36 × 5 grabber. Backdrop black at 55% at night and in Dark, warm at 18% in Day; tapping it or × closes the sheet. At least 56 pt of backdrop always shows; when the controls do not fit (iPhone SE, large text) the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live.
+	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone, which adds the line “Follows your iPhone: Day or Dark.”; After dark adds a line on the hours in use); then, only for Night and After dark: three presets, Glow (“Below your iPhone’s lowest brightness.” up to 40, else “Above 40%, the screen itself gets brighter.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”, or “Almost no blue light.” above 95%); Clarity (“Bigger, heavier digits and stronger lines, by day and at night.”, the same sentence on Display & Night); then, only for Night and After dark: Drift and Find my lowest glow (Start). Display & Night always keeps the Night tuning and calibration, because they set future nights; calibration holds the backlight at its minimum while it is on screen, in any look.
 	•	At night the selected segment is an accentDim ring, not a fill, the slider knob is a 2 pt ink2 ring on black, and the Warmth track is capped at 75% of the ink’s light, so no fill is brighter than ink. The sheet, the first-night screen and every screen but the game hide the white system status bar at night; the game follows Hide status bar in games.
 	•	The one accepted system alert is the iOS location permission prompt. It appears only after the player taps After dark (or “Use sunset and sunrise”), and it follows the dark colour scheme at night.
 	•	Hush and Goodnight (Section 3.2) go to pure black in one tap.
 	•	When Night is active:
-	•	Sounds and haptics are off at runtime, whatever the saved settings say (the saved choice is kept for Day).
+	•	Sounds and haptics are off at runtime, whatever the saved settings say (the saved choice is kept for Day and Dark).
 	•	Force dark appearance for every screen, including sheets the app presents. Avoid system views that cannot be themed dark (they flash white).
 	•	Screen brightness is lowered (Section 12.3).
 	•	The launch screen is black in every mode (iOS shows a static launch screen).
@@ -946,6 +949,7 @@ Testing requirements:
 Testing requirements:
 	•	Unit tests:
 	•	With Night active, soundsActive and hapticsActive are false, the palette is the Night palette and the colour scheme is dark.
+	•	With Match iPhone and iOS dark: isNight is false, the palette is Dark, the colour scheme is left to iOS (dark), brightness is untouched, sounds and haptics follow settings, and the first-night flow does not appear. Dark palette contrast pairs and fill ladder (Section 7.2).
 	•	UI tests:
 	•	Turn Night on from the moon on Home and open a game.
 	•	The moon opens the Night sheet on Home and in a game; × and the backdrop close it.

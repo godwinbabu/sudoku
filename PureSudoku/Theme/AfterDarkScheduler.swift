@@ -140,9 +140,13 @@ final class AfterDarkScheduler: NSObject {
     }
 
     func isNight(_ settings: Settings, systemIsDark: Bool, at date: Date? = nil) -> Bool {
+        look(settings, systemIsDark: systemIsDark, at: date) == .night
+    }
+
+    func look(_ settings: Settings, systemIsDark: Bool, at date: Date? = nil) -> Look {
         let date = date ?? now
         let sun = settings.useLocationForAfterDark ? sunTimes(on: date) : nil
-        return settings.isNight(now: date, sunset: sun?.sunset, sunrise: sun?.sunrise, systemIsDark: systemIsDark, calendar: calendar)
+        return settings.look(now: date, sunset: sun?.sunset, sunrise: sun?.sunrise, systemIsDark: systemIsDark, calendar: calendar)
     }
 
     /// Tonight's window for the Display page: this evening's sunset (or last night's, before dawn)

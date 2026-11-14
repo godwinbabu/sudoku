@@ -15,6 +15,12 @@ enum Appearance: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// What the app draws right now (CODESPEC 7.1). Match iPhone resolves to Day or Dark; only Night
+/// brings the bedtime behaviour (backlight, Drift, first night, silence).
+enum Look: Equatable {
+    case day, dark, night
+}
+
 enum Clarity: Int, Codable, CaseIterable, Identifiable {
     case standard = 0, large = 1, bold = 2
     var id: Int { rawValue }
@@ -75,6 +81,11 @@ struct PSPalette: Equatable {
     var blueReduction: Int
     /// 0...1 luminance scale in use.
     var luminance: Double
+    /// The neutral Dark theme for iPhone Dark mode (not Night). It follows the Day rules for fills.
+    var isDark = false
+
+    /// Same-digit cells are also ringed in Night and Dark, where fills alone are faint (CODESPEC 7.3).
+    var ringsSameDigit: Bool { isNight || isDark }
 }
 
 /// sRGB with 0...255 channels.
@@ -126,6 +137,23 @@ extension PSPalette {
             line: clarity == .standard ? hex(0xCFC8B8) : hex(0xB9B1A0), lineMajor: hex(0x2E2B25), hair: hex(0xD8D1C1),
             sel: hex(0xEFD9B0), peer: hex(0xECE6D9), same: hex(0xF1E2C6), err: hex(0xB3261E), status: hex(0x1B1A17),
             focusDim: 0.28, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1
+        )
+    }
+
+    /// Dark (CODESPEC 7.2): grey-black ground, near-white ink, an amber accent. Text keeps 4.5:1 on the
+    /// background, cards and every cell fill; marks and rings keep 3:1. Increase Contrast lifts lines and
+    /// secondary text.
+    static func dark(clarity: Clarity, increaseContrast: Bool = false) -> PSPalette {
+        let strong = clarity != .standard || increaseContrast
+        return PSPalette(
+            bg: hex(0x161513), surface: hex(0x22201D), surface2: hex(0x2D2A26),
+            ink: hex(0xF3EFE7), ink2: increaseContrast ? hex(0xDDD8CF) : hex(0xC9C3B8),
+            ink3: increaseContrast ? hex(0xBFB9AE) : hex(0xA39D92),
+            accent: hex(0xF4B366), accentDim: hex(0x8A6A44),
+            line: strong ? hex(0x4D4943) : hex(0x3A3732), lineMajor: increaseContrast ? hex(0xA9A397) : hex(0x8C867B),
+            hair: increaseContrast ? hex(0x4D4943) : hex(0x3A3732),
+            sel: hex(0x534022), peer: hex(0x282521), same: hex(0x42341E), err: hex(0xFF9C90), status: hex(0xF3EFE7),
+            focusDim: 0.45, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1, isDark: true
         )
     }
 

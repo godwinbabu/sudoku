@@ -228,7 +228,7 @@ Vertical stack:
   - **Day** — *"Warm paper. For daylight and lamps."*
   - **Night** — *"Black screen, warm digits, silent."*
   - **After dark** — *"Sunset to sunrise where you are."*
-  - **Match iPhone** — *"Follows Light and Dark in iOS Settings."*
+  - **Match iPhone** — *"Follows Light and Dark in iOS Settings."* Light gives Day, Dark gives the neutral Dark theme (CODESPEC 7.2), never Night.
 - When After dark is chosen, an extra block appears:
   - With location: *"Tonight · Sunset 6:12 PM → sunrise 6:41 AM"* and *"Worked out on this iPhone from your rough location and the date. Nothing leaves the phone."*
   - Without: *"Hours · 9:00 PM → 6:30 AM"* (editable).

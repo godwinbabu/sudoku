@@ -387,13 +387,18 @@ final class AppController: ObservableObject {
 
     // MARK: Display (CODESPEC 12)
 
-    /// Night is worked out on read, so After dark follows the clock and Match iPhone the system setting.
-    var isNight: Bool {
-        let system = SystemAppearance.screen?.traitCollection ?? UITraitCollection.current
-        return afterDark.isNight(settings, systemIsDark: system.userInterfaceStyle == .dark)
+    /// iOS Light or Dark mode. The screen's traits ignore the app's own override, so they give the
+    /// iOS setting and a pinned colour scheme cannot feed back. Tests replace it.
+    var systemIsDark: @MainActor () -> Bool = {
+        (SystemAppearance.screen?.traitCollection ?? UITraitCollection.current).userInterfaceStyle == .dark
     }
-    var palette: PSPalette { settings.palette(isNight: isNight) }
-    var preferredColorScheme: ColorScheme? { settings.preferredColorScheme(isNight: isNight) }
+
+    /// The look is worked out on read, so After dark follows the clock and Match iPhone the system setting.
+    var look: Look { afterDark.look(settings, systemIsDark: systemIsDark()) }
+    /// Only Night brings the bedtime behaviour; Dark is an ordinary theme.
+    var isNight: Bool { look == .night }
+    var palette: PSPalette { settings.palette(look: look) }
+    var preferredColorScheme: ColorScheme? { settings.preferredColorScheme(look: look) }
     /// Night always keeps sound and vibration off, whatever the saved settings say.
     /// Any future sound or haptic must check these, never `settings.soundsEnabled` / `hapticsEnabled`.
     var soundsActive: Bool { settings.soundsEnabled && !isNight }
