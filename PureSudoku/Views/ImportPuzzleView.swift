@@ -269,6 +269,11 @@ struct ImportPuzzleView: View {
                 Text(viewModel.validationMessage)
                     .psFont(14).foregroundColor(theme.ink2)
                     .accessibilityIdentifier("importStatus")
+                if let note = viewModel.ambiguityNote {
+                    Text(note).psFont(14).foregroundColor(theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("importAmbiguityNote")
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

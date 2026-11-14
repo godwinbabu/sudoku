@@ -35,6 +35,8 @@
 - Inline validation:
   - Conflicts (row/col/box) are highlighted.
   - “Solvable” status shown (non-blocking until Start).
+  - More than one solution: a note, “This grid has more than one solution. Check the digits against your photo.” It does not block Start.
+  - Text seen in a cell but not read as a digit: the cell is ringed as unsure and left blank.
 - **Discard** button to exit without saving.
 - **Start Puzzle** enabled only when:
   - No conflicts, and

@@ -15,6 +15,11 @@ final class SudokuValidatorTests: XCTestCase {
         XCTAssertFalse(validator.isValid(solution: invalid))
     }
 
+    func testNonDigitSolutionFails() {
+        let letters = String(TestData.puzzle.solutionGrid.map { Character(UnicodeScalar(UInt8(96) + UInt8(String($0))!)) })
+        XCTAssertFalse(SudokuValidator().isValid(solution: letters))
+    }
+
     func testCompletionDetection() {
         var state = TestData.newGameState()
         let validator = SudokuValidator()
