@@ -292,6 +292,27 @@ final class SaveSafetyTests: XCTestCase {
         XCTAssertEqual(launch().stats.totalPuzzlesSolved, 4)
     }
 
+    /// The rebuilt record is saved at once: with the stats still failing, replacing the game and
+    /// relaunching can't lose the solve.
+    func testARebuiltRecordIsSavedBeforeTheStats() async throws {
+        let controller = launch()
+        try block("pending_completions.json")
+        try block("stats.json")
+        let solvedAt = clock.now() + 300
+        _ = await playAndSolve(controller)
+        try unblock("pending_completions.json")
+        let relaunched = launch() // stats still fail
+        XCTAssertEqual(try saved([PendingCompletion].self, "pending_completions.json")?.count, 1)
+        await relaunched.startNewGame(for: .easy, mode: .seeded(8))
+        try unblock("stats.json")
+        let stats = launch().stats
+        XCTAssertEqual(stats.totalPuzzlesSolved, 1)
+        XCTAssertEqual(stats.solveTimes[.easy], [300])
+        XCTAssertEqual(stats.lastCompletionDate, Stats.playDay(solvedAt))
+        XCTAssertEqual(try saved([PendingCompletion].self, "pending_completions.json"), [])
+        XCTAssertEqual(launch().stats.totalPuzzlesSolved, 1)
+    }
+
     /// Everything lands but the cleanup of the pending file: the next stats save retries it.
     func testAFailedPendingCleanupIsRetried() async throws {
         let controller = launch()

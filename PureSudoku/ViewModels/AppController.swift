@@ -168,6 +168,8 @@ final class AppController: ObservableObject {
     /// lost both the record and the stats write before the app quit; its record is rebuilt from the
     /// game (CODESPEC 8). Games from before the marker never qualify.
     private func recoverUncountedSolves() {
+        let count = pendingCompletions.count
+        defer { if pendingCompletions.count != count { save(pendingCompletions, to: .pendingCompletions) } } // durable before the stats
         let games = activeGames.map { ($0.value, $0.key) } + importedGames.map { ($0.gameState, $0.gameState.puzzle.difficulty) }
         for (game, difficulty) in games where game.isCompleted && !game.counted {
             let id = game.puzzle.id
