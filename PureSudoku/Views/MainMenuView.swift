@@ -112,9 +112,9 @@ private struct PlayTab: View {
     private func makeViewModel(for route: GameRoute) -> GameViewModel? {
         switch route.kind {
         case let .difficulty(difficulty):
-            return controller.makeGameViewModel(for: difficulty)
-        case let .imported(id, _):
-            return controller.makeImportedGameViewModel(id: id)
+            return viewModel.routeGame(importID: nil, difficulty: difficulty)
+        case let .imported(id, difficulty):
+            return viewModel.routeGame(importID: id, difficulty: difficulty)
         }
     }
 }

@@ -50,6 +50,12 @@ final class MainMenuViewModel: ObservableObject {
         controller.makeGameViewModel(for: difficulty)
     }
 
+    /// The game a navigation route shows, or nil if it is gone. A missing import never falls back to a level's game.
+    func routeGame(importID: String?, difficulty: Difficulty) -> GameViewModel? {
+        guard let importID else { return controller.makeGameViewModel(for: difficulty) }
+        return controller.makeImportedGameViewModel(id: importID)
+    }
+
     /// "Saturday night · 6-night streak".
     func subLine(at date: Date = Date(), calendar: Calendar = .current) -> String {
         let hour = calendar.component(.hour, from: date)

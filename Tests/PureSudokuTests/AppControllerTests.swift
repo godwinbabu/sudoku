@@ -82,10 +82,13 @@ final class AppControllerTests: XCTestCase {
     }
 
     /// A route whose game is gone resolves to no game, never to another level's game.
-    func testMissingGamesResolveToNoGame() {
+    func testMissingGamesResolveToNoGame() async {
         let (controller, _) = makeTestController()
-        XCTAssertNil(controller.makeGameViewModel(for: .easy))
-        XCTAssertNil(controller.makeImportedGameViewModel(id: "missing"))
+        let menu = MainMenuViewModel(controller: controller)
+        XCTAssertNil(menu.routeGame(importID: nil, difficulty: .easy), "no Easy game yet")
+        await controller.startNewGame(for: .easy, mode: .seeded(1))
+        XCTAssertNil(menu.routeGame(importID: "missing", difficulty: .easy), "a missing import never opens the Easy game")
+        XCTAssertEqual(menu.routeGame(importID: nil, difficulty: .easy)?.state.puzzle.id, controller.activeGames[.easy]?.puzzle.id)
     }
 
     /// Home's Continue card resumes the unfinished game played last; a level row starts a new one
