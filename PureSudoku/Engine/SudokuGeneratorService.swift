@@ -14,8 +14,9 @@ struct GeneratedPuzzleResult {
     let isBundled: Bool
 }
 
-/// Generates puzzles graded by the techniques a person needs (CODESPEC 2.2). A puzzle is only
-/// offered at the level its grade maps to; there is no silent fallback to another level.
+/// Generates puzzles graded by the techniques a person needs (CODESPEC 2.2), then adds givens up
+/// to the level's target. A puzzle is only offered at the level its grade maps to; there is no
+/// silent fallback to another level.
 struct SudokuGeneratorService {
     private let config: SudokuGeneratorConfiguration
 
@@ -27,8 +28,10 @@ struct SudokuGeneratorService {
         var rng = seed.map { AnyRandomNumberGenerator(SeededRandomNumberGenerator(seed: $0)) } ?? AnyRandomNumberGenerator(SystemRandomNumberGenerator())
         let id = seed.map { "seed-\(difficulty.rawValue)-\($0)" } ?? UUID().uuidString
         for attempt in stride(from: 1, through: config.maxAttempts, by: 1) {
-            let values = makePuzzle(using: &rng).map { ($0 ?? -1) + 1 }
-            guard let (grade, solution) = PuzzleGrader.grade(values), grade.difficulty == difficulty else { continue }
+            let minimal = makePuzzle(using: &rng).map { ($0 ?? -1) + 1 }
+            guard let (first, solution) = PuzzleGrader.grade(minimal), first.difficulty == difficulty,
+                  let (values, grade) = PuzzleGrader.addingGivens(to: minimal, solution: solution, level: difficulty, using: &rng)
+            else { continue }
             let puzzle = SudokuPuzzle(
                 id: id, difficulty: difficulty,
                 initialGrid: values.map(String.init).joined(), solutionGrid: solution.map(String.init).joined(),
