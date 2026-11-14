@@ -38,14 +38,15 @@ final class ImportedImageStore {
         }
     }
 
-    func save(image: UIImage) -> String? {
+    /// `inUse`: photos an import still shows; eviction never deletes them.
+    func save(image: UIImage, inUse: Set<String> = []) -> String? {
         let resized = resize(image: image, maxDimension: maxDimension)
         guard let data = resized.jpegData(compressionQuality: compressionQuality) else { return nil }
         let id = UUID().uuidString
         let url = baseURL.appendingPathComponent("\(id).jpg")
         do {
             try data.write(to: url, options: .atomic)
-            evictOldest()
+            evictOldest(keeping: inUse.union([id]))
             return id
         } catch {
             return nil
@@ -72,18 +73,19 @@ final class ImportedImageStore {
         }
     }
 
-    /// Keeps only the newest `maxImages` images (BYOS: delete oldest beyond the limit).
-    func evictOldest() {
+    /// Deletes the oldest photos not in `inUse` until at most `maxImages` remain (BYOS: delete oldest
+    /// beyond the limit). Photos in use always stay, so the folder can hold more than the limit.
+    func evictOldest(keeping inUse: Set<String> = []) {
         let files = (try? fileManager.contentsOfDirectory(at: baseURL, includingPropertiesForKeys: [.creationDateKey])) ?? []
         let sorted = files.sorted { lhs, rhs in
             let leftDate = (try? lhs.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             let rightDate = (try? rhs.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
             return leftDate > rightDate
         }
-        if sorted.count > maxImages {
-            for url in sorted.suffix(from: maxImages) {
-                try? fileManager.removeItem(at: url)
-            }
+        var excess = sorted.count - maxImages
+        for url in sorted.reversed() where excess > 0 && !inUse.contains(url.deletingPathExtension().lastPathComponent) {
+            try? fileManager.removeItem(at: url)
+            excess -= 1
         }
     }
 

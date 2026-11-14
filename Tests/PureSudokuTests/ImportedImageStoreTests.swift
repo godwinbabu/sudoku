@@ -16,6 +16,26 @@ final class ImportedImageStoreTests: XCTestCase {
         XCTAssertEqual(files.count, 2)
     }
 
+    /// Over the limit, eviction skips photos an import still uses and deletes the oldest unused one.
+    func testEvictionKeepsPhotosInUse() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = ImportedImageStore(directory: directory, maxImages: 2, maxDimension: 32, compressionQuality: 0.8)
+        let image = makeImage(color: .red)
+        let oldest = try XCTUnwrap(store.save(image: image))
+        let unused = try XCTUnwrap(store.save(image: image, inUse: [oldest]))
+        let newest = try XCTUnwrap(store.save(image: image, inUse: [oldest]))
+        XCTAssertEqual(names(in: directory), [oldest, newest], "the unused photo goes, not the oldest")
+        XCTAssertFalse(names(in: directory).contains(unused))
+
+        let extra = try XCTUnwrap(store.save(image: image, inUse: [oldest, newest]))
+        XCTAssertEqual(names(in: directory), [oldest, newest, extra], "all in use: nothing is deleted")
+    }
+
+    private func names(in directory: URL) -> Set<String> {
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        return Set(files.map { $0.deletingPathExtension().lastPathComponent })
+    }
+
     private func makeImage(color: UIColor) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 10, height: 10))
         return renderer.image { context in

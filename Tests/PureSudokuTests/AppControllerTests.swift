@@ -292,6 +292,22 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(saved.filter { $0.gameState.isCompleted }.count, 20, "it takes one of the 20 solved slots")
     }
 
+    /// A new photo over the limit never evicts the photo of an unfinished import (issue 55).
+    func testNewPhotoKeepsThePhotoOfAnUnfinishedImport() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let imagesDir = dir.appendingPathComponent("ImportedImages", isDirectory: true)
+        let controller = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(),
+                                       imageStore: ImportedImageStore(directory: imagesDir, maxImages: 1))
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
+        let oldID = try XCTUnwrap(controller.saveImportedImage(image))
+        let made = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: oldID)
+        XCTAssertNotNil(made)
+        let newID = try XCTUnwrap(controller.saveImportedImage(image))
+        for id in [oldID, newID] {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: imagesDir.appendingPathComponent("\(id).jpg").path), id)
+        }
+    }
+
     func testAutosaveOfAnImportDoesNotScanImages() async throws {
         let (controller, dir) = makeTestController()
         let image = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4)).image { _ in }
