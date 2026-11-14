@@ -48,7 +48,9 @@ struct RootView: View {
         .onChange(of: controller.isCalibrating) { _ in updateDisplay() }
         .onChange(of: colorScheme) { _ in controller.objectWillChange.send() }
         .onAppear(perform: updateDisplay)
-        .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.darkerSystemColorsStatusDidChangeNotification)) { _ in
+        // Delivered on the main run loop: this closure is main-actor code (Swift 6 traps off it).
+        .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.darkerSystemColorsStatusDidChangeNotification)
+            .receive(on: RunLoop.main)) { _ in
             controller.objectWillChange.send() // Increase Contrast raises the Night floor (CODESPEC 9)
             updateDisplay()
         }

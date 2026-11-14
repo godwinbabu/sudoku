@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class PureSudokuUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -197,6 +198,7 @@ final class PureSudokuUITests: XCTestCase {
         let notes = app.buttons["tool_notes"]
         XCTAssertTrue(notes.waitForExistence(timeout: 2))
         XCTAssertEqual(notes.value as? String, "Off")
+        XCTAssertEqual(notes.label, "Notes", "the ON/OFF badge is not read twice")
         notes.tap()
         XCTAssertEqual(notes.value as? String, "On")
         XCTAssertTrue(app.staticTexts["Notes on — digits go in as pencil marks"].exists)
