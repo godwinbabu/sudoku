@@ -15,7 +15,11 @@ final class AppController: ObservableObject {
     private var techniqueProgressLoadFailed = false
     /// Which moves may still earn credit (CODESPEC 13.4), saved with the progress (`LearningFile`).
     private(set) var learningLedger = LearningLedger()
-    @Published var lastPersistenceError: (any Error)?
+    /// Files whose last save failed. An entry clears only when that same file saves again; while any
+    /// is left, Home shows `saveFailureNotice` (CODESPEC 8).
+    @Published private(set) var failedSaves: Set<String> = []
+    /// Solves not yet both in the saved stats and saved as counted in their game (CODESPEC 8).
+    private var pendingCompletions: [PendingCompletion] = []
     /// Set-aside copies (`name.corrupt-<time>.json`) the player has not yet acknowledged on Home
     /// (CODESPEC 8). Only acknowledged copy names are saved, in reset_notice.json.
     @Published private(set) var resetCopies: [String] = []
@@ -76,13 +80,11 @@ final class AppController: ObservableObject {
             self.settings = try persistence.load(Settings.self, from: File.settings.rawValue) ?? .default
         } catch {
             self.settings = .default
-            self.lastPersistenceError = error
         }
         do {
             self.stats = try persistence.load(Stats.self, from: File.stats.rawValue) ?? Stats()
         } catch {
             self.stats = Stats()
-            self.lastPersistenceError = error
         }
 
         var games: [Difficulty: GameState] = [:]
@@ -94,7 +96,6 @@ final class AppController: ObservableObject {
                 }
             } catch {
                 gameLoadFailed = true
-                self.lastPersistenceError = error
             }
         }
         self.activeGames = games
@@ -104,7 +105,6 @@ final class AppController: ObservableObject {
         } catch {
             self.importedGames = []
             self.importedGamesLoadFailed = true
-            self.lastPersistenceError = error
         }
         do {
             let learning = try persistence.load(LearningFile.self, from: File.techniqueProgress.rawValue) ?? LearningFile()
@@ -113,8 +113,9 @@ final class AppController: ObservableObject {
         } catch {
             self.techniqueProgress = [:]
             self.techniqueProgressLoadFailed = true
-            self.lastPersistenceError = error
         }
+        // A damaged file is set aside like the others; the reset notice then names the stats.
+        pendingCompletions = (try? persistence.load([PendingCompletion].self, from: File.pendingCompletions.rawValue)) ?? []
         // Keys of finished or replaced games can't matter again: keep the file small. Only when every
         // saved game loaded and none was set aside as unreadable: that game may still be restored,
         // on this launch or a later one.
@@ -145,7 +146,8 @@ final class AppController: ObservableObject {
     /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
     /// until then `isUnique` is false, so uniqueness techniques stay off (CODESPEC 2.1).
     private func countSolutionsOfOldImports() {
-        settleLateTimes() // a handoff an earlier launch could not finish
+        if !pendingCompletions.isEmpty { updateStats { _ in } } // handoffs an earlier launch could not finish
+        settleLateTimes()
         let pending = importedGames.filter { $0.gameState.puzzle.hasUniqueSolution == nil }
             .map { (id: $0.id, values: $0.gameState.puzzle.initialGrid.map { Int(String($0)) ?? 0 }) }
         guard !pending.isEmpty else { return }
@@ -282,11 +284,7 @@ final class AppController: ObservableObject {
     /// Progress and ledger in one atomic write.
     private func saveLearning() {
         guard !techniqueProgressLoadFailed else { return }
-        do {
-            try persistence.save(LearningFile(progress: techniqueProgress, ledger: learningLedger), to: File.techniqueProgress.rawValue)
-        } catch {
-            lastPersistenceError = error
-        }
+        save(LearningFile(progress: techniqueProgress, ledger: learningLedger), to: .techniqueProgress)
     }
 
     private func updateProgress(_ technique: Technique, _ change: (inout TechniqueProgress) -> Void) {
@@ -327,11 +325,7 @@ final class AppController: ObservableObject {
             updateStats { $0.totalTimeSeconds += old.elapsedSeconds }
         }
         activeGames[difficulty] = newState
-        do {
-            try persistence.save(newState, to: File.game(difficulty).rawValue)
-        } catch {
-            self.lastPersistenceError = error
-        }
+        save(newState, to: .game(difficulty))
         return newState
     }
 
@@ -430,11 +424,7 @@ final class AppController: ObservableObject {
     func updateSettings(_ block: (inout Settings) -> Void) {
         block(&settings)
         afterDark.schedule(for: settings)
-        do {
-            try persistence.save(settings, to: File.settings.rawValue)
-        } catch {
-            lastPersistenceError = error
-        }
+        save(settings, to: .settings)
     }
 
     func saveImportedImage(_ image: UIImage) -> String? {
@@ -472,43 +462,67 @@ final class AppController: ObservableObject {
         cleanedImageIDs = ids
     }
 
-    /// Returns false if the stats file could not be written.
+    /// Every stats save also carries the pending solves (each counted once), and once it lands marks
+    /// their games counted. Returns false if the stats file could not be written.
     @discardableResult
     func updateStats(_ block: (inout Stats) -> Void) -> Bool {
         block(&stats)
+        for completion in pendingCompletions { stats.apply(completion) }
+        guard save(stats, to: .stats) else { return false }
+        if !pendingCompletions.isEmpty {
+            pendingCompletions.removeAll { markCounted($0.gameID) } // kept if its game could not be saved
+            save(pendingCompletions, to: .pendingCompletions)
+        }
+        return true
+    }
+
+    /// Saves the game `gameID` as counted. True when saved, or when that game is gone (replaced or
+    /// deleted): the saved stats then hold its id, so it can't count again.
+    private func markCounted(_ gameID: String) -> Bool {
+        if let difficulty = activeGames.first(where: { $0.value.puzzle.id == gameID })?.key,
+           var game = activeGames[difficulty] {
+            game.counted = true
+            activeGames[difficulty] = game
+            return save(game, to: .game(difficulty))
+        }
+        guard let index = importedGames.firstIndex(where: { $0.id == gameID }) else { return true }
+        importedGames[index].gameState.counted = true
+        return persistImportedGames(keeping: gameID)
+    }
+
+    /// Saves to `file` and tracks the outcome for `saveFailureNotice`. Returns false if it failed.
+    @discardableResult
+    private func save<T: Codable>(_ value: T, to file: File) -> Bool {
         do {
-            try persistence.save(stats, to: File.stats.rawValue)
+            try persistence.save(value, to: file.rawValue)
+            if failedSaves.contains(file.rawValue) { failedSaves.remove(file.rawValue) } // no publish on every autosave
             return true
         } catch {
-            lastPersistenceError = error
+            failedSaves.insert(file.rawValue)
             return false
         }
+    }
+
+    /// The Home notice while any save is failing (CODESPEC 8). Saves retry on the next save to that file.
+    var saveFailureNotice: String? {
+        failedSaves.isEmpty ? nil : "Some progress could not be saved. PureSudoku will keep trying."
     }
 
     private func persist(state: GameState, for difficulty: Difficulty) {
         var state = state
         state.lastUpdated = timeProvider.now() // the Continue card picks the game played last
         activeGames[difficulty] = state
-        do {
-            try persistence.save(state, to: File.game(difficulty).rawValue)
-        } catch {
-            self.lastPersistenceError = error
-        }
+        save(state, to: .game(difficulty))
     }
 
+    /// The finished game is in memory before its solve is recorded, so the record can mark it counted.
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
-        var state = state
-        record(state, at: difficulty)
-        if !state.usedReveal { state.counted = true }
         activeGames[difficulty] = state
-        do {
-            try persistence.save(state, to: File.game(difficulty).rawValue)
-        } catch {
-            self.lastPersistenceError = error
-        }
+        record(state, at: difficulty)
+        if let state = activeGames[difficulty] { save(state, to: .game(difficulty)) } // saved even if the stats failed
     }
 
-    private func persistImported(state: GameState, id: String) {
+    private func persistImported(state: GameState, id: String, saving: Bool = true) {
         guard let index = importedGames.firstIndex(where: { $0.id == id }) else { return }
         var state = state
         // An open game may predate the background solution count; keep the counted flag.
@@ -519,7 +533,7 @@ final class AppController: ObservableObject {
         state.timeAwaitingCount = state.timeAwaitingCount ?? importedGames[index].gameState.timeAwaitingCount
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
-        persistImportedGames(keeping: id)
+        if saving { persistImportedGames(keeping: id) }
     }
 
     private func handleImportedCompletion(state: GameState, id: String) {
@@ -530,29 +544,32 @@ final class AppController: ObservableObject {
             state.puzzle.hasUniqueSolution = importedGames.first { $0.id == id }?.gameState.puzzle.hasUniqueSolution
         }
         // Saved with the game, so a relaunch before the count ends still gets the time.
-        if state.puzzle.hasUniqueSolution == nil, !state.counted, !state.usedReveal, !state.assisted {
+        if state.puzzle.hasUniqueSolution == nil, !state.counted, !stats.countedGameIDs.contains(id), !state.usedReveal, !state.assisted {
             state.timeAwaitingCount = state.elapsedSeconds
         }
+        persistImported(state: state, id: id, saving: false) // in memory first, as in handleCompletion
         record(state, at: state.puzzle.difficulty)
-        if !state.usedReveal { state.counted = true }
-        persistImported(state: state, id: id)
+        persistImportedGames(keeping: id)
     }
 
-    /// Adds a solve to the stats once per puzzle (a restarted solve is already counted). Puzzles with
-    /// several solutions set no best or typical time.
+    /// Adds a solve to the stats once per puzzle (a restarted solve is already counted), through a
+    /// `PendingCompletion` written first; the game is marked counted only once the stats are saved
+    /// (CODESPEC 8). Puzzles with several solutions set no best or typical time.
     private func record(_ state: GameState, at difficulty: Difficulty) {
-        guard !state.counted else {
+        guard !state.usedReveal else { return } // a revealed solve never reaches the stats
+        let id = state.puzzle.id
+        guard !state.counted, !stats.countedGameIDs.contains(id) else {
             // A replay of a counted puzzle: not another solve, but its time still counts as played.
-            if !state.usedReveal { updateStats { $0.totalTimeSeconds += state.elapsedSeconds } }
+            updateStats { $0.totalTimeSeconds += state.elapsedSeconds }
+            if !state.counted { _ = markCounted(id) }
             return
         }
-        updateStats { stats in
-            stats.recordCompletion(
-                for: difficulty, time: state.elapsedSeconds, usedReveal: state.usedReveal,
-                assisted: state.assisted, setsTimes: state.puzzle.isUnique, source: state.puzzle.source,
-                date: self.timeProvider.now()
-            )
-        }
+        pendingCompletions.append(PendingCompletion(
+            gameID: id, difficulty: difficulty, elapsedSeconds: state.elapsedSeconds, date: timeProvider.now(),
+            assisted: state.assisted, setsTimes: state.puzzle.isUnique, source: state.puzzle.source
+        ))
+        save(pendingCompletions, to: .pendingCompletions)
+        updateStats { _ in }
     }
 
     /// Prunes old solved imports, saves the list, then removes images no game uses (only after a
@@ -560,12 +577,7 @@ final class AppController: ObservableObject {
     @discardableResult
     private func persistImportedGames(keeping savedID: String? = nil) -> Bool {
         pruneSolvedImports(keeping: savedID)
-        do {
-            try persistence.save(importedGames, to: File.importedGames.rawValue)
-        } catch {
-            self.lastPersistenceError = error
-            return false
-        }
+        guard save(importedGames, to: .importedGames) else { return false }
         cleanupImportImages()
         return true
     }
@@ -633,6 +645,7 @@ private enum File: RawRepresentable {
     case importedGames
     case techniqueProgress
     case resetNotice
+    case pendingCompletions
 
     var rawValue: String {
         switch self {
@@ -642,6 +655,7 @@ private enum File: RawRepresentable {
         case .importedGames: return "imported_games.json"
         case .techniqueProgress: return "technique_progress.json"
         case .resetNotice: return "reset_notice.json"
+        case .pendingCompletions: return "pending_completions.json"
         }
     }
 
@@ -652,7 +666,7 @@ private enum File: RawRepresentable {
         let fileName = String(copy[..<range.lowerBound]) + ".json"
         switch fileName {
         case File.settings.rawValue: return "settings"
-        case File.stats.rawValue: return "stats"
+        case File.stats.rawValue, File.pendingCompletions.rawValue: return "stats"
         case File.importedGames.rawValue: return "imported puzzles"
         case File.techniqueProgress.rawValue: return "learning progress"
         case _ where fileName.hasPrefix("game_"): return "saved games"

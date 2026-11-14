@@ -645,9 +645,15 @@ struct Stats: Codable {
     var solveTimes: [Difficulty: [Int]]  // last 50 unassisted times per level, for Typical
     var assistedSolves: Int
     var solvedDays: [Date]               // last 14 days with a counted solve, for the Journal week
+    // Schema version 2: decodeIfPresent, empty for older files.
+    var countedGameIDs: Set<String>      // games whose solve is in the stats
 }
 
 A file that reads but cannot be decoded is moved aside as name.corrupt-<time>.json and that data starts over. Home then shows a calm notice (a hairline box, no fill, with an outline OK button) naming what was reset and saying "The old data was kept on this iPhone." The notice comes from the set-aside copies on disk, so it cannot be lost: it lists every copy the player has not acknowledged. Tapping OK saves the copy names as acknowledged in reset_notice.json. If that save fails, or that file is damaged, the notice simply shows again at the next launch. A later corruption shows the notice again for the new copy only.
+
+A save that fails is tracked per file (each level's game, stats, settings, learning, imports, pending solves). An entry clears only when a later save to that same file works. While any entry is left, Home shows a calm notice in the same box, with no button: "Some progress could not be saved. PureSudoku will keep trying." Load errors stay with the reset notice.
+
+A solve reaches the stats through a handoff that a failed save or a relaunch can retry without losing it or counting it twice. When a game is solved, a PendingCompletion (game id, level, time, date, assisted, whether it sets times, source) is written first to pending_completions.json. It is applied to the stats once (skipped if countedGameIDs has the id) and the stats are saved. Only then is the game saved as counted, and the pending record is removed. Any failure keeps the record; it retries on the next stats save and at launch, with its original time and date. Games counted before countedGameIDs existed are never counted again, because only a pending record adds a solve. Revealed solves and replays write no pending record.
 
 Streak rules:
 	•	Puzzle completed without usedReveal:

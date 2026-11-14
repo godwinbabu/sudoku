@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import UIKit
 
 final class ImportedImageStore {
@@ -21,6 +22,20 @@ final class ImportedImageStore {
         self.compressionQuality = compressionQuality
         self.baseURL = directory ?? ImportedImageStore.defaultDirectory(using: fileManager)
         try? fileManager.createDirectory(at: baseURL, withIntermediateDirectories: true)
+        excludeFromBackup()
+    }
+
+    /// Import photos stay on this iPhone: keep them out of iCloud and computer backups. Set on every
+    /// open, so installs from before it are covered. This does not remove earlier backups.
+    private func excludeFromBackup() {
+        var url = baseURL
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        do {
+            try url.setResourceValues(values)
+        } catch {
+            Logger().error("Could not exclude imported images from backup: \(error.localizedDescription)")
+        }
     }
 
     func save(image: UIImage) -> String? {
