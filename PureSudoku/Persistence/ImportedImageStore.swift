@@ -38,15 +38,16 @@ final class ImportedImageStore {
         }
     }
 
-    /// `inUse`: photos an import still shows; eviction never deletes them.
-    func save(image: UIImage, inUse: Set<String> = []) -> String? {
+    /// `inUse`: photos an import still shows; eviction never deletes them. Nil when that is unknown
+    /// (the import list failed to load): then nothing is evicted.
+    func save(image: UIImage, inUse: Set<String>? = []) -> String? {
         let resized = resize(image: image, maxDimension: maxDimension)
         guard let data = resized.jpegData(compressionQuality: compressionQuality) else { return nil }
         let id = UUID().uuidString
         let url = baseURL.appendingPathComponent("\(id).jpg")
         do {
             try data.write(to: url, options: .atomic)
-            evictOldest(keeping: inUse.union([id]))
+            if let inUse { evictOldest(keeping: inUse.union([id])) }
             return id
         } catch {
             return nil

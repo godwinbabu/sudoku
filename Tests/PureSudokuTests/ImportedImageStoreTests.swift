@@ -95,7 +95,8 @@ final class ImportImageLifecycleTests: XCTestCase {
     func testDamagedImportListKeepsOldPhotos() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let imagesDir = dir.appendingPathComponent("ImportedImages", isDirectory: true)
-        let store = ImportedImageStore(directory: imagesDir)
+        // A limit of 1, so the next photo is over it: eviction must not delete the old photo either.
+        let store = ImportedImageStore(directory: imagesDir, maxImages: 1)
         let oldID = try XCTUnwrap(store.save(image: image()))
         try Data("not json".utf8).write(to: dir.appendingPathComponent("imported_games.json"))
         let controller = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: store)
