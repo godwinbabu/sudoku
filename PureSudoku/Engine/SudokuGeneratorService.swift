@@ -14,8 +14,8 @@ struct GeneratedPuzzleResult {
     let isBundled: Bool
 }
 
-/// Generates puzzles graded by the techniques a person needs (CODESPEC 2.2), then adds givens up
-/// to the level's target. A puzzle is only offered at the level its grade maps to; there is no
+/// Generates puzzles graded by the techniques a person needs (CODESPEC 2.2), then adds givens until
+/// the board meets its level's targets. A puzzle is only offered at the level its grade maps to; there is no
 /// silent fallback to another level.
 struct SudokuGeneratorService {
     private let config: SudokuGeneratorConfiguration
@@ -41,7 +41,7 @@ struct SudokuGeneratorService {
         }
         let options = BundledPuzzles.puzzles(for: difficulty)
         let entry = options[Int(rng.next() % UInt64(options.count))]
-        let grade = PuzzleGrade(hardestTier: entry.techniques.map(\.tier).max() ?? .basic, score: entry.score, techniques: entry.techniques)
+        let grade = entry.grade
         let puzzle = SudokuPuzzle(
             id: id, difficulty: difficulty, initialGrid: entry.initialGrid, solutionGrid: entry.solutionGrid,
             grade: grade, generatorSeed: seed, generationAttempts: config.maxAttempts, generatedAt: Date(), hasUniqueSolution: true

@@ -7,9 +7,18 @@ struct PuzzleGrade: Codable, Equatable {
     let score: Int
     /// Techniques used, in curriculum order.
     let techniques: [Technique]
+    /// Solver steps per tier, Basic to Expert (CODESPEC 2.2). Nil in grades saved before issue #92.
+    var stepsPerTier: [Int]?
+    /// Distinct cells any single fills on the starting board. Nil in grades saved before issue #92.
+    var openingSingles: Int?
 
     /// The level of the hardest technique needed (CODESPEC 2.2).
     var difficulty: Difficulty { techniques.map(\.level).max() ?? .easy }
+
+    /// Steps at `tier` or above (walls from Intermediate up); nil when unknown.
+    func steps(atLeast tier: TechniqueTier) -> Int? {
+        stepsPerTier.map { $0.dropFirst(tier.rawValue - 1).reduce(0, +) }
+    }
 }
 
 extension Technique {
@@ -32,37 +41,55 @@ enum PuzzleGrader {
         let result = LogicalSolver(allowsUniqueness: allowsUniqueness).solve(SolverBoard(values: values))
         guard result.isSolved else { return nil }
         let used = Set(result.steps.map(\.technique))
+        let start = SolverBoard(values: values)
+        let opening = Set(Technique.allCases.filter { $0.tier == .basic }
+            .flatMap { LogicalSolver.steps(for: $0, on: start) }.flatMap { $0.placements.map(\.cell) })
         let grade = PuzzleGrade(
             hardestTier: used.map(\.tier).max() ?? .basic,
             score: result.steps.reduce(0) { $0 + $1.technique.score },
-            techniques: Technique.allCases.filter(used.contains)
+            techniques: Technique.allCases.filter(used.contains),
+            stepsPerTier: [TechniqueTier.basic, .intermediate, .advanced, .expert].map { tier in
+                result.steps.filter { $0.technique.tier == tier }.count
+            },
+            openingSingles: opening.count
         )
         return (grade, result.board.values)
     }
 }
 
 extension PuzzleGrader {
-    /// Adds digits from the solution until the board reaches its level's target givens
-    /// (CODESPEC 2.2). Solution digits keep the puzzle unique. Easy adds at random; other levels
-    /// keep an added digit only if the level stays the same. Nil if the final board misses the
-    /// level or the target range.
+    /// Adds digits from the solution until the board meets its level's targets (CODESPEC 2.2).
+    /// Solution digits keep the puzzle unique. Cells go in random order, at most one pass; an added
+    /// digit stays only if the level stays the same. Once the givens reach the range, every step is
+    /// checked against all targets (opening singles and walls need not move one way), and the first
+    /// board inside them all is returned. Nil if none is.
     static func addingGivens(to values: [Int], solution: [Int], level: Difficulty,
                              using rng: inout some RandomNumberGenerator) -> (values: [Int], grade: PuzzleGrade)? {
+        let targets = level.targets
         var board = values
-        if let target = level.targetGivens {
-            var count = board.filter { $0 != 0 }.count
-            for cell in board.indices.filter({ board[$0] == 0 }).shuffled(using: &rng) where count < target.lowerBound {
-                board[cell] = solution[cell]
-                if level == .easy || grade(board)?.grade.difficulty == level {
-                    count += 1
-                } else {
-                    board[cell] = 0
-                }
-            }
+        var count = board.filter { $0 != 0 }.count
+        func accepted() -> PuzzleGrade? {
+            guard let graded = grade(board), graded.grade.difficulty == level, graded.solution == solution else { return nil }
+            return graded.grade
         }
-        guard let final = grade(board), final.grade.difficulty == level, final.solution == solution,
-              level.targetGivens?.contains(board.filter { $0 != 0 }.count) ?? true else { return nil }
-        return (board, final.grade)
+        if count >= targets.givens.lowerBound, let grade = accepted(), targets.isMet(by: grade, givens: count) {
+            return (board, grade)
+        }
+        for cell in board.indices.filter({ board[$0] == 0 }).shuffled(using: &rng) where count < targets.givens.upperBound {
+            board[cell] = solution[cell]
+            // Easy cannot leave Easy by gaining givens; grading it waits for the range.
+            if level == .easy && count + 1 < targets.givens.lowerBound {
+                count += 1
+                continue
+            }
+            guard let grade = accepted() else {
+                board[cell] = 0
+                continue
+            }
+            count += 1
+            if count >= targets.givens.lowerBound, targets.isMet(by: grade, givens: count) { return (board, grade) }
+        }
+        return nil
     }
 }
 

@@ -29,8 +29,8 @@ final class PuzzleGraderTests: XCTestCase {
                 XCTAssertEqual(regraded?.solution.map(String.init).joined(), result.puzzle.solutionGrid)
                 XCTAssertEqual(result.puzzle.isUnique, true)
                 let givens = result.puzzle.initialGrid.filter { $0 != "0" }.count
-                XCTAssertTrue(difficulty.targetGivens?.contains(givens) ?? true, "seed \(seed): \(givens) givens")
-                XCTAssertEqual(regraded?.grade, result.grade, "the stored grade is the final board's")
+                XCTAssertTrue(difficulty.targets.isMet(by: result.grade, givens: givens), "seed \(seed): \(givens) givens, \(result.grade)")
+                XCTAssertEqual(regraded?.grade, result.grade, "the stored grade is the final board's, complete")
             }
         }
     }
@@ -41,6 +41,9 @@ final class PuzzleGraderTests: XCTestCase {
             let result = service.generatePuzzle(for: difficulty, seed: 3)
             XCTAssertTrue(result.isBundled)
             XCTAssertEqual(result.grade.difficulty, difficulty)
+            XCTAssertEqual(PuzzleGrader.grade(values(result.puzzle.initialGrid))?.grade, result.grade,
+                           "the fallback carries the full grade")
+            XCTAssertTrue(difficulty.targets.isMet(by: result.grade, givens: result.puzzle.initialGrid.filter { $0 != "0" }.count))
         }
     }
 
@@ -54,8 +57,7 @@ final class PuzzleGraderTests: XCTestCase {
             XCTAssertEqual(SolutionCounter.count(grid), 1, entry.initialGrid)
             let regraded = PuzzleGrader.grade(grid)
             XCTAssertEqual(regraded?.grade.difficulty, entry.difficulty)
-            XCTAssertEqual(regraded?.grade.score, entry.score)
-            XCTAssertEqual(regraded?.grade.techniques, entry.techniques)
+            XCTAssertEqual(regraded?.grade, entry.grade, "score, techniques, steps per tier and opening singles")
             XCTAssertEqual(regraded?.solution.map(String.init).joined(), entry.solutionGrid)
         }
     }
@@ -90,41 +92,87 @@ final class PuzzleGraderTests: XCTestCase {
         XCTAssertEqual(Technique.pointing.level, .medium)
     }
 
-    /// Target givens per level (issue #60). Drill-only lines keep their original minimal boards.
-    func testBundledPuzzlesHaveTheirLevelsTargetGivens() {
+    /// Every level offering meets its level's targets (issue #92). Practice-only lines may not.
+    func testBundledPuzzlesMeetTheirLevelsTargets() {
         for entry in BundledPuzzles.all where !entry.isDrillOnly {
             let givens = entry.initialGrid.filter { $0 != "0" }.count
-            XCTAssertTrue(entry.difficulty.targetGivens?.contains(givens) ?? true, "\(entry.difficulty): \(givens) givens")
-        }
-        XCTAssertEqual(Difficulty.easy.targetGivens, 36...40)
-        XCTAssertNil(Difficulty.master.targetGivens)
-    }
-
-    /// Add-back keeps the level: from each drill-only (minimal) board it reaches the target and
-    /// grades the same level, with the same solution.
-    func testAddingGivensKeepsTheLevel() throws {
-        for level in [Difficulty.easy, .medium, .hard, .expert] {
-            let entry = try XCTUnwrap(BundledPuzzles.all.first { $0.isDrillOnly && $0.difficulty == level }, "\(level)")
-            var rng = SeededRandomNumberGenerator(seed: 7)
-            let solution = values(entry.solutionGrid)
-            let minimal = values(entry.initialGrid)
-            let result = try XCTUnwrap(PuzzleGrader.addingGivens(to: minimal, solution: solution, level: level, using: &rng))
-            XCTAssertEqual(result.values.filter { $0 != 0 }.count, level.targetGivens?.lowerBound)
-            XCTAssertEqual(result.grade.difficulty, level)
-            XCTAssertEqual(SolutionCounter.count(result.values), 1)
-            XCTAssertEqual(PuzzleGrader.grade(result.values)?.grade, result.grade)
-            XCTAssertNil(PuzzleGrader.addingGivens(to: minimal, solution: solution, level: .master, using: &rng),
-                         "a board of another level is rejected")
+            XCTAssertTrue(entry.difficulty.targets.isMet(by: entry.grade, givens: givens), "\(entry.difficulty): \(entry.initialGrid)")
         }
     }
 
-    /// Add-back keeps every technique's drill count at least where it was before (issue #60).
-    func testDrillCoverageIsNoLowerThanBeforeAddBack() {
+    /// Targets and the metrics they read (CODESPEC 2.2).
+    func testLevelTargetsAndMetrics() throws {
+        XCTAssertEqual(Difficulty.easy.targets.givens, 38...44)
+        XCTAssertEqual(Difficulty.master.targets.givens, 22...26)
+        // TestData's puzzle: singles only, so no walls.
+        let grade = try XCTUnwrap(PuzzleGrader.grade(values(TestData.puzzle.initialGrid))?.grade)
+        XCTAssertEqual(grade.steps(atLeast: .intermediate), 0)
+        XCTAssertEqual(grade.stepsPerTier?.first, values(TestData.puzzle.initialGrid).filter { $0 == 0 }.count, "one single per empty cell")
+        // Opening singles: the union of placement cells from every Basic detector on the start board.
+        let board = SolverBoard(values: values(TestData.puzzle.initialGrid))
+        let cells = Set(Technique.allCases.filter { $0.tier == .basic }
+            .flatMap { LogicalSolver.steps(for: $0, on: board) }.flatMap { $0.placements.map(\.cell) })
+        XCTAssertEqual(grade.openingSingles, cells.count)
+        // Walls count steps, cumulative by tier.
+        let walled = PuzzleGrade(hardestTier: .advanced, score: 0, techniques: [], stepsPerTier: [30, 3, 2, 0], openingSingles: 4)
+        XCTAssertEqual(walled.steps(atLeast: .intermediate), 5)
+        XCTAssertEqual(walled.steps(atLeast: .advanced), 2)
+        XCTAssertTrue(Difficulty.expert.targets.isMet(by: walled, givens: 25))
+        XCTAssertFalse(Difficulty.expert.targets.isMet(by: walled, givens: 28), "givens out of range")
+        XCTAssertFalse(Difficulty.master.targets.isMet(by: walled, givens: 24), "Master needs 6 walls")
+        let unknown = PuzzleGrade(hardestTier: .advanced, score: 0, techniques: [])
+        XCTAssertNil(unknown.steps(atLeast: .intermediate))
+        XCTAssertFalse(Difficulty.expert.targets.isMet(by: unknown, givens: 25), "unknown metrics never pass")
+    }
+
+    /// Grades saved before issue #92 decode with the new metrics unknown (nil), never zero.
+    func testOldGradeDecodesWithUnknownMetrics() throws {
+        let old = #"{"hardestTier":2,"score":610,"techniques":["fullHouse","pointing"]}"#
+        let grade = try JSONDecoder().decode(PuzzleGrade.self, from: Data(old.utf8))
+        XCTAssertNil(grade.stepsPerTier)
+        XCTAssertNil(grade.openingSingles)
+        XCTAssertEqual(grade.difficulty, .medium)
+        let full = PuzzleGrade(hardestTier: .intermediate, score: 610, techniques: [.fullHouse, .pointing],
+                               stepsPerTier: [40, 2, 0, 0], openingSingles: 9)
+        XCTAssertEqual(try JSONDecoder().decode(PuzzleGrade.self, from: JSONEncoder().encode(full)), full)
+    }
+
+    /// Add-back from minimal boards: the result meets every target, keeps the level and the
+    /// solution, and grades the same when regraded.
+    func testAddingGivensMeetsTheTargets() throws {
+        for level in Difficulty.allCases {
+            let minimals = BundledPuzzles.all.filter { $0.isDrillOnly && $0.difficulty == level }
+            var result: (values: [Int], grade: PuzzleGrade)?
+            var minimal: [Int] = [], solution: [Int] = []
+            for entry in minimals where result == nil {
+                var rng = SeededRandomNumberGenerator(seed: 7)
+                minimal = values(entry.initialGrid)
+                solution = values(entry.solutionGrid)
+                result = PuzzleGrader.addingGivens(to: minimal, solution: solution, level: level, using: &rng)
+            }
+            let found = try XCTUnwrap(result, "\(level)")
+            let givens = found.values.filter { $0 != 0 }.count
+            XCTAssertTrue(level.targets.isMet(by: found.grade, givens: givens), "\(level)")
+            XCTAssertEqual(found.grade.difficulty, level)
+            XCTAssertTrue(zip(minimal, found.values).allSatisfy { $0 == 0 || $0 == $1 }, "only adds givens")
+            XCTAssertEqual(SolutionCounter.count(found.values), 1)
+            XCTAssertEqual(PuzzleGrader.grade(found.values)?.grade, found.grade)
+            // Adding givens never makes a puzzle harder, so asking for a harder level must fail.
+            if level != .master {
+                var rng = SeededRandomNumberGenerator(seed: 7)
+                XCTAssertNil(PuzzleGrader.addingGivens(to: found.values, solution: solution, level: .master, using: &rng),
+                             "a board of another level is rejected")
+            }
+        }
+    }
+
+    /// Every technique keeps at least the drills it had before issue #92 (the set from issue #60).
+    func testDrillCoverageIsNoLowerThanBefore() {
         let before: [Technique: Int] = [
-            .fullHouse: 600, .hiddenSingleBox: 600, .hiddenSingleLine: 588, .nakedSingle: 444, .pointing: 444,
-            .claiming: 214, .lockedPair: 85, .lockedTriple: 25, .nakedPair: 156, .hiddenPair: 134, .nakedTriple: 43,
-            .hiddenTriple: 8, .nakedQuad: 3, .xWing: 43, .skyscraper: 90, .twoStringKite: 78, .emptyRectangle: 31,
-            .swordfish: 4, .xyWing: 93, .xyzWing: 31, .wWing: 65, .simpleColoring: 7, .uniqueRectangle1: 9,
+            .fullHouse: 806, .hiddenSingleBox: 806, .hiddenSingleLine: 677, .nakedSingle: 506, .pointing: 526,
+            .claiming: 243, .lockedPair: 107, .lockedTriple: 30, .nakedPair: 193, .hiddenPair: 146, .nakedTriple: 46,
+            .hiddenTriple: 9, .nakedQuad: 4, .xWing: 49, .skyscraper: 95, .twoStringKite: 83, .emptyRectangle: 32,
+            .swordfish: 4, .xyWing: 102, .xyzWing: 34, .wWing: 68, .simpleColoring: 8, .uniqueRectangle1: 10,
             .uniqueRectangle2: 3, .uniqueRectangle4: 19, .bugPlusOne: 6, .xyChain: 120
         ]
         for (technique, count) in before {
@@ -132,14 +180,14 @@ final class PuzzleGraderTests: XCTestCase {
         }
     }
 
-    /// Generation with add-back stays inside the budget CODESPEC 2.2 gives it: 30 tries at about
-    /// 13 ms each, so 0.4 s on average per level (fixed seeds).
+    /// Generation to the targets stays inside the 0.4 s mean budget per level (CODESPEC 2.2),
+    /// failed tries and the fallback included (fixed seeds; 10 per level, as single runs vary a lot).
     func testGenerationTimePerLevelStaysInBudget() {
         let service = SudokuGeneratorService()
         for difficulty in Difficulty.allCases {
             let start = Date()
-            for seed in UInt64(21)...UInt64(25) { _ = service.generatePuzzle(for: difficulty, seed: seed) }
-            let average = Date().timeIntervalSince(start) / 5
+            for seed in UInt64(21)...UInt64(30) { _ = service.generatePuzzle(for: difficulty, seed: seed) }
+            let average = Date().timeIntervalSince(start) / 10
             print("generation \(difficulty): \(Int(average * 1000)) ms average")
             XCTAssertLessThan(average, 0.4, "\(difficulty)")
         }
