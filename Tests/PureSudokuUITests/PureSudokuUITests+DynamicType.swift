@@ -49,7 +49,7 @@ extension PureSudokuUITests {
 
         app.buttons["tab_journal"].tap()
         let display = element("settings_display", in: app)
-        for _ in 0..<10 where !display.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(display, in: app, swipes: 10)
         display.tap()
         XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
         attachScreenshot(app, "display-night", size: "ax5")
@@ -78,7 +78,6 @@ extension PureSudokuUITests {
         }
         XCTAssertTrue(button.isHittable, id)
     }
-
 
     /// At the largest size, a clash warning and a Check result together scroll inside the hint slot
     /// instead of clipping or pushing the keypad off screen (PR 54 review).
@@ -145,11 +144,11 @@ extension PureSudokuUITests {
         app.buttons["tab_journal"].tap()
         XCTAssertTrue(element("journalView", in: app).waitForExistence(timeout: 2))
         let row = element("journal_row_easy", in: app)
-        for _ in 0..<6 where !row.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(row, in: app, swipes: 6)
         XCTAssertTrue(row.isHittable)
         attachScreenshot(app, "journal")
         let display = element("settings_display", in: app)
-        for _ in 0..<8 where !display.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(display, in: app, swipes: 8)
         display.tap()
         XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["display_back"].isHittable)
@@ -192,7 +191,7 @@ extension PureSudokuUITests {
         var app = launchApp(Self.largeText + ["-uiTestNearlySolved"])
         let importButton = app.buttons["importPuzzleButton"]
         XCTAssertTrue(importButton.waitForExistence(timeout: 2))
-        for _ in 0..<6 where !importButton.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(importButton, in: app, swipes: 6)
         importButton.tap()
         XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["importTypeItIn"].isHittable)
@@ -219,7 +218,7 @@ extension PureSudokuUITests {
         app = launchApp(Self.largeText + ["-uiTestFirstNight"], skipFirstNight: false)
         app.buttons["tab_journal"].tap()
         let display = element("settings_display", in: app)
-        for _ in 0..<8 where !display.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(display, in: app, swipes: 8)
         display.tap()
         let night = app.buttons["display_appearance_night"]
         XCTAssertTrue(night.waitForExistence(timeout: 2))
@@ -227,17 +226,17 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("firstNight", in: app).waitForExistence(timeout: 3))
         attachScreenshot(app, "first-night")
         let calibrate = app.buttons["firstNight_calibrate"]
-        for _ in 0..<4 where !calibrate.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(calibrate, in: app, swipes: 4)
         calibrate.tap()
         XCTAssertTrue(app.buttons["calibrate_14"].waitForExistence(timeout: 2))
         attachScreenshot(app, "first-night-calibrate")
         app.buttons["calibrate_14"].tap()
         let use = app.buttons["calibrate_use"]
-        for _ in 0..<4 where !use.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(use, in: app, swipes: 4)
         use.tap()
         let start = app.buttons["firstNight_start"]
         XCTAssertTrue(start.waitForExistence(timeout: 2))
-        for _ in 0..<4 where !start.isHittable { app.swipeUp() }
+        scrollClearOfTabBar(start, in: app, swipes: 4)
         start.tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
         let day = app.buttons["display_appearance_day"]

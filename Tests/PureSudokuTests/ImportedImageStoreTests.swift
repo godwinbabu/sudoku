@@ -38,21 +38,24 @@ final class ImportImageLifecycleTests: XCTestCase {
         FileManager.default.fileExists(atPath: dir.appendingPathComponent("ImportedImages/\(id).jpg").path)
     }
 
-    func testEveryImportKeepsItsImage() throws {
+    func testEveryImportKeepsItsImage() async throws {
         let (controller, dir) = makeTestController()
         let first = try XCTUnwrap(controller.saveImportedImage(image()))
-        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: first))
+        let made = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: first)
+        XCTAssertNotNil(made)
         let second = try XCTUnwrap(controller.saveImportedImage(image()))
         XCTAssertTrue(imageExists(second, in: dir), "pending image must survive cleanup")
-        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: second))
+        let madeSecond = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: second)
+        XCTAssertNotNil(madeSecond)
         XCTAssertTrue(imageExists(first, in: dir))
         XCTAssertTrue(imageExists(second, in: dir))
     }
 
-    func testDeletingImportedGameRemovesItsImage() throws {
+    func testDeletingImportedGameRemovesItsImage() async throws {
         let (controller, dir) = makeTestController()
         let id = try XCTUnwrap(controller.saveImportedImage(image()))
-        let game = try XCTUnwrap(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: id))
+        let gameMade = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: id)
+        let game = try XCTUnwrap(gameMade)
         XCTAssertEqual(controller.savedImports.map(\.id), [game.id])
         controller.deleteImportedGame(id: game.id)
         XCTAssertTrue(controller.savedImports.isEmpty)
@@ -69,7 +72,7 @@ final class ImportImageLifecycleTests: XCTestCase {
         XCTAssertFalse(imageExists(id, in: dir))
     }
 
-    func testDamagedImportListKeepsOldPhotos() throws {
+    func testDamagedImportListKeepsOldPhotos() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let imagesDir = dir.appendingPathComponent("ImportedImages", isDirectory: true)
         let store = ImportedImageStore(directory: imagesDir)
@@ -77,7 +80,8 @@ final class ImportImageLifecycleTests: XCTestCase {
         try Data("not json".utf8).write(to: dir.appendingPathComponent("imported_games.json"))
         let controller = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: store)
         let newID = try XCTUnwrap(controller.saveImportedImage(image()))
-        XCTAssertNotNil(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: newID))
+        let made = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid, imageID: newID)
+        XCTAssertNotNil(made)
         XCTAssertTrue(imageExists(oldID, in: dir), "photo of the backed-up list must survive")
     }
 

@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class PureSudokuUITests: XCTestCase {
     override func setUp() {
         continueAfterFailure = false
@@ -143,12 +144,45 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 
+    /// In Night, the first tap after waking from Hush reaches the control under it (issue #67).
+    func testFirstTapAfterHushInNightWorks() {
+        let app = launchApp(["-uiTestSlowHushFade"]) // a 3 s fade, so Back lands while it runs
+        startLevel("easy", in: app)
+        let game = element("gameView", in: app)
+        XCTAssertTrue(game.waitForExistence(timeout: 2))
+        app.buttons["nightButton"].tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        app.buttons["night_appearance_night"].tap()
+        app.buttons["night_close"].tap()
+        XCTAssertTrue(waitForAbsence(sheet, timeout: 6))
+        let back = app.buttons["backButton"]
+        let backPoint = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: back.frame.midX, dy: back.frame.midY))
+        let hush = element("hushView", in: app)
+        // Waking right over Back must not also press it.
+        game.twoFingerTap()
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        backPoint.tap()
+        XCTAssertTrue(waitForAbsence(hush, timeout: 5))
+        XCTAssertFalse(element("homeView", in: app).exists, "the wake tap does not press Back")
+        game.twoFingerTap()
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        Thread.sleep(forTimeInterval: 4) // past the 3.5 s text fade, as in the report
+        let start = Date() // before the wake tap, so any idle wait inside either tap counts
+        hush.tap()
+        back.tap()
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2.5, "wake and Back both done while the 3 s fade still ran")
+        XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2), "the first tap on Back works")
+    }
+
     func testNotesBadgeToggles() {
         let app = launchApp()
         startLevel("easy", in: app)
         let notes = app.buttons["tool_notes"]
         XCTAssertTrue(notes.waitForExistence(timeout: 2))
         XCTAssertEqual(notes.value as? String, "Off")
+        XCTAssertEqual(notes.label, "Notes", "the ON/OFF badge is not read twice")
         notes.tap()
         XCTAssertEqual(notes.value as? String, "On")
         XCTAssertTrue(app.staticTexts["Notes on — digits go in as pencil marks"].exists)
@@ -487,6 +521,14 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(lesson.waitForExistence(timeout: 2))
         for _ in 0..<4 where !lesson.isHittable { app.swipeUp() }
         lesson.tap()
+    }
+
+    /// Swipes up until `element` sits fully above the app's tab bar (or the window's bottom).
+    /// isHittable stays true while a row is half under the tab bar, and a tap there hits the tab (#79).
+    func scrollClearOfTabBar(_ element: XCUIElement, in app: XCUIApplication, swipes: Int = 8) {
+        let tab = app.buttons["tab_play"]
+        let bottom = tab.exists ? tab.frame.minY : app.windows.firstMatch.frame.maxY
+        for _ in 0..<swipes where !element.exists || element.frame.maxY > bottom { app.swipeUp() }
     }
 
     func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {

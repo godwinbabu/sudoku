@@ -62,9 +62,13 @@ private struct PlayTab: View {
                      onImport: { path.append(ImportRoute()) }, onOpenImport: openImportedGame)
                 .tabBar($tab)
                 .navigationDestination(for: GameRoute.self) { route in
-                    let viewModel = routeViewModels[route.id] ?? makeViewModel(for: route)
-                    GameView(viewModel: viewModel, difficulty: route.difficulty)
-                        .onDisappear { routeViewModels.removeValue(forKey: route.id) }
+                    if let viewModel = routeViewModels[route.id] ?? makeViewModel(for: route) {
+                        GameView(viewModel: viewModel, difficulty: route.difficulty)
+                            .onDisappear { routeViewModels.removeValue(forKey: route.id) }
+                    } else {
+                        // The game is gone (e.g. a pruned import): drop the route instead of opening another game.
+                        Color.clear.onAppear { if !path.isEmpty { path.removeLast() } }
+                    }
                 }
                 .navigationDestination(for: ImportRoute.self) { _ in
                     ImportPuzzleView(viewModel: ImportPuzzleViewModel(controller: controller)) { imported in
@@ -85,15 +89,15 @@ private struct PlayTab: View {
         open(difficulty) { viewModel.continueGame(for: difficulty) }
     }
 
-    private func open(_ difficulty: Difficulty, _ make: @escaping () async -> GameViewModel) {
+    private func open(_ difficulty: Difficulty, _ make: @escaping () async -> GameViewModel?) {
         guard !isOpeningGame else { return }
         isOpeningGame = true
         Task {
-            let gameViewModel = await make()
+            defer { isOpeningGame = false }
+            guard let gameViewModel = await make() else { return }
             let route = GameRoute(kind: .difficulty(difficulty))
             routeViewModels[route.id] = gameViewModel
             path.append(route)
-            isOpeningGame = false
         }
     }
 
@@ -105,12 +109,12 @@ private struct PlayTab: View {
         path.append(route)
     }
 
-    private func makeViewModel(for route: GameRoute) -> GameViewModel {
+    private func makeViewModel(for route: GameRoute) -> GameViewModel? {
         switch route.kind {
         case let .difficulty(difficulty):
-            return controller.makeGameViewModel(for: difficulty)
-        case let .imported(id, _):
-            return controller.makeImportedGameViewModel(id: id) ?? controller.makeGameViewModel(for: .easy)
+            return viewModel.routeGame(importID: nil, difficulty: difficulty)
+        case let .imported(id, difficulty):
+            return viewModel.routeGame(importID: id, difficulty: difficulty)
         }
     }
 }

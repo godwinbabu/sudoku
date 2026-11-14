@@ -70,7 +70,12 @@ struct GameView: View {
                     .padding(.horizontal, 18)
                     .opacity(isDone ? 0.3 : 1)
                 NumberPadView(theme: theme, remaining: viewModel.remaining,
-                              isNotesMode: viewModel.inputMode == .candidate) { viewModel.setDigit($0) }
+                              isNotesMode: viewModel.inputMode == .candidate) { digit in
+                    viewModel.setDigit(digit)
+                    if let message = viewModel.placedAnnouncement(digit) {
+                        UIAccessibility.post(notification: .announcement, argument: message)
+                    }
+                }
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
                     .padding(.bottom, 4)
@@ -83,13 +88,17 @@ struct GameView: View {
         .overlay(alignment: .topTrailing) { menu(theme: theme) }
         .overlay { confirmation(theme: theme) }
         .overlay {
-            if isHushed {
-                BlackoutView(theme: theme, text: "Tap anywhere to return", onTap: endHush)
-                    .accessibilityIdentifier("hushView")
-            } else if isGoodnight {
-                BlackoutView(theme: theme, text: "Sleep well.", serif: true) { popToRoot() }
-                    .accessibilityIdentifier("goodnightView")
+            Group {
+                if isHushed {
+                    BlackoutView(theme: theme, text: "Tap anywhere to return", onTap: endHush)
+                        .accessibilityIdentifier("hushView")
+                } else if isGoodnight {
+                    BlackoutView(theme: theme, text: "Sleep well.", serif: true) { popToRoot() }
+                        .accessibilityIdentifier("goodnightView")
+                }
             }
+            // A blackout still fading out must not take the next tap (issue #67).
+            .allowsHitTesting(isHushed || isGoodnight)
         }
         .background(TwoFingerTapCatcher(action: hush))
         .environment(\.psPalette, theme)
@@ -103,7 +112,7 @@ struct GameView: View {
         .onChange(of: driftIsActive) { _ in updateDrift() }
         .onChange(of: controller.showsFirstNight, perform: firstNightChanged)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHushed)
+        .animation(reduceMotion ? nil : .easeInOut(duration: Self.hushFade), value: isHushed)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isGoodnight)
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(isHushed || isGoodnight || (theme.isNight && controller.settings.hideStatusBarInGames))
@@ -420,6 +429,13 @@ struct GameView: View {
             viewModel.resumeTimer()
         }
     }
+
+    #if DEBUG
+    /// UI tests only: a 3 s fade, so a test can tap while the blackout is still fading (issue #67).
+    private static let hushFade = ProcessInfo.processInfo.arguments.contains("-uiTestSlowHushFade") ? 3.0 : 0.3
+    #else
+    private static let hushFade = 0.3
+    #endif
 
     private func endHush() {
         isHushed = false

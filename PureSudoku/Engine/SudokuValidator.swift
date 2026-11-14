@@ -2,7 +2,7 @@ import Foundation
 
 struct SudokuValidator {
     func isValid(solution: String) -> Bool {
-        guard solution.count == 81 else { return false }
+        guard solution.count == 81, solution.allSatisfy({ "123456789".contains($0) }) else { return false }
         let digits = Array(solution)
         for row in 0..<9 {
             var set = Set<Character>()

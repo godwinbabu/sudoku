@@ -383,7 +383,7 @@ final class LearningTests: XCTestCase {
     func testUndoAndResumeKeepAHintExcluded() async throws {
         let (controller, dir) = makeTestController()
         await controller.startNewGame(for: .easy)
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.fillAllNotes()
         viewModel.requestHint()
         let placement = try XCTUnwrap(viewModel.hint?.step?.placements.first)
@@ -391,7 +391,7 @@ final class LearningTests: XCTestCase {
         viewModel.undo() // takes back Fill all notes; the game no longer holds anything about the hint
         let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
         let reloaded = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: images)
-        let resumed = reloaded.makeGameViewModel(for: .easy)
+        let resumed = reloaded.makeGameViewModel(for: .easy)!
         resumed.select(cell: resumed.state.cells.first { $0.index == placement.cell }!)
         resumed.setDigit(placement.digit)
         await pause()
@@ -592,7 +592,7 @@ final class LearningTests: XCTestCase {
                          HintLogEntry(technique: "mistake", deepestRung: 3, applied: true)]
         try PersistenceManager(directory: dir).save(state, to: "game_easy.json")
         let reloaded = reload(dir)
-        let game = reloaded.makeGameViewModel(for: .easy)
+        let game = reloaded.makeGameViewModel(for: .easy)!
         let id = state.puzzle.id
         XCTAssertEqual(reloaded.learningLedger.hintedTechniques, ["\(id)|hiddenSingleBox", "\(id)|pointing"])
         game.onTechniqueFound?(.hiddenSingleBox, id, .placed(cell: 0, digit: 1))

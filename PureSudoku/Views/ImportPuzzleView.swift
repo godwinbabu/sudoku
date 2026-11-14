@@ -228,7 +228,7 @@ struct ImportPuzzleView: View {
             .frame(width: 120)
             .accessibilityIdentifier("importClearCell")
             Button {
-                if let game = viewModel.createImportedGame() { onStart(game) }
+                Task { if let game = await viewModel.createImportedGame() { onStart(game) } }
             } label: {
                 Text("Start puzzle").frame(maxWidth: .infinity)
             }
@@ -269,6 +269,11 @@ struct ImportPuzzleView: View {
                 Text(viewModel.validationMessage)
                     .psFont(14).foregroundColor(theme.ink2)
                     .accessibilityIdentifier("importStatus")
+                if let note = viewModel.ambiguityNote {
+                    Text(note).psFont(14).foregroundColor(theme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("importAmbiguityNote")
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

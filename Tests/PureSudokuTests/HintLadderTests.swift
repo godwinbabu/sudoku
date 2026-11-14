@@ -61,7 +61,14 @@ final class HintLadderTests: XCTestCase {
         XCTAssertEqual(clash.highlight.evidenceCells, [24])
         XCTAssertTrue(clash.highlight.areaCells.isSuperset(of: House(kind: .row, index: 2).cells))
         clash.next()
-        XCTAssertEqual(clash.text(.grid), "Each digit goes once in a row, column and box. R3 already has a 7 in R3C7, so this one has to go.")
+        XCTAssertEqual(clash.text(.grid), "R3 already has a 7 (C7).")
+        XCTAssertEqual(clash.text(.plain), "Row 3 already has a 7 (column 7).")
+        let inColumn = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(8, clash: 74)), level: 3)
+        XCTAssertEqual(inColumn.text(.plain), "Column 3 already has an 8 (row 9).")
+        XCTAssertEqual(inColumn.text(.grid), "C3 already has an 8 (R9).")
+        let inBox = HintSession(content: .mistake(cell: 20, kind: .wrongDigit(8, clash: 0)), level: 3)
+        XCTAssertEqual(inBox.text(.plain), "Box 1 already has an 8 (row 1, column 1).")
+        XCTAssertEqual(inBox.text(.grid), "B1 already has an 8 (R1C1).")
         XCTAssertEqual(HintSession(content: .mistake(cell: 20, kind: .wrongDigit(7))).text(.grid), "Something in B1 doesn't fit.")
     }
 
