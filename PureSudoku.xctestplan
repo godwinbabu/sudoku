@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "5E1C7A52-3F0B-4C2E-9D6A-1B8F2C4D7E90",
+      "name" : "Default",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:PureSudoku.xcodeproj",
+        "identifier" : "00000000000000000000006F",
+        "name" : "PureSudokuTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:PureSudoku.xcodeproj",
+        "identifier" : "000000000000000000000070",
+        "name" : "PureSudokuUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

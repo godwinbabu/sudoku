@@ -83,7 +83,8 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    private var timer: Timer?
+    /// nonisolated(unsafe): only `deinit` touches it off the main actor, when nothing else can.
+    nonisolated(unsafe) private var timer: Timer?
     private var lastTickDate: Date?
     private var isManuallyPaused = false
     private var isBackgroundPaused = false
@@ -835,10 +836,12 @@ extension GameViewModel {
         guard firstMistake() == nil else { return }
         let unique = state.puzzle.isUnique
         let puzzleID = state.puzzle.id
-        Task.detached(priority: .utility) {
-            guard let technique = MasteryJudge.technique(for: move, on: board, allowsUniqueness: unique) else { return }
+        Task {
+            let technique = await Task.detached(priority: .utility) {
+                MasteryJudge.technique(for: move, on: board, allowsUniqueness: unique)
+            }.value
             // The puzzle id was taken with the move, so a credit never lands on a puzzle loaded since.
-            await MainActor.run { onTechniqueFound(technique, puzzleID, move) }
+            if let technique { onTechniqueFound(technique, puzzleID, move) }
         }
     }
 

@@ -232,7 +232,8 @@ struct BlackoutView: View {
 
 /// Pops the main navigation stack back to the menu (Goodnight from a practice game, CODESPEC 3.2).
 private struct PopToRootKey: EnvironmentKey {
-    static let defaultValue: () -> Void = {}
+    /// A no-op that is never mutated, so sharing it across actors is safe.
+    nonisolated(unsafe) static let defaultValue: () -> Void = {}
 }
 
 extension EnvironmentValues {

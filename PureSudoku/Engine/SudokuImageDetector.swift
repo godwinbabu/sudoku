@@ -58,16 +58,15 @@ struct SudokuImageDetector {
         return (value, confidence < unsureConfidence)
     }
 
-    func detectGrid(from image: UIImage, progress: @escaping (ReadProgress) -> Void = { _ in }) async throws -> DetectedGrid {
+    func detectGrid(from image: UIImage, progress: @escaping @Sendable (ReadProgress) -> Void = { _ in }) async throws -> DetectedGrid {
         // Camera photos are stored sideways with a rotation flag that `cgImage` ignores.
         guard let cgImage = Self.upright(image).cgImage else {
             throw DetectionError.invalidImage
         }
 
-        let gridObservation = try await detectGridObservation(in: cgImage)
-        let corners = [gridObservation.topLeft, gridObservation.topRight, gridObservation.bottomRight, gridObservation.bottomLeft]
+        let corners = try await detectGridCorners(in: cgImage)
         progress(ReadProgress(corners: corners, cellsChecked: 0))
-        let warped = try warpGrid(from: cgImage, observation: gridObservation)
+        let warped = try warpGrid(from: cgImage, corners: corners)
         let cells = zip(splitIntoCells(image: warped), splitIntoCells(image: warped, inset: 0.18)).map { ($0, $1) }
         return try await recognizeDigits(in: cells) { progress(ReadProgress(corners: corners, cellsChecked: $0)) }
     }
@@ -82,7 +81,9 @@ struct SudokuImageDetector {
         }
     }
 
-    private func detectGridObservation(in cgImage: CGImage) async throws -> VNRectangleObservation {
+    /// The best rectangle's corners: top left, top right, bottom right, bottom left (plain points, so
+    /// nothing non-Sendable leaves Vision's callback).
+    private func detectGridCorners(in cgImage: CGImage) async throws -> [CGPoint] {
         try await withCheckedThrowingContinuation { continuation in
             let request = VNDetectRectanglesRequest { request, error in
                 if let error {
@@ -98,7 +99,7 @@ struct SudokuImageDetector {
                     continuation.resume(throwing: DetectionError.gridNotFound)
                     return
                 }
-                continuation.resume(returning: best)
+                continuation.resume(returning: [best.topLeft, best.topRight, best.bottomRight, best.bottomLeft])
             }
             request.maximumObservations = 1
             request.minimumConfidence = 0.6
@@ -113,13 +114,11 @@ struct SudokuImageDetector {
         }
     }
 
-    private func warpGrid(from cgImage: CGImage, observation: VNRectangleObservation) throws -> UIImage {
+    private func warpGrid(from cgImage: CGImage, corners: [CGPoint]) throws -> UIImage {
         let image = CIImage(cgImage: cgImage)
         let size = image.extent.size
-        let topLeft = CGPoint(x: observation.topLeft.x * size.width, y: observation.topLeft.y * size.height)
-        let topRight = CGPoint(x: observation.topRight.x * size.width, y: observation.topRight.y * size.height)
-        let bottomLeft = CGPoint(x: observation.bottomLeft.x * size.width, y: observation.bottomLeft.y * size.height)
-        let bottomRight = CGPoint(x: observation.bottomRight.x * size.width, y: observation.bottomRight.y * size.height)
+        let pixels = corners.map { CGPoint(x: $0.x * size.width, y: $0.y * size.height) }
+        let (topLeft, topRight, bottomRight, bottomLeft) = (pixels[0], pixels[1], pixels[2], pixels[3])
 
         guard let filter = CIFilter(name: "CIPerspectiveCorrection") else {
             throw DetectionError.processingFailed

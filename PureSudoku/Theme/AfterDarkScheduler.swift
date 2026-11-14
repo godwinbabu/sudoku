@@ -204,9 +204,14 @@ final class AfterDarkScheduler: NSObject {
         onBoundary()
     }
 
-    @objc private func clockChanged() {
+    /// The system can post clock and time-zone changes off the main thread; Swift 6 would trap there.
+    @objc nonisolated private func clockChanged() {
         NSTimeZone.resetSystemTimeZone()
-        refresh()
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { refresh() }
+        } else {
+            Task { @MainActor in self.refresh() }
+        }
     }
 
     private static func isAllowed(_ status: CLAuthorizationStatus) -> Bool {
