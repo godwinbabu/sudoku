@@ -21,10 +21,25 @@ final class AppBundleTests: XCTestCase {
         XCTAssertEqual(timestamp["NSPrivacyAccessedAPITypeReasons"] as? [String], ["C617.1"])
     }
 
-    func testInfoPlistVersionsComeFromBuildSettings() {
+    /// Values are not pinned: a release raises the build number (README, Release).
+    func testInfoPlistVersionsResolveAndEncryptionIsDeclared() throws {
         let info = appBundle.infoDictionary ?? [:]
-        XCTAssertEqual(info["CFBundleShortVersionString"] as? String, "1.0")
-        XCTAssertEqual(info["CFBundleVersion"] as? String, "1")
+        let version = try XCTUnwrap(info["CFBundleShortVersionString"] as? String)
+        let build = try XCTUnwrap(info["CFBundleVersion"] as? String)
+        XCTAssertNotNil(version.range(of: #"^\d+(\.\d+){0,2}$"#, options: .regularExpression), version)
+        XCTAssertNotNil(build.range(of: #"^\d+(\.\d+){0,2}$"#, options: .regularExpression), build)
         XCTAssertEqual(info["ITSAppUsesNonExemptEncryption"] as? Bool, false)
+    }
+
+    /// The source plist must read the build settings, or `agvtool next-version` would not change the upload.
+    func testInfoPlistReadsVersionBuildSettings() throws {
+        let plist = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("PureSudoku/Supporting/Info.plist")
+        let source = try XCTUnwrap(
+            PropertyListSerialization.propertyList(from: Data(contentsOf: plist), format: nil) as? [String: Any]
+        )
+        XCTAssertEqual(source["CFBundleShortVersionString"] as? String, "$(MARKETING_VERSION)")
+        XCTAssertEqual(source["CFBundleVersion"] as? String, "$(CURRENT_PROJECT_VERSION)")
     }
 }
