@@ -60,8 +60,9 @@ struct NightSheetView: View {
     }
 
     private var backdrop: some View {
-        // Black at 55% at night; warm brown at 18% in Day.
-        (theme.isNight ? Color.black.opacity(0.55) : Color(.sRGB, red: 40 / 255, green: 30 / 255, blue: 10 / 255).opacity(0.18))
+        // Black at 55% at night and in Dark; warm brown at 18% in Day.
+        let warm = Color(.sRGB, red: 40 / 255, green: 30 / 255, blue: 10 / 255).opacity(0.18)
+        return (theme.isNight || theme.isDark ? Color.black.opacity(0.55) : warm)
             .ignoresSafeArea()
             .contentShape(Rectangle())
             .onTapGesture(perform: close)
@@ -71,7 +72,8 @@ struct NightSheetView: View {
 
     @ViewBuilder
     private func controls(_ settings: Settings) -> some View {
-        let nightControls = settings.appearance != .day
+        // Match iPhone gives Day or Dark, never Night, so the Night tuning is hidden there (Display & Night keeps it).
+        let nightControls = settings.appearance == .night || settings.appearance == .afterDark
         let night = PSPalette.night(glow: settings.glow, warmth: settings.warmth, clarity: settings.clarity)
         HStack {
             Text("Night")
@@ -91,8 +93,7 @@ struct NightSheetView: View {
                         selection: settings.appearance == .matchSystem ? nil : settings.appearance,
                         idPrefix: "night_appearance_", onSelect: viewModel.setAppearance)
             if settings.appearance == .matchSystem {
-                // The night controls below show in iOS Light too; say when they apply.
-                Text("Used when your iPhone is in Dark mode.")
+                Text("Follows your iPhone: Day or Dark.")
                     .psFont(13)
                     .foregroundStyle(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)

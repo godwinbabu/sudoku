@@ -99,13 +99,18 @@ struct Settings: Codable, Equatable {
 
     static var `default`: Settings { Settings() }
 
-    /// Night is active when appearance is .night, .afterDark inside the window, or .matchSystem
-    /// with a dark iPhone setting.
+    /// What to draw: Match iPhone is Day or Dark with iOS; Night is .night, or .afterDark inside the window.
+    func look(now: Date = Date(), sunset: Date? = nil, sunrise: Date? = nil, systemIsDark: Bool, calendar: Calendar = .current) -> Look {
+        if appearance == .matchSystem { return systemIsDark ? .dark : .day }
+        return isNight(now: now, sunset: sunset, sunrise: sunrise, systemIsDark: systemIsDark, calendar: calendar) ? .night : .day
+    }
+
+    /// Night is active when appearance is .night, or .afterDark inside the window. Match iPhone never
+    /// brings Night: iOS Dark mode gives the Dark look (CODESPEC 7.1).
     func isNight(now: Date = Date(), sunset: Date? = nil, sunrise: Date? = nil, systemIsDark: Bool, calendar: Calendar = .current) -> Bool {
         switch appearance {
-        case .day: return false
+        case .day, .matchSystem: return false
         case .night: return true
-        case .matchSystem: return systemIsDark
         case .afterDark:
             if useLocationForAfterDark, let sunset, let sunrise { return now >= sunset || now < sunrise }
             let today = calendar.startOfDay(for: now)

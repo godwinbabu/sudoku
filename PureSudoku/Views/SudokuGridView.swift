@@ -133,9 +133,9 @@ struct CellState: Equatable {
     var isTarget = false
     var isRuledOut = false
 
-    /// At night a same-digit cell is also ringed, so it shows by shape; the selection and hint rings win.
-    func showsSameDigitRing(night: Bool) -> Bool {
-        night && isSameDigit && !isSelected && !isEvidence && !isTarget
+    /// In Night and Dark a same-digit cell is also ringed, so it shows by shape; the selection and hint rings win.
+    func showsSameDigitRing(enabled: Bool) -> Bool {
+        enabled && isSameDigit && !isSelected && !isEvidence && !isTarget
     }
 }
 
@@ -150,7 +150,7 @@ struct SudokuCellView: View {
 
     var body: some View {
         ZStack {
-            if state.showsSameDigitRing(night: theme.isNight) {
+            if state.showsSameDigitRing(enabled: theme.ringsSameDigit) {
                 // Thinner and inset, so it never reads as the selection ring (CODESPEC 7.3).
                 RoundedRectangle(cornerRadius: 4).strokeBorder(theme.accent, lineWidth: 1.5).padding(3)
             }
@@ -208,7 +208,7 @@ struct SudokuCellView: View {
         } else if let ghost = hint.ghost {
             Text("\(ghost)")
                 .font(.system(size: digitSize, weight: type.userWeight).monospacedDigit())
-                .foregroundStyle(theme.accent.opacity(theme.isNight ? 0.75 : 0.55))
+                .foregroundStyle(theme.accent.opacity(theme.isNight || theme.isDark ? 0.75 : 0.55))
                 .accessibilityIdentifier("hintGhost")
         } else if !hint.candidates(cell).isEmpty {
             notes

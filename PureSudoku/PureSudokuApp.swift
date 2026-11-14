@@ -42,8 +42,9 @@ struct RootView: View {
             updateDisplay()
         }
         .onChangeOf(controller.settings) { _ in updateDisplay() }
-        // After dark can flip on any redraw (e.g. an autosave); Match iPhone flips with iOS dark mode.
-        .onChangeOf(controller.isNight) { _ in updateDisplay() }
+        // After dark can flip on any redraw (e.g. an autosave); Match iPhone flips Day ↔ Dark with iOS.
+        // The look, not isNight: Day ↔ Dark keeps isNight false but changes the UIKit colours.
+        .onChangeOf(controller.look) { _ in updateDisplay() }
         .onChangeOf(controller.driftSteps) { _ in updateDisplay() }
         .onChangeOf(controller.isCalibrating) { _ in updateDisplay() }
         .onChangeOf(colorScheme) { _ in controller.objectWillChange.send() }

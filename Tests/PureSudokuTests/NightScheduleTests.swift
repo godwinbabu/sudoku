@@ -449,3 +449,63 @@ final class NightScheduleTests: XCTestCase {
         XCTAssertEqual(NightPreset.matching(controller.settings), .redLight)
     }
 }
+
+// The Dark theme (issue #94).
+extension NightScheduleTests {
+    /// Match iPhone with iOS dark is the Dark theme, not Night: no bedtime behaviour (CODESPEC 7.1, issue #94).
+    func testMatchIPhoneDarkIsTheDarkThemeNotNight() {
+        let (controller, _) = makeTestController()
+        controller.systemIsDark = { true }
+        controller.updateSettings {
+            $0.appearance = .matchSystem
+            $0.soundsEnabled = true
+            $0.hapticsEnabled = true
+        }
+        XCTAssertEqual(controller.look, .dark)
+        XCTAssertFalse(controller.isNight)
+        XCTAssertTrue(controller.palette.isDark)
+        XCTAssertFalse(controller.palette.isNight, "so Drift stays off in a game")
+        XCTAssertNil(controller.preferredColorScheme, "iOS keeps the scheme: dark, with no feedback")
+        XCTAssertTrue(controller.soundsActive)
+        XCTAssertTrue(controller.hapticsActive)
+        XCTAssertNil(ScreenBrightnessController.target(phase: .active, isNight: controller.isNight, isCalibrating: false,
+                                                       nightBacklight: controller.nightBacklight), "brightness untouched")
+        controller.updateFirstNight()
+        XCTAssertFalse(controller.showsFirstNight, "no first night in Dark")
+
+        controller.systemIsDark = { false }
+        XCTAssertEqual(controller.look, .day)
+        XCTAssertFalse(controller.palette.isDark)
+    }
+
+    /// Dark → Night starts the first night if still uncalibrated; Night → Dark gives the screen back. Tuning
+    /// and calibration survive the switches and a relaunch.
+    func testSwitchingBetweenDarkAndNight() {
+        let (controller, dir) = makeTestController()
+        controller.systemIsDark = { true }
+        controller.updateSettings { $0.appearance = .matchSystem; $0.glow = 33; $0.warmth = 80 }
+        controller.updateFirstNight()
+        XCTAssertFalse(controller.showsFirstNight)
+
+        controller.setAppearance(.night)
+        XCTAssertTrue(controller.isNight)
+        controller.updateFirstNight()
+        XCTAssertTrue(controller.showsFirstNight, "Dark → Night still calibrates the first time")
+        controller.calibrate(pick: 8)
+        controller.endFirstNight()
+        XCTAssertNotNil(ScreenBrightnessController.target(phase: .active, isNight: controller.isNight, isCalibrating: false,
+                                                          nightBacklight: controller.nightBacklight))
+
+        controller.setAppearance(.matchSystem)
+        XCTAssertEqual(controller.look, .dark)
+        XCTAssertNil(ScreenBrightnessController.target(phase: .active, isNight: controller.isNight, isCalibrating: false,
+                                                       nightBacklight: controller.nightBacklight), "Night → Dark restores")
+
+        let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
+        let reopened = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: images)
+        XCTAssertEqual(reopened.settings.appearance, .matchSystem)
+        XCTAssertTrue(reopened.settings.calibrated)
+        XCTAssertEqual(reopened.settings.glowFloor, 8)
+        XCTAssertEqual(reopened.settings.warmth, 80)
+    }
+}

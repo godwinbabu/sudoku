@@ -702,7 +702,7 @@ extension PureSudokuUITests {
     }
 }
 
-// Night highlights (issue #93).
+// Night highlights (issue #93) and the Dark theme (issue #94).
 extension PureSudokuUITests {
     /// In Night the board's highlights are visible: a selected given's row-mate (peer) and another copy of
     /// its digit (same) render brighter than a plain cell, and the selection brightest (issue #93).
@@ -712,33 +712,73 @@ extension PureSudokuUITests {
         XCTAssertTrue(waitUntilHittable(app.buttons["difficulty_easy"]))
         startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        let brightness = highlightBrightness(in: app)
+        XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
+        XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
+        app.buttons["backButton"].tap()
+        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+    }
 
+    /// Match iPhone follows iOS: Dark mode draws the grey Dark theme (not Night's black, not Day's paper),
+    /// with the same visible highlight ladder; Light mode goes back to Day (issue #94).
+    func testMatchIPhoneDarkShowsTheDarkTheme() {
+        let app = launchApp()
+        defer { XCUIDevice.shared.appearance = .light }
+        XCUIDevice.shared.appearance = .dark
+        app.buttons["tab_journal"].tap()
+        let display = element("settings_display", in: app)
+        XCTAssertTrue(display.waitForExistence(timeout: 2))
+        display.tap()
+        let original = ["day", "night", "afterDark", "matchSystem"].first { app.buttons["display_appearance_\($0)"].isSelected }
+        app.buttons["display_appearance_matchSystem"].tap()
+        XCTAssertFalse(element("firstNight", in: app).waitForExistence(timeout: 1), "Dark is not Night")
+        app.buttons["display_back"].tap()
+        XCTAssertTrue(waitUntilHittable(app.buttons["tab_play"]))
+        app.buttons["tab_play"].tap()
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+
+        let brightness = highlightBrightness(in: app)
+        // Dark's ground is #161513 (sum 62): not Night's black (0) and far from Day's paper (~700).
+        XCTAssertTrue((40...120).contains(brightness[0]), "Dark ground: \(brightness)")
+        XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
+        XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
+
+        XCUIDevice.shared.appearance = .light
+        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        let plainNow = highlightBrightness(in: app)[0]
+        XCTAssertGreaterThan(plainNow, 600, "iOS Light gives Day: \(plainNow)")
+
+        app.buttons["backButton"].tap()
+        app.buttons["tab_journal"].tap()
+        XCTAssertTrue(display.waitForExistence(timeout: 2))
+        display.tap()
+        if let original { app.buttons["display_appearance_\(original)"].tap() } // leave the app as found
+        app.buttons["display_back"].tap()
+    }
+
+    /// Selects a given whose digit appears again out of its sight, and returns the rendered fill brightness of
+    /// a plain cell, a peer, the other copy (same) and the selected cell, in that order.
+    private func highlightBrightness(in app: XCUIApplication) -> [Int] {
         let labels = boardLabels(in: app)
         func digit(_ index: Int) -> String? { labels[index].components(separatedBy: " value ").dropFirst().first }
         func sees(_ a: Int, _ b: Int) -> Bool {
             a / 9 == b / 9 || a % 9 == b % 9 || (a / 27 == b / 27 && a % 9 / 3 == b % 9 / 3)
         }
-        // A given whose digit also appears in a cell it does not see.
         var pick: (selected: Int, same: Int)?
         for a in 0..<81 where pick == nil {
             guard let value = digit(a) else { continue }
             if let b = (0..<81).first(where: { $0 != a && digit($0) == value && !sees(a, $0) }) { pick = (a, b) }
         }
-        guard let (selected, same) = pick else { return XCTFail("no repeated digit on the board") }
+        guard let (selected, same) = pick else { XCTFail("no repeated digit on the board"); return [] }
         let value = digit(selected)
         let peer = (0..<81).first { $0 != selected && sees(selected, $0) && digit($0) != value }!
         let plain = (0..<81).first { !sees(selected, $0) && digit($0) != value }!
         func cell(_ index: Int) -> XCUIElement { app.buttons["cell_\(index / 9)_\(index % 9)"] }
         cell(selected).tap()
         RunLoop.current.run(until: Date().addingTimeInterval(0.5)) // the highlight animates in
-
         let shot = XCUIScreen.main.screenshot().image
-        let brightness = [plain, peer, same, selected].map { fillBrightness(of: cell($0).frame, in: shot) }
-        XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
-        XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
-
-        app.buttons["backButton"].tap()
-        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+        return [plain, peer, same, selected].map { fillBrightness(of: cell($0).frame, in: shot) }
     }
 
     /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
