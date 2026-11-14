@@ -155,12 +155,22 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["night_appearance_night"].tap()
         app.buttons["night_close"].tap()
         XCTAssertTrue(waitForAbsence(sheet, timeout: 6))
-        game.twoFingerTap()
+        let back = app.buttons["backButton"]
+        let backPoint = app.coordinate(withNormalizedOffset: .zero)
+            .withOffset(CGVector(dx: back.frame.midX, dy: back.frame.midY))
         let hush = element("hushView", in: app)
+        // Waking right over Back must not also press it.
+        game.twoFingerTap()
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        backPoint.tap()
+        XCTAssertTrue(waitForAbsence(hush))
+        XCTAssertFalse(element("homeView", in: app).exists, "the wake tap does not press Back")
+        // Nothing between the wake tap and Back: a slower test lets the fade end and passes without the fix.
+        game.twoFingerTap()
         XCTAssertTrue(hush.waitForExistence(timeout: 2))
         Thread.sleep(forTimeInterval: 4) // past the 3.5 s text fade, as in the report
         hush.tap()
-        app.buttons["backButton"].tap()
+        back.tap()
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2), "the first tap on Back works")
     }
 
