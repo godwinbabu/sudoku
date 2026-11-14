@@ -30,9 +30,9 @@ final class ImportPuzzleViewModelTests: XCTestCase {
 
     /// A solve that finishes after a newer grid's solve never overwrites the newer result (issue 73).
     func testStaleSolveResultIsDropped() async throws {
-        let gate = Gate<Bool>()
+        let gate = Gate<Int>()
         let viewModel = ImportPuzzleViewModel(
-            isSolvable: { _ in await gate.wait() }, createGame: { _, _, _ in nil }, saveImage: { _ in nil }, deleteImage: { _ in }
+            countSolutions: { _ in await gate.wait() }, createGame: { _, _, _ in nil }, saveImage: { _ in nil }, deleteImage: { _ in }
         )
         viewModel.loadGrid(Self.givens)
         await waitUntil { gate.pending.count == 1 }
@@ -42,10 +42,10 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         await waitUntil { gate.pending.count == 2 }
         XCTAssertEqual(viewModel.solvableState, .unknown, "Checking until the current grid's result arrives")
 
-        gate.finish(1, with: false) // the newer grid
+        gate.finish(1, with: 0) // the newer grid
         await waitUntil { viewModel.solvableState != .unknown }
         XCTAssertEqual(viewModel.solvableState, .unsolvable)
-        gate.finish(0, with: true) // the older grid, late
+        gate.finish(0, with: 1) // the older grid, late
         for _ in 0..<5 { await Task.yield() }
         XCTAssertEqual(viewModel.solvableState, .unsolvable)
     }
@@ -54,7 +54,7 @@ final class ImportPuzzleViewModelTests: XCTestCase {
     func testEditDuringStartDropsTheGame() async throws {
         let gate = Gate<Void>()
         let viewModel = ImportPuzzleViewModel(
-            isSolvable: { _ in true },
+            countSolutions: { _ in 1 },
             createGame: { _, _, isCurrent in
                 await gate.wait()
                 return isCurrent() ? Self.game() : nil
@@ -79,7 +79,7 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         let gate = Gate<Void>()
         var deleted: [String] = []
         let viewModel = ImportPuzzleViewModel(
-            isSolvable: { _ in true },
+            countSolutions: { _ in 1 },
             createGame: { _, _, isCurrent in
                 await gate.wait()
                 return isCurrent() ? Self.game() : nil
@@ -112,6 +112,22 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         for _ in 0..<300 where !condition() {
             try? await Task.sleep(nanoseconds: 10_000_000)
         }
+    }
+
+    /// Two or more solutions: a note under the status, and Start stays enabled (issue 66, CODESPEC 2.1).
+    func testMultipleSolutionsShowANoteButAllowStart() async {
+        let viewModel = makeViewModel()
+        // The test puzzle's first three rows only: valid, with many solutions.
+        viewModel.loadGrid(Array(Self.givens.prefix(27)) + Array(repeating: nil, count: 54))
+        await waitUntil { viewModel.solvableState != .unknown }
+        XCTAssertEqual(viewModel.solvableState, .solvable)
+        XCTAssertEqual(viewModel.ambiguityNote, "This grid has more than one solution. Check the digits against your photo.")
+        XCTAssertTrue(viewModel.canStart)
+
+        viewModel.loadGrid(Self.givens)
+        XCTAssertNil(viewModel.ambiguityNote, "cleared while the new grid is checked")
+        await waitUntil { viewModel.solvableState != .unknown }
+        XCTAssertNil(viewModel.ambiguityNote)
     }
 
     func testRequiresMinimumClues() {
@@ -194,6 +210,27 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertEqual(SudokuImageDetector.reading(text: "4", confidence: 0.59)?.unsure, true)
         XCTAssertNil(SudokuImageDetector.reading(text: "0", confidence: 1))
         XCTAssertNil(SudokuImageDetector.reading(text: "12", confidence: 1))
+    }
+
+    /// A printed puzzle with thin 1s and digits next to the thick outer border (issue 66).
+    func testPrintedGridPhotoIsReadInFull() async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "printed-grid", withExtension: "png"))
+        let image = try XCTUnwrap(UIImage(contentsOfFile: url.path))
+        let grid = try await SudokuImageDetector().detectGrid(from: image)
+        let expected = "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
+        XCTAssertEqual(grid.values.map { String($0 ?? 0) }.joined(), expected)
+        XCTAssertTrue(grid.unsure.allSatisfy { grid.values[$0] != nil }, "no blank cell is ringed: \(grid.unsure.sorted())")
+    }
+
+    /// Text that was seen but not read as a digit is ringed and left blank, never dropped (issue 66).
+    func testRejectedCellIsRingedAndBlank() {
+        var readings = [SudokuImageDetector.CellReading](repeating: .empty, count: 81)
+        readings[0] = .digit(5, unsure: false)
+        readings[1] = .digit(3, unsure: true)
+        readings[2] = .rejected
+        let grid = SudokuImageDetector.grid(from: readings)
+        XCTAssertEqual(Array(grid.values.prefix(4)), [5, 3, nil, nil])
+        XCTAssertEqual(grid.unsure, [1, 2])
     }
 
     private func makeViewModel() -> ImportPuzzleViewModel {

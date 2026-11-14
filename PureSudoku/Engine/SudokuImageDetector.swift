@@ -12,8 +12,32 @@ struct SudokuImageDetector {
 
     struct DetectedGrid: Equatable {
         var values: [Int?]
-        /// Cells whose digit was read with low confidence (ringed on Check the grid).
+        /// Cells whose digit was read with low confidence, or where text was seen but no digit could be
+        /// read (left blank). Both are ringed on Check the grid.
         var unsure: Set<Int>
+    }
+
+    /// What one cell gave: a digit, text Vision saw but that isn't a usable digit, or nothing.
+    enum CellReading: Equatable {
+        case digit(Int, unsure: Bool)
+        case rejected
+        case empty
+    }
+
+    static func grid(from readings: [CellReading]) -> DetectedGrid {
+        var grid = DetectedGrid(values: Array(repeating: nil, count: 81), unsure: [])
+        for (index, reading) in readings.enumerated() {
+            switch reading {
+            case let .digit(digit, unsure):
+                grid.values[index] = digit
+                if unsure { grid.unsure.insert(index) }
+            case .rejected:
+                grid.unsure.insert(index)
+            case .empty:
+                break
+            }
+        }
+        return grid
     }
 
     /// Where reading is: the grid's corners (normalised, origin bottom left, on the upright image)
@@ -44,8 +68,8 @@ struct SudokuImageDetector {
         let corners = [gridObservation.topLeft, gridObservation.topRight, gridObservation.bottomRight, gridObservation.bottomLeft]
         progress(ReadProgress(corners: corners, cellsChecked: 0))
         let warped = try warpGrid(from: cgImage, observation: gridObservation)
-        let cellImages = splitIntoCells(image: warped)
-        return try await recognizeDigits(in: cellImages) { progress(ReadProgress(corners: corners, cellsChecked: $0)) }
+        let cells = zip(splitIntoCells(image: warped), splitIntoCells(image: warped, inset: 0.18)).map { ($0, $1) }
+        return try await recognizeDigits(in: cells) { progress(ReadProgress(corners: corners, cellsChecked: $0)) }
     }
 
     /// Redraws the image so its pixels are upright (orientation `.up`, mirroring applied).
@@ -117,14 +141,15 @@ struct SudokuImageDetector {
         return UIImage(cgImage: corrected)
     }
 
-    private func splitIntoCells(image: UIImage) -> [UIImage] {
+    /// `inset` is the share of the cell trimmed from each side, to drop the grid lines.
+    private func splitIntoCells(image: UIImage, inset: Double = 0.08) -> [UIImage] {
         guard let cgImage = image.cgImage else { return [] }
         let width = cgImage.width
         let height = cgImage.height
         let cellWidth = width / 9
         let cellHeight = height / 9
-        let insetX = Int(Double(cellWidth) * 0.08)
-        let insetY = Int(Double(cellHeight) * 0.08)
+        let insetX = Int(Double(cellWidth) * inset)
+        let insetY = Int(Double(cellHeight) * inset)
         var cells: [UIImage] = []
         cells.reserveCapacity(81)
         for row in 0..<9 {
@@ -145,21 +170,64 @@ struct SudokuImageDetector {
         return cells
     }
 
-    private func recognizeDigits(in cells: [UIImage], checked: (Int) -> Void) async throws -> DetectedGrid {
-        var grid = DetectedGrid(values: Array(repeating: nil, count: 81), unsure: [])
-        for (index, image) in cells.enumerated() {
+    private func recognizeDigits(in cells: [(cell: UIImage, inner: UIImage)], checked: (Int) -> Void) async throws -> DetectedGrid {
+        var readings: [CellReading] = []
+        for (index, cell) in cells.enumerated() {
             try Task.checkCancellation()
-            if let read = try await recognizeDigit(in: image) {
-                grid.values[index] = read.digit
-                if read.unsure { grid.unsure.insert(index) }
-            }
+            readings.append(try await read(cell: cell.cell, inner: cell.inner))
             checked(index + 1)
         }
-        return grid
+        return Self.grid(from: readings)
     }
 
-    private func recognizeDigit(in image: UIImage) async throws -> (digit: Int, unsure: Bool)? {
-        guard let cgImage = image.cgImage else { return nil }
+    /// Fast recognition first. A cell where text was seen but not read, or that has ink, is read again
+    /// from its inner area on a plain margin: digits beside a thick line (the edge column when the
+    /// detected rectangle includes the border) and thin 1s that fast mode reads as "I" (issue 66).
+    private func read(cell: UIImage, inner: UIImage) async throws -> CellReading {
+        let first = try await recognizeDigit(in: cell, level: .fast)
+        if case .digit = first { return first }
+        guard first == .rejected || Self.hasInk(inner) else { return .empty }
+        let padded = Self.padded(inner)
+        for level in [VNRequestTextRecognitionLevel.fast, .accurate] {
+            let retry = try await recognizeDigit(in: padded, level: level)
+            if case .digit = retry { return retry }
+        }
+        return first
+    }
+
+    /// True when some pixels are much darker than the paper (median brightness).
+    static func hasInk(_ image: UIImage) -> Bool {
+        guard let cgImage = image.cgImage else { return false }
+        let side = 32
+        var pixels = [UInt8](repeating: 0, count: side * side)
+        let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+            guard let context = CGContext(data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8,
+                                          bytesPerRow: side, space: CGColorSpaceCreateDeviceGray(),
+                                          bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+            return true
+        }
+        guard drawn else { return false }
+        let paper = Double(pixels.sorted()[pixels.count / 2])
+        let dark = pixels.filter { Double($0) < paper * 0.55 }.count
+        return dark * 100 >= pixels.count * 3
+    }
+
+    /// The image on a white margin of 40% of its width, so Vision sees a lone character.
+    private static func padded(_ image: UIImage) -> UIImage {
+        let margin = image.size.width * 0.4
+        let size = CGSize(width: image.size.width + margin * 2, height: image.size.height + margin * 2)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = image.scale
+        return UIGraphicsImageRenderer(size: size, format: format).image { context in
+            UIColor.white.setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            image.draw(at: CGPoint(x: margin, y: margin))
+        }
+    }
+
+    private func recognizeDigit(in image: UIImage, level: VNRequestTextRecognitionLevel) async throws -> CellReading {
+        guard let cgImage = image.cgImage else { return .empty }
         return try await withCheckedThrowingContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
                 if let error {
@@ -167,26 +235,27 @@ struct SudokuImageDetector {
                     return
                 }
                 guard let observations = request.results as? [VNRecognizedTextObservation] else {
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: .empty)
                     return
                 }
                 let sorted = observations.sorted { $0.confidence > $1.confidence }
                 guard let bestObservation = sorted.first,
                       let best = bestObservation.topCandidates(1).first else {
-                    continuation.resume(returning: nil)
+                    continuation.resume(returning: .empty)
                     return
                 }
                 let box = bestObservation.boundingBox
                 let area = box.width * box.height
                 let centerDistance = abs(box.midX - 0.5) + abs(box.midY - 0.5)
-                if area < 0.06 || centerDistance > 0.5 {
-                    continuation.resume(returning: nil)
+                // The candidate's own score: the observation's can be high while this read is not.
+                guard area >= 0.06, centerDistance <= 0.5,
+                      let read = Self.reading(text: best.string, confidence: best.confidence) else {
+                    continuation.resume(returning: .rejected)
                     return
                 }
-                // The candidate's own score: the observation's can be high while this read is not.
-                continuation.resume(returning: Self.reading(text: best.string, confidence: best.confidence))
+                continuation.resume(returning: .digit(read.digit, unsure: read.unsure))
             }
-            request.recognitionLevel = .fast
+            request.recognitionLevel = level
             request.usesLanguageCorrection = false
             request.minimumTextHeight = 0.2
             let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])

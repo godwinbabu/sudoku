@@ -17,6 +17,8 @@ final class ImportPuzzleViewModel: ObservableObject {
     @Published private(set) var gridValues: [Int?]
     @Published private(set) var conflictIndices: Set<Int> = []
     @Published private(set) var solvableState: SolvableState = .unknown
+    /// The grid has at least two solutions: a note, not a block (CODESPEC 2.1 allows such imports).
+    @Published private(set) var hasMultipleSolutions = false
     @Published var selectedIndex: Int?
     @Published private(set) var image: UIImage?
     @Published private(set) var imageID: String?
@@ -29,8 +31,8 @@ final class ImportPuzzleViewModel: ObservableObject {
     /// True while Start builds the game off the main thread; Start stays disabled meanwhile.
     @Published private(set) var isStarting = false
 
-    /// Whether a grid string has a solution; runs off the main actor.
-    private let isSolvable: @Sendable (String) async -> Bool
+    /// The grid string's solution count, stopping at 2; runs off the main actor.
+    private let countSolutions: @Sendable (String) async -> Int
     private let imageDetector: SudokuImageDetector
     /// Grid, photo id, and a check that the import is still current when the game is ready to save.
     private let createGame: (String, String?, @escaping () -> Bool) async -> ImportedGame?
@@ -46,15 +48,17 @@ final class ImportPuzzleViewModel: ObservableObject {
     private let idToIndex: [UUID: Int]
 
     init(
-        isSolvable: @escaping @Sendable (String) async -> Bool = { grid in
-            await Task.detached(priority: .userInitiated) { SudokuGeneratorService().solve(initialGrid: grid) != nil }.value
+        countSolutions: @escaping @Sendable (String) async -> Int = { grid in
+            await Task.detached(priority: .userInitiated) {
+                SolutionCounter.count(grid.map { Int(String($0)) ?? 0 }, limit: 2)
+            }.value
         },
         imageDetector: SudokuImageDetector = SudokuImageDetector(),
         createGame: @escaping (String, String?, @escaping () -> Bool) async -> ImportedGame?,
         saveImage: @escaping (UIImage) -> String?,
         deleteImage: @escaping (String) -> Void
     ) {
-        self.isSolvable = isSolvable
+        self.countSolutions = countSolutions
         self.imageDetector = imageDetector
         self.createGame = createGame
         self.saveImage = saveImage
@@ -90,6 +94,12 @@ final class ImportPuzzleViewModel: ObservableObject {
     /// The empty grid's instruction (Type it in, or a read that found no digits).
     var emptyGridHint: String? {
         filledCount == 0 ? "Type the digits printed in the puzzle: tap a cell, then a number." : nil
+    }
+
+    /// Shown under "Puzzle is solvable." when the grid has more than one solution; Start stays enabled.
+    var ambiguityNote: String? {
+        solvableState == .solvable && hasMultipleSolutions
+            ? "This grid has more than one solution. Check the digits against your photo." : nil
     }
 
     var validationMessage: String {
@@ -251,6 +261,7 @@ final class ImportPuzzleViewModel: ObservableObject {
     private func validate() {
         conflictIndices = findConflicts(in: gridValues)
         solvableState = .unknown
+        hasMultipleSolutions = false
         scheduleSolveCheck()
     }
 
@@ -288,14 +299,15 @@ final class ImportPuzzleViewModel: ObservableObject {
         solveTask?.cancel()
         let grid = gridString()
         let hasConflicts = !conflictIndices.isEmpty
-        let isSolvable = isSolvable
+        let countSolutions = countSolutions
         solveTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled else { return }
             // shortcut: the solver can't be stopped mid-run, so a superseded solve finishes and is dropped.
-            let solvable = hasConflicts ? false : await isSolvable(grid)
+            let solutions = hasConflicts ? 0 : await countSolutions(grid)
             guard let self, !Task.isCancelled, grid == self.gridString() else { return }
-            self.solvableState = solvable ? .solvable : .unsolvable
+            self.solvableState = solutions > 0 ? .solvable : .unsolvable
+            self.hasMultipleSolutions = solutions > 1
         }
     }
 
