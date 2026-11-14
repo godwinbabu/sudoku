@@ -34,6 +34,11 @@ PureSudoku is a no-frills, offline iPhone Sudoku app modeled after the NYT exper
 - UI tests: `PureSudokuUITests` cover launching, starting a game, input modes, resets, and bedtime/sleep visuals.
 - CLI: `xcodebuild -project PureSudoku.xcodeproj -scheme PureSudoku -destination 'platform=iOS Simulator,name=<iPhone>' test` (pick a name from `xcrun simctl list devices available`)
 
+## Release
+- `Info.plist` reads the version from the `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` build settings.
+- Before each App Store Connect upload, raise the build number: run `agvtool next-version` in the repo root, or change Build under the target's General tab in Xcode. App Store Connect rejects a reused build number.
+- `ITSAppUsesNonExemptEncryption` is `NO` because the app makes no network calls and links no crypto libraries. Check it again if that changes.
+
 ## Development Notes
 - `CODESPEC.md` is the source of truth; keep behavior in sync with it.
 - Preserve offline/local-only behavior; do not add network calls, backend, analytics, or cloud sync.
