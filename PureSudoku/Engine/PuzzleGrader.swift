@@ -41,6 +41,31 @@ enum PuzzleGrader {
     }
 }
 
+extension PuzzleGrader {
+    /// Adds digits from the solution until the board reaches its level's target givens
+    /// (CODESPEC 2.2). Solution digits keep the puzzle unique. Easy adds at random; other levels
+    /// keep an added digit only if the level stays the same. Nil if the final board misses the
+    /// level or the target range.
+    static func addingGivens(to values: [Int], solution: [Int], level: Difficulty,
+                             using rng: inout some RandomNumberGenerator) -> (values: [Int], grade: PuzzleGrade)? {
+        var board = values
+        if let target = level.targetGivens {
+            var count = board.filter { $0 != 0 }.count
+            for cell in board.indices.filter({ board[$0] == 0 }).shuffled(using: &rng) where count < target.lowerBound {
+                board[cell] = solution[cell]
+                if level == .easy || grade(board)?.grade.difficulty == level {
+                    count += 1
+                } else {
+                    board[cell] = 0
+                }
+            }
+        }
+        guard let final = grade(board), final.grade.difficulty == level, final.solution == solution,
+              level.targetGivens?.contains(board.filter { $0 != 0 }.count) ?? true else { return nil }
+        return (board, final.grade)
+    }
+}
+
 /// Counts solutions by backtracking, stopping at `limit` (CODESPEC 2.1: imports count to 2).
 enum SolutionCounter {
     static func count(_ values: [Int], limit: Int = 2) -> Int {
