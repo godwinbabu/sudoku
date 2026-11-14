@@ -36,6 +36,8 @@ final class AppBundleTests: XCTestCase {
         let plist = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("PureSudoku/Supporting/Info.plist")
+        // The checkout is only reachable from the simulator, not from a device.
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: plist.path), "source Info.plist not reachable")
         let source = try XCTUnwrap(
             PropertyListSerialization.propertyList(from: Data(contentsOf: plist), format: nil) as? [String: Any]
         )
