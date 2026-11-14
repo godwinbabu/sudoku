@@ -191,13 +191,19 @@ final class LearningTests: XCTestCase {
         viewModel.setDigit(placement.digit)
         await pause()
         XCTAssertTrue(controller.learningLedger.credited.isEmpty, "the cell and digit the hint showed earn nothing, by any technique")
-        // Positive control: an unhinted single of another kind is still credited.
-        var control = 0
-        while control < 30, controller.learningLedger.credited.isEmpty {
-            try placeNextSingle(viewModel)
-            await pause()
-            control += 1
-        }
+        // Positive control: an unhinted single of another kind is still credited. Pick one the judge
+        // names as another lesson, so one move does it (no 300 ms waits per hinted single).
+        let solution = Array(TestData.puzzle.solutionGrid).map { Int(String($0))! }
+        let board = SolverBoard(cells: viewModel.state.cells)
+        let lesson: (Technique) -> Technique = { $0 == .hiddenSingleLine ? .hiddenSingleBox : $0 }
+        let other = try XCTUnwrap((0..<81).first { cell in
+            guard board.values[cell] == 0,
+                  let found = MasteryJudge.technique(for: .placed(cell: cell, digit: solution[cell]), on: board) else { return false }
+            return lesson(found) != lesson(hinted)
+        })
+        viewModel.select(cell: viewModel.state.cells.first { $0.index == other }!)
+        viewModel.setDigit(solution[other])
+        await waitFor { !controller.learningLedger.credited.isEmpty }
         XCTAssertFalse(controller.learningLedger.credited.isEmpty, "crediting works at all")
         XCTAssertEqual(controller.progress(for: hinted).credits, 0, "the hinted technique stays uncredited in this puzzle")
     }
@@ -208,10 +214,17 @@ final class LearningTests: XCTestCase {
         let solution = Array(TestData.puzzle.solutionGrid).map { Int(String($0))! }
         let cell = try XCTUnwrap((0..<81).first { board.values[$0] == 0 && board.candidates[$0].nonzeroBitCount > 1 })
         let wrong = try XCTUnwrap(SolverBoard.digits(in: board.candidates[cell]).first { $0 != solution[cell] })
+        // A single taken before the mistake, so its digit is right for the stored solution and only
+        // the mistake can stop its credit.
+        let single = try XCTUnwrap(LogicalSolver.steps(for: .hiddenSingleBox, on: board).flatMap(\.placements)
+            .first { $0.cell != cell && solution[$0.cell] == $0.digit })
+        XCTAssertNotNil(MasteryJudge.technique(for: .placed(cell: single.cell, digit: single.digit), on: board),
+                        "earns credit on a clean board")
         viewModel.select(cell: viewModel.state.cells.first { $0.index == cell }!)
         viewModel.setDigit(wrong)
         // Board now has a mistake, so even a correct single elsewhere earns nothing.
-        try placeNextSingle(viewModel)
+        viewModel.select(cell: viewModel.state.cells.first { $0.index == single.cell }!)
+        viewModel.setDigit(single.digit)
         await settle(found, count: 0)
         XCTAssertTrue(found().isEmpty)
     }
