@@ -37,16 +37,16 @@ struct RootView: View {
         .environment(\.psType, PSType(controller.settings.clarity))
         .preferredColorScheme(controller.preferredColorScheme)
         .persistentSystemOverlays(controller.hidesHomeIndicator || controller.showsFirstNight ? .hidden : .automatic)
-        .onChange(of: scenePhase) { _ in
+        .onChangeOf(scenePhase) { _ in
             controller.objectWillChange.send() // After dark and Match iPhone may have changed while away
             updateDisplay()
         }
-        .onChange(of: controller.settings) { _ in updateDisplay() }
+        .onChangeOf(controller.settings) { _ in updateDisplay() }
         // After dark can flip on any redraw (e.g. an autosave); Match iPhone flips with iOS dark mode.
-        .onChange(of: controller.isNight) { _ in updateDisplay() }
-        .onChange(of: controller.driftSteps) { _ in updateDisplay() }
-        .onChange(of: controller.isCalibrating) { _ in updateDisplay() }
-        .onChange(of: colorScheme) { _ in controller.objectWillChange.send() }
+        .onChangeOf(controller.isNight) { _ in updateDisplay() }
+        .onChangeOf(controller.driftSteps) { _ in updateDisplay() }
+        .onChangeOf(controller.isCalibrating) { _ in updateDisplay() }
+        .onChangeOf(colorScheme) { _ in controller.objectWillChange.send() }
         .onAppear(perform: updateDisplay)
         // Delivered on the main run loop: this closure is main-actor code (Swift 6 traps off it).
         .onReceive(NotificationCenter.default.publisher(for: UIAccessibility.darkerSystemColorsStatusDidChangeNotification)

@@ -6,7 +6,8 @@ import SwiftUI
 /// changes brightness themselves (Control Center), that wins until Glow changes or they calibrate.
 @MainActor
 final class ScreenBrightnessController {
-    private let read: () -> CGFloat
+    /// Nil while there is no screen (no window scene yet).
+    private let read: () -> CGFloat?
     private let write: (CGFloat) -> Void
     /// The player's brightness from before Night took over.
     private var saved: CGFloat?
@@ -14,7 +15,8 @@ final class ScreenBrightnessController {
     private var written: CGFloat?
     private var lastRequest: AnyHashable?
 
-    init(read: @escaping () -> CGFloat = { UIScreen.main.brightness }, write: @escaping (CGFloat) -> Void = { UIScreen.main.brightness = $0 }) {
+    init(read: @escaping () -> CGFloat? = { SystemAppearance.screen?.brightness },
+         write: @escaping (CGFloat) -> Void = { SystemAppearance.screen?.brightness = $0 }) {
         self.read = read
         self.write = write
     }
@@ -31,6 +33,9 @@ final class ScreenBrightnessController {
     /// what the player asked for (their Glow, or calibrating): a brightness they set themselves is kept
     /// until it changes, even if the target moves on its own (Drift).
     func update(target: CGFloat?, request: AnyHashable = 0) {
+        // No screen yet (launch before the scene connects): change nothing, so the player's real
+        // brightness is saved later. The scene turning active calls this again.
+        guard let current = read() else { return }
         guard let target else {
             if let saved { write(saved) }
             saved = nil
@@ -38,8 +43,8 @@ final class ScreenBrightnessController {
             return
         }
         if saved == nil {
-            saved = read()
-        } else if request == lastRequest, let written, abs(read() - written) > 0.01 {
+            saved = current
+        } else if request == lastRequest, let written, abs(current - written) > 0.01 {
             return // the player moved the brightness themselves and hasn't changed Glow since
         }
         write(target)

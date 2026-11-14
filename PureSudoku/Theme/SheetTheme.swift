@@ -12,7 +12,7 @@ struct ThemedTitle: ViewModifier {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text(title).font(.headline).foregroundColor(palette.ink)
+                    Text(title).font(.headline).foregroundStyle(palette.ink)
                         .accessibilityAddTraits(.isHeader)
                 }
             }

@@ -59,18 +59,18 @@ struct FirstNightView: View {
         return VStack(alignment: .leading, spacing: 0) {
             Image(systemName: "moon")
                 .psFont(30)
-                .foregroundColor(theme.accent)
+                .foregroundStyle(theme.accent)
                 .accessibilityHidden(true)
             let greeting = Self.greeting(hour: Calendar.current.component(.hour, from: Date()))
             Text(done ? "Glow set to \(Int(controller.settings.glow))%." : greeting)
                 .psFont(36, weight: .medium, design: .serif)
-                .foregroundColor(theme.ink)
+                .foregroundStyle(theme.ink)
                 .padding(.top, 22)
                 .padding(.bottom, 12)
                 .accessibilityAddTraits(.isHeader)
             Text(body)
                 .psFont(17)
-                .foregroundColor(theme.ink2)
+                .foregroundStyle(theme.ink2)
                 .lineSpacing(4)
                 .fixedSize(horizontal: false, vertical: true)
             if done {
@@ -87,7 +87,7 @@ struct FirstNightView: View {
             if !done {
                 Button("Skip for now — use Lights out") { controller.skipFirstNight() }
                     .psFont(15)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .contentShape(Rectangle())
                     .buttonStyle(.plain)

@@ -81,7 +81,7 @@ private struct PlayTab: View {
                 }
         }
         .environment(\.popToRoot) { path = NavigationPath() }
-        .onChange(of: path.count) { dropRoutes(deeperThan: $0) }
+        .onChangeOf(path.count) { dropRoutes(deeperThan: $0) }
     }
 
     private func push(_ route: GameRoute) {
@@ -175,7 +175,7 @@ struct PSTabBar: View {
                             .accessibilityHidden(true) // the label names the tab once
                         Text(item.title).font(.system(size: 11, weight: on ? .semibold : .medium))
                     }
-                    .foregroundColor(on ? theme.accent : theme.ink2)
+                    .foregroundStyle(on ? theme.accent : theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .contentShape(Rectangle())
                 }
@@ -201,7 +201,7 @@ struct ScreenHead: View {
             Text(title)
                 .psFont(30, weight: .medium, design: .serif)
                 .tracking(-0.3)
-                .foregroundColor(theme.ink)
+                .foregroundStyle(theme.ink)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             NightButton()

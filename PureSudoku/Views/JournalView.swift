@@ -30,7 +30,7 @@ struct JournalView: View {
                         DisplaySettingsView(viewModel: SettingsViewModel(controller: controller))
                     } label: {
                         SettingRow(theme: theme, label: "Display & Night", sub: "Day, Night, glow, warmth, clarity, quiet", last: true) {
-                            Image(systemName: "chevron.right").psFont(14).foregroundColor(theme.ink3)
+                            Image(systemName: "chevron.right").psFont(14).foregroundStyle(theme.ink3)
                         }
                         .contentShape(Rectangle())
                     }
@@ -47,7 +47,7 @@ struct JournalView: View {
                      + "Silent by design — no sounds or vibration unless you turn them on.")
                     .psFont(14)
                     .lineSpacing(4)
-                    .foregroundColor(theme.ink3)
+                    .foregroundStyle(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 22)
             }
@@ -72,10 +72,10 @@ struct JournalView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(viewModel.streak())")
                     .psFont(56, weight: .medium, design: .serif, monospacedDigit: true)
-                    .foregroundColor(theme.ink)
-                Text("nights in a row").psFont(14).foregroundColor(theme.ink3)
+                    .foregroundStyle(theme.ink)
+                Text("nights in a row").psFont(14).foregroundStyle(theme.ink3)
                 if let line = viewModel.lastSolvedLine() {
-                    Text(line).psFont(13).foregroundColor(theme.ink3)
+                    Text(line).psFont(13).foregroundStyle(theme.ink3)
                 }
             }
             .accessibilityElement(children: .combine)
@@ -88,7 +88,7 @@ struct JournalView: View {
                             .fill(item.solved ? theme.accent : .clear)
                             .overlay(Circle().strokeBorder(item.solved ? .clear : theme.ink3, lineWidth: 1.5))
                             .frame(width: 10, height: 10)
-                        Text(item.day).psFont(11).foregroundColor(theme.ink3)
+                        Text(item.day).psFont(11).foregroundStyle(theme.ink3)
                     }
                     .frame(maxWidth: .infinity)
                     .accessibilityElement(children: .ignore)
@@ -116,7 +116,7 @@ struct JournalView: View {
                 Text(viewModel.totalsLine)
             }
             .psFont(13)
-            .foregroundColor(theme.ink3)
+            .foregroundStyle(theme.ink3)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
@@ -130,7 +130,7 @@ struct JournalView: View {
             if dynamicTypeSize.isAccessibilitySize {
                 // Too wide for one line: the level above, its three numbers in equal columns below.
                 VStack(alignment: .leading, spacing: 2) {
-                    if !level.isEmpty { Text(level).foregroundColor(theme.ink) }
+                    if !level.isEmpty { Text(level).foregroundStyle(theme.ink) }
                     HStack(spacing: 8) {
                         ForEach(Array([count, best, typical].enumerated()), id: \.offset) {
                             Text($0.element).frame(maxWidth: .infinity, alignment: .trailing)
@@ -139,7 +139,7 @@ struct JournalView: View {
                 }
             } else {
                 HStack(spacing: 0) {
-                    Text(level).foregroundColor(theme.ink).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(level).foregroundStyle(theme.ink).frame(maxWidth: .infinity, alignment: .leading)
                     Text(count).frame(width: 60, alignment: .trailing)
                     Text(best).frame(width: 70, alignment: .trailing)
                     Text(typical).frame(width: 70, alignment: .trailing)
@@ -147,7 +147,7 @@ struct JournalView: View {
             }
         }
         .psFont(header ? 12 : 15, monospacedDigit: true)
-        .foregroundColor(header ? theme.ink3 : theme.ink2)
+        .foregroundStyle(header ? theme.ink3 : theme.ink2)
         .padding(.horizontal, 16)
         .padding(.vertical, header ? 10 : 12)
         .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
@@ -157,11 +157,11 @@ struct JournalView: View {
     private func assists(_ settings: Settings) -> some View {
         PSCard(theme: theme) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Show mistakes").psFont(16).foregroundColor(theme.ink)
+                Text("Show mistakes").psFont(16).foregroundStyle(theme.ink)
                 PSSegmented(theme: theme, options: MistakeMode.allCases.map { ($0, $0.displayName) }, selection: settings.mistakes,
                             idPrefix: "journal_mistakes_", onSelect: settingsModel.setMistakes)
                 Text("Right away marks digits that clash with another digit. Check puzzle finds the rest.")
-                    .psFont(13).foregroundColor(theme.ink3)
+                    .psFont(13).foregroundStyle(theme.ink3)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -171,11 +171,11 @@ struct JournalView: View {
                     .accessibilityIdentifier("journal_tidyNotes")
             }
             VStack(alignment: .leading, spacing: 10) {
-                Text("Cell names in hints").psFont(16).foregroundColor(theme.ink)
+                Text("Cell names in hints").psFont(16).foregroundStyle(theme.ink)
                 PSSegmented(theme: theme, options: CellNotation.allCases.map { ($0, $0.displayName) }, selection: settings.notation,
                             idPrefix: "journal_notation_", onSelect: settingsModel.setNotation)
                 Text(settings.notation == .grid ? "Short grid codes: R for row, C for column, B for box." : "Written out in words.")
-                    .psFont(13).foregroundColor(theme.ink3)
+                    .psFont(13).foregroundStyle(theme.ink3)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

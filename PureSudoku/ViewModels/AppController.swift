@@ -389,7 +389,8 @@ final class AppController: ObservableObject {
 
     /// Night is worked out on read, so After dark follows the clock and Match iPhone the system setting.
     var isNight: Bool {
-        afterDark.isNight(settings, systemIsDark: UIScreen.main.traitCollection.userInterfaceStyle == .dark)
+        let system = SystemAppearance.screen?.traitCollection ?? UITraitCollection.current
+        return afterDark.isNight(settings, systemIsDark: system.userInterfaceStyle == .dark)
     }
     var palette: PSPalette { settings.palette(isNight: isNight) }
     var preferredColorScheme: ColorScheme? { settings.preferredColorScheme(isNight: isNight) }

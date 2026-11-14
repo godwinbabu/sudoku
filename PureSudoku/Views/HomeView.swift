@@ -21,7 +21,7 @@ struct HomeView: View {
                 ScreenHead(title: "Pure Sudoku")
                 Text(viewModel.subLine())
                     .psFont(14)
-                    .foregroundColor(theme.ink3)
+                    .foregroundStyle(theme.ink3)
                     .padding(.horizontal, 22)
                     .padding(.bottom, 20)
                 if let notice = controller.resetNotice {
@@ -64,7 +64,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text)
                 .psFont(14)
-                .foregroundColor(theme.ink2)
+                .foregroundStyle(theme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
             action()
         }
@@ -85,11 +85,11 @@ struct HomeView: View {
             HStack(spacing: 16) {
                 MiniBoard(cells: game.cells, theme: theme).frame(width: 112, height: 112)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("CONTINUE").psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
+                    Text("CONTINUE").psFont(12, weight: .semibold).tracking(0.96).foregroundStyle(theme.ink2)
                     Text(game.puzzle.difficulty.displayName)
-                        .psFont(24, weight: .medium, design: .serif).foregroundColor(theme.ink)
+                        .psFont(24, weight: .medium, design: .serif).foregroundStyle(theme.ink)
                     Text("\(GameView.timeString(game.elapsedSeconds)) · \(filled) of 81")
-                        .psFont(14, monospacedDigit: true).foregroundColor(theme.ink2)
+                        .psFont(14, monospacedDigit: true).foregroundStyle(theme.ink2)
                     GeometryReader { proxy in
                         Capsule().fill(theme.hair)
                             .overlay(alignment: .leading) {
@@ -128,13 +128,13 @@ struct HomeView: View {
                         // At accessibility sizes the best time goes under the name instead of beside it.
                         let bestBeside = !dynamicTypeSize.isAccessibilitySize
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(level.displayName).psFont(17, weight: .medium).foregroundColor(theme.ink)
-                            Text(level.techniqueSummary).psFont(13).foregroundColor(theme.ink3)
+                            Text(level.displayName).psFont(17, weight: .medium).foregroundStyle(theme.ink)
+                            Text(level.techniqueSummary).psFont(13).foregroundStyle(theme.ink3)
                             if !bestBeside { bestTime(level) }
                         }
                         Spacer(minLength: 0)
                         if bestBeside { bestTime(level) }
-                        Image(systemName: "chevron.right").psFont(14).foregroundColor(theme.ink3)
+                        Image(systemName: "chevron.right").psFont(14).foregroundStyle(theme.ink3)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 8)
@@ -154,7 +154,7 @@ struct HomeView: View {
     private func bestTime(_ level: Difficulty) -> some View {
         if let best = viewModel.stats.bestTime(for: level) {
             Text("Best \(GameView.timeString(best))")
-                .psFont(13, monospacedDigit: true).foregroundColor(theme.ink3)
+                .psFont(13, monospacedDigit: true).foregroundStyle(theme.ink3)
         }
     }
 
@@ -164,7 +164,7 @@ struct HomeView: View {
                 Image(systemName: "camera").psFont(20)
                 Text("Import a puzzle from a photo").psFont(15)
             }
-            .foregroundColor(theme.ink2)
+            .foregroundStyle(theme.ink2)
             .frame(minHeight: 44)
             .contentShape(Rectangle())
         }
@@ -188,13 +188,13 @@ struct HomeView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(imported.gameState.puzzle.difficulty.displayName)
-                                        .psFont(16).foregroundColor(theme.ink)
+                                        .psFont(16).foregroundStyle(theme.ink)
                                     Text(imported.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                        .psFont(13).foregroundColor(theme.ink3)
+                                        .psFont(13).foregroundStyle(theme.ink3)
                                 }
                                 Spacer()
                                 Text("\(imported.gameState.cells.filter { $0.value != nil }.count) of 81")
-                                    .psFont(13, monospacedDigit: true).foregroundColor(theme.ink3)
+                                    .psFont(13, monospacedDigit: true).foregroundStyle(theme.ink3)
                             }
                             .frame(minHeight: 52)
                             .contentShape(Rectangle())
@@ -274,9 +274,9 @@ struct ConfirmPanel: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).psFont(17, weight: .semibold).foregroundColor(theme.ink)
+            Text(title).psFont(17, weight: .semibold).foregroundStyle(theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
-            Text(message).psFont(15).foregroundColor(theme.ink2)
+            Text(message).psFont(15).foregroundStyle(theme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
             PSButtonRow {
                 Button(cancel, action: onCancel)
@@ -331,7 +331,7 @@ struct MiniBoard: View {
                 guard let value = item.value else { continue }
                 let text = Text("\(value)")
                     .font(.system(size: cell * 0.62, weight: item.given ? .semibold : .regular))
-                    .foregroundColor(item.given ? theme.ink : theme.accent)
+                    .foregroundColor(item.given ? theme.ink : theme.accent) // draw needs a Text; Text's foregroundStyle is iOS 17
                 context.draw(text, at: CGPoint(x: (CGFloat(item.col) + 0.5) * cell, y: (CGFloat(item.row) + 0.5) * cell))
             }
         }

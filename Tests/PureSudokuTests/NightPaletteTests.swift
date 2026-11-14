@@ -286,6 +286,21 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertEqual(target(.inactive, true, false, 0.3), 0.3, "Control Center keeps it")
         XCTAssertNil(target(.background, true, true, 0.3))
     }
+
+    /// Before the window scene connects there is no screen (#71): nothing is written or saved, so the
+    /// player's real brightness is saved once the scene is active, and restored later.
+    func testBrightnessWaitsForTheScreen() {
+        var screen: CGFloat? // no scene yet
+        var writes: [CGFloat] = []
+        let controller = ScreenBrightnessController(read: { screen }, write: { writes.append($0); screen = $0 })
+        controller.update(target: 0.1, request: 50) // cold launch into Night
+        XCTAssertEqual(writes, [])
+        screen = 0.7 // the scene connects
+        controller.update(target: 0.1, request: 50) // the scene turns active
+        XCTAssertEqual(screen, 0.1)
+        controller.update(target: nil)
+        XCTAssertEqual(screen, 0.7, "the real brightness, not a placeholder")
+    }
 }
 
 /// Chrome text scales with Dynamic Type and keeps the design's size at the default (CODESPEC 9).

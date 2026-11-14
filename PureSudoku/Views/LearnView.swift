@@ -13,7 +13,7 @@ struct LearnView: View {
                 ScreenHead(title: "Learn")
                 Text("\(inHand) of \(Lesson.techniques.count) techniques in your hands")
                     .psFont(14)
-                    .foregroundColor(theme.ink3)
+                    .foregroundStyle(theme.ink3)
                     .padding(.horizontal, 22)
                     .padding(.bottom, 18)
                 if let next = upNext { upNextCard(next) }
@@ -58,10 +58,10 @@ struct LearnView: View {
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("UP NEXT · \(Lesson.stepCount(for: technique)) STEPS")
-                        .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
+                        .psFont(12, weight: .semibold).tracking(0.96).foregroundStyle(theme.ink2)
                     Text(technique.displayName)
-                        .psFont(24, weight: .medium, design: .serif).foregroundColor(theme.ink)
-                    Text(reason).psFont(14).foregroundColor(theme.ink2)
+                        .psFont(24, weight: .medium, design: .serif).foregroundStyle(theme.ink)
+                    Text(reason).psFont(14).foregroundStyle(theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -87,12 +87,12 @@ struct LearnView: View {
             HStack(spacing: 14) {
                 StatusDot(level: progress.level, theme: theme)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(technique.displayName).psFont(16).foregroundColor(theme.ink)
-                    Text(technique.definition).psFont(13).foregroundColor(theme.ink3)
+                    Text(technique.displayName).psFont(16).foregroundStyle(theme.ink)
+                    Text(technique.definition).psFont(13).foregroundStyle(theme.ink3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Text(trailing).psFont(12, monospacedDigit: true).foregroundColor(theme.ink3)
+                Text(trailing).psFont(12, monospacedDigit: true).foregroundStyle(theme.ink3)
                     .accessibilityLabel(Self.creditsLabel(progress.credits, otherwise: trailing))
             }
             .padding(.horizontal, 6)
@@ -148,7 +148,7 @@ struct Chevron: View {
     let color: Color
 
     var body: some View {
-        Image(systemName: "chevron.right").psFont(14, weight: .semibold).foregroundColor(color)
+        Image(systemName: "chevron.right").psFont(14, weight: .semibold).foregroundStyle(color)
             .accessibilityHidden(true)
     }
 }
@@ -171,11 +171,11 @@ struct LessonView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(technique.displayName)
                         .psFont(34, weight: .medium, design: .serif)
-                        .foregroundColor(theme.ink)
+                        .foregroundStyle(theme.ink)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("lesson_title")
                     Text(lesson?.intro ?? technique.definition)
-                        .psFont(15).lineSpacing(3).foregroundColor(theme.ink2)
+                        .psFont(15).lineSpacing(3).foregroundStyle(theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 8)
                     content.padding(.top, 14)
@@ -201,7 +201,7 @@ struct LessonView: View {
             HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
                 .accessibilityIdentifier("lesson_back")
             Text("\(technique.learnTier.displayName) · Lesson".uppercased())
-                .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
+                .psFont(12, weight: .semibold).tracking(0.96).foregroundStyle(theme.ink2)
                 .frame(maxWidth: .infinity)
             Color.clear.frame(width: 44, height: 44)
         }
@@ -220,7 +220,7 @@ struct LessonView: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("lessonBoard")
             Text(step.text)
-                .psFont(17).lineSpacing(4).foregroundColor(theme.ink)
+                .psFont(17).lineSpacing(4).foregroundStyle(theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
                 .padding(.top, 18)
@@ -228,7 +228,7 @@ struct LessonView: View {
                 .transition(.opacity)
                 .accessibilityIdentifier("lesson_stepText")
         } else if loaded {
-            Text("No example puzzle for this technique yet.").psFont(15).foregroundColor(theme.ink2)
+            Text("No example puzzle for this technique yet.").psFont(15).foregroundStyle(theme.ink2)
         } else {
             ProgressView().tint(theme.ink3).frame(maxWidth: .infinity, minHeight: 342)
         }
@@ -239,7 +239,7 @@ struct LessonView: View {
         let last = index == lesson.steps.count - 1
         return HStack(spacing: 10) {
             Button { go(to: index - 1) } label: {
-                Image(systemName: "chevron.left").font(.system(size: 17, weight: .medium)).foregroundColor(theme.ink2)
+                Image(systemName: "chevron.left").font(.system(size: 17, weight: .medium)).foregroundStyle(theme.ink2)
                     .frame(width: 44, height: 44)
                     .overlay(Circle().strokeBorder(theme.hair, lineWidth: 1))
                     .contentShape(Circle())

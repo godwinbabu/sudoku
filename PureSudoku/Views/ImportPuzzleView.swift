@@ -33,7 +33,7 @@ struct ImportPuzzleView: View {
         .background(theme.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(controller.isNight)
-        .onChange(of: selectedPhoto) { newItem in
+        .onChangeOf(selectedPhoto) { newItem in
             guard let newItem else { return }
             let token = viewModel.beginPhotoRequest()
             Task {
@@ -57,7 +57,7 @@ struct ImportPuzzleView: View {
             viewModel.discardIfUnused()
         }
         // The first-night screen is drawn from the app root; a system screen would sit above it.
-        .onChange(of: controller.showsFirstNight) { shows in
+        .onChangeOf(controller.showsFirstNight) { shows in
             if shows {
                 showCamera = false
                 showPhotos = false
@@ -72,7 +72,7 @@ struct ImportPuzzleView: View {
             HeaderIconButton(theme: theme, symbol: "xmark", label: "Discard") { dismiss() }
                 .accessibilityIdentifier("importDiscard")
             Text(viewModel.step == .review ? "CHECK THE GRID" : "")
-                .psFont(12, weight: .semibold).tracking(0.96).foregroundColor(theme.ink2)
+                .psFont(12, weight: .semibold).tracking(0.96).foregroundStyle(theme.ink2)
                 .frame(maxWidth: .infinity)
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityHidden(viewModel.step != .review) // empty on the other steps
@@ -90,10 +90,10 @@ struct ImportPuzzleView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Import a puzzle")
                         .psFont(32, weight: .medium, design: .serif)
-                        .foregroundColor(theme.ink)
+                        .foregroundStyle(theme.ink)
                         .accessibilityAddTraits(.isHeader)
                     Text("From a newspaper, a book or a screenshot. The photo is read on this iPhone and never uploaded.")
-                        .psFont(15).lineSpacing(3).foregroundColor(theme.ink2)
+                        .psFont(15).lineSpacing(3).foregroundStyle(theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.horizontal, 22)
@@ -115,7 +115,7 @@ struct ImportPuzzleView: View {
                 SectionLabel(theme: theme, title: "For a clean read") // pads itself to 22
                     .padding(.top, 26)
                 Text("Fill the frame with the grid · Good light, no glare · Pencil marks are ignored")
-                    .psFont(13).lineSpacing(4).foregroundColor(theme.ink3)
+                    .psFont(13).lineSpacing(4).foregroundStyle(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 22)
             }
@@ -145,10 +145,10 @@ struct ImportPuzzleView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Reading digits…")
                     .psFont(26, weight: .medium, design: .serif)
-                    .foregroundColor(theme.ink)
+                    .foregroundStyle(theme.ink)
                 Text(progress == nil ? "Looking for the grid…" : "Grid found · \(checked) of 81 cells checked")
                     .psFont(15, monospacedDigit: true)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .padding(.top, 6)
                     .accessibilityIdentifier("importReadProgress")
                 GeometryReader { geometry in
@@ -260,18 +260,18 @@ struct ImportPuzzleView: View {
                 .accessibilityIdentifier("importConflictLegend")
             } else {
                 if let hint = viewModel.emptyGridHint {
-                    Text(hint).psFont(14).foregroundColor(theme.ink)
+                    Text(hint).psFont(14).foregroundStyle(theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("importEmptyHint")
                 }
                 if let message = viewModel.detectionMessage {
-                    Text(message).psFont(14).foregroundColor(theme.ink2)
+                    Text(message).psFont(14).foregroundStyle(theme.ink2)
                 }
                 Text(viewModel.validationMessage)
-                    .psFont(14).foregroundColor(theme.ink2)
+                    .psFont(14).foregroundStyle(theme.ink2)
                     .accessibilityIdentifier("importStatus")
                 if let note = viewModel.ambiguityNote {
-                    Text(note).psFont(14).foregroundColor(theme.ink)
+                    Text(note).psFont(14).foregroundStyle(theme.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("importAmbiguityNote")
                 }
@@ -283,8 +283,9 @@ struct ImportPuzzleView: View {
     private func legendLine<Swatch: View>(bold: String, rest: String, @ViewBuilder swatch: () -> Swatch) -> some View {
         HStack(alignment: .top, spacing: 10) {
             swatch().accessibilityHidden(true)
+            // foregroundColor: Text's own foregroundStyle, which keeps `+` working, needs iOS 17.
             (Text(bold).fontWeight(.semibold).foregroundColor(theme.ink) + Text(" " + rest))
-                .psFont(14).lineSpacing(2).foregroundColor(theme.ink2)
+                .psFont(14).lineSpacing(2).foregroundStyle(theme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -306,16 +307,16 @@ private struct OptionCard: View {
                 HStack(spacing: 16) {
                     Image(systemName: symbol)
                         .psFont(24, weight: .regular)
-                        .foregroundColor(theme.accent)
+                        .foregroundStyle(theme.accent)
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(title).psFont(17).foregroundColor(theme.ink)
-                        Text(subtitle).psFont(13).foregroundColor(theme.ink3)
+                        Text(title).psFont(17).foregroundStyle(theme.ink)
+                        Text(subtitle).psFont(13).foregroundStyle(theme.ink3)
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
                         .psFont(14, weight: .regular)
-                        .foregroundColor(theme.ink3)
+                        .foregroundStyle(theme.ink3)
                 }
                 .padding(18)
                 .contentShape(Rectangle())
