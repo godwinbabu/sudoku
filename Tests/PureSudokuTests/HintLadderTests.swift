@@ -367,7 +367,9 @@ extension HintLadderTests {
 
     /// The hint order must not hide column singles from mastery or grading.
     func testColumnSinglesStillEarnLearningCredit() throws {
-        let entry = BundledPuzzles.puzzles(for: .easy)[0]
+        // A board kept in the bundled set (as practice-only since issue #92) with a column single at r1c1.
+        let grid = "000180076703600000096075240400010020020064000305000008900020560040051032500406190"
+        let entry = try XCTUnwrap(BundledPuzzles.all.first { $0.initialGrid == grid })
         let board = SolverBoard(values: entry.initialGrid.map { Int(String($0)) ?? 0 })
         let digit = try XCTUnwrap(Int(String(entry.solutionGrid.first!)))
         XCTAssertEqual(digit, 2)
