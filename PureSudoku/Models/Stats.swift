@@ -79,6 +79,23 @@ struct Stats: Codable, Equatable {
         lastCompletionDate = day
     }
 
+    // shortcut: one id (~40 bytes) per solve, never pruned; prune to games still on disk if it grows.
+    /// Games whose solve is in the stats (`apply`), so a retried handoff counts it once. Files from
+    /// before it decode it empty; their counted games never come back here, as only a
+    /// `PendingCompletion` adds a solve.
+    var countedGameIDs: Set<String> = []
+
+    /// Bumped when the file's meaning changes. 2: `countedGameIDs`.
+    static let schemaVersion = 2
+
+    /// Adds a pending solve once: a game already counted does nothing.
+    mutating func apply(_ completion: PendingCompletion, calendar: Calendar = .current) {
+        guard countedGameIDs.insert(completion.gameID).inserted else { return }
+        recordCompletion(for: completion.difficulty, time: completion.elapsedSeconds, usedReveal: false,
+                         assisted: completion.assisted, setsTimes: completion.setsTimes, source: completion.source,
+                         date: completion.date, calendar: calendar)
+    }
+
     /// Imports whose late time is recorded (`recordLateTime`), so a retried handoff adds it once.
     var lateTimeIDs: Set<String> = []
 
@@ -136,6 +153,8 @@ struct Stats: Codable, Equatable {
         case assistedSolves
         case solvedDays
         case lateTimeIDs
+        case countedGameIDs
+        case schemaVersion
     }
 
     init(from decoder: Decoder) throws {
@@ -152,6 +171,7 @@ struct Stats: Codable, Equatable {
         // Files from before the Journal week know only the last solve day; start the week from it.
         solvedDays = try container.decodeIfPresent([Date].self, forKey: .solvedDays) ?? (lastCompletionDate.map { [$0] } ?? [])
         lateTimeIDs = try container.decodeIfPresent(Set<String>.self, forKey: .lateTimeIDs) ?? []
+        countedGameIDs = try container.decodeIfPresent(Set<String>.self, forKey: .countedGameIDs) ?? []
     }
 
     func encode(to encoder: Encoder) throws {
@@ -167,5 +187,27 @@ struct Stats: Codable, Equatable {
         try container.encode(assistedSolves, forKey: .assistedSolves)
         try container.encode(solvedDays, forKey: .solvedDays)
         try container.encode(lateTimeIDs, forKey: .lateTimeIDs)
+        try container.encode(countedGameIDs, forKey: .countedGameIDs)
+        try container.encode(Self.schemaVersion, forKey: .schemaVersion)
+    }
+}
+
+/// A solve, copied when it finished, waiting in pending_completions.json until it is in the saved
+/// stats and its game is saved as counted (CODESPEC 8). A failed save or a relaunch retries it; a
+/// later Restart or new game can't change its time or date.
+struct PendingCompletion: Codable, Equatable {
+    var gameID: String
+    var difficulty: Difficulty
+    var elapsedSeconds: Int
+    var date: Date
+    var assisted: Bool
+    var setsTimes: Bool
+    var source: GameSource
+}
+
+extension PendingCompletion {
+    init(_ game: GameState, at difficulty: Difficulty, date: Date) {
+        self.init(gameID: game.puzzle.id, difficulty: difficulty, elapsedSeconds: game.elapsedSeconds, date: date,
+                  assisted: game.assisted, setsTimes: game.puzzle.isUnique, source: game.puzzle.source)
     }
 }

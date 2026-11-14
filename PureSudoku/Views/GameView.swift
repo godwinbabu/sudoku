@@ -70,7 +70,12 @@ struct GameView: View {
                     .padding(.horizontal, 18)
                     .opacity(isDone ? 0.3 : 1)
                 NumberPadView(theme: theme, remaining: viewModel.remaining,
-                              isNotesMode: viewModel.inputMode == .candidate) { viewModel.setDigit($0) }
+                              isNotesMode: viewModel.inputMode == .candidate) { digit in
+                    viewModel.setDigit(digit)
+                    if let message = viewModel.placedAnnouncement(digit) {
+                        UIAccessibility.post(notification: .announcement, argument: message)
+                    }
+                }
                     .padding(.horizontal, 8)
                     .padding(.top, 6)
                     .padding(.bottom, 4)

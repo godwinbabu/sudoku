@@ -160,6 +160,8 @@ struct JournalView: View {
                 Text("Show mistakes").psFont(16).foregroundColor(theme.ink)
                 PSSegmented(theme: theme, options: MistakeMode.allCases.map { ($0, $0.displayName) }, selection: settings.mistakes,
                             idPrefix: "journal_mistakes_", onSelect: settingsModel.setMistakes)
+                Text("Right away marks digits that clash with another digit. Check puzzle finds the rest.")
+                    .psFont(13).foregroundColor(theme.ink3)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

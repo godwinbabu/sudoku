@@ -27,6 +27,9 @@ struct HomeView: View {
                 if let notice = controller.resetNotice {
                     resetNotice(notice)
                 }
+                if let notice = controller.saveFailureNotice {
+                    noticeBox(notice).accessibilityIdentifier("saveFailureNotice")
+                }
                 if let game = viewModel.continueGame {
                     continueCard(game)
                 }
@@ -46,16 +49,24 @@ struct HomeView: View {
 
     /// A hairline box, no fill, so it stays calm at night; shown until dismissed.
     private func resetNotice(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(text)
-                .psFont(14)
-                .foregroundColor(theme.ink2)
-                .fixedSize(horizontal: false, vertical: true)
+        noticeBox(text) {
             Button("OK") {
                 withAnimation(reduceMotion ? nil : .easeOut(duration: 0.3)) { controller.dismissResetNotice() }
             }
             .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 36))
             .accessibilityIdentifier("resetNoticeDismiss")
+        }
+        .accessibilityIdentifier("resetNotice")
+    }
+
+    /// The reset notice's box. The save-failure notice has no button: it goes once the saves work.
+    private func noticeBox(_ text: String, @ViewBuilder action: () -> some View = { EmptyView() }) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(text)
+                .psFont(14)
+                .foregroundColor(theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            action()
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -64,7 +75,6 @@ struct HomeView: View {
         .padding(.bottom, 20)
         .transition(.opacity)
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("resetNotice")
     }
 
     // MARK: Continue

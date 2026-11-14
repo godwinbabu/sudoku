@@ -129,3 +129,12 @@ final class ImageResizeTests: XCTestCase {
         XCTAssertEqual(cg.height, 1536)
     }
 }
+
+final class ImportedImageBackupTests: XCTestCase {
+    /// #64: import photos never go into iCloud or computer backups.
+    func testTheImageFolderIsExcludedFromBackup() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        _ = ImportedImageStore(directory: directory)
+        XCTAssertEqual(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+    }
+}

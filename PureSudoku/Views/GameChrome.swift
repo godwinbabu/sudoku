@@ -28,10 +28,11 @@ struct PSButtonStyle: ButtonStyle {
                 Capsule()
                     .strokeBorder(primary ? (theme.isNight ? theme.accentDim : .clear) : theme.hair, lineWidth: primary ? 1.5 : 1)
             )
-            // The target is at least 44 pt tall.
+            // The target is at least 44 × 44 pt, even when the capsule is drawn smaller.
             .padding(.vertical, max(0, (44 - height) / 2))
+            .frame(minWidth: 44)
             .opacity(configuration.isPressed ? 0.7 : 1)
-            .contentShape(Capsule())
+            .contentShape(Rectangle())
     }
 }
 
@@ -52,7 +53,8 @@ struct ToolButton: View {
                     .font(.system(size: 21, weight: .regular))
                     .frame(height: 24)
                     .overlay(alignment: .topTrailing) {
-                        if let badge { badgeView(badge).offset(x: 16, y: -6) }
+                        // Decorative: the caller gives the state as an accessibility value ("Notes, Off").
+                        if let badge { badgeView(badge).offset(x: 16, y: -6).accessibilityHidden(true) }
                     }
                 Text(label).font(.system(size: 11, weight: .medium))
             }
@@ -61,6 +63,7 @@ struct ToolButton: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressFillStyle(theme: theme))
+        .accessibilityLabel(label)
         .opacity(isEnabled ? 1 : 0.35)
         // Fixed size so the tool row fits; a long press shows it large (CODESPEC 9).
         .accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }

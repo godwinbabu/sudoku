@@ -176,12 +176,29 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2), "the first tap on Back works")
     }
 
+    /// A cell with notes has one label, read once, not once per note slot (issue #58).
+    func testNotesCellLabelIsReadOnce() {
+        let app = launchApp()
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 2))
+        let cell = firstEmptyCell(in: app)
+        cell.tap()
+        app.buttons["tool_notes"].tap()
+        app.buttons["number_2"].tap()
+        let parts = cell.identifier.split(separator: "_").compactMap { Int($0) }
+        let expected = "Row \(parts[0] + 1) column \(parts[1] + 1) candidates 2"
+        let labelled = app.buttons.matching(NSPredicate(format: "identifier == %@ AND label ENDSWITH 'candidates 2'", cell.identifier))
+        XCTAssertTrue(labelled.firstMatch.waitForExistence(timeout: 2))
+        XCTAssertEqual(cell.label, expected)
+    }
+
     func testNotesBadgeToggles() {
         let app = launchApp()
         startLevel("easy", in: app)
         let notes = app.buttons["tool_notes"]
         XCTAssertTrue(notes.waitForExistence(timeout: 2))
         XCTAssertEqual(notes.value as? String, "Off")
+        XCTAssertEqual(notes.label, "Notes", "the ON/OFF badge is not read twice")
         notes.tap()
         XCTAssertEqual(notes.value as? String, "On")
         XCTAssertTrue(app.staticTexts["Notes on — digits go in as pencil marks"].exists)

@@ -284,7 +284,7 @@ Testing requirements:
 	•	Quiet: Drift; Hide status bar in games; Sounds; Vibration (“Night always keeps sound and vibration off.”). Then a footnote about Hush.
 	•	Every control is drawn from the palette (custom segments, switches and sliders), never a system control that could render light.
 	•	ASSISTS (palette segments and switches):
-	•	Show mistakes: Right away / When I check / Never. Never means no automatic marks and no Check; the hint still points at a mistake first.
+	•	Show mistakes: Right away / When I check / Never, with the caption “Right away marks digits that clash with another digit. Check puzzle finds the rest.” Never means no automatic marks and no Check; the hint still points at a mistake first.
 	•	Tidy notes (remove a placed digit from the notes it sees).
 	•	Cell names in hints (notation): “row 5, column 2” (plain, default) or “R5C2” (grid), with a line explaining the choice. Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
 	•	Coach when I'm stuck on/off (default on, Section 6.3.3).
@@ -427,7 +427,7 @@ Hint and Reveal Cell are two separate actions. Hint teaches; Reveal Cell fills a
 	•	A wrong digit, or a cell whose notes leave out its correct digit. Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored.
 	•	Step 1 “Where to look”: “Something in box 4 doesn’t fit.” (the box is spotlit). Button: Show me.
 	•	Step 2 “Mistake”: when a peer already holds the digit, “The 7 in row 3, column 4 repeats the 7 in row 3, column 8.” (dashed ring on the cell, solid ring on the peer, their shared row, column or box spotlit). Otherwise “The 7 in row 3, column 4 can’t be right.” Button: Show me why.
-	•	Step 3 “Why”: with a peer, “Each digit goes once in a row, column and box. Row 3 already has a 7 in row 3, column 8, so this one has to go.” Otherwise “Nothing on the board clashes with it yet, but the puzzle has one solution, and it has a different digit here.” Button: Clear it. It clears the digit (or the notes) as one undoable edit and does not mark the solve assisted.
+	•	Step 3 “Why”: with a peer, “Row 3 already has a 7 (column 8).” (in a column: “(row N)”; in a box: the full cell name) Otherwise “Nothing on the board clashes with it yet, but the puzzle has one solution, and it has a different digit here.” Button: Clear it. It clears the digit (or the notes) as one undoable edit and does not mark the solve assisted.
 	•	Imports whose entries fit no solution: one card, “Some of your entries don’t fit together. Try undoing recent moves.”, with Undo.
 	•	Technique steps (from the logical solver, Section 13.3: the simplest step on the player’s board, using their notes where they exist; the same board always gives the same hint):
 	•	Step 1 “Where to look”: the nudge, with a spotlight on the focus cells. “Look at box 4. Where can 5 go?”
@@ -646,9 +646,15 @@ struct Stats: Codable {
     var solveTimes: [Difficulty: [Int]]  // last 50 unassisted times per level, for Typical
     var assistedSolves: Int
     var solvedDays: [Date]               // last 14 days with a counted solve, for the Journal week
+    // Schema version 2: decodeIfPresent, empty for older files.
+    var countedGameIDs: Set<String>      // games whose solve is in the stats
 }
 
 A file that reads but cannot be decoded is moved aside as name.corrupt-<time>.json and that data starts over. Home then shows a calm notice (a hairline box, no fill, with an outline OK button) naming what was reset and saying "The old data was kept on this iPhone." The notice comes from the set-aside copies on disk, so it cannot be lost: it lists every copy the player has not acknowledged. Tapping OK saves the copy names as acknowledged in reset_notice.json. If that save fails, or that file is damaged, the notice simply shows again at the next launch. A later corruption shows the notice again for the new copy only.
+
+A save that fails is tracked per file (each level's game, stats, settings, learning, imports, pending solves). An entry clears only when a later save to that same file works. While any entry is left, Home shows a calm notice in the same box, with no button: "Some progress could not be saved. PureSudoku will keep trying." Load errors stay with the reset notice.
+
+A solve reaches the stats through a handoff that a failed save or a relaunch can retry without losing it or counting it twice. When a game is solved, a PendingCompletion (game id, level, time, date, assisted, whether it sets times, source) is written first to pending_completions.json. It is applied to the stats once (skipped if countedGameIDs has the id) and the stats are saved. Only then is the game saved as counted, and the pending record is removed. Any failure keeps the record; it retries on the next stats save and at launch, with its original time and date. The game is also saved with solvedAt, the solve's date. If the record itself could not be written either, the next launch rebuilds it from a finished, uncounted game that has solvedAt. Games saved before solvedAt existed never qualify, so they are never counted again. Games counted before countedGameIDs existed are never counted again, because only a pending record adds a solve. Revealed solves and replays write no pending record.
 
 Streak rules:
 	•	Puzzle completed without usedReveal:
@@ -916,7 +922,7 @@ Testing requirements:
 12.7 Night shortcut and silence
 	•	Bedtime Mode is replaced by Night (Section 7.1). The moon on every tab, on Import and in the game header opens the Night sheet. The old main-menu Night bar is removed.
 	•	Night sheet (NightSheetView): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge, 36 × 5 grabber. Backdrop black at 55% at night, warm at 18% in Day; tapping it or × closes the sheet. At least 56 pt of backdrop always shows; when the controls do not fit (iPhone SE, large text) the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live.
-	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” up to 40, else “Above 40%, the screen itself gets brighter.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”, or “Almost no blue light.” above 95%); Clarity (“Bigger, heavier digits and stronger lines, by day and at night.”, the same sentence on Display & Night); then, unless Day: Drift and Find my lowest glow (Start).
+	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone, which adds the line “Used when your iPhone is in Dark mode.”; After dark adds a line on the hours in use); then, unless Day: three presets, Glow (“Below your iPhone’s lowest brightness.” up to 40, else “Above 40%, the screen itself gets brighter.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”, or “Almost no blue light.” above 95%); Clarity (“Bigger, heavier digits and stronger lines, by day and at night.”, the same sentence on Display & Night); then, unless Day: Drift and Find my lowest glow (Start).
 	•	At night the selected segment is an accentDim ring, not a fill, the slider knob is a 2 pt ink2 ring on black, and the Warmth track is capped at 75% of the ink’s light, so no fill is brighter than ink. The sheet, the first-night screen and every screen but the game hide the white system status bar at night; the game follows Hide status bar in games.
 	•	The one accepted system alert is the iOS location permission prompt. It appears only after the player taps After dark (or “Use sunset and sunrise”), and it follows the dark colour scheme at night.
 	•	Hush and Goodnight (Section 3.2) go to pure black in one tap.
