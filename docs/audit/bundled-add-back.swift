@@ -2,6 +2,7 @@
 // Each bundled puzzle gets solution digits added back with PuzzleGrader.addingGivens, seeded by
 // 20261113 + its index (then + 1000 per retry), so the output is deterministic. A puzzle that
 // loses a technique keeps its original board as a drill-only line, so no drill disappears.
+// Rerunning it on its own output reproduces the file (existing drill-only lines pass through).
 // Run from the repo root against the current file, then paste the lines into BundledPuzzles.data:
 //   cp docs/audit/bundled-add-back.swift /tmp/main.swift
 //   swiftc -O -o /tmp/addback $(ls PureSudoku/Engine/*.swift | grep -v ImageDetector) PureSudoku/Models/Difficulty.swift /tmp/main.swift
@@ -15,7 +16,12 @@ func line(_ level: Difficulty, _ values: [Int], _ solution: String, _ grade: Puz
 }
 
 var drills: [String] = []
-for (index, entry) in BundledPuzzles.all.enumerated() where !entry.isDrillOnly {
+for (index, entry) in BundledPuzzles.all.enumerated() {
+    if entry.isDrillOnly { // already kept: pass through so a rerun loses no drill
+        drills.append(line(entry.difficulty, entry.initialGrid.map { Int(String($0))! }, entry.solutionGrid,
+                           PuzzleGrade(hardestTier: .basic, score: entry.score, techniques: entry.techniques), drill: true))
+        continue
+    }
     let values = entry.initialGrid.map { Int(String($0))! }
     let solution = entry.solutionGrid.map { Int(String($0))! }
     var result: (values: [Int], grade: PuzzleGrade)?
