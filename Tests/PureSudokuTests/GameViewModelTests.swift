@@ -18,6 +18,18 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.cells.first(where: { $0.id == cell.id })?.candidates.isEmpty ?? false)
     }
 
+    /// VoiceOver hears where a digit went; notes say nothing extra (they show in the cell label).
+    func testPlacedAnnouncementNamesTheCell() {
+        let viewModel = makeViewModel()
+        guard let cell = viewModel.state.cells.first(where: { !$0.given }) else { return XCTFail("No editable cell") }
+        viewModel.select(cell: cell)
+        viewModel.setDigit(7)
+        XCTAssertEqual(viewModel.placedAnnouncement(7), "7 placed, row \(cell.row + 1), column \(cell.col + 1)")
+        viewModel.inputMode = .candidate
+        viewModel.setDigit(3)
+        XCTAssertNil(viewModel.placedAnnouncement(3))
+    }
+
     /// The keypad count drops as a digit is placed; at zero its key is disabled.
     func testCompletedDigitKeyIsDisabled() {
         let viewModel = makeViewModel()

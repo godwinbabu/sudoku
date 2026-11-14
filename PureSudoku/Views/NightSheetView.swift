@@ -89,7 +89,14 @@ struct NightSheetView: View {
             PSSegmented(theme: theme, options: [(Appearance.day, "Day"), (.night, "Night"), (.afterDark, "After dark")],
                         selection: settings.appearance == .matchSystem ? nil : settings.appearance,
                         idPrefix: "night_appearance_", onSelect: viewModel.setAppearance)
-            if settings.appearance == .afterDark {
+            if settings.appearance == .matchSystem {
+                // The night controls below show in iOS Light too; say when they apply.
+                Text("Used when your iPhone is in Dark mode.")
+                    .psFont(13)
+                    .foregroundColor(theme.ink3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("night_matchSystemNote")
+            } else if settings.appearance == .afterDark {
                 Text(afterDarkNote(settings))
                     .psFont(13)
                     .foregroundColor(theme.ink3)
