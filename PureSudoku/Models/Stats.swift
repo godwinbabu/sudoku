@@ -204,3 +204,10 @@ struct PendingCompletion: Codable, Equatable {
     var setsTimes: Bool
     var source: GameSource
 }
+
+extension PendingCompletion {
+    init(_ game: GameState, at difficulty: Difficulty, date: Date) {
+        self.init(gameID: game.puzzle.id, difficulty: difficulty, elapsedSeconds: game.elapsedSeconds, date: date,
+                  assisted: game.assisted, setsTimes: game.puzzle.isUnique, source: game.puzzle.source)
+    }
+}

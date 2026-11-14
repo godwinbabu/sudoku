@@ -246,6 +246,52 @@ final class SaveSafetyTests: XCTestCase {
         try assertCountedOnce(launch())
     }
 
+    /// Both the record and the stats fail, then the app quits: the next launch rebuilds the record
+    /// from the finished, uncounted game, with its own time and date.
+    func testARelaunchAfterTheRecordAndStatsBothFailedCountsOnce() async throws {
+        let controller = launch()
+        try block("pending_completions.json")
+        try block("stats.json")
+        let solvedAt = clock.now() + 300
+        _ = await playAndSolve(controller)
+        try unblock("pending_completions.json")
+        try unblock("stats.json")
+        clock.advance(2 * 86_400)
+        let relaunched = launch()
+        try assertCountedOnce(relaunched)
+        XCTAssertEqual(relaunched.stats.lastCompletionDate, Stats.playDay(solvedAt))
+        try assertCountedOnce(launch())
+    }
+
+    /// A finished, uncounted game from before `solvedAt` (whatever made it so) is never counted at
+    /// launch: its solve may already be in the totals.
+    func testAnOldFinishedUncountedGameIsNotCountedAtLaunch() throws {
+        let persistence = PersistenceManager(directory: dir)
+        try persistence.save(Stats(puzzlesSolved: [.easy: 4], totalPuzzlesSolved: 4, totalTimeSeconds: 1_000), to: "stats.json")
+        for (file, source) in [("game_easy.json", GameSource.generated), ("imported_games.json", .imported)] {
+            var puzzle = TestData.puzzle
+            if source == .imported {
+                puzzle = SudokuPuzzle(id: "old-import", difficulty: .easy, initialGrid: puzzle.initialGrid,
+                                      solutionGrid: puzzle.solutionGrid, source: .imported, hasUniqueSolution: true)
+            }
+            var game = GameState.newGame(for: puzzle)
+            game.isCompleted = true
+            game.counted = false
+            game.elapsedSeconds = 200
+            if source == .imported {
+                try persistence.save([ImportedGame(gameState: game)], to: file)
+            } else {
+                try persistence.save(game, to: file)
+            }
+        }
+        let controller = launch()
+        XCTAssertEqual(controller.stats.totalPuzzlesSolved, 4)
+        XCTAssertEqual(controller.stats.totalTimeSeconds, 1_000)
+        XCTAssertEqual(controller.stats.countedGameIDs, [])
+        XCTAssertNil(try saved([PendingCompletion].self, "pending_completions.json"))
+        XCTAssertEqual(launch().stats.totalPuzzlesSolved, 4)
+    }
+
     /// Everything lands but the cleanup of the pending file: the next stats save retries it.
     func testAFailedPendingCleanupIsRetried() async throws {
         let controller = launch()

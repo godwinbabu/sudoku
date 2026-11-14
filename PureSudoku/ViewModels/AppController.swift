@@ -146,6 +146,7 @@ final class AppController: ObservableObject {
     /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
     /// until then `isUnique` is false, so uniqueness techniques stay off (CODESPEC 2.1).
     private func countSolutionsOfOldImports() {
+        recoverUncountedSolves()
         if !pendingCompletions.isEmpty { updateStats { _ in } } // handoffs an earlier launch could not finish
         settleLateTimes()
         let pending = importedGames.filter { $0.gameState.puzzle.hasUniqueSolution == nil }
@@ -160,6 +161,19 @@ final class AppController: ObservableObject {
                 importedGames[index].gameState.puzzle.hasUniqueSolution = result.unique
             }
             if !settleLateTimes() { persistImportedGames() } // the counts themselves
+        }
+    }
+
+    /// A finished game marked `solvedAt` but not counted, not in the stats and with no pending record
+    /// lost both the record and the stats write before the app quit; its record is rebuilt from the
+    /// game (CODESPEC 8). Games from before the marker never qualify.
+    private func recoverUncountedSolves() {
+        let games = activeGames.map { ($0.value, $0.key) } + importedGames.map { ($0.gameState, $0.gameState.puzzle.difficulty) }
+        for (game, difficulty) in games where game.isCompleted && !game.counted {
+            let id = game.puzzle.id
+            guard let solvedAt = game.solvedAt, !stats.countedGameIDs.contains(id),
+                  !pendingCompletions.contains(where: { $0.gameID == id }) else { continue }
+            pendingCompletions.append(PendingCompletion(game, at: difficulty, date: solvedAt))
         }
     }
 
@@ -514,7 +528,10 @@ final class AppController: ObservableObject {
     private func persist(state: GameState, for difficulty: Difficulty) {
         var state = state
         // The app, not the view model, says when a solve reached the saved stats.
-        if let stored = activeGames[difficulty], stored.puzzle.id == state.puzzle.id { state.counted = stored.counted }
+        if let stored = activeGames[difficulty], stored.puzzle.id == state.puzzle.id {
+            state.counted = stored.counted
+            state.solvedAt = state.solvedAt ?? stored.solvedAt
+        }
         state.lastUpdated = timeProvider.now() // the Continue card picks the game played last
         activeGames[difficulty] = state
         save(state, to: .game(difficulty))
@@ -522,6 +539,8 @@ final class AppController: ObservableObject {
 
     /// The finished game is in memory before its solve is recorded, so the record can mark it counted.
     private func handleCompletion(state: GameState, difficulty: Difficulty) {
+        var state = state
+        if isFirstSolve(state) { state.solvedAt = timeProvider.now() } // saved with the game, for recovery
         activeGames[difficulty] = state
         record(state, at: difficulty)
         if let state = activeGames[difficulty] { save(state, to: .game(difficulty)) } // saved even if the stats failed
@@ -537,6 +556,7 @@ final class AppController: ObservableObject {
         // The view model's copy may be older; keep the stored time until the count clears it.
         state.timeAwaitingCount = state.timeAwaitingCount ?? importedGames[index].gameState.timeAwaitingCount
         if saving { state.counted = importedGames[index].gameState.counted } // as in persist(state:for:)
+        state.solvedAt = state.solvedAt ?? importedGames[index].gameState.solvedAt
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
         if saving { persistImportedGames(keeping: id) }
@@ -550,9 +570,10 @@ final class AppController: ObservableObject {
             state.puzzle.hasUniqueSolution = importedGames.first { $0.id == id }?.gameState.puzzle.hasUniqueSolution
         }
         // Saved with the game, so a relaunch before the count ends still gets the time.
-        if state.puzzle.hasUniqueSolution == nil, !state.counted, !stats.countedGameIDs.contains(id), !state.usedReveal, !state.assisted {
+        if state.puzzle.hasUniqueSolution == nil, isFirstSolve(state), !state.assisted {
             state.timeAwaitingCount = state.elapsedSeconds
         }
+        if isFirstSolve(state) { state.solvedAt = timeProvider.now() } // as in handleCompletion
         persistImported(state: state, id: id, saving: false) // in memory first, as in handleCompletion
         record(state, at: state.puzzle.difficulty)
         persistImportedGames(keeping: id)
@@ -564,18 +585,20 @@ final class AppController: ObservableObject {
     private func record(_ state: GameState, at difficulty: Difficulty) {
         guard !state.usedReveal else { return } // a revealed solve never reaches the stats
         let id = state.puzzle.id
-        guard !state.counted, !stats.countedGameIDs.contains(id) else {
+        guard isFirstSolve(state) else {
             // A replay of a counted puzzle: not another solve, but its time still counts as played.
             updateStats { $0.totalTimeSeconds += state.elapsedSeconds }
             if !state.counted { _ = markCounted(id) }
             return
         }
-        pendingCompletions.append(PendingCompletion(
-            gameID: id, difficulty: difficulty, elapsedSeconds: state.elapsedSeconds, date: timeProvider.now(),
-            assisted: state.assisted, setsTimes: state.puzzle.isUnique, source: state.puzzle.source
-        ))
+        pendingCompletions.append(PendingCompletion(state, at: difficulty, date: state.solvedAt ?? timeProvider.now()))
         save(pendingCompletions, to: .pendingCompletions)
         updateStats { _ in }
+    }
+
+    /// Not revealed and not yet in the stats: this solve counts.
+    private func isFirstSolve(_ state: GameState) -> Bool {
+        !state.usedReveal && !state.counted && !stats.countedGameIDs.contains(state.puzzle.id)
     }
 
     /// Prunes old solved imports, saves the list, then removes images no game uses (only after a
