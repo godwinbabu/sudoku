@@ -188,12 +188,11 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
 
 - Do not add:
   - Animations that flash or blink.
-  - Bright full-screen overlays or fills brighter than the ink, especially at Night.
+  - Bright full-screen overlays; at Night, any fill brighter than the ink.
 - For any major visual change:
   - Confirm it behaves well in:
-    - Light theme
-    - Dark theme
-    - Night (at low Glow, with bedtime constraints)
+    - Day
+    - Night at low Glow (with bedtime constraints), including when Night comes from After dark or Match iPhone
 
 ---
 
