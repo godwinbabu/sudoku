@@ -468,11 +468,14 @@ final class AppController: ObservableObject {
     func updateStats(_ block: (inout Stats) -> Void) -> Bool {
         block(&stats)
         for completion in pendingCompletions { stats.apply(completion) }
+        let pendingFailed = failedSaves.contains(File.pendingCompletions.rawValue)
+        // A record that never reached disk goes first: a stats save alone can't bring it back.
+        if pendingFailed && !pendingCompletions.isEmpty { save(pendingCompletions, to: .pendingCompletions) }
         guard save(stats, to: .stats) else { return false }
-        if !pendingCompletions.isEmpty {
-            pendingCompletions.removeAll { markCounted($0.gameID) } // kept if its game could not be saved
-            save(pendingCompletions, to: .pendingCompletions)
-        }
+        let before = pendingCompletions.count
+        pendingCompletions.removeAll { markCounted($0.gameID) } // kept if its game could not be saved
+        // Also when only the earlier cleanup failed: the file still holds the finished records.
+        if pendingCompletions.count != before || pendingFailed { save(pendingCompletions, to: .pendingCompletions) }
         return true
     }
 
@@ -510,6 +513,8 @@ final class AppController: ObservableObject {
 
     private func persist(state: GameState, for difficulty: Difficulty) {
         var state = state
+        // The app, not the view model, says when a solve reached the saved stats.
+        if let stored = activeGames[difficulty], stored.puzzle.id == state.puzzle.id { state.counted = stored.counted }
         state.lastUpdated = timeProvider.now() // the Continue card picks the game played last
         activeGames[difficulty] = state
         save(state, to: .game(difficulty))
@@ -531,6 +536,7 @@ final class AppController: ObservableObject {
         }
         // The view model's copy may be older; keep the stored time until the count clears it.
         state.timeAwaitingCount = state.timeAwaitingCount ?? importedGames[index].gameState.timeAwaitingCount
+        if saving { state.counted = importedGames[index].gameState.counted } // as in persist(state:for:)
         importedGames[index].gameState = state
         importedGames[index].lastOpened = timeProvider.now()
         if saving { persistImportedGames(keeping: id) }

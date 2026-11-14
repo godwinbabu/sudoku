@@ -229,6 +229,38 @@ final class SaveSafetyTests: XCTestCase {
         XCTAssertEqual(reencoded["schemaVersion"] as? Int, 2)
     }
 
+    /// Neither the record nor the stats land: the record is written again by the next stats save,
+    /// even one that fails, and the view model's own save can't mark the game counted meanwhile.
+    func testAFailedPendingWriteIsRetriedBeforeTheStats() async throws {
+        let controller = launch()
+        try block("pending_completions.json")
+        try block("stats.json")
+        let viewModel = await playAndSolve(controller)
+        viewModel.handleSceneDidDisappear()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(try saved(GameState.self, "game_easy.json")?.counted, false)
+        try unblock("pending_completions.json")
+        controller.updateStats { _ in }
+        XCTAssertEqual(try saved([PendingCompletion].self, "pending_completions.json")?.count, 1)
+        try unblock("stats.json")
+        try assertCountedOnce(launch())
+    }
+
+    /// Everything lands but the cleanup of the pending file: the next stats save retries it.
+    func testAFailedPendingCleanupIsRetried() async throws {
+        let controller = launch()
+        try block("stats.json")
+        _ = await playAndSolve(controller)
+        try block("pending_completions.json")
+        try unblock("stats.json")
+        controller.updateStats { _ in }
+        XCTAssertEqual(controller.failedSaves, ["pending_completions.json"])
+        try unblock("pending_completions.json")
+        controller.updateStats { _ in }
+        XCTAssertNil(controller.saveFailureNotice)
+        try assertCountedOnce(controller)
+    }
+
     func testADamagedPendingFileShowsTheResetNotice() throws {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try Data("not json".utf8).write(to: dir.appendingPathComponent("pending_completions.json"))
