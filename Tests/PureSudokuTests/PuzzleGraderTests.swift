@@ -28,6 +28,9 @@ final class PuzzleGraderTests: XCTestCase {
                 XCTAssertEqual(regraded?.grade.difficulty, difficulty, "seed \(seed) bundled \(result.isBundled)")
                 XCTAssertEqual(regraded?.solution.map(String.init).joined(), result.puzzle.solutionGrid)
                 XCTAssertEqual(result.puzzle.isUnique, true)
+                let givens = result.puzzle.initialGrid.filter { $0 != "0" }.count
+                XCTAssertTrue(difficulty.targetGivens?.contains(givens) ?? true, "seed \(seed): \(givens) givens")
+                XCTAssertEqual(regraded?.grade, result.grade, "the stored grade is the final board's")
             }
         }
     }
@@ -42,7 +45,7 @@ final class PuzzleGraderTests: XCTestCase {
     }
 
     func testBundledPuzzlesAreValidUniqueAndCorrectlyGraded() {
-        XCTAssertEqual(BundledPuzzles.all.count, 600)
+        XCTAssertEqual(BundledPuzzles.all.filter { !$0.isDrillOnly }.count, 600)
         for difficulty in Difficulty.allCases {
             XCTAssertEqual(BundledPuzzles.puzzles(for: difficulty).count, 120)
         }
@@ -85,6 +88,61 @@ final class PuzzleGraderTests: XCTestCase {
         XCTAssertEqual(Technique.xWing.level, .expert)
         XCTAssertEqual(Technique.nakedPair.level, .hard)
         XCTAssertEqual(Technique.pointing.level, .medium)
+    }
+
+    /// Target givens per level (issue #60). Drill-only lines keep their original minimal boards.
+    func testBundledPuzzlesHaveTheirLevelsTargetGivens() {
+        for entry in BundledPuzzles.all where !entry.isDrillOnly {
+            let givens = entry.initialGrid.filter { $0 != "0" }.count
+            XCTAssertTrue(entry.difficulty.targetGivens?.contains(givens) ?? true, "\(entry.difficulty): \(givens) givens")
+        }
+        XCTAssertEqual(Difficulty.easy.targetGivens, 36...40)
+        XCTAssertNil(Difficulty.master.targetGivens)
+    }
+
+    /// Add-back keeps the level: from each drill-only (minimal) board it reaches the target and
+    /// grades the same level, with the same solution.
+    func testAddingGivensKeepsTheLevel() throws {
+        for level in [Difficulty.easy, .medium, .hard, .expert] {
+            let entry = try XCTUnwrap(BundledPuzzles.all.first { $0.isDrillOnly && $0.difficulty == level }, "\(level)")
+            var rng = SeededRandomNumberGenerator(seed: 7)
+            let solution = values(entry.solutionGrid)
+            let minimal = values(entry.initialGrid)
+            let result = try XCTUnwrap(PuzzleGrader.addingGivens(to: minimal, solution: solution, level: level, using: &rng))
+            XCTAssertEqual(result.values.filter { $0 != 0 }.count, level.targetGivens?.lowerBound)
+            XCTAssertEqual(result.grade.difficulty, level)
+            XCTAssertEqual(SolutionCounter.count(result.values), 1)
+            XCTAssertEqual(PuzzleGrader.grade(result.values)?.grade, result.grade)
+            XCTAssertNil(PuzzleGrader.addingGivens(to: minimal, solution: solution, level: .master, using: &rng),
+                         "a board of another level is rejected")
+        }
+    }
+
+    /// Add-back keeps every technique's drill count at least where it was before (issue #60).
+    func testDrillCoverageIsNoLowerThanBeforeAddBack() {
+        let before: [Technique: Int] = [
+            .fullHouse: 600, .hiddenSingleBox: 600, .hiddenSingleLine: 588, .nakedSingle: 444, .pointing: 444,
+            .claiming: 214, .lockedPair: 85, .lockedTriple: 25, .nakedPair: 156, .hiddenPair: 134, .nakedTriple: 43,
+            .hiddenTriple: 8, .nakedQuad: 3, .xWing: 43, .skyscraper: 90, .twoStringKite: 78, .emptyRectangle: 31,
+            .swordfish: 4, .xyWing: 93, .xyzWing: 31, .wWing: 65, .simpleColoring: 7, .uniqueRectangle1: 9,
+            .uniqueRectangle2: 3, .uniqueRectangle4: 19, .bugPlusOne: 6, .xyChain: 120
+        ]
+        for (technique, count) in before {
+            XCTAssertGreaterThanOrEqual(BundledPuzzles.drills(for: technique).count, count, "\(technique)")
+        }
+    }
+
+    /// Generation with add-back stays inside the budget CODESPEC 2.2 gives it: 30 tries at about
+    /// 13 ms each, so 0.4 s on average per level (fixed seeds).
+    func testGenerationTimePerLevelStaysInBudget() {
+        let service = SudokuGeneratorService()
+        for difficulty in Difficulty.allCases {
+            let start = Date()
+            for seed in UInt64(21)...UInt64(25) { _ = service.generatePuzzle(for: difficulty, seed: seed) }
+            let average = Date().timeIntervalSince(start) / 5
+            print("generation \(difficulty): \(Int(average * 1000)) ms average")
+            XCTAssertLessThan(average, 0.4, "\(difficulty)")
+        }
     }
 
     func testDrillsFindPuzzlesForEachPhaseTwoTechnique() {

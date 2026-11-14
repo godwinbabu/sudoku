@@ -31,6 +31,17 @@ enum Difficulty: String, Codable, CaseIterable, Identifiable, Comparable {
         }
     }
 
+    /// How many givens a puzzle of this level starts with (CODESPEC 2.2). Nil: as generated.
+    var targetGivens: ClosedRange<Int>? {
+        switch self {
+        case .easy: return 36...40
+        case .medium: return 30...32
+        case .hard: return 27...29
+        case .expert: return 25...27
+        case .master: return nil
+        }
+    }
+
     /// 1...5, the lit bars of the tier glyph on Home.
     var rank: Int { Self.allCases.firstIndex(of: self)! + 1 }
 
