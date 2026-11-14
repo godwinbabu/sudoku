@@ -197,6 +197,20 @@ final class NightScheduleTests: XCTestCase {
         XCTAssertNotNil(scheduler.scheduledFire)
     }
 
+    /// C5: a clock change posted off the main thread re-arms on the main actor instead of trapping.
+    func testClockChangeFromABackgroundThreadRearms() async {
+        let scheduler = scheduler(at: Date(), place: nil, calendar: .current)
+        var repaints = 0
+        scheduler.onBoundary = { repaints += 1 }
+        scheduler.schedule(for: Settings(appearance: .afterDark))
+        await Task.detached {
+            NotificationCenter.default.post(name: .NSSystemTimeZoneDidChange, object: nil)
+        }.value
+        for _ in 0..<100 where repaints == 0 { try? await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertEqual(repaints, 1)
+        XCTAssertNotNil(scheduler.scheduledFire)
+    }
+
     /// C6: when clocks go back, a repeated end time means its first occurrence, for both the
     /// Night check and the boundary list. New York, 3 November 2024, hours 9:00 PM → 1:30 AM.
     func testRepeatedHourUsesTheFirstOccurrence() throws {
