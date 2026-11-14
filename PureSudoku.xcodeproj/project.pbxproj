@@ -71,6 +71,7 @@
 		0000000000000000000000C3 /* PuzzleDataConsistencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */; };
 		0000000000000000000000BF /* LogicalSolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BE /* LogicalSolverTests.swift */; };
 		0000000000000000000000AD /* AppControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AC /* AppControllerTests.swift */; };
+		00000000000000000000059B /* SaveSafetyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000059A /* SaveSafetyTests.swift */; };
 		00000000000000000000006A /* PersistenceManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000035 /* PersistenceManagerTests.swift */; };
 		00000000000000000000006B /* Mocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000036 /* Mocks.swift */; };
 		00000000000000000000006D /* PureSudokuUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000038 /* PureSudokuUITests.swift */; };
@@ -187,6 +188,7 @@
 		0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleDataConsistencyTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000BE /* LogicalSolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalSolverTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000AC /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
+		00000000000000000000059A /* SaveSafetyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SaveSafetyTests.swift; sourceTree = "<group>"; };
 		000000000000000000000035 /* PersistenceManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManagerTests.swift; sourceTree = "<group>"; };
 		000000000000000000000036 /* Mocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mocks.swift; sourceTree = "<group>"; };
 		000000000000000000000037 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -416,6 +418,7 @@
 				0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */,
 				0000000000000000000000BE /* LogicalSolverTests.swift */,
 				0000000000000000000000AC /* AppControllerTests.swift */,
+				00000000000000000000059A /* SaveSafetyTests.swift */,
 				000000000000000000000035 /* PersistenceManagerTests.swift */,
 				000000000000000000000036 /* Mocks.swift */,
 				0000000000000000000000A7 /* ImportPuzzleViewModelTests.swift */,
@@ -695,6 +698,7 @@
 				0000000000000000000000C3 /* PuzzleDataConsistencyTests.swift in Sources */,
 				0000000000000000000000BF /* LogicalSolverTests.swift in Sources */,
 				0000000000000000000000AD /* AppControllerTests.swift in Sources */,
+				00000000000000000000059B /* SaveSafetyTests.swift in Sources */,
 				00000000000000000000006A /* PersistenceManagerTests.swift in Sources */,
 				00000000000000000000006B /* Mocks.swift in Sources */,
 				00000000000000000000009E /* ImportPuzzleViewModelTests.swift in Sources */,
