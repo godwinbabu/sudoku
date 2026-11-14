@@ -118,10 +118,16 @@ struct HintSession: Equatable {
         if level == 1 { return "Something in \(names.box(SolverBoard.box(of: cell))) doesn't fit." }
         if case let .wrongDigit(digit, clash) = kind {
             if let clash {
-                let house = names.house(Self.sharedHouse(cell, clash))
+                let shared = Self.sharedHouse(cell, clash)
+                // Where the clash sits inside the shared house: its column in a row, its row in a column.
+                let spot = switch shared.kind {
+                case .row: names.house(House(kind: .column, index: SolverBoard.column(of: clash)))
+                case .column: names.house(House(kind: .row, index: SolverBoard.row(of: clash)))
+                case .box: names.cell(clash)
+                }
                 return level == 2
                     ? "The \(digit) in \(names.cell(cell)) repeats the \(digit) in \(names.cell(clash))."
-                    : "Each digit goes once in a row, column and box. \(house.capitalizedFirst) already has \(CellNotation.withArticle(digit)) in \(names.cell(clash)), so this one has to go."
+                    : "\(names.house(shared).capitalizedFirst) already has \(CellNotation.withArticle(digit)) (\(spot))."
             }
             return level == 2
                 ? "The \(digit) in \(names.cell(cell)) can't be right."
