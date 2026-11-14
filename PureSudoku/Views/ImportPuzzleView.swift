@@ -14,8 +14,9 @@ struct ImportPuzzleView: View {
     @State private var showPhotos = false
     let onStart: (ImportedGame) -> Void
 
-    init(viewModel: ImportPuzzleViewModel, onStart: @escaping (ImportedGame) -> Void) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    /// The model is an autoclosure: StateObject builds it once, not on every parent redraw (issue 70).
+    init(viewModel: @autoclosure @escaping () -> ImportPuzzleViewModel, onStart: @escaping (ImportedGame) -> Void) {
+        _viewModel = StateObject(wrappedValue: viewModel())
         self.onStart = onStart
     }
 

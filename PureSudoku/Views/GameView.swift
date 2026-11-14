@@ -153,31 +153,8 @@ struct GameView: View {
         HStack(spacing: 4) {
             HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
                 .accessibilityIdentifier("backButton")
-            Button(action: togglePause) {
-                VStack(spacing: 1) {
-                    Text(difficulty.displayName.uppercased())
-                        .psFont(11, weight: .semibold)
-                        .tracking(0.9)
-                        .foregroundStyle(theme.ink3)
-                    if viewModel.showTimer {
-                        HStack(spacing: 5) {
-                            Text(Self.timeString(viewModel.state.elapsedSeconds))
-                                .accessibilityIdentifier("timerLabel")
-                            if viewModel.isPaused { Image(systemName: "pause").psFont(11, weight: .semibold) }
-                        }
-                        .psFont(15, weight: .medium, monospacedDigit: true)
-                        .foregroundStyle(theme.ink2)
-                    }
-                }
-                .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 48 pt tall
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(viewModel.state.isCompleted)
-            .accessibilityIdentifier("timerToggle")
-            .accessibilityLabel(viewModel.isPaused ? "Resume timer" : "Pause timer")
-            .accessibilityValue(viewModel.showTimer ? Self.timeString(viewModel.state.elapsedSeconds) : "")
+            TimerButton(clock: viewModel.clock, title: difficulty.displayName, theme: theme, showsTimer: viewModel.showTimer,
+                        isPaused: viewModel.isPaused, isCompleted: viewModel.state.isCompleted, action: togglePause)
             HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: "Night") {
                 showsMenu = false
                 controller.showsNightSheet = true
@@ -450,5 +427,44 @@ struct GameView: View {
     static func timeString(_ seconds: Int) -> String {
         let hours = seconds / 3600, minutes = (seconds % 3600) / 60, secs = seconds % 60
         return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, secs) : String(format: "%d:%02d", minutes, secs)
+    }
+}
+
+/// The header's level name and timer. Only this view observes the clock, so a tick redraws it alone.
+private struct TimerButton: View {
+    @ObservedObject var clock: GameClock
+    let title: String
+    let theme: PSPalette
+    let showsTimer: Bool
+    let isPaused: Bool
+    let isCompleted: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 1) {
+                Text(title.uppercased())
+                    .psFont(11, weight: .semibold)
+                    .tracking(0.9)
+                    .foregroundStyle(theme.ink3)
+                if showsTimer {
+                    HStack(spacing: 5) {
+                        Text(GameView.timeString(clock.seconds))
+                            .accessibilityIdentifier("timerLabel")
+                        if isPaused { Image(systemName: "pause").psFont(11, weight: .semibold) }
+                    }
+                    .psFont(15, weight: .medium, monospacedDigit: true)
+                    .foregroundStyle(theme.ink2)
+                }
+            }
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 48 pt tall
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(isCompleted)
+        .accessibilityIdentifier("timerToggle")
+        .accessibilityLabel(isPaused ? "Resume timer" : "Pause timer")
+        .accessibilityValue(showsTimer ? GameView.timeString(clock.seconds) : "")
     }
 }

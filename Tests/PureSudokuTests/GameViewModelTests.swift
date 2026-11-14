@@ -244,6 +244,90 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.state.cells[3].isError)
     }
 
+    /// A tick changes only the clock, so the game screen doesn't redraw every second (issue 70).
+    /// Before the fix, 31 ticks published the view model 31 times.
+    func testTicksPublishOnlyTheClock() async {
+        let time = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(),
+                                      timeProvider: time)
+        viewModel.handleSceneDidAppear()
+        var screenChanges = 0, clockChanges = 0
+        let screen = viewModel.objectWillChange.sink { screenChanges += 1 }
+        let label = viewModel.clock.objectWillChange.sink { clockChanges += 1 }
+        for _ in 0..<31 {
+            time.advance(1)
+            await viewModel.tick()
+        }
+        XCTAssertEqual(screenChanges, 0)
+        XCTAssertEqual(clockChanges, 31)
+        XCTAssertEqual(viewModel.clock.seconds, 31)
+        _ = (screen, label)
+    }
+
+    /// Time comes from the start anchor: an early tick adds nothing, a late one adds what passed, and
+    /// a part second carries across pause and resume (issue 70).
+    func testEarlyAndLateTicksAndPauseCountRealTime() async {
+        let time = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(),
+                                      timeProvider: time)
+        viewModel.handleSceneDidAppear()
+        time.advance(0.4)
+        await viewModel.tick() // early
+        XCTAssertEqual(viewModel.clock.seconds, 0)
+        time.advance(2.7)
+        await viewModel.tick() // late: 3.1 s in all
+        XCTAssertEqual(viewModel.clock.seconds, 3)
+        time.advance(0.5)
+        viewModel.pauseTimer() // 3.6 s
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 3)
+        time.advance(50) // paused time doesn't count
+        viewModel.resumeTimer()
+        time.advance(0.5)
+        await viewModel.tick() // 4.1 s: the carried 0.6 s makes a second
+        XCTAssertEqual(viewModel.clock.seconds, 4)
+        viewModel.pauseTimer()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 4)
+    }
+
+    /// Autosave runs on a deadline: a late tick that jumps past 10 s still saves, with the live time (issue 70).
+    func testAutosaveFiresWhenALateTickSkipsPastTheDeadline() async {
+        let time = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(),
+                                      timeProvider: time)
+        var saved: [Int] = []
+        viewModel.onSave = { saved.append($0.elapsedSeconds) }
+        viewModel.handleSceneDidAppear()
+        time.advance(9.5)
+        await viewModel.tick()
+        XCTAssertEqual(saved, [])
+        time.advance(2) // 11.5 s: past the 10 s deadline without a tick on it
+        await viewModel.tick()
+        XCTAssertEqual(saved, [11])
+        time.advance(9)
+        await viewModel.tick() // 20.5 s: next deadline is 21.5 s
+        XCTAssertEqual(saved, [11])
+        time.advance(1)
+        await viewModel.tick()
+        XCTAssertEqual(saved, [11, 21])
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 0, "state takes the time only when the timer stops")
+    }
+
+    /// A second stop (lesson pushed, then the app backgrounded) keeps the carried part second (issue 70).
+    func testRepeatedStopsKeepThePartSecond() {
+        let time = AdvancingTimeProvider()
+        let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(),
+                                      timeProvider: time)
+        viewModel.handleSceneDidAppear()
+        time.advance(5.75)
+        viewModel.handleSceneDidDisappear() // a lesson is pushed: 5 s, 0.75 s carried
+        viewModel.pauseForBackground() // already stopped
+        viewModel.resumeFromBackground()
+        viewModel.handleSceneDidAppear()
+        time.advance(0.5)
+        viewModel.pauseTimer()
+        XCTAssertEqual(viewModel.state.elapsedSeconds, 6)
+    }
+
     func testBackgroundPauseResumesWithoutOverlay() {
         let clock = AdvancingTimeProvider()
         let viewModel = GameViewModel(state: TestData.newGameState(), settings: Settings(), validator: SudokuValidator(), timeProvider: clock)
