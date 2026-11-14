@@ -9,8 +9,9 @@ struct NightSheetView: View {
     @StateObject private var viewModel: SettingsViewModel
     @State private var calibrating = false
 
-    init(viewModel: SettingsViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    /// The model is an autoclosure: StateObject builds it once, not on every parent redraw (issue 70).
+    init(viewModel: @autoclosure @escaping () -> SettingsViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel())
     }
 
     var body: some View {

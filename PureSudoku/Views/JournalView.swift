@@ -10,9 +10,10 @@ struct JournalView: View {
     @StateObject private var settingsModel: SettingsViewModel
     @State private var confirmsClear = false
 
-    init(viewModel: StatsViewModel, settings: SettingsViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
-        _settingsModel = StateObject(wrappedValue: settings)
+    /// The model is an autoclosure: StateObject builds it once, not on every parent redraw (issue 70).
+    init(viewModel: @autoclosure @escaping () -> StatsViewModel, settings: @autoclosure @escaping () -> SettingsViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel())
+        _settingsModel = StateObject(wrappedValue: settings())
     }
 
     var body: some View {

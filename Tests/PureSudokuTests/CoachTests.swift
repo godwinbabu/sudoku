@@ -222,7 +222,7 @@ final class CoachTests: XCTestCase {
         await viewModel.tick()
         time.advance(10)
         await viewModel.tick()
-        XCTAssertEqual(viewModel.state.elapsedSeconds, 110)
+        XCTAssertEqual(viewModel.clock.seconds, 110)
         XCTAssertFalse(viewModel.isStuck, "110 s since the last correct digit")
         time.advance(10)
         await viewModel.tick()
