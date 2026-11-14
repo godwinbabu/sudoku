@@ -135,6 +135,9 @@ struct Settings: Codable, Equatable {
     /// 2: glow 0–40 scales the palette and 40–100 the backlight (CODESPEC 12.3).
     static let glowScale = 2
 
+    /// 2: Lights out moved from glow 45 / warmth 65 to 55 / 55 (issue #93).
+    static let lightsOutRevision = 2
+
     /// The scale-2 glow that draws the palette as strongly as `glow` did on scale 1, where strength
     /// grew with (glow / 100)^1.15 and the backlight stayed at its minimum.
     static func glowOnScale2(fromScale1 glow: Double) -> Double {
@@ -149,7 +152,7 @@ struct Settings: Codable, Equatable {
     // MARK: Codable, with migration from the v1 keys
 
     private enum CodingKeys: String, CodingKey {
-        case appearance, glow, warmth, clarity, glowFloor, glowScale, calibrated, drift, hideStatusBarInGames
+        case appearance, glow, warmth, clarity, glowFloor, glowScale, lightsOutRevision, calibrated, drift, hideStatusBarInGames
         case useLocationForAfterDark, afterDarkStart, afterDarkEnd
         case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer, coachWhenStuck
         case notation, keepImportImages
@@ -203,6 +206,8 @@ struct Settings: Codable, Equatable {
         self.appearance = value(.appearance, appearance)
         self.glow = value(.glow, defaults.glow)
         self.warmth = value(.warmth, warmth)
+        // Read before the glow-scale migration below changes glow.
+        let onOldLightsOut = value(.lightsOutRevision, 1) < Self.lightsOutRevision && self.glow == 45 && self.warmth == 65
         clarity = value(.clarity, defaults.clarity)
         glowFloor = value(.glowFloor, defaults.glowFloor)
         // Glow scale 1 (before glow drove the backlight) was far too dark, so its glow is not kept: the
@@ -210,6 +215,11 @@ struct Settings: Codable, Equatable {
         if value(.glowScale, 1) < Self.glowScale {
             glowFloor = Self.glowOnScale2(fromScale1: glowFloor)
             self.glow = max(NightPreset.lightsOut.glow, glowFloor)
+        }
+        // Players still on the old Lights out default move to the new one, once; any other tuning stays.
+        if onOldLightsOut {
+            self.glow = max(NightPreset.lightsOut.glow, glowFloor)
+            self.warmth = NightPreset.lightsOut.warmth
         }
         calibrated = value(.calibrated, value(.hasCalibratedDisplay, defaults.calibrated))
         drift = value(.drift, defaults.drift)
@@ -237,6 +247,7 @@ struct Settings: Codable, Equatable {
         try c.encode(clarity, forKey: .clarity)
         try c.encode(glowFloor, forKey: .glowFloor)
         try c.encode(Self.glowScale, forKey: .glowScale)
+        try c.encode(Self.lightsOutRevision, forKey: .lightsOutRevision)
         try c.encode(calibrated, forKey: .calibrated)
         try c.encode(drift, forKey: .drift)
         try c.encode(hideStatusBarInGames, forKey: .hideStatusBarInGames)

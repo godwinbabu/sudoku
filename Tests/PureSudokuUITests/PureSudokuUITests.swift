@@ -459,7 +459,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertFalse(app.buttons["calibrate_cancel"].exists, "first run has no Cancel")
         tile.tap()
         app.buttons["calibrate_use"].tap()
-        XCTAssertTrue(app.staticTexts["Glow set to 45%."].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Glow set to 55%."].waitForExistence(timeout: 2))
         app.buttons["firstNight_start"].tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
         let day = app.buttons["display_appearance_day"]
@@ -699,5 +699,61 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2), "Start over goes back to Source")
         app.buttons["importDiscard"].tap()
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2))
+    }
+}
+
+// Night highlights (issue #93).
+extension PureSudokuUITests {
+    /// In Night the board's highlights are visible: a selected given's row-mate (peer) and another copy of
+    /// its digit (same) render brighter than a plain cell, and the selection brightest (issue #93).
+    func testNightHighlightsRender() {
+        let app = launchApp()
+        let original = setAppearance("night", in: app)
+        XCTAssertTrue(waitUntilHittable(app.buttons["difficulty_easy"]))
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+
+        let labels = boardLabels(in: app)
+        func digit(_ index: Int) -> String? { labels[index].components(separatedBy: " value ").dropFirst().first }
+        func sees(_ a: Int, _ b: Int) -> Bool {
+            a / 9 == b / 9 || a % 9 == b % 9 || (a / 27 == b / 27 && a % 9 / 3 == b % 9 / 3)
+        }
+        // A given whose digit also appears in a cell it does not see.
+        var pick: (selected: Int, same: Int)?
+        for a in 0..<81 where pick == nil {
+            guard let value = digit(a) else { continue }
+            if let b = (0..<81).first(where: { $0 != a && digit($0) == value && !sees(a, $0) }) { pick = (a, b) }
+        }
+        guard let (selected, same) = pick else { return XCTFail("no repeated digit on the board") }
+        let value = digit(selected)
+        let peer = (0..<81).first { $0 != selected && sees(selected, $0) && digit($0) != value }!
+        let plain = (0..<81).first { !sees(selected, $0) && digit($0) != value }!
+        func cell(_ index: Int) -> XCUIElement { app.buttons["cell_\(index / 9)_\(index % 9)"] }
+        cell(selected).tap()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5)) // the highlight animates in
+
+        let shot = XCUIScreen.main.screenshot().image
+        let brightness = [plain, peer, same, selected].map { fillBrightness(of: cell($0).frame, in: shot) }
+        XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
+        XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
+
+        app.buttons["backButton"].tap()
+        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+    }
+
+    /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
+    /// outside the 2 pt selection ring and the same-digit ring inset 3 pt.
+    private func fillBrightness(of frame: CGRect, in image: UIImage) -> Int {
+        let point = CGPoint(x: ((frame.minX + 2.5) * image.scale).rounded(.down), y: ((frame.minY + 2.5) * image.scale).rounded(.down))
+        guard let pixel = image.cgImage?.cropping(to: CGRect(origin: point, size: CGSize(width: 1, height: 1))) else { return -1 }
+        var rgba = [UInt8](repeating: 0, count: 4)
+        let drawn: Bool = rgba.withUnsafeMutableBytes { buffer in
+            guard let context = CGContext(data: buffer.baseAddress, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
+                                          space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+            context.draw(pixel, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            return true
+        }
+        return drawn ? Int(rgba[0]) + Int(rgba[1]) + Int(rgba[2]) : -1
     }
 }

@@ -10,18 +10,18 @@ final class NightPaletteTests: XCTestCase {
     /// Preset snapshots on glow scale 2 (CODESPEC 7.2, 12.3). They replace the styles.css snapshots,
     /// which were too dark to read.
     private let snapshots: [(NightPreset, [String: [Int]])] = [
-        (.readingLamp, ["surface": [18, 10, 3], "surface2": [28, 16, 4], "ink": [255, 146, 39], "ink2": [199, 114, 31],
-                        "ink3": [158, 91, 24], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [56, 32, 9],
-                        "lineMajor": [153, 88, 23], "hair": [64, 37, 10], "sel": [51, 22, 0], "peer": [14, 8, 2],
-                        "same": [31, 13, 0], "err": [242, 66, 61], "status": [112, 64, 17]]),
-        (.lightsOut, ["surface": [18, 8, 0], "surface2": [28, 13, 0], "ink": [255, 121, 0], "ink2": [199, 94, 0],
-                      "ink3": [158, 75, 0], "accent": [245, 94, 0], "accentDim": [166, 64, 0], "line": [56, 27, 0],
-                      "lineMajor": [153, 72, 0], "hair": [64, 30, 0], "sel": [51, 20, 0], "peer": [14, 7, 0],
-                      "same": [31, 12, 0], "err": [242, 66, 61], "status": [112, 53, 0]]),
-        (.redLight, ["surface": [15, 5, 0], "surface2": [23, 8, 0], "ink": [208, 70, 0], "ink2": [163, 55, 0],
-                     "ink3": [129, 44, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [46, 15, 0],
-                     "lineMajor": [125, 42, 0], "hair": [52, 18, 0], "sel": [42, 14, 0], "peer": [11, 4, 0],
-                     "same": [25, 8, 0], "err": [198, 54, 50], "status": [92, 31, 0]])
+        (.readingLamp, ["surface": [18, 10, 3], "surface2": [28, 16, 4], "ink": [255, 146, 39], "ink2": [230, 132, 35],
+                        "ink3": [199, 114, 31], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [76, 44, 12],
+                        "lineMajor": [153, 88, 23], "hair": [64, 37, 10], "sel": [84, 36, 0], "peer": [43, 18, 0],
+                        "same": [64, 27, 0], "err": [242, 66, 61], "status": [112, 64, 17]]),
+        (.lightsOut, ["surface": [18, 9, 0], "surface2": [28, 14, 0], "ink": [255, 132, 0], "ink2": [230, 119, 0],
+                      "ink3": [199, 103, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [76, 40, 0],
+                      "lineMajor": [153, 79, 0], "hair": [64, 33, 0], "sel": [84, 33, 0], "peer": [43, 17, 0],
+                      "same": [64, 25, 0], "err": [242, 66, 61], "status": [112, 58, 0]]),
+        (.redLight, ["surface": [15, 5, 0], "surface2": [23, 8, 0], "ink": [208, 70, 0], "ink2": [188, 63, 0],
+                     "ink3": [163, 55, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [63, 21, 0],
+                     "lineMajor": [125, 42, 0], "hair": [52, 18, 0], "sel": [69, 23, 0], "peer": [35, 12, 0],
+                     "same": [52, 18, 0], "err": [198, 54, 50], "status": [92, 31, 0]])
     ]
 
     private func channels(_ color: Color) -> [Int] {
@@ -48,6 +48,82 @@ final class NightPaletteTests: XCTestCase {
             }
             XCTAssertEqual(channels(palette.bg), [0, 0, 0], "the night canvas is pure black")
         }
+    }
+
+    /// WCAG relative luminance of `color`, optionally drawn at `opacity` over `over`.
+    private func luminance(_ color: Color, opacity: Double = 1, over: Color = .black) -> Double {
+        let fg = channels(color), bg = channels(over)
+        let mixed = (0..<3).map { (Double(fg[$0]) * opacity + Double(bg[$0]) * (1 - opacity)).rounded() / 255 }
+        let linear = mixed.map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+    }
+
+    private func contrast(_ a: Double, _ b: Double) -> Double { (max(a, b) + 0.05) / (min(a, b) + 0.05) }
+
+    /// Highlights step plain < peer < same < sel, peer stays below the grid line, and no fill outshines
+    /// the ink (issue #93).
+    func testCellFillLadder() {
+        for glow in [20.0, 45, 100] {
+            for warmth in [0.0, 65, 100] {
+                for clarity in Clarity.allCases {
+                    let p = PSPalette.night(glow: glow, warmth: warmth, clarity: clarity)
+                    let fills = [p.bg, p.peer, p.same, p.sel].map { luminance($0) }
+                    let context = "glow \(glow) warmth \(warmth) \(clarity)"
+                    XCTAssertEqual(fills, fills.sorted(), context)
+                    XCTAssertEqual(Set(fills).count, 4, "each step is distinct: \(context)")
+                    XCTAssertLessThan(luminance(p.peer), luminance(p.line), context)
+                    XCTAssertLessThan(luminance(p.sel), luminance(p.ink), context)
+                    // At full strength each step is big enough to see (CIE L*; it was 2.2 for peer before #93).
+                    let lightness = fills.map { $0 > 0.008856 ? 116 * pow($0, 1.0 / 3) - 16 : 903.3 * $0 }
+                    for i in 1..<4 where glow >= 40 {
+                        XCTAssertGreaterThanOrEqual(lightness[i] - lightness[i - 1], 5, "step \(i), \(context)")
+                    }
+                }
+            }
+        }
+    }
+
+    /// At full palette strength every cell mark keeps 3:1 on every fill it can sit on, at any warmth.
+    func testCellMarksKeepThreeToOneOnEveryFill() {
+        for clarity in Clarity.allCases {
+            for warmth in stride(from: 0.0, through: 100, by: 1) {
+                assertCellMarks(PSPalette.night(glow: 45, warmth: warmth, clarity: clarity), "\(clarity) warmth \(warmth)")
+            }
+        }
+    }
+
+    private func assertCellMarks(_ p: PSPalette, _ context: String) {
+        for (fillName, fill) in [("bg", p.bg), ("peer", p.peer), ("same", p.same), ("sel", p.sel)] {
+            let back = luminance(fill)
+            let marks: [(String, Double)] = [
+                ("ink", luminance(p.ink)), ("accent", luminance(p.accent)), ("ink2", luminance(p.ink2)),
+                ("err", luminance(p.err))
+            ]
+            for (name, mark) in marks {
+                XCTAssertGreaterThanOrEqual(contrast(mark, back), 3, "\(name) on \(fillName), \(context)")
+            }
+        }
+        // Ghost digits, struck notes and ruled-out rings (ink3) show only with a hint open, where there is
+        // no selection.
+        for fill in [p.bg, p.peer, p.same] {
+            XCTAssertGreaterThanOrEqual(contrast(luminance(p.ink3), luminance(fill)), 3, "ink3, \(context)")
+            let ghost = luminance(p.accent, opacity: 0.75, over: fill)
+            XCTAssertGreaterThanOrEqual(contrast(ghost, luminance(fill)), 3, "ghost, \(context)")
+        }
+    }
+
+    /// The same-digit ring is Night only, and the selection and hint rings take precedence (CODESPEC 7.3).
+    func testSameDigitRingPrecedence() {
+        var state = CellState()
+        state.isSameDigit = true
+        XCTAssertTrue(state.showsSameDigitRing(night: true))
+        XCTAssertFalse(state.showsSameDigitRing(night: false), "Day is unchanged")
+        for keyPath in [\CellState.isSelected, \CellState.isEvidence, \CellState.isTarget] {
+            var ringed = state
+            ringed[keyPath: keyPath] = true
+            XCTAssertFalse(ringed.showsSameDigitRing(night: true), "\(keyPath)")
+        }
+        XCTAssertFalse(CellState().showsSameDigitRing(night: true))
     }
 
     func testKelvinForWarmth() {
@@ -199,6 +275,31 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertEqual(settings.glow, NightPreset.lightsOut.glow)
         let again = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(settings))
         XCTAssertEqual(again, settings, "scale-2 files are not migrated twice")
+    }
+
+    /// Settings still on the old Lights out default (45 / 65) move to the new one once; nothing else moves.
+    func testOldLightsOutDefaultMovesOnce() throws {
+        func decode(_ json: [String: Any]) throws -> Settings {
+            try JSONDecoder().decode(Settings.self, from: JSONSerialization.data(withJSONObject: json))
+        }
+        let base: [String: Any] = ["appearance": "night", "glowScale": 2, "glowFloor": 8, "calibrated": true]
+        let old = try decode(base.merging(["glow": 45, "warmth": 65]) { $1 })
+        XCTAssertEqual([old.glow, old.warmth], [55, 55])
+        XCTAssertEqual(old.glowFloor, 8)
+        XCTAssertTrue(old.calibrated)
+        let floorAbove = try decode(base.merging(["glow": 45, "warmth": 65, "glowFloor": 60]) { $1 })
+        XCTAssertEqual(floorAbove.glow, 60, "never below the floor")
+
+        let tuned = try decode(base.merging(["glow": 45, "warmth": 70]) { $1 })
+        XCTAssertEqual([tuned.glow, tuned.warmth], [45, 70], "the player's own tuning stays")
+        let chosenLater = try decode(base.merging(["glow": 45, "warmth": 65, "lightsOutRevision": 2]) { $1 })
+        XCTAssertEqual([chosenLater.glow, chosenLater.warmth], [45, 65], "migrated files are not moved again")
+        let again = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(old))
+        XCTAssertEqual(again, old)
+
+        // A glow-scale-1 file on the old Lights out gets both migrations: glow and warmth.
+        let scale1 = try decode(["appearance": "night", "glow": 45, "warmth": 65, "calibrated": true])
+        XCTAssertEqual([scale1.glow, scale1.warmth], [55, 55])
     }
 
     func testScreenBrightnessIsRestored() {

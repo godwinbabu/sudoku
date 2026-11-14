@@ -66,16 +66,16 @@ lift   = 1 / 1.25 / 1.5 (Clarity)
 |---|---|
 | bg | `#000000` always |
 | surface / surface2 | base × 0.07s / 0.11s |
-| ink / ink2 / ink3 | base × s / 0.78s / 0.62s |
+| ink / ink2 / ink3 | base × s / 0.90s / 0.78s |
 | accent / accentDim | accent × 0.96s / 0.65s |
-| line / lineMajor | base × 0.22s·lift / 0.60s·lift |
+| line / lineMajor | base × 0.30s·lift / 0.60s·lift |
 | hair | base × 0.25s |
-| sel / same / peer | accent × 0.20s / accent × 0.12s / base × 0.055s |
+| sel / same / peer | accent × 0.33s / accent × 0.25s / accent × 0.17s (plain < peer < same < sel, ≥ 5 L* apart at full strength; peer below line; every cell mark ≥ 3:1 on its fill at full strength, issue #93) |
 | err | (255, 70, 64) × 0.95s |
 | status (status bar on non-game screens) | base × 0.44s |
 | focusDim | 0.45 (raised from 0.22 so the rest of the board stays readable, QA #29) |
 
-Presets: **Reading lamp** (glow 70, warmth 45 → 2200 K), **Lights out** (45, 65, the default), **Red light** (30, 100 → 1200 K). Glow above 40 also raises the screen backlight (CODESPEC 12.3). The `styles.css` preset snapshots predate this scale and are superseded by `NightPaletteTests`.
+Presets: **Reading lamp** (glow 70, warmth 45 → 2200 K), **Lights out** (55, 55, the default; 45 / 65 before issue #93), **Red light** (30, 100 → 1200 K). Glow above 40 also raises the screen backlight (CODESPEC 12.3). The `styles.css` preset snapshots predate this scale and are superseded by `NightPaletteTests`.
 
 **Night rules** (required, and testable):
 - No filled shapes behind text.
@@ -172,7 +172,7 @@ Vertical stack:
 | Entered | — | — | `accent`, entered weight |
 | Selected | `sel` | 2 pt inset `accent` | — |
 | Peer (row / col / box of selected) | `peer` | — | — |
-| Same digit as selected | `same` | — | — |
+| Same digit as selected | `same` | at night: 1.5 pt `accent`, inset 3, radius 4 (not on selected, evidence or target cells) | — |
 | Mistake | — | — | `err`, plus a 2 pt `err` bar under the digit (120% of its width) |
 | Notes | — | — | 3×3 at cell × 0.25, `ink2`; a candidate matching the selected digit is bold `accent` |
 | Hint spotlight | — | — | everything outside `focus` at `focusDim` |
