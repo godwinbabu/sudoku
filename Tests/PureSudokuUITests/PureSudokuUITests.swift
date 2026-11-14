@@ -489,6 +489,14 @@ final class PureSudokuUITests: XCTestCase {
         lesson.tap()
     }
 
+    /// Swipes up until `element` sits fully above the app's tab bar (or the window's bottom).
+    /// isHittable stays true while a row is half under the tab bar, and a tap there hits the tab (#79).
+    func scrollClearOfTabBar(_ element: XCUIElement, in app: XCUIApplication, swipes: Int = 8) {
+        let tab = app.buttons["tab_play"]
+        let bottom = tab.exists ? tab.frame.minY : app.windows.firstMatch.frame.maxY
+        for _ in 0..<swipes where !element.exists || element.frame.maxY > bottom { app.swipeUp() }
+    }
+
     func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
         let gone = NSPredicate(format: "exists == false")
         return XCTWaiter().wait(for: [XCTNSPredicateExpectation(predicate: gone, object: element)], timeout: timeout) == .completed
