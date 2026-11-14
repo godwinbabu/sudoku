@@ -44,7 +44,7 @@ final class SaveSafetyTests: XCTestCase {
     /// Starts an Easy game, plays it for `seconds`, and solves it.
     private func playAndSolve(_ controller: AppController, seconds: TimeInterval = 300) async -> GameViewModel {
         await controller.startNewGame(for: .easy, mode: .seeded(7))
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.handleSceneDidAppear()
         clock.advance(seconds)
         solve(viewModel)
@@ -137,7 +137,7 @@ final class SaveSafetyTests: XCTestCase {
         let controller = launch()
         await controller.startNewGame(for: .easy, mode: .seeded(7))
         try block("game_easy.json")
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.handleSceneDidAppear()
         clock.advance(300)
         solve(viewModel)
@@ -182,9 +182,10 @@ final class SaveSafetyTests: XCTestCase {
         XCTAssertEqual(try saved([PendingCompletion].self, "pending_completions.json"), [], "the replaced game needs no mark")
     }
 
-    func testAnImportedSolveWithAFailedStatsSaveIsCountedOnce() throws {
+    func testAnImportedSolveWithAFailedStatsSaveIsCountedOnce() async throws {
         let controller = launch()
-        let game = try XCTUnwrap(controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid))
+        let made = await controller.createImportedGame(initialGrid: TestData.puzzle.initialGrid)
+        let game = try XCTUnwrap(made)
         try block("stats.json")
         let viewModel = try XCTUnwrap(controller.makeImportedGameViewModel(id: game.id))
         solve(viewModel)
@@ -216,7 +217,7 @@ final class SaveSafetyTests: XCTestCase {
         let controller = launch()
         XCTAssertEqual(controller.stats.totalPuzzlesSolved, 4)
         XCTAssertEqual(controller.stats.countedGameIDs, [])
-        let viewModel = controller.makeGameViewModel(for: .easy)
+        let viewModel = controller.makeGameViewModel(for: .easy)!
         viewModel.resetPuzzle()
         viewModel.handleSceneDidAppear()
         clock.advance(100)
@@ -337,7 +338,7 @@ final class SaveSafetyTests: XCTestCase {
     func testARevealedSolveWritesNoPendingRecord() async throws {
         let controller = launch()
         await controller.startNewGame(for: .easy, mode: .seeded(7))
-        controller.makeGameViewModel(for: .easy).revealPuzzle()
+        controller.makeGameViewModel(for: .easy)?.revealPuzzle()
         XCTAssertNil(try saved([PendingCompletion].self, "pending_completions.json"))
         XCTAssertEqual(controller.stats.totalPuzzlesSolved, 0)
     }
