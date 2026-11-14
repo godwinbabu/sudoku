@@ -83,13 +83,17 @@ struct GameView: View {
         .overlay(alignment: .topTrailing) { menu(theme: theme) }
         .overlay { confirmation(theme: theme) }
         .overlay {
-            if isHushed {
-                BlackoutView(theme: theme, text: "Tap anywhere to return", onTap: endHush)
-                    .accessibilityIdentifier("hushView")
-            } else if isGoodnight {
-                BlackoutView(theme: theme, text: "Sleep well.", serif: true) { popToRoot() }
-                    .accessibilityIdentifier("goodnightView")
+            Group {
+                if isHushed {
+                    BlackoutView(theme: theme, text: "Tap anywhere to return", onTap: endHush)
+                        .accessibilityIdentifier("hushView")
+                } else if isGoodnight {
+                    BlackoutView(theme: theme, text: "Sleep well.", serif: true) { popToRoot() }
+                        .accessibilityIdentifier("goodnightView")
+                }
             }
+            // A blackout still fading out must not take the next tap (issue #67).
+            .allowsHitTesting(isHushed || isGoodnight)
         }
         .background(TwoFingerTapCatcher(action: hush))
         .environment(\.psPalette, theme)

@@ -143,6 +143,27 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertFalse(hush.waitForExistence(timeout: 2), "no Hush over the Night sheet")
     }
 
+    /// In Night, the first tap after waking from Hush reaches the control under it (issue #67).
+    func testFirstTapAfterHushInNightWorks() {
+        let app = launchApp()
+        startLevel("easy", in: app)
+        let game = element("gameView", in: app)
+        XCTAssertTrue(game.waitForExistence(timeout: 2))
+        app.buttons["nightButton"].tap()
+        let sheet = element("nightSheet", in: app)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 2))
+        app.buttons["night_appearance_night"].tap()
+        app.buttons["night_close"].tap()
+        XCTAssertTrue(waitForAbsence(sheet, timeout: 6))
+        game.twoFingerTap()
+        let hush = element("hushView", in: app)
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        Thread.sleep(forTimeInterval: 4) // past the 3.5 s text fade, as in the report
+        hush.tap()
+        app.buttons["backButton"].tap()
+        XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2), "the first tap on Back works")
+    }
+
     func testNotesBadgeToggles() {
         let app = launchApp()
         startLevel("easy", in: app)
