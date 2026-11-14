@@ -29,7 +29,8 @@ final class ImportPuzzleViewModel: ObservableObject {
     /// True while Start builds the game off the main thread; Start stays disabled meanwhile.
     @Published private(set) var isStarting = false
 
-    private let generatorService: SudokuGeneratorService
+    /// Whether a grid string has a solution; runs off the main actor.
+    private let isSolvable: @Sendable (String) async -> Bool
     private let imageDetector: SudokuImageDetector
     /// Grid, photo id, and a check that the import is still current when the game is ready to save.
     private let createGame: (String, String?, @escaping () -> Bool) async -> ImportedGame?
@@ -45,13 +46,15 @@ final class ImportPuzzleViewModel: ObservableObject {
     private let idToIndex: [UUID: Int]
 
     init(
-        generatorService: SudokuGeneratorService = SudokuGeneratorService(),
+        isSolvable: @escaping @Sendable (String) async -> Bool = { grid in
+            await Task.detached(priority: .userInitiated) { SudokuGeneratorService().solve(initialGrid: grid) != nil }.value
+        },
         imageDetector: SudokuImageDetector = SudokuImageDetector(),
         createGame: @escaping (String, String?, @escaping () -> Bool) async -> ImportedGame?,
         saveImage: @escaping (UIImage) -> String?,
         deleteImage: @escaping (String) -> Void
     ) {
-        self.generatorService = generatorService
+        self.isSolvable = isSolvable
         self.imageDetector = imageDetector
         self.createGame = createGame
         self.saveImage = saveImage
@@ -285,14 +288,12 @@ final class ImportPuzzleViewModel: ObservableObject {
         solveTask?.cancel()
         let grid = gridString()
         let hasConflicts = !conflictIndices.isEmpty
-        let service = generatorService
+        let isSolvable = isSolvable
         solveTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled else { return }
             // shortcut: the solver can't be stopped mid-run, so a superseded solve finishes and is dropped.
-            let solvable = hasConflicts ? false : await Task.detached(priority: .userInitiated) {
-                service.solve(initialGrid: grid) != nil
-            }.value
+            let solvable = hasConflicts ? false : await isSolvable(grid)
             guard let self, !Task.isCancelled, grid == self.gridString() else { return }
             self.solvableState = solvable ? .solvable : .unsolvable
         }

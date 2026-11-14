@@ -28,52 +28,90 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.solvableState, .solvable)
     }
 
-    /// A solve result for an older grid never overwrites the newer grid's result (issue 73).
+    /// A solve that finishes after a newer grid's solve never overwrites the newer result (issue 73).
     func testStaleSolveResultIsDropped() async throws {
-        let viewModel = makeViewModel()
-        let solvable = TestData.puzzle.initialGrid.map { Int(String($0)).flatMap { $0 > 0 ? $0 : nil } }
-        // A wrong digit in an empty cell that repeats nothing, so only the solver can reject it.
-        var unsolvable = solvable
-        let empty = try XCTUnwrap(solvable.firstIndex(of: nil))
-        let right = Int(String(Array(TestData.puzzle.solutionGrid)[empty]))
-        for digit in 1...9 where digit != right {
-            unsolvable[empty] = digit
-            if Board.conflictingPositions(in: Board.from(digits: unsolvable)).isEmpty { break }
-        }
-        XCTAssertTrue(Board.conflictingPositions(in: Board.from(digits: unsolvable)).isEmpty)
+        let gate = Gate<Bool>()
+        let viewModel = ImportPuzzleViewModel(
+            isSolvable: { _ in await gate.wait() }, createGame: { _, _, _ in nil }, saveImage: { _ in nil }, deleteImage: { _ in }
+        )
+        viewModel.loadGrid(Self.givens)
+        await waitUntil { gate.pending.count == 1 }
+        var edited = Self.givens
+        edited[try XCTUnwrap(edited.firstIndex { $0 != nil })] = nil
+        viewModel.loadGrid(edited)
+        await waitUntil { gate.pending.count == 2 }
+        XCTAssertEqual(viewModel.solvableState, .unknown, "Checking until the current grid's result arrives")
 
-        viewModel.loadGrid(solvable)
-        viewModel.loadGrid(unsolvable)
-        XCTAssertEqual(viewModel.solvableState, .unknown, "Checking until the new grid's result arrives")
-        try await Task.sleep(nanoseconds: 600_000_000)
+        gate.finish(1, with: false) // the newer grid
+        await waitUntil { viewModel.solvableState != .unknown }
         XCTAssertEqual(viewModel.solvableState, .unsolvable)
-
-        viewModel.loadGrid(unsolvable)
-        viewModel.loadGrid(solvable)
-        try await Task.sleep(nanoseconds: 600_000_000)
-        XCTAssertEqual(viewModel.solvableState, .solvable)
+        gate.finish(0, with: true) // the older grid, late
+        for _ in 0..<5 { await Task.yield() }
+        XCTAssertEqual(viewModel.solvableState, .unsolvable)
     }
 
-    /// An edit while Start builds the game makes the build stale; no game is returned (issue 73).
+    /// An edit while Start builds the game makes the build stale; no game comes back (issue 73).
     func testEditDuringStartDropsTheGame() async throws {
-        var viewModel: ImportPuzzleViewModel!
-        var stillCurrent: Bool?
-        viewModel = ImportPuzzleViewModel(
+        let gate = Gate<Void>()
+        let viewModel = ImportPuzzleViewModel(
+            isSolvable: { _ in true },
             createGame: { _, _, isCurrent in
-                viewModel.selectedIndex = 0
-                viewModel.clearSelected()
-                stillCurrent = isCurrent()
-                return nil
+                await gate.wait()
+                return isCurrent() ? Self.game() : nil
             },
             saveImage: { _ in nil }, deleteImage: { _ in }
         )
-        viewModel.loadGrid(TestData.puzzle.initialGrid.map { Int(String($0)).flatMap { $0 > 0 ? $0 : nil } })
-        try await Task.sleep(nanoseconds: 400_000_000)
-        XCTAssertTrue(viewModel.canStart)
-        let game = await viewModel.createImportedGame()
+        viewModel.loadGrid(Self.givens)
+        await waitUntil { viewModel.canStart }
+        let start = Task { await viewModel.createImportedGame() }
+        await waitUntil { gate.pending.count == 1 }
+        XCTAssertFalse(viewModel.canStart, "no second Start while the game is built")
+        viewModel.selectedIndex = 0
+        viewModel.clearSelected()
+        gate.finish(0, with: ())
+        let game = await start.value
         XCTAssertNil(game)
-        XCTAssertEqual(stillCurrent, false)
         XCTAssertFalse(viewModel.isStarting)
+    }
+
+    /// Closing the screen while Start builds the game: no game, and the photo is deleted once (issue 73).
+    func testCloseDuringStartDropsTheGameAndKeepsThePhotoDeleted() async throws {
+        let gate = Gate<Void>()
+        var deleted: [String] = []
+        let viewModel = ImportPuzzleViewModel(
+            isSolvable: { _ in true },
+            createGame: { _, _, isCurrent in
+                await gate.wait()
+                return isCurrent() ? Self.game() : nil
+            },
+            saveImage: { _ in "photo-1" }, deleteImage: { deleted.append($0) }
+        )
+        viewModel.updateImage(UIGraphicsImageRenderer(size: CGSize(width: 8, height: 8)).image { _ in })
+        await waitUntil { !viewModel.isDetecting }
+        viewModel.loadGrid(Self.givens)
+        await waitUntil { viewModel.canStart }
+        let start = Task { await viewModel.createImportedGame() }
+        await waitUntil { gate.pending.count == 1 }
+        viewModel.discardIfUnused()
+        XCTAssertEqual(deleted, ["photo-1"])
+        gate.finish(0, with: ())
+        let game = await start.value
+        XCTAssertNil(game)
+        viewModel.discardIfUnused()
+        XCTAssertEqual(deleted, ["photo-1"])
+    }
+
+    /// The test puzzle's givens.
+    private static let givens = TestData.puzzle.initialGrid.map { Int(String($0)).flatMap { $0 > 0 ? $0 : nil } }
+
+    private static func game() -> ImportedGame {
+        ImportedGame(gameState: GameState.newGame(for: TestData.puzzle, now: Date()), createdAt: Date(), lastOpened: Date())
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<300 where !condition() {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
     }
 
     func testRequiresMinimumClues() {
@@ -174,5 +212,21 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         viewModel.selectedIndex = 0
         viewModel.setDigit(5)
         XCTAssertNil(viewModel.emptyGridHint)
+    }
+}
+
+/// Holds async work until the test finishes it, so results can arrive in any order.
+@MainActor
+private final class Gate<Value> {
+    private(set) var pending: [CheckedContinuation<Value, Never>] = []
+    private var finished: Set<Int> = []
+
+    func wait() async -> Value {
+        await withCheckedContinuation { pending.append($0) }
+    }
+
+    func finish(_ index: Int, with value: Value) {
+        guard finished.insert(index).inserted else { return }
+        pending[index].resume(returning: value)
     }
 }
