@@ -155,10 +155,12 @@ extension PSPalette {
         let errColor = RGB255(r: 255, g: 70, b: 64)
         return PSPalette(
             bg: .black, surface: mul(base, s * 0.07), surface2: mul(base, s * 0.11),
-            ink: mul(base, s), ink2: mul(base, s * 0.78), ink3: mul(base, s * 0.62),
+            ink: mul(base, s), ink2: mul(base, s * 0.90), ink3: mul(base, s * 0.72),
             accent: mul(acc, s * 0.96), accentDim: mul(acc, s * 0.65),
-            line: mul(base, s * 0.22 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: mul(base, s * 0.25),
-            sel: mul(acc, s * 0.20), peer: mul(base, s * 0.055), same: mul(acc, s * 0.12),
+            line: mul(base, s * 0.30 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: mul(base, s * 0.25),
+            // Fills step plain < peer < same < sel (all accent, so the steps hold at any warmth), peer stays below line, and every cell mark keeps 3:1 on its
+            // fill at full strength (CODESPEC 7.2, issue #93).
+            sel: mul(acc, s * 0.33), peer: mul(acc, s * 0.17), same: mul(acc, s * 0.25),
             err: mul(errColor, s * 0.95), status: mul(base, s * 0.44),
             focusDim: 0.45, isNight: true, kelvin: Int(kelvin),
             blueReduction: Int(((1 - (base.b / 255) * s) * 100).rounded()), luminance: s
@@ -180,14 +182,14 @@ enum NightPreset: String, CaseIterable, Identifiable {
     var glow: Double {
         switch self {
         case .readingLamp: return 70
-        case .lightsOut: return 45
+        case .lightsOut: return 55
         case .redLight: return 30
         }
     }
     var warmth: Double {
         switch self {
         case .readingLamp: return 45
-        case .lightsOut: return 65
+        case .lightsOut: return 55
         case .redLight: return 100
         }
     }
