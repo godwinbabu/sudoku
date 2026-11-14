@@ -455,7 +455,10 @@ final class AppController: ObservableObject {
     }
 
     func saveImportedImage(_ image: UIImage) -> String? {
-        guard settings.keepImportImages, let id = imageStore.save(image: image) else { return nil }
+        // A list that failed to load may still reference any photo, so evict nothing (like cleanupImportImages).
+        let inUse = importedGamesLoadFailed ? nil
+            : Set(importedGames.compactMap { $0.gameState.puzzle.importImageID }).union(pendingImageIDs)
+        guard settings.keepImportImages, let id = imageStore.save(image: image, inUse: inUse) else { return nil }
         pendingImageIDs.insert(id)
         return id
     }

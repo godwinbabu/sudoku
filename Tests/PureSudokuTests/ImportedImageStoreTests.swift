@@ -16,6 +16,26 @@ final class ImportedImageStoreTests: XCTestCase {
         XCTAssertEqual(files.count, 2)
     }
 
+    /// Over the limit, eviction skips photos an import still uses and deletes the oldest unused one.
+    func testEvictionKeepsPhotosInUse() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = ImportedImageStore(directory: directory, maxImages: 2, maxDimension: 32, compressionQuality: 0.8)
+        let image = makeImage(color: .red)
+        let oldest = try XCTUnwrap(store.save(image: image))
+        let unused = try XCTUnwrap(store.save(image: image, inUse: [oldest]))
+        let newest = try XCTUnwrap(store.save(image: image, inUse: [oldest]))
+        XCTAssertEqual(names(in: directory), [oldest, newest], "the unused photo goes, not the oldest")
+        XCTAssertFalse(names(in: directory).contains(unused))
+
+        let extra = try XCTUnwrap(store.save(image: image, inUse: [oldest, newest]))
+        XCTAssertEqual(names(in: directory), [oldest, newest, extra], "all in use: nothing is deleted")
+    }
+
+    private func names(in directory: URL) -> Set<String> {
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        return Set(files.map { $0.deletingPathExtension().lastPathComponent })
+    }
+
     private func makeImage(color: UIColor) -> UIImage {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 10, height: 10))
         return renderer.image { context in
@@ -75,7 +95,8 @@ final class ImportImageLifecycleTests: XCTestCase {
     func testDamagedImportListKeepsOldPhotos() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         let imagesDir = dir.appendingPathComponent("ImportedImages", isDirectory: true)
-        let store = ImportedImageStore(directory: imagesDir)
+        // A limit of 1, so the next photo is over it: eviction must not delete the old photo either.
+        let store = ImportedImageStore(directory: imagesDir, maxImages: 1)
         let oldID = try XCTUnwrap(store.save(image: image()))
         try Data("not json".utf8).write(to: dir.appendingPathComponent("imported_games.json"))
         let controller = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: store)
