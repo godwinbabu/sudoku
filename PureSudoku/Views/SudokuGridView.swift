@@ -132,6 +132,11 @@ struct CellState: Equatable {
     var isEvidence = false
     var isTarget = false
     var isRuledOut = false
+
+    /// At night a same-digit cell is also ringed, so it shows by shape; the selection and hint rings win.
+    func showsSameDigitRing(night: Bool) -> Bool {
+        night && isSameDigit && !isSelected && !isEvidence && !isTarget
+    }
 }
 
 struct SudokuCellView: View {
@@ -145,6 +150,10 @@ struct SudokuCellView: View {
 
     var body: some View {
         ZStack {
+            if state.showsSameDigitRing(night: theme.isNight) {
+                // Thinner and inset, so it never reads as the selection ring (CODESPEC 7.3).
+                RoundedRectangle(cornerRadius: 4).strokeBorder(theme.accent, lineWidth: 1.5).padding(3)
+            }
             if state.isSelected { Rectangle().strokeBorder(theme.accent, lineWidth: 2) }
             if state.isEvidence { Rectangle().strokeBorder(theme.accent, lineWidth: 1.5) }
             if state.isTarget {
