@@ -163,6 +163,8 @@ struct SudokuCellView: View {
         .background(fill)
         .clipped()
         .contentShape(Rectangle())
+        // One element: otherwise each of the nine note slots carries the label (issue #58).
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText)
     }
 
