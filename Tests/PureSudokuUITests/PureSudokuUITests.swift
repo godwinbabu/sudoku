@@ -168,10 +168,10 @@ final class PureSudokuUITests: XCTestCase {
         game.twoFingerTap()
         XCTAssertTrue(hush.waitForExistence(timeout: 2))
         Thread.sleep(forTimeInterval: 4) // past the 3.5 s text fade, as in the report
+        let start = Date() // before the wake tap, so any idle wait inside either tap counts
         hush.tap()
-        let woke = Date()
         back.tap()
-        XCTAssertLessThan(Date().timeIntervalSince(woke), 2.5, "Back was tapped while the 3 s fade still ran")
+        XCTAssertLessThan(Date().timeIntervalSince(start), 2.5, "wake and Back both done while the 3 s fade still ran")
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2), "the first tap on Back works")
     }
 
