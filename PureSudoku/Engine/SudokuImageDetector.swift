@@ -184,15 +184,22 @@ struct SudokuImageDetector {
     /// from its inner area on a plain margin: digits beside a thick line (the edge column when the
     /// detected rectangle includes the border) and thin 1s that fast mode reads as "I" (issue 66).
     private func read(cell: UIImage, inner: UIImage) async throws -> CellReading {
-        let first = try await recognizeDigit(in: cell, level: .fast)
-        if case .digit = first { return first }
-        guard first == .rejected || Self.hasInk(inner) else { return .empty }
+        var passes = [try await recognizeDigit(in: cell, level: .fast)]
+        guard Self.settle(passes) == .rejected || (Self.settle(passes) == .empty && Self.hasInk(inner)) else {
+            return Self.settle(passes)
+        }
         let padded = Self.padded(inner)
         for level in [VNRequestTextRecognitionLevel.fast, .accurate] {
-            let retry = try await recognizeDigit(in: padded, level: level)
-            if case .digit = retry { return retry }
+            passes.append(try await recognizeDigit(in: padded, level: level))
+            if case .digit = passes.last { break }
         }
-        return first
+        return Self.settle(passes)
+    }
+
+    /// The first digit any pass read; else rejected if any pass saw text, so it is ringed, never dropped.
+    static func settle(_ passes: [CellReading]) -> CellReading {
+        if let digit = passes.first(where: { if case .digit = $0 { return true } else { return false } }) { return digit }
+        return passes.contains(.rejected) ? .rejected : .empty
     }
 
     /// True when some pixels are much darker than the paper (median brightness).
@@ -250,7 +257,11 @@ struct SudokuImageDetector {
                 // The candidate's own score: the observation's can be high while this read is not.
                 guard area >= 0.06, centerDistance <= 0.5,
                       let read = Self.reading(text: best.string, confidence: best.confidence) else {
-                    continuation.resume(returning: .rejected)
+                    // One central character may be a missed digit ("I" for a thin 1). Longer text ("ll") or
+                    // text near the edge is grid lines or a neighbour's mark.
+                    let central = abs(box.midX - 0.5) <= 0.2 && abs(box.midY - 0.5) <= 0.2
+                    let single = best.string.trimmingCharacters(in: .whitespacesAndNewlines).count == 1
+                    continuation.resume(returning: central && single ? .rejected : .empty)
                     return
                 }
                 continuation.resume(returning: .digit(read.digit, unsure: read.unsure))

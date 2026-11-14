@@ -222,6 +222,15 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertTrue(grid.unsure.allSatisfy { grid.values[$0] != nil }, "no blank cell is ringed: \(grid.unsure.sorted())")
     }
 
+    /// Any pass that saw text but no digit keeps the cell ringed; any digit wins (issue 66).
+    func testRetriesKeepRejectedText() {
+        typealias Reading = SudokuImageDetector.CellReading
+        XCTAssertEqual(SudokuImageDetector.settle([.empty, .empty, .rejected]), .rejected)
+        XCTAssertEqual(SudokuImageDetector.settle([.rejected, .empty, .empty]), .rejected)
+        XCTAssertEqual(SudokuImageDetector.settle([.rejected, .digit(1, unsure: false)]), Reading.digit(1, unsure: false))
+        XCTAssertEqual(SudokuImageDetector.settle([.empty, .empty, .empty]), .empty)
+    }
+
     /// Text that was seen but not read as a digit is ringed and left blank, never dropped (issue 66).
     func testRejectedCellIsRingedAndBlank() {
         var readings = [SudokuImageDetector.CellReading](repeating: .empty, count: 81)
