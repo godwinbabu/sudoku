@@ -109,14 +109,14 @@ struct GameView: View {
                 updateDrift()
             }
         }
-        .onChange(of: driftIsActive) { _ in updateDrift() }
-        .onChange(of: controller.showsFirstNight, perform: firstNightChanged)
+        .onChangeOf(driftIsActive) { _ in updateDrift() }
+        .onChangeOf(controller.showsFirstNight, perform: firstNightChanged)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
         .animation(reduceMotion ? nil : .easeInOut(duration: Self.hushFade), value: isHushed)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isGoodnight)
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(isHushed || isGoodnight || (theme.isNight && controller.settings.hideStatusBarInGames))
-        .onChange(of: theme.isNight || isHushed || isGoodnight) { controller.hidesHomeIndicator = $0 }
+        .onChangeOf(theme.isNight || isHushed || isGoodnight) { controller.hidesHomeIndicator = $0 }
         .onAppear {
             controller.hidesHomeIndicator = theme.isNight || isHushed || isGoodnight
             viewModel.apply(settings: controller.settings)
@@ -129,8 +129,8 @@ struct GameView: View {
             drift.update(active: false)
             controller.driftSteps = 0
         }
-        .onChange(of: controller.settings) { viewModel.apply(settings: $0) }
-        .onChange(of: scenePhase) { phase in
+        .onChangeOf(controller.settings) { viewModel.apply(settings: $0) }
+        .onChangeOf(scenePhase) { phase in
             if phase == .active {
                 viewModel.resumeFromBackground()
                 updateDrift()
@@ -158,7 +158,7 @@ struct GameView: View {
                     Text(difficulty.displayName.uppercased())
                         .psFont(11, weight: .semibold)
                         .tracking(0.9)
-                        .foregroundColor(theme.ink3)
+                        .foregroundStyle(theme.ink3)
                     if viewModel.showTimer {
                         HStack(spacing: 5) {
                             Text(Self.timeString(viewModel.state.elapsedSeconds))
@@ -166,7 +166,7 @@ struct GameView: View {
                             if viewModel.isPaused { Image(systemName: "pause").psFont(11, weight: .semibold) }
                         }
                         .psFont(15, weight: .medium, monospacedDigit: true)
-                        .foregroundColor(theme.ink2)
+                        .foregroundStyle(theme.ink2)
                     }
                 }
                 .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 48 pt tall
@@ -200,7 +200,7 @@ struct GameView: View {
                 VStack(spacing: 14) {
                     Text("Paused")
                         .psFont(28, weight: .medium, design: .serif)
-                        .foregroundColor(theme.ink)
+                        .foregroundStyle(theme.ink)
                     Button("Resume") { viewModel.resumeTimer() }
                         .buttonStyle(PSButtonStyle(theme: theme))
                 }
@@ -277,19 +277,19 @@ struct GameView: View {
         VStack(spacing: 6) {
             if viewModel.state.hasContradiction && !viewModel.state.isCompleted && controller.settings.mistakes != .never {
                 Text("Two of the same digit share a row, column or box.")
-                    .foregroundColor(theme.err)
+                    .foregroundStyle(theme.err)
                     .accessibilityIdentifier("contradictionWarning")
             }
             if let message = viewModel.checkMessage {
-                Text(message).foregroundColor(theme.ink2).accessibilityIdentifier("checkMessage")
+                Text(message).foregroundStyle(theme.ink2).accessibilityIdentifier("checkMessage")
                     .id(message) // a new result is a new view, so it is announced again
                     .onAppear { UIAccessibility.post(notification: .announcement, argument: message) }
             } else if viewModel.inputMode == .candidate && !viewModel.state.isCompleted {
-                Text("Notes on — digits go in as pencil marks").foregroundColor(theme.ink3)
+                Text("Notes on — digits go in as pencil marks").foregroundStyle(theme.ink3)
             }
             if viewModel.isStuck {
                 Text("Stuck? Tap Coach to see the patterns on your board.")
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .accessibilityIdentifier("stuckNote")
             }
         }

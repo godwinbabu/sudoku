@@ -14,4 +14,11 @@ enum SystemAppearance {
         bar.titleTextAttributes = [.foregroundColor: tint]
         bar.largeTitleTextAttributes = [.foregroundColor: tint]
     }
+
+    /// The app's screen, from its window scene (`UIScreen.main` is deprecated). Its traits ignore the
+    /// app's own light or dark override, so they give the system setting. Nil only before a scene exists.
+    @MainActor
+    static var screen: UIScreen? {
+        UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }.first?.screen
+    }
 }

@@ -14,7 +14,9 @@ final class ScreenBrightnessController {
     private var written: CGFloat?
     private var lastRequest: AnyHashable?
 
-    init(read: @escaping () -> CGFloat = { UIScreen.main.brightness }, write: @escaping (CGFloat) -> Void = { UIScreen.main.brightness = $0 }) {
+    // With no scene yet there is no screen to read or write; nothing is written then either.
+    init(read: @escaping () -> CGFloat = { SystemAppearance.screen?.brightness ?? 0.5 },
+         write: @escaping (CGFloat) -> Void = { SystemAppearance.screen?.brightness = $0 }) {
         self.read = read
         self.write = write
     }

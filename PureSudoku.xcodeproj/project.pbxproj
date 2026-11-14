@@ -45,6 +45,7 @@
 		000000000000000000000145 /* JournalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000144 /* JournalView.swift */; };
 		000000000000000000000143 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000142 /* HomeView.swift */; };
 		00000000000000000000005B /* GameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000026 /* GameView.swift */; };
+		0000000000000000000005AB /* OnChangeCompat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000005AA /* OnChangeCompat.swift */; };
 		0000000000000000000000C7 /* HintCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C6 /* HintCardView.swift */; };
 		000000000000000000000153 /* CoachCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000152 /* CoachCardView.swift */; };
 		0000000000000000000000E3 /* LearnView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E2 /* LearnView.swift */; };
@@ -163,6 +164,7 @@
 		000000000000000000000144 /* JournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalView.swift; sourceTree = "<group>"; };
 		000000000000000000000142 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		000000000000000000000026 /* GameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameView.swift; sourceTree = "<group>"; };
+		0000000000000000000005AA /* OnChangeCompat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnChangeCompat.swift; sourceTree = "<group>"; };
 		0000000000000000000000C6 /* HintCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintCardView.swift; sourceTree = "<group>"; };
 		000000000000000000000152 /* CoachCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachCardView.swift; sourceTree = "<group>"; };
 		0000000000000000000000E2 /* LearnView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LearnView.swift; sourceTree = "<group>"; };
@@ -351,6 +353,7 @@
 				000000000000000000000144 /* JournalView.swift */,
 				000000000000000000000142 /* HomeView.swift */,
 				000000000000000000000026 /* GameView.swift */,
+				0000000000000000000005AA /* OnChangeCompat.swift */,
 				0000000000000000000000C6 /* HintCardView.swift */,
 				000000000000000000000152 /* CoachCardView.swift */,
 				0000000000000000000000E2 /* LearnView.swift */,
@@ -654,6 +657,7 @@
 				000000000000000000000145 /* JournalView.swift in Sources */,
 				000000000000000000000143 /* HomeView.swift in Sources */,
 				00000000000000000000005B /* GameView.swift in Sources */,
+				0000000000000000000005AB /* OnChangeCompat.swift in Sources */,
 				0000000000000000000000C7 /* HintCardView.swift in Sources */,
 				000000000000000000000153 /* CoachCardView.swift in Sources */,
 				0000000000000000000000E3 /* LearnView.swift in Sources */,

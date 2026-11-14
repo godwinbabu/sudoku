@@ -24,13 +24,13 @@ struct NumberPadView: View {
                         } else {
                             Text("\(digit)")
                                 .font(.system(size: 30 * type.uiScale, weight: .regular).monospacedDigit())
-                                .foregroundColor(theme.ink)
+                                .foregroundStyle(theme.ink)
                                 .frame(height: 30)
                         }
                         if remaining != nil {
                             Text(isDone ? " " : "\(left ?? 0)")
                                 .font(.system(size: 10.5, weight: .medium).monospacedDigit())
-                                .foregroundColor(theme.ink2)
+                                .foregroundStyle(theme.ink2)
                         }
                     }
                     .frame(maxWidth: .infinity, minHeight: keyHeight)
@@ -51,7 +51,7 @@ struct NumberPadView: View {
         let row = (digit - 1) / 3, col = (digit - 1) % 3
         return Text("\(digit)")
             .font(.system(size: 13 * type.candidateScale, weight: .bold).monospacedDigit())
-            .foregroundColor(theme.accent)
+            .foregroundStyle(theme.accent)
             .frame(width: 10, height: 10)
             .offset(x: CGFloat(col - 1) * 10, y: CGFloat(row - 1) * 10)
             .frame(width: 30, height: 30)

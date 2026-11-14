@@ -158,7 +158,7 @@ struct PSTabBar: View {
                             .accessibilityHidden(true) // the label names the tab once
                         Text(item.title).font(.system(size: 11, weight: on ? .semibold : .medium))
                     }
-                    .foregroundColor(on ? theme.accent : theme.ink2)
+                    .foregroundStyle(on ? theme.accent : theme.ink2)
                     .frame(maxWidth: .infinity, minHeight: 50)
                     .contentShape(Rectangle())
                 }
@@ -184,7 +184,7 @@ struct ScreenHead: View {
             Text(title)
                 .psFont(30, weight: .medium, design: .serif)
                 .tracking(-0.3)
-                .foregroundColor(theme.ink)
+                .foregroundStyle(theme.ink)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             NightButton()

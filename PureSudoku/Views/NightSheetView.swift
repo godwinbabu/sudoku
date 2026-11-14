@@ -75,7 +75,7 @@ struct NightSheetView: View {
         HStack {
             Text("Night")
                 .psFont(26, weight: .medium, design: .serif)
-                .foregroundColor(theme.ink)
+                .foregroundStyle(theme.ink)
                 .accessibilityAddTraits(.isHeader)
             Spacer()
             HeaderIconButton(theme: theme, symbol: "xmark", label: "Close", action: close)
@@ -93,13 +93,13 @@ struct NightSheetView: View {
                 // The night controls below show in iOS Light too; say when they apply.
                 Text("Used when your iPhone is in Dark mode.")
                     .psFont(13)
-                    .foregroundColor(theme.ink3)
+                    .foregroundStyle(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("night_matchSystemNote")
             } else if settings.appearance == .afterDark {
                 Text(afterDarkNote(settings))
                     .psFont(13)
-                    .foregroundColor(theme.ink3)
+                    .foregroundStyle(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -114,12 +114,12 @@ struct NightSheetView: View {
         }
 
         VStack(alignment: .leading, spacing: 4) {
-            Text("Clarity").psFont(16).foregroundColor(theme.ink)
+            Text("Clarity").psFont(16).foregroundStyle(theme.ink)
             PSSegmented(theme: theme, options: Clarity.allCases.map { ($0, $0.displayName) }, selection: settings.clarity,
                         idPrefix: "night_clarity_", onSelect: viewModel.setClarity)
             Text(Self.clarityNote)
                 .psFont(13)
-                .foregroundColor(theme.ink3)
+                .foregroundStyle(theme.ink3)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, 22)

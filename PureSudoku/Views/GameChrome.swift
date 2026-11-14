@@ -21,7 +21,7 @@ struct PSButtonStyle: ButtonStyle {
             .padding(.vertical, 6)
             // The capsule grows with its label (CODESPEC 9), so wrapped text stays inside it.
             .frame(minHeight: height)
-            .foregroundColor(!isEnabled ? theme.ink3
+            .foregroundStyle(!isEnabled ? theme.ink3
                              : primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
             .background(Capsule().fill(primary && !theme.isNight ? theme.accent : .clear))
             .overlay(
@@ -58,7 +58,7 @@ struct ToolButton: View {
                     }
                 Text(label).font(.system(size: 11, weight: .medium))
             }
-            .foregroundColor(isActive ? theme.accent : theme.ink2)
+            .foregroundStyle(isActive ? theme.accent : theme.ink2)
             .frame(maxWidth: .infinity, minHeight: 54)
             .contentShape(Rectangle())
         }
@@ -76,7 +76,7 @@ struct ToolButton: View {
             .font(.system(size: 9, weight: .bold))
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
-            .foregroundColor(isActive ? (filled ? theme.bg : theme.accent) : theme.ink2)
+            .foregroundStyle(isActive ? (filled ? theme.bg : theme.accent) : theme.ink2)
             .background(RoundedRectangle(cornerRadius: 6).fill(filled ? (isActive ? theme.accent : theme.surface2) : .clear))
             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(filled ? .clear : (isActive ? theme.accent : theme.hair), lineWidth: 1))
             .fixedSize()
@@ -94,7 +94,7 @@ struct HeaderIconButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 20, weight: .regular))
-                .foregroundColor(theme.ink2)
+                .foregroundStyle(theme.ink2)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -137,9 +137,9 @@ struct MenuRow: View {
     var body: some View {
         Button(action: action) {
             PSAdaptiveStack {
-                Text(title).psFont(15).foregroundColor(theme.ink)
+                Text(title).psFont(15).foregroundStyle(theme.ink)
                 Spacer(minLength: 0)
-                if let detail { Text(detail).psFont(12).foregroundColor(theme.ink3) }
+                if let detail { Text(detail).psFont(12).foregroundStyle(theme.ink3) }
             }
             .padding(.horizontal, 16)
             .frame(minHeight: 46)
@@ -164,15 +164,15 @@ struct SolvedPanel: View {
         VStack(spacing: 10) {
             Text("Solved.")
                 .psFont(44, weight: .medium, design: .serif)
-                .foregroundColor(theme.ink)
+                .foregroundStyle(theme.ink)
             Text(summary)
                 .psFont(15, monospacedDigit: true)
-                .foregroundColor(theme.ink2)
+                .foregroundStyle(theme.ink2)
             if let note {
                 Text(note)
                     .psFont(13)
                     .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .overlay(Capsule().strokeBorder(theme.hair, lineWidth: 1))
@@ -181,7 +181,7 @@ struct SolvedPanel: View {
                 Text(techniques)
                     .psFont(13)
                     .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .padding(.top, 4)
             }
             PSButtonRow(trailing: false) {
@@ -216,7 +216,7 @@ struct BlackoutView: View {
             .overlay {
                 Text(text)
                     .psFont(serif ? 30 : 13, weight: serif ? .medium : .regular, design: serif ? .serif : .default)
-                    .foregroundColor(theme.ink3)
+                    .foregroundStyle(theme.ink3)
                     .opacity(showsText ? 1 : 0)
             }
             .contentShape(Rectangle())

@@ -50,7 +50,7 @@ struct CoachCardView: View {
         Text(session.text(names))
             .psFont(size)
             .lineSpacing(HintCardView.lineSpacing)
-            .foregroundColor(theme.ink)
+            .foregroundStyle(theme.ink)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(session.accessibilityText(names))
@@ -61,22 +61,22 @@ struct CoachCardView: View {
         HStack(spacing: 8) {
             Text(session.title)
                 .psFont(18, weight: .medium, design: .serif)
-                .foregroundColor(theme.ink)
+                .foregroundStyle(theme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .accessibilityIdentifier("coachTitle")
-            Text("· \(session.tierLabel)").psFont(11).foregroundColor(theme.ink2).fixedSize()
+            Text("· \(session.tierLabel)").psFont(11).foregroundStyle(theme.ink2).fixedSize()
             Spacer(minLength: 0)
             Text(session.position)
                 .psFont(11, weight: .semibold)
-                .foregroundColor(theme.ink2)
+                .foregroundStyle(theme.ink2)
                 .fixedSize()
                 .accessibilityLabel("Pattern \(session.position)")
                 .accessibilityIdentifier("coachPosition")
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .psFont(13, weight: .medium)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -117,7 +117,7 @@ struct CoachCardView: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .psFont(15, weight: .medium)
-                .foregroundColor(theme.ink2)
+                .foregroundStyle(theme.ink2)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -132,7 +132,7 @@ struct CoachCardView: View {
     private func link(_ title: String, id: String, action: @escaping () -> Void) -> some View {
         Button(title, action: action)
             .psFont(13)
-            .foregroundColor(theme.ink2)
+            .foregroundStyle(theme.ink2)
             .frame(minHeight: 44)
             .padding(.leading, 6)
             .contentShape(Rectangle())

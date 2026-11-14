@@ -23,7 +23,7 @@ struct PSSegmented<Value: Hashable>: View {
                 Button { onSelect(value) } label: {
                     Text(title)
                         .psFont(14, weight: on ? .semibold : .regular)
-                        .foregroundColor(on ? theme.ink : theme.ink2)
+                        .foregroundStyle(on ? theme.ink : theme.ink2)
                         .lineLimit(stacked ? nil : 1)
                         .minimumScaleFactor(stacked ? 1 : 0.8)
                         .fixedSize(horizontal: false, vertical: stacked)
@@ -164,12 +164,12 @@ struct SliderRow<Control: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             PSAdaptiveStack(alignment: .firstTextBaseline) {
-                Text(label).psFont(16).foregroundColor(theme.ink)
+                Text(label).psFont(16).foregroundStyle(theme.ink)
                 Spacer(minLength: 0)
-                Text(value).psFont(15, monospacedDigit: true).foregroundColor(theme.ink2)
+                Text(value).psFont(15, monospacedDigit: true).foregroundStyle(theme.ink2)
             }
             control
-            Text(sub).psFont(13).foregroundColor(theme.ink3)
+            Text(sub).psFont(13).foregroundStyle(theme.ink3)
         }
         .padding(.horizontal, 22)
         .padding(.bottom, 16)
@@ -222,7 +222,7 @@ struct PresetChips: View {
                 Button { onSelect(preset) } label: {
                     Text(preset.title)
                         .psFont(13, weight: .medium)
-                        .foregroundColor(on ? theme.accent : theme.ink2)
+                        .foregroundStyle(on ? theme.accent : theme.ink2)
                         .lineLimit(stacked ? nil : 1)
                         .minimumScaleFactor(stacked ? 1 : 0.8)
                         .fixedSize(horizontal: false, vertical: stacked)
@@ -254,9 +254,9 @@ struct SettingRow<Trailing: View>: View {
     var body: some View {
         PSAdaptiveStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).psFont(16).foregroundColor(theme.ink)
+                Text(label).psFont(16).foregroundStyle(theme.ink)
                 if let sub {
-                    Text(sub).psFont(13).foregroundColor(theme.ink3).fixedSize(horizontal: false, vertical: true)
+                    Text(sub).psFont(13).foregroundStyle(theme.ink3).fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -277,7 +277,7 @@ struct LinkButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title).psFont(15, weight: .medium).foregroundColor(theme.accent)
+            Text(title).psFont(15, weight: .medium).foregroundStyle(theme.accent)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
         }
@@ -306,7 +306,7 @@ struct SectionLabel: View {
         Text(title.uppercased())
             .psFont(12, weight: .semibold)
             .tracking(0.96)
-            .foregroundColor(theme.ink2)
+            .foregroundStyle(theme.ink2)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 22)
             .padding(.bottom, 8)
@@ -337,7 +337,7 @@ struct SamplePreview: View {
     }
 
     private func digit(_ text: String, color: Color, weight: Font.Weight) -> some View {
-        Text(text).font(.system(size: 30 * type.digitScale, weight: weight)).foregroundColor(color)
+        Text(text).font(.system(size: 30 * type.digitScale, weight: weight)).foregroundStyle(color)
     }
 
     private var notes: some View {
@@ -349,7 +349,7 @@ struct SamplePreview: View {
                         let mark = marks[row * 3 + col]
                         Text(mark)
                             .font(.system(size: 11 * type.candidateScale, weight: mark == "7" ? .bold : .regular))
-                            .foregroundColor(mark == "7" ? theme.accent : theme.ink2)
+                            .foregroundStyle(mark == "7" ? theme.accent : theme.ink2)
                             .frame(width: 14, height: 14)
                     }
                 }
@@ -383,11 +383,11 @@ struct CalibrateView: View {
             // At night the words stay dimmer than the tiles, so they don't undo the eyes' adjusting.
             Text("Which is the faintest you can read?")
                 .psFont(24, weight: .medium, design: .serif)
-                .foregroundColor(theme.isNight ? theme.ink3 : theme.ink)
+                .foregroundStyle(theme.isNight ? theme.ink3 : theme.ink)
                 .fixedSize(horizontal: false, vertical: true)
             Text("Give your eyes a moment in the dark first. Tap the dimmest digit you can read without effort.")
                 .psFont(14)
-                .foregroundColor(theme.ink3)
+                .foregroundStyle(theme.ink3)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 6)
                 .padding(.bottom, 22)
@@ -399,7 +399,7 @@ struct CalibrateView: View {
                     Button { pick = glow } label: {
                         Text(Self.digits[index])
                             .font(.system(size: 30, weight: .medium))
-                            .foregroundColor(ink)
+                            .foregroundStyle(ink)
                             .frame(maxWidth: .infinity)
                             .frame(height: 76)
                             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(on ? theme.accent : theme.hair, lineWidth: on ? 2 : 1))

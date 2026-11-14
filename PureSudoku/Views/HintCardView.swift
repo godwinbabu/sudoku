@@ -53,7 +53,7 @@ struct HintCardView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("hintPanel")
         // Each new step is read out, as lesson steps are.
-        .onChange(of: session.level) { _ in
+        .onChangeOf(session.level) { _ in
             UIAccessibility.post(notification: .announcement, argument: session.accessibilityText(names))
         }
     }
@@ -62,7 +62,7 @@ struct HintCardView: View {
         Text(session.text(names))
             .psFont(size)
             .lineSpacing(Self.lineSpacing)
-            .foregroundColor(session.level == 1 ? theme.ink : theme.ink2)
+            .foregroundStyle(session.level == 1 ? theme.ink : theme.ink2)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(session.accessibilityText(names))
@@ -85,26 +85,26 @@ struct HintCardView: View {
                 if let title = session.title {
                     Text(title)
                         .psFont(18, weight: .medium, design: .serif)
-                        .foregroundColor(theme.ink)
+                        .foregroundStyle(theme.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 } else {
                     Text(session.stepLabel.uppercased())
                         .psFont(11, weight: .semibold)
                         .tracking(0.9)
-                        .foregroundColor(theme.ink2)
+                        .foregroundStyle(theme.ink2)
                 }
             }
             .accessibilityIdentifier("hintStep")
             .accessibilityLabel("Step \(session.level) of \(HintSession.stepCount): \(session.title ?? session.stepLabel)")
             if let tier = session.tierLabel {
-                Text("· \(tier)").psFont(11).foregroundColor(theme.ink2).fixedSize()
+                Text("· \(tier)").psFont(11).foregroundStyle(theme.ink2).fixedSize()
             }
             Spacer(minLength: 0)
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .psFont(13, weight: .medium)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
@@ -121,7 +121,7 @@ struct HintCardView: View {
             if let technique = session.lessonTechnique {
                 Button("Lesson →") { onLesson(technique) }
                     .psFont(13)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
                     .buttonStyle(.plain)
@@ -130,7 +130,7 @@ struct HintCardView: View {
             } else if session.level == 1, session.step != nil, let onCoach {
                 Button("All patterns →", action: onCoach)
                     .psFont(13)
-                    .foregroundColor(theme.ink2)
+                    .foregroundStyle(theme.ink2)
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())
                     .buttonStyle(.plain)

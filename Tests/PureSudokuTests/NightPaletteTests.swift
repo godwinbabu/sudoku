@@ -286,6 +286,11 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertEqual(target(.inactive, true, false, 0.3), 0.3, "Control Center keeps it")
         XCTAssertNil(target(.background, true, true, 0.3))
     }
+
+    /// The screen comes from the window scene, not the deprecated UIScreen.main (#71).
+    func testTheAppScreenComesFromTheWindowScene() {
+        XCTAssertNotNil(SystemAppearance.screen, "the test host has a window scene")
+    }
 }
 
 /// Chrome text scales with Dynamic Type and keeps the design's size at the default (CODESPEC 9).

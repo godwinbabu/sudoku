@@ -183,7 +183,7 @@ struct SudokuCellView: View {
             Text("\(value)")
                 .font(.system(size: digitSize, weight: cell.given ? type.givenWeight(night: theme.isNight) : type.userWeight)
                     .monospacedDigit())
-                .foregroundColor(cell.isError ? theme.err : cell.given ? theme.ink : theme.accent)
+                .foregroundStyle(cell.isError ? theme.err : cell.given ? theme.ink : theme.accent)
                 .overlay(alignment: .bottom) {
                     // A mistake also gets a bar under the digit, so it never depends on hue (CODESPEC 7.2).
                     if cell.isError {
@@ -199,7 +199,7 @@ struct SudokuCellView: View {
         } else if let ghost = hint.ghost {
             Text("\(ghost)")
                 .font(.system(size: digitSize, weight: type.userWeight).monospacedDigit())
-                .foregroundColor(theme.accent.opacity(theme.isNight ? 0.75 : 0.55))
+                .foregroundStyle(theme.accent.opacity(theme.isNight ? 0.75 : 0.55))
                 .accessibilityIdentifier("hintGhost")
         } else if !hint.candidates(cell).isEmpty {
             notes
@@ -220,7 +220,7 @@ struct SudokuCellView: View {
                         Text(shown.contains(digit) ? "\(digit)" : " ")
                             .font(.system(size: size, weight: isKey ? .bold : .medium).monospacedDigit())
                             .strikethrough(isStruck, color: theme.err)
-                            .foregroundColor(isKey ? theme.accent : isStruck ? theme.ink3 : theme.ink2)
+                            .foregroundStyle(isKey ? theme.accent : isStruck ? theme.ink3 : theme.ink2)
                             .frame(width: slot, height: slot)
                     }
                 }
