@@ -107,7 +107,7 @@ struct GameView: View {
         .onChange(of: driftIsActive) { _ in updateDrift() }
         .onChange(of: controller.showsFirstNight, perform: firstNightChanged)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: showsMenu)
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isHushed)
+        .animation(reduceMotion ? nil : .easeInOut(duration: Self.hushFade), value: isHushed)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: isGoodnight)
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(isHushed || isGoodnight || (theme.isNight && controller.settings.hideStatusBarInGames))
@@ -424,6 +424,13 @@ struct GameView: View {
             viewModel.resumeTimer()
         }
     }
+
+    #if DEBUG
+    /// UI tests only: a 3 s fade, so a test can tap while the blackout is still fading (issue #67).
+    private static let hushFade = ProcessInfo.processInfo.arguments.contains("-uiTestSlowHushFade") ? 3.0 : 0.3
+    #else
+    private static let hushFade = 0.3
+    #endif
 
     private func endHush() {
         isHushed = false

@@ -145,7 +145,7 @@ final class PureSudokuUITests: XCTestCase {
 
     /// In Night, the first tap after waking from Hush reaches the control under it (issue #67).
     func testFirstTapAfterHushInNightWorks() {
-        let app = launchApp()
+        let app = launchApp(["-uiTestSlowHushFade"]) // a 3 s fade, so Back lands while it runs
         startLevel("easy", in: app)
         let game = element("gameView", in: app)
         XCTAssertTrue(game.waitForExistence(timeout: 2))
@@ -163,14 +163,15 @@ final class PureSudokuUITests: XCTestCase {
         game.twoFingerTap()
         XCTAssertTrue(hush.waitForExistence(timeout: 2))
         backPoint.tap()
-        XCTAssertTrue(waitForAbsence(hush))
+        XCTAssertTrue(waitForAbsence(hush, timeout: 5))
         XCTAssertFalse(element("homeView", in: app).exists, "the wake tap does not press Back")
-        // Nothing between the wake tap and Back: a slower test lets the fade end and passes without the fix.
         game.twoFingerTap()
         XCTAssertTrue(hush.waitForExistence(timeout: 2))
         Thread.sleep(forTimeInterval: 4) // past the 3.5 s text fade, as in the report
         hush.tap()
+        let woke = Date()
         back.tap()
+        XCTAssertLessThan(Date().timeIntervalSince(woke), 2.5, "Back was tapped while the 3 s fade still ran")
         XCTAssertTrue(element("homeView", in: app).waitForExistence(timeout: 2), "the first tap on Back works")
     }
 
