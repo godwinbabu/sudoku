@@ -287,9 +287,19 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertNil(target(.background, true, true, 0.3))
     }
 
-    /// The screen comes from the window scene, not the deprecated UIScreen.main (#71).
-    func testTheAppScreenComesFromTheWindowScene() {
-        XCTAssertNotNil(SystemAppearance.screen, "the test host has a window scene")
+    /// Before the window scene connects there is no screen (#71): nothing is written or saved, so the
+    /// player's real brightness is saved once the scene is active, and restored later.
+    func testBrightnessWaitsForTheScreen() {
+        var screen: CGFloat? // no scene yet
+        var writes: [CGFloat] = []
+        let controller = ScreenBrightnessController(read: { screen }, write: { writes.append($0); screen = $0 })
+        controller.update(target: 0.1, request: 50) // cold launch into Night
+        XCTAssertEqual(writes, [])
+        screen = 0.7 // the scene connects
+        controller.update(target: 0.1, request: 50) // the scene turns active
+        XCTAssertEqual(screen, 0.1)
+        controller.update(target: nil)
+        XCTAssertEqual(screen, 0.7, "the real brightness, not a placeholder")
     }
 }
 
