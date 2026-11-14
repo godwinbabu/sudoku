@@ -314,7 +314,7 @@ final class GameViewModel: ObservableObject {
     /// What VoiceOver says after a key press places a digit: "7 placed, row 3, column 4". Nil for notes.
     func placedAnnouncement(_ digit: Int) -> String? {
         guard inputMode == .normal, let cell = state.cells.first(where: { $0.id == selectedCellID }),
-              !cell.given, cell.value == digit else { return nil }
+              !cell.given, !cell.isRevealed, cell.value == digit else { return nil }
         return "\(digit) placed, row \(cell.row + 1), column \(cell.col + 1)"
     }
 

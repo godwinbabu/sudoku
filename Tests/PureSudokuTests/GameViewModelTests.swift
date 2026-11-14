@@ -28,6 +28,13 @@ final class GameViewModelTests: XCTestCase {
         viewModel.inputMode = .candidate
         viewModel.setDigit(3)
         XCTAssertNil(viewModel.placedAnnouncement(3))
+
+        // A revealed cell refuses the key, so nothing is announced.
+        viewModel.inputMode = .normal
+        viewModel.revealCell()
+        let revealed = viewModel.state.cells.first { $0.id == cell.id }?.value ?? 0
+        viewModel.setDigit(revealed)
+        XCTAssertNil(viewModel.placedAnnouncement(revealed))
     }
 
     /// The keypad count drops as a digit is placed; at zero its key is disabled.
