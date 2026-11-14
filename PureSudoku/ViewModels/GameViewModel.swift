@@ -1,9 +1,17 @@
 import Foundation
 
+/// The live play time, published on its own so a tick redraws only the timer label, not the game
+/// screen (issue 70). `GameState.elapsedSeconds` takes the time when the timer stops or the game saves.
+@MainActor
+final class GameClock: ObservableObject {
+    @Published fileprivate(set) var seconds = 0
+}
+
 @MainActor
 final class GameViewModel: ObservableObject {
-    /// Every change (a move, an undo, a tick) also refreshes `isStuck`.
+    /// Every change (a move, an undo) and every tick also refreshes `isStuck`.
     @Published private(set) var state: GameState { didSet { updateStuck() } }
+    let clock = GameClock()
     @Published var selectedCellID: UUID?
     @Published var inputMode: InputMode
     @Published var showTimer: Bool
@@ -85,7 +93,12 @@ final class GameViewModel: ObservableObject {
 
     /// nonisolated(unsafe): only `deinit` touches it off the main actor, when nothing else can.
     nonisolated(unsafe) private var timer: Timer?
-    private var lastTickDate: Date?
+    /// When the running stretch started; time since then is not in `state` yet. Nil while stopped.
+    private var runningSince: Date?
+    /// The part of a second left over when the timer last stopped, carried into the next stretch.
+    private var carriedFraction: TimeInterval = 0
+    /// The next timed autosave while the timer runs (a deadline, so a late tick can't skip one).
+    private var nextAutosave: Date?
     private var isManuallyPaused = false
     private var isBackgroundPaused = false
     /// False while the game screen is off screen (a pushed lesson): the timer never runs then.
@@ -93,7 +106,7 @@ final class GameViewModel: ObservableObject {
     private var saveTask: Task<Void, Never>?
     /// Delay before an edit is saved (CODESPEC 8: autosave every few seconds, debounced).
     var autosaveDelayNanoseconds: UInt64 = 2_000_000_000
-    private let autosaveIntervalSeconds = 10
+    private let autosaveInterval: TimeInterval = 10
     private var settings: Settings
     private let validator: SudokuValidator
     private let timeProvider: TimeProvider
@@ -108,6 +121,7 @@ final class GameViewModel: ObservableObject {
         self.hintService = hintService
         self.inputMode = .normal
         self.showTimer = settings.showTimer
+        clock.seconds = state.elapsedSeconds
     }
 
     deinit {
@@ -147,7 +161,7 @@ final class GameViewModel: ObservableObject {
         self.state = newState
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.onSave?(self.state)
+            self.onSave?(self.stateForSave)
         }
     }
 
@@ -164,7 +178,7 @@ final class GameViewModel: ObservableObject {
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.onSave?(self.state)
+            self.onSave?(self.stateForSave)
         }
     }
 
@@ -194,7 +208,10 @@ final class GameViewModel: ObservableObject {
 
     private func startTimerIfNeeded() {
         guard !state.isCompleted, timer == nil, !isManuallyPaused, !isBackgroundPaused, isSceneVisible else { return }
-        lastTickDate = timeProvider.now()
+        let now = timeProvider.now()
+        runningSince = now.addingTimeInterval(-carriedFraction)
+        carriedFraction = 0
+        nextAutosave = now.addingTimeInterval(autosaveInterval)
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { await self?.tick() }
         }
@@ -204,21 +221,32 @@ final class GameViewModel: ObservableObject {
         RunLoop.main.add(timer, forMode: .common)
     }
 
+    /// Stops the timer and returns the whole seconds of the stretch that just ended (not yet in `state`).
     private func calculateAndStopTimer() -> Int {
-        guard let start = lastTickDate else {
-            timer?.invalidate()
-            timer = nil
-            isTimerRunning = false
-            lastTickDate = nil
-            return 0
+        var whole = 0
+        if let start = runningSince { // already stopped: keep the carried part second
+            let running = max(0, timeProvider.now().timeIntervalSince(start))
+            whole = Int(running)
+            carriedFraction = running - Double(whole)
         }
-        let now = timeProvider.now()
-        let elapsed = Int(now.timeIntervalSince(start))
-        lastTickDate = nil
+        runningSince = nil
+        nextAutosave = nil
         timer?.invalidate()
         timer = nil
         isTimerRunning = false
-        return elapsed
+        return whole
+    }
+
+    /// Whole seconds of play now, including the running stretch.
+    private var liveSeconds: Int {
+        state.elapsedSeconds + Int(max(0, runningSince.map { timeProvider.now().timeIntervalSince($0) } ?? 0))
+    }
+
+    /// `state` with the running stretch counted, for saving.
+    private var stateForSave: GameState {
+        var current = state
+        current.elapsedSeconds = liveSeconds
+        return current
     }
 
     /// Fills every empty cell's notes with the digits its row, column and box still allow. One Undo reverts it.
@@ -457,6 +485,7 @@ final class GameViewModel: ObservableObject {
 
     func resetPuzzle() {
         let discarded = state.elapsedSeconds + calculateAndStopTimer()
+        carriedFraction = 0
         if !state.isCompleted, discarded > 0 { onTimeDiscarded?(discarded) }
         var newState = self.state
         newState.resetToInitial(now: timeProvider.now())
@@ -493,6 +522,7 @@ final class GameViewModel: ObservableObject {
 
     func load(state newState: GameState) {
         _ = calculateAndStopTimer()
+        carriedFraction = 0
 
         var finalState = newState
         finalState.checkedWrong = []
@@ -662,7 +692,7 @@ final class GameViewModel: ObservableObject {
 
     private func saveNow() {
         saveTask?.cancel()
-        onSave?(state)
+        onSave?(stateForSave)
     }
 
     private func updateContradictionFlag(on state: inout GameState) {
@@ -675,16 +705,14 @@ final class GameViewModel: ObservableObject {
         state = newState
     }
 
-    /// One timer tick. Internal for tests.
+    /// One timer tick: refreshes the clock and the stuck check, and saves when the autosave deadline
+    /// has passed. It never changes `state`, so the game screen doesn't redraw. Internal for tests.
     func tick() async {
-        guard let start = lastTickDate else { return }
-        let now = timeProvider.now()
-        var newState = self.state
-        newState.elapsedSeconds += max(1, Int(now.timeIntervalSince(start)))
-        lastTickDate = now // before publishing: `state`'s observer counts time since the last tick
-        self.state = newState
-        if newState.elapsedSeconds % autosaveIntervalSeconds == 0 {
-            onSave?(state)
+        guard runningSince != nil else { return }
+        updateStuck()
+        if let deadline = nextAutosave, timeProvider.now() >= deadline {
+            nextAutosave = timeProvider.now().addingTimeInterval(autosaveInterval)
+            onSave?(stateForSave)
         }
     }
 
@@ -971,7 +999,8 @@ extension GameViewModel {
             return solutionDigit(at: cell.index).map { $0 == value } ?? true
         }.count
         // Play time now: the saved seconds plus the stretch the timer is running (a move can land between ticks).
-        let played = state.elapsedSeconds + (lastTickDate.map { max(0, Int(timeProvider.now().timeIntervalSince($0))) } ?? 0)
+        let played = liveSeconds
+        if clock.seconds != played { clock.seconds = played }
         // A new correct digit (also after an undo or erase), another puzzle, or a restart (the clock went
         // back) starts the count again.
         if correct > correctCount || state.puzzle.id != progressPuzzleID || played < progressSeconds {
@@ -984,7 +1013,7 @@ extension GameViewModel {
     }
 
     private func resetStuck() {
-        progressSeconds = state.elapsedSeconds
+        progressSeconds = liveSeconds
         if isStuck { isStuck = false }
     }
 }

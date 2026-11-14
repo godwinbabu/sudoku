@@ -8,8 +8,9 @@ struct MainMenuView: View {
     @StateObject private var viewModel: MainMenuViewModel
     @State private var tab = AppTab.play
 
-    init(viewModel: MainMenuViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    /// The model is an autoclosure: StateObject builds it once, not on every parent redraw (issue 70).
+    init(viewModel: @autoclosure @escaping () -> MainMenuViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel())
     }
 
     var body: some View {
@@ -54,6 +55,9 @@ private struct PlayTab: View {
     @Binding var tab: AppTab
     @State private var path = NavigationPath()
     @State private var routeViewModels: [UUID: GameViewModel] = [:]
+    /// Each game route's depth in `path`. Its model is kept until the path is shorter than that, so a
+    /// lesson pushed over the game (which hides it) doesn't drop it (issue 70).
+    @State private var routeDepths: [UUID: Int] = [:]
     @State private var isOpeningGame = false
 
     var body: some View {
@@ -64,7 +68,6 @@ private struct PlayTab: View {
                 .navigationDestination(for: GameRoute.self) { route in
                     if let viewModel = routeViewModels[route.id] ?? makeViewModel(for: route) {
                         GameView(viewModel: viewModel, difficulty: route.difficulty)
-                            .onDisappear { routeViewModels.removeValue(forKey: route.id) }
                     } else {
                         // The game is gone (e.g. a pruned import): drop the route instead of opening another game.
                         Color.clear.onAppear { if !path.isEmpty { path.removeLast() } }
@@ -78,6 +81,20 @@ private struct PlayTab: View {
                 }
         }
         .environment(\.popToRoot) { path = NavigationPath() }
+        .onChange(of: path.count) { dropRoutes(deeperThan: $0) }
+    }
+
+    private func push(_ route: GameRoute) {
+        path.append(route)
+        dropRoutes(deeperThan: path.count - 1) // a pop and a push in one update leave the count unchanged
+        routeDepths[route.id] = path.count
+    }
+
+    private func dropRoutes(deeperThan count: Int) {
+        for (id, depth) in routeDepths where depth > count {
+            routeDepths[id] = nil
+            routeViewModels[id] = nil
+        }
     }
 
     /// Tapping a level always starts a new puzzle at that level (Design/v2/README.md, Home).
@@ -97,7 +114,7 @@ private struct PlayTab: View {
             guard let gameViewModel = await make() else { return }
             let route = GameRoute(kind: .difficulty(difficulty))
             routeViewModels[route.id] = gameViewModel
-            path.append(route)
+            push(route)
         }
     }
 
@@ -106,7 +123,7 @@ private struct PlayTab: View {
         if let gameViewModel = controller.makeImportedGameViewModel(id: imported.id) {
             routeViewModels[route.id] = gameViewModel
         }
-        path.append(route)
+        push(route)
     }
 
     private func makeViewModel(for route: GameRoute) -> GameViewModel? {
