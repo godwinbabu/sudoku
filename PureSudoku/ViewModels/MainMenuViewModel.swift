@@ -41,13 +41,19 @@ final class MainMenuViewModel: ObservableObject {
     }
 
     /// A level always starts a new puzzle (Design/v2/README.md, Home).
-    func startNewGame(for difficulty: Difficulty) async -> GameViewModel {
+    func startNewGame(for difficulty: Difficulty) async -> GameViewModel? {
         await controller.startNewGame(for: difficulty)
         return controller.makeGameViewModel(for: difficulty)
     }
 
-    func continueGame(for difficulty: Difficulty) -> GameViewModel {
+    func continueGame(for difficulty: Difficulty) -> GameViewModel? {
         controller.makeGameViewModel(for: difficulty)
+    }
+
+    /// The game a navigation route shows, or nil if it is gone. A missing import never falls back to a level's game.
+    func routeGame(importID: String?, difficulty: Difficulty) -> GameViewModel? {
+        guard let importID else { return controller.makeGameViewModel(for: difficulty) }
+        return controller.makeImportedGameViewModel(id: importID)
     }
 
     /// "Saturday night · 6-night streak".
