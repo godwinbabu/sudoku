@@ -206,6 +206,8 @@ struct Settings: Codable, Equatable {
         self.appearance = value(.appearance, appearance)
         self.glow = value(.glow, defaults.glow)
         self.warmth = value(.warmth, warmth)
+        // Read before the glow-scale migration below changes glow.
+        let onOldLightsOut = value(.lightsOutRevision, 1) < Self.lightsOutRevision && self.glow == 45 && self.warmth == 65
         clarity = value(.clarity, defaults.clarity)
         glowFloor = value(.glowFloor, defaults.glowFloor)
         // Glow scale 1 (before glow drove the backlight) was far too dark, so its glow is not kept: the
@@ -215,7 +217,7 @@ struct Settings: Codable, Equatable {
             self.glow = max(NightPreset.lightsOut.glow, glowFloor)
         }
         // Players still on the old Lights out default move to the new one, once; any other tuning stays.
-        if value(.lightsOutRevision, 1) < Self.lightsOutRevision, self.glow == 45, self.warmth == 65 {
+        if onOldLightsOut {
             self.glow = max(NightPreset.lightsOut.glow, glowFloor)
             self.warmth = NightPreset.lightsOut.warmth
         }

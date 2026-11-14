@@ -155,7 +155,7 @@ extension PSPalette {
         let errColor = RGB255(r: 255, g: 70, b: 64)
         return PSPalette(
             bg: .black, surface: mul(base, s * 0.07), surface2: mul(base, s * 0.11),
-            ink: mul(base, s), ink2: mul(base, s * 0.90), ink3: mul(base, s * 0.72),
+            ink: mul(base, s), ink2: mul(base, s * 0.90), ink3: mul(base, s * 0.78),
             accent: mul(acc, s * 0.96), accentDim: mul(acc, s * 0.65),
             line: mul(base, s * 0.30 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: mul(base, s * 0.25),
             // Fills step plain < peer < same < sel (all accent, so the steps hold at any warmth), peer stays below line, and every cell mark keeps 3:1 on its

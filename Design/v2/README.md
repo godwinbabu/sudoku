@@ -66,7 +66,7 @@ lift   = 1 / 1.25 / 1.5 (Clarity)
 |---|---|
 | bg | `#000000` always |
 | surface / surface2 | base × 0.07s / 0.11s |
-| ink / ink2 / ink3 | base × s / 0.90s / 0.72s |
+| ink / ink2 / ink3 | base × s / 0.90s / 0.78s |
 | accent / accentDim | accent × 0.96s / 0.65s |
 | line / lineMajor | base × 0.30s·lift / 0.60s·lift |
 | hair | base × 0.25s |

@@ -11,15 +11,15 @@ final class NightPaletteTests: XCTestCase {
     /// which were too dark to read.
     private let snapshots: [(NightPreset, [String: [Int]])] = [
         (.readingLamp, ["surface": [18, 10, 3], "surface2": [28, 16, 4], "ink": [255, 146, 39], "ink2": [230, 132, 35],
-                        "ink3": [184, 105, 28], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [76, 44, 12],
+                        "ink3": [199, 114, 31], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [76, 44, 12],
                         "lineMajor": [153, 88, 23], "hair": [64, 37, 10], "sel": [84, 36, 0], "peer": [43, 18, 0],
                         "same": [64, 27, 0], "err": [242, 66, 61], "status": [112, 64, 17]]),
         (.lightsOut, ["surface": [18, 9, 0], "surface2": [28, 14, 0], "ink": [255, 132, 0], "ink2": [230, 119, 0],
-                      "ink3": [184, 95, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [76, 40, 0],
+                      "ink3": [199, 103, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [76, 40, 0],
                       "lineMajor": [153, 79, 0], "hair": [64, 33, 0], "sel": [84, 33, 0], "peer": [43, 17, 0],
                       "same": [64, 25, 0], "err": [242, 66, 61], "status": [112, 58, 0]]),
         (.redLight, ["surface": [15, 5, 0], "surface2": [23, 8, 0], "ink": [208, 70, 0], "ink2": [188, 63, 0],
-                     "ink3": [150, 51, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [63, 21, 0],
+                     "ink3": [163, 55, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [63, 21, 0],
                      "lineMajor": [125, 42, 0], "hair": [52, 18, 0], "sel": [69, 23, 0], "peer": [35, 12, 0],
                      "same": [52, 18, 0], "err": [198, 54, 50], "status": [92, 31, 0]])
     ]
@@ -83,27 +83,32 @@ final class NightPaletteTests: XCTestCase {
         }
     }
 
-    /// At full palette strength (glow 45, warmth 65) every cell mark keeps 3:1 on every fill it can sit on.
+    /// At full palette strength every cell mark keeps 3:1 on every fill it can sit on, at any warmth.
     func testCellMarksKeepThreeToOneOnEveryFill() {
         for clarity in Clarity.allCases {
-            let p = PSPalette.night(glow: 45, warmth: 65, clarity: clarity)
-            for (fillName, fill) in [("bg", p.bg), ("peer", p.peer), ("same", p.same), ("sel", p.sel)] {
-                let back = luminance(fill)
-                let marks: [(String, Double)] = [
-                    ("ink", luminance(p.ink)), ("accent", luminance(p.accent)), ("ink2", luminance(p.ink2)),
-                    ("err", luminance(p.err))
-                ]
-                for (name, mark) in marks {
-                    XCTAssertGreaterThanOrEqual(contrast(mark, back), 3, "\(name) on \(fillName), \(clarity)")
-                }
+            for warmth in stride(from: 0.0, through: 100, by: 1) {
+                assertCellMarks(PSPalette.night(glow: 45, warmth: warmth, clarity: clarity), "\(clarity) warmth \(warmth)")
             }
-            // Ghost digits, struck notes and ruled-out rings (ink3) show only with a hint open, where there is
-            // no selection.
-            for fill in [p.bg, p.peer, p.same] {
-                XCTAssertGreaterThanOrEqual(contrast(luminance(p.ink3), luminance(fill)), 3, "ink3, \(clarity)")
-                let ghost = luminance(p.accent, opacity: 0.75, over: fill)
-                XCTAssertGreaterThanOrEqual(contrast(ghost, luminance(fill)), 3, "ghost, \(clarity)")
+        }
+    }
+
+    private func assertCellMarks(_ p: PSPalette, _ context: String) {
+        for (fillName, fill) in [("bg", p.bg), ("peer", p.peer), ("same", p.same), ("sel", p.sel)] {
+            let back = luminance(fill)
+            let marks: [(String, Double)] = [
+                ("ink", luminance(p.ink)), ("accent", luminance(p.accent)), ("ink2", luminance(p.ink2)),
+                ("err", luminance(p.err))
+            ]
+            for (name, mark) in marks {
+                XCTAssertGreaterThanOrEqual(contrast(mark, back), 3, "\(name) on \(fillName), \(context)")
             }
+        }
+        // Ghost digits, struck notes and ruled-out rings (ink3) show only with a hint open, where there is
+        // no selection.
+        for fill in [p.bg, p.peer, p.same] {
+            XCTAssertGreaterThanOrEqual(contrast(luminance(p.ink3), luminance(fill)), 3, "ink3, \(context)")
+            let ghost = luminance(p.accent, opacity: 0.75, over: fill)
+            XCTAssertGreaterThanOrEqual(contrast(ghost, luminance(fill)), 3, "ghost, \(context)")
         }
     }
 
@@ -291,6 +296,10 @@ final class NightPaletteTests: XCTestCase {
         XCTAssertEqual([chosenLater.glow, chosenLater.warmth], [45, 65], "migrated files are not moved again")
         let again = try JSONDecoder().decode(Settings.self, from: JSONEncoder().encode(old))
         XCTAssertEqual(again, old)
+
+        // A glow-scale-1 file on the old Lights out gets both migrations: glow and warmth.
+        let scale1 = try decode(["appearance": "night", "glow": 45, "warmth": 65, "calibrated": true])
+        XCTAssertEqual([scale1.glow, scale1.warmth], [55, 55])
     }
 
     func testScreenBrightnessIsRestored() {
