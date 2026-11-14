@@ -84,13 +84,13 @@ struct LogicalSolver {
     }
 
     /// One detector per technique (HINT_STRATEGIES.md gives the order, `Technique.allCases`).
-    static let detectors: [Technique: (SolverBoard) -> [TechniqueStep]] = [
-        .fullHouse: SinglesDetector.fullHouses,
+    static let detectors: [Technique: @Sendable (SolverBoard) -> [TechniqueStep]] = [
+        .fullHouse: { SinglesDetector.fullHouses($0) },
         .hiddenSingleBox: { SinglesDetector.hiddenSingles($0, in: House.boxes, technique: .hiddenSingleBox) },
         .hiddenSingleLine: { SinglesDetector.hiddenSingles($0, in: House.lines, technique: .hiddenSingleLine) },
-        .nakedSingle: SinglesDetector.nakedSingles,
-        .pointing: IntersectionDetector.pointing,
-        .claiming: IntersectionDetector.claiming,
+        .nakedSingle: { SinglesDetector.nakedSingles($0) },
+        .pointing: { IntersectionDetector.pointing($0) },
+        .claiming: { IntersectionDetector.claiming($0) },
         .lockedPair: { SubsetDetector.locked($0, size: 2) },
         .lockedTriple: { SubsetDetector.locked($0, size: 3) },
         .nakedPair: { SubsetDetector.naked($0, size: 2) },
@@ -100,19 +100,19 @@ struct LogicalSolver {
         .nakedQuad: { SubsetDetector.naked($0, size: 4) },
         .hiddenQuad: { SubsetDetector.hidden($0, size: 4) },
         .xWing: { FishDetector.fish($0, size: 2) },
-        .skyscraper: SingleDigitDetector.skyscrapers,
-        .twoStringKite: SingleDigitDetector.twoStringKites,
-        .emptyRectangle: SingleDigitDetector.emptyRectangles,
+        .skyscraper: { SingleDigitDetector.skyscrapers($0) },
+        .twoStringKite: { SingleDigitDetector.twoStringKites($0) },
+        .emptyRectangle: { SingleDigitDetector.emptyRectangles($0) },
         .swordfish: { FishDetector.fish($0, size: 3) },
-        .xyWing: WingDetector.xyWings,
-        .xyzWing: MoreWingsDetector.xyzWings,
-        .wWing: MoreWingsDetector.wWings,
-        .simpleColoring: ColoringDetector.simpleColoring,
+        .xyWing: { WingDetector.xyWings($0) },
+        .xyzWing: { MoreWingsDetector.xyzWings($0) },
+        .wWing: { MoreWingsDetector.wWings($0) },
+        .simpleColoring: { ColoringDetector.simpleColoring($0) },
         .uniqueRectangle1: { UniquenessDetector.uniqueRectangles($0, type: 1) },
         .uniqueRectangle2: { UniquenessDetector.uniqueRectangles($0, type: 2) },
         .uniqueRectangle4: { UniquenessDetector.uniqueRectangles($0, type: 4) },
-        .bugPlusOne: UniquenessDetector.bugPlusOne,
-        .xyChain: ChainDetector.xyChains
+        .bugPlusOne: { UniquenessDetector.bugPlusOne($0) },
+        .xyChain: { ChainDetector.xyChains($0) }
     ]
 
     /// Deterministic choice between steps of one technique: fewest pattern cells, then most changes,

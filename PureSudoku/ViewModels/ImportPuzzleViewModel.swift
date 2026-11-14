@@ -35,7 +35,7 @@ final class ImportPuzzleViewModel: ObservableObject {
     private let countSolutions: @Sendable (String) async -> Int
     private let imageDetector: SudokuImageDetector
     /// Grid, photo id, and a check that the import is still current when the game is ready to save.
-    private let createGame: (String, String?, @escaping () -> Bool) async -> ImportedGame?
+    private let createGame: @MainActor (String, String?, @escaping @MainActor () -> Bool) async -> ImportedGame?
     private let saveImage: (UIImage) -> String?
     private let deleteImage: (String) -> Void
     private var solveTask: Task<Void, Never>?
@@ -54,7 +54,7 @@ final class ImportPuzzleViewModel: ObservableObject {
             }.value
         },
         imageDetector: SudokuImageDetector = SudokuImageDetector(),
-        createGame: @escaping (String, String?, @escaping () -> Bool) async -> ImportedGame?,
+        createGame: @escaping @MainActor (String, String?, @escaping @MainActor () -> Bool) async -> ImportedGame?,
         saveImage: @escaping (UIImage) -> String?,
         deleteImage: @escaping (String) -> Void
     ) {

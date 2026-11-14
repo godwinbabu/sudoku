@@ -3,7 +3,7 @@ import SwiftUI
 extension Settings {
     /// The palette for the current look (CODESPEC 7.2). Increase Contrast raises the Night floor
     /// and line lift to the Bold level; digit sizes still follow the player's Clarity.
-    func palette(isNight: Bool, increaseContrast: Bool = UIAccessibility.isDarkerSystemColorsEnabled) -> PSPalette {
+    @MainActor func palette(isNight: Bool, increaseContrast: Bool = UIAccessibility.isDarkerSystemColorsEnabled) -> PSPalette {
         guard isNight else { return .day(clarity: clarity) }
         return .night(glow: glow, warmth: warmth, clarity: increaseContrast ? .bold : clarity)
     }

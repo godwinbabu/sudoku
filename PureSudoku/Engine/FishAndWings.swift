@@ -9,7 +9,7 @@ enum FishDetector {
         var steps: [TechniqueStep] = []
         for digit in 1...9 {
             for (baseKind, coverKind) in [(House.Kind.row, House.Kind.column), (.column, .row)] {
-                let coverIndex: (Int) -> Int = coverKind == .column ? SolverBoard.column(of:) : SolverBoard.row(of:)
+                let coverIndex: (Int) -> Int = { coverKind == .column ? SolverBoard.column(of: $0) : SolverBoard.row(of: $0) }
                 let bases = (0..<9).map { House(kind: baseKind, index: $0) }.filter {
                     (2...size).contains(board.cells(for: digit, in: $0).count)
                 }
