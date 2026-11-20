@@ -784,8 +784,6 @@ extension PureSudokuUITests {
         return [plain, peer, same, selected].map { fillBrightness(of: cell($0).frame, in: shot) }
     }
 
-    /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
-    /// outside the 2 pt selection ring and the same-digit ring inset 3 pt.
     /// True once iOS draws Dark, read off the Settings app's grouped background (near black in Dark,
     /// light grey in Light), which no app setting can change. Waits up to `timeout` for the switch.
     private func systemDrawsDark(timeout: TimeInterval = 5) -> Bool {
@@ -803,6 +801,8 @@ extension PureSudokuUITests {
         return false
     }
 
+    /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
+    /// outside the 2 pt selection ring and the same-digit ring inset 3 pt.
     private func fillBrightness(of frame: CGRect, in image: UIImage) -> Int {
         let point = CGPoint(x: ((frame.minX + 2.5) * image.scale).rounded(.down), y: ((frame.minY + 2.5) * image.scale).rounded(.down))
         guard let pixel = image.cgImage?.cropping(to: CGRect(origin: point, size: CGSize(width: 1, height: 1))) else { return -1 }
