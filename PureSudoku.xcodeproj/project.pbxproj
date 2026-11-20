@@ -105,6 +105,9 @@
 		0000000000000000000001E1 /* printed-grid.png in Resources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000001E0 /* printed-grid.png */; };
 		000000000000000000000623 /* nyt-dark-crop.png in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000622 /* nyt-dark-crop.png */; };
 		000000000000000000000621 /* nyt-dark-screenshot.png in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000620 /* nyt-dark-screenshot.png */; };
+		000000000000000000000625 /* nyt-dark-selected.png in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000624 /* nyt-dark-selected.png */; };
+		000000000000000000000627 /* nyt-dark-selected-crop.png in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000626 /* nyt-dark-selected-crop.png */; };
+		000000000000000000000629 /* sudokucom-light.png in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000628 /* sudokucom-light.png */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -229,6 +232,9 @@
 		0000000000000000000001E0 /* printed-grid.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "printed-grid.png"; path = "Fixtures/printed-grid.png"; sourceTree = "<group>"; };
 		000000000000000000000622 /* nyt-dark-crop.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "nyt-dark-crop.png"; path = "Fixtures/nyt-dark-crop.png"; sourceTree = "<group>"; };
 		000000000000000000000620 /* nyt-dark-screenshot.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "nyt-dark-screenshot.png"; path = "Fixtures/nyt-dark-screenshot.png"; sourceTree = "<group>"; };
+		000000000000000000000624 /* nyt-dark-selected.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "nyt-dark-selected.png"; path = "Fixtures/nyt-dark-selected.png"; sourceTree = "<group>"; };
+		000000000000000000000626 /* nyt-dark-selected-crop.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "nyt-dark-selected-crop.png"; path = "Fixtures/nyt-dark-selected-crop.png"; sourceTree = "<group>"; };
+		000000000000000000000628 /* sudokucom-light.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "sudokucom-light.png"; path = "Fixtures/sudokucom-light.png"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -411,6 +417,9 @@
 				0000000000000000000001E0 /* printed-grid.png */,
 				000000000000000000000622 /* nyt-dark-crop.png */,
 				000000000000000000000620 /* nyt-dark-screenshot.png */,
+				000000000000000000000624 /* nyt-dark-selected.png */,
+				000000000000000000000626 /* nyt-dark-selected-crop.png */,
+				000000000000000000000628 /* sudokucom-light.png */,
 				000000000000000000000030 /* SudokuValidatorTests.swift */,
 				000000000000000000000612 /* AppBundleTests.swift */,
 				000000000000000000000031 /* SudokuPuzzleRepositoryTests.swift */,
@@ -604,6 +613,9 @@
 				0000000000000000000001E1 /* printed-grid.png in Resources */,
 				000000000000000000000623 /* nyt-dark-crop.png in Resources */,
 				000000000000000000000621 /* nyt-dark-screenshot.png in Resources */,
+				000000000000000000000625 /* nyt-dark-selected.png in Resources */,
+				000000000000000000000627 /* nyt-dark-selected-crop.png in Resources */,
+				000000000000000000000629 /* sudokucom-light.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
