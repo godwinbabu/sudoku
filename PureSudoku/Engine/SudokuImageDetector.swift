@@ -83,10 +83,15 @@ struct SudokuImageDetector {
             throw DetectionError.gridNotFound
         }
         progress(ReadProgress(corners: corners, cellsChecked: 0))
+        return try await readGrid(gridImage) { progress(ReadProgress(corners: corners, cellsChecked: $0)) }
+    }
+
+    /// Reads the digits of an image cut to the grid (perhaps with a frame or margin, or a cut-off edge).
+    func readGrid(_ gridImage: CGImage, checked: (Int) -> Void = { _ in }) async throws -> DetectedGrid {
         let lines = Self.gridLines(of: gridImage)
         let cells = zip(splitIntoCells(image: gridImage, lines: lines),
                         splitIntoCells(image: gridImage, lines: lines, inset: 0.18)).map { ($0, $1) }
-        return try await recognizeDigits(in: cells) { progress(ReadProgress(corners: corners, cellsChecked: $0)) }
+        return try await recognizeDigits(in: cells, checked: checked)
     }
 
     /// Redraws the image so its pixels are upright (orientation `.up`, mirroring applied).
@@ -186,18 +191,25 @@ struct SudokuImageDetector {
         // Each pixel takes its neighbours' peak, fading with distance, so a line rounded a pixel off the
         // fitted spacing still counts while an exact fit still scores highest.
         let reach = max(1, profile.count / 300)
-        let profile = profile.indices.map { index in
+        let peaks = profile.indices.map { index in
             (-reach...reach).reduce(0.0) { peak, offset in
                 guard profile.indices.contains(index + offset) else { return peak }
                 return max(peak, profile[index + offset] * (1 - Double(abs(offset)) / Double(reach + 1)))
             }
+        }
+        // How much stands out across a box line's width. Box lines are thicker than cell lines, so with
+        // the outer lines cut off (or hidden in a frame), this tells the true fit from one shifted a cell.
+        let half = max(1, profile.count / 150)
+        let widths = profile.indices.map { index in
+            profile[max(0, index - half)...min(profile.count - 1, index + half)].reduce(0, +) / Double(half * 2 + 1)
         }
         var best = (score: -1.0, start: 0.0, step: length / 9)
         for step in stride(from: length / 9 * 0.85, through: length / 9 * 1.1, by: 0.25) {
             for start in stride(from: -0.05 * length, through: 0.12 * length, by: 1) {
                 let score = (0...9).reduce(0.0) { sum, line in
                     let index = Int((start + Double(line) * step).rounded())
-                    return profile.indices.contains(index) ? sum + profile[index] : sum
+                    guard peaks.indices.contains(index) else { return sum }
+                    return sum + peaks[index] + (line == 3 || line == 6 ? widths[index] : 0)
                 }
                 if score > best.score { best = (score, start, step) }
             }
@@ -268,25 +280,26 @@ struct SudokuImageDetector {
     /// detected rectangle includes the border) and thin 1s that fast mode reads as "I" (issue 66).
     /// An unsure digit is read again too, and a sure read wins (issue 98).
     private func read(cell: UIImage, inner: UIImage) async throws -> CellReading {
-        // A given fills about half the cell; a pencil-mark note about a fifth (issue 98).
-        let minimumHeight = cell.size.height * 0.36
-        var passes = [try await recognizeDigit(in: cell, level: .fast, minimumHeight: minimumHeight)]
+        var passes = [try await recognizeDigit(in: cell, level: .fast, cellSize: cell.size)]
         let first = Self.settle(passes)
         var unsure = false
         if case .digit(_, unsure: true) = first { unsure = true }
         guard unsure || first == .rejected || (first == .empty && Self.hasInk(inner)) else { return first }
         let padded = Self.padded(inner)
         for level in [VNRequestTextRecognitionLevel.fast, .accurate] {
-            passes.append(try await recognizeDigit(in: padded, level: level, minimumHeight: minimumHeight))
+            passes.append(try await recognizeDigit(in: padded, level: level, cellSize: cell.size))
             if case .digit(_, unsure: false) = passes.last { break }
         }
         return Self.settle(passes)
     }
 
     /// The first digit any pass read; else rejected if any pass saw text, so it is ringed, never dropped.
+    /// Unsure reads that agree, with none that differ, are sure: fast mode scores most clear digits 0.5,
+    /// and the accurate pass can miss a thin 1 (issue 103).
     static func settle(_ passes: [CellReading]) -> CellReading {
         if let sure = passes.first(where: { if case .digit(_, unsure: false) = $0 { return true } else { return false } }) { return sure }
-        if let digit = passes.first(where: { if case .digit = $0 { return true } else { return false } }) { return digit }
+        let digits = passes.compactMap { if case let .digit(digit, _) = $0 { return digit } else { return nil } }
+        if let first = digits.first { return .digit(first, unsure: digits.count < 2 || Set(digits).count > 1) }
         return passes.contains(.rejected) ? .rejected : .empty
     }
 
@@ -343,11 +356,11 @@ struct SudokuImageDetector {
         }
     }
 
-    /// `minimumHeight` is in the image's points: shorter text is a note, not a given.
+    /// `cellSize` is the whole cell in points, so a padded inner crop is held to the same size limits.
     private func recognizeDigit(in image: UIImage, level: VNRequestTextRecognitionLevel,
-                                minimumHeight: CGFloat) async throws -> CellReading {
+                                cellSize: CGSize) async throws -> CellReading {
         guard let cgImage = image.cgImage else { return .empty }
-        let imageHeight = image.size.height
+        let imageSize = image.size
         return try await withCheckedThrowingContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
                 if let error {
@@ -365,11 +378,13 @@ struct SudokuImageDetector {
                     return
                 }
                 let box = bestObservation.boundingBox
-                guard box.height * imageHeight >= minimumHeight else {
+                // A given fills about half the cell; a pencil-mark note about a fifth (issue 98).
+                guard box.height * imageSize.height >= cellSize.height * 0.36 else {
                     continuation.resume(returning: .empty)
                     return
                 }
-                let area = box.width * box.height
+                // Share of the cell, not of the image: a padded crop is larger, and a thin 1 in it fell under (issue 103).
+                let area = box.width * imageSize.width * box.height * imageSize.height / (cellSize.width * cellSize.height)
                 let centerDistance = abs(box.midX - 0.5) + abs(box.midY - 0.5)
                 // The candidate's own score: the observation's can be high while this read is not.
                 guard area >= 0.06, centerDistance <= 0.5,
