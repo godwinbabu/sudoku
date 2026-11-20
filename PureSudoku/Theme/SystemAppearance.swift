@@ -19,13 +19,12 @@ enum SystemAppearance {
     /// safeAreaInset does not reach inside a NavigationStack.
     @MainActor
     static func reserveBottom(_ height: CGFloat) {
-        for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-            // Only on a change, and unanimated: an animated change left the app never idle for XCTest.
-            if let root = scene.keyWindow?.rootViewController, root.additionalSafeAreaInsets.bottom != height {
-                UIView.performWithoutAnimation {
-                    root.additionalSafeAreaInsets.bottom = height
-                    root.view.layoutIfNeeded()
-                }
+        // On the next turn of the run loop, outside SwiftUI's update and unanimated: changing it inside
+        // the launch update left the app never idle for XCTest.
+        DispatchQueue.main.async {
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                guard let root = scene.keyWindow?.rootViewController, root.additionalSafeAreaInsets.bottom != height else { continue }
+                UIView.performWithoutAnimation { root.additionalSafeAreaInsets.bottom = height }
             }
         }
     }

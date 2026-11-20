@@ -665,7 +665,8 @@ extension PureSudokuUITests {
         app.buttons["menu_hush"].tap()
         let hush = element("hushView", in: app)
         XCTAssertTrue(hush.waitForExistence(timeout: 2))
-        XCTAssertFalse(label.exists, "Hush stays pure black")
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: label)
+        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: 2), .completed, "Hush stays pure black")
         hush.tap()
         XCTAssertTrue(label.waitForExistence(timeout: 2), "back after Hush")
         XCTAssertEqual(app.buttons["number_9"].frame.maxY, padBottom, "the game did not move")
@@ -673,8 +674,8 @@ extension PureSudokuUITests {
         app.buttons["tab_journal"].tap()
         for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
         toggle.tap()
-        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: label)
-        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: 2), .completed, "off again: gone")
+        let off = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: label)
+        XCTAssertEqual(XCTWaiter().wait(for: [off], timeout: 2), .completed, "off again: gone")
     }
 
     /// The Assists settings live in Journal; Show timer off hides the game timer (CODESPEC 3.3).

@@ -33,9 +33,8 @@ struct RootView: View {
         // In the strip updateDisplay reserves just below the safe area, so it never covers a control. No fill:
         // the screen's own background shows through.
         .overlay {
-            if controller.settings.showBuildNumber {
-                // Pure-black screens hide it but keep its strip, so the game does not shift under them.
-                let hidden = controller.showsBlackout || controller.showsFirstNight
+            // Hidden on pure-black screens. The strip stays reserved, so the game does not move.
+            if controller.settings.showBuildNumber && !controller.showsBlackout && !controller.showsFirstNight {
                 // A game's Drift warms and dims its palette; the label follows it, as GameView does.
                 let palette = controller.driftSteps > 0
                     ? DriftController.apply(steps: controller.driftSteps, to: controller.settings).palette(isNight: true)
@@ -49,8 +48,6 @@ struct RootView: View {
                         .minimumScaleFactor(0.5)
                         // The reader ends at the safe area; the strip is the next buildLabelHeight points.
                         .position(x: geometry.size.width / 2, y: geometry.size.height + Self.buildLabelHeight / 2)
-                        .opacity(hidden ? 0 : 1)
-                        .accessibilityHidden(hidden)
                         .accessibilityIdentifier("buildLabel")
                 }
                 .allowsHitTesting(false)
