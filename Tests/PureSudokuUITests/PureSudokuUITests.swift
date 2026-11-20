@@ -722,13 +722,12 @@ extension PureSudokuUITests {
     /// Match iPhone follows iOS: Dark mode draws the grey Dark theme (not Night's black, not Day's paper),
     /// with the same visible highlight ladder; Light mode goes back to Day (issue #94).
     func testMatchIPhoneDarkShowsTheDarkTheme() throws {
-        let app = launchApp()
         defer { XCUIDevice.shared.appearance = .light }
         XCUIDevice.shared.appearance = .dark
         // Wait for iOS itself to draw Dark before judging the app: a simulator can save the setting yet keep
-        // drawing Light until it is rebooted (issue #100).
+        // drawing Light until it is rebooted (issue #100). Checked before launch, so the app opens in front.
         try XCTSkipUnless(systemDrawsDark(), "iOS did not switch to Dark on this simulator; reboot it (simctl shutdown, boot)")
-        app.activate()
+        let app = launchApp()
         app.buttons["tab_journal"].tap()
         let display = element("settings_display", in: app)
         XCTAssertTrue(display.waitForExistence(timeout: 2))
