@@ -721,10 +721,14 @@ extension PureSudokuUITests {
 
     /// Match iPhone follows iOS: Dark mode draws the grey Dark theme (not Night's black, not Day's paper),
     /// with the same visible highlight ladder; Light mode goes back to Day (issue #94).
-    func testMatchIPhoneDarkShowsTheDarkTheme() {
+    func testMatchIPhoneDarkShowsTheDarkTheme() throws {
         let app = launchApp()
         defer { XCUIDevice.shared.appearance = .light }
         XCUIDevice.shared.appearance = .dark
+        // Wait for iOS itself to draw Dark before judging the app: a simulator can save the setting yet keep
+        // drawing Light until it is rebooted (issue #100).
+        try XCTSkipUnless(systemDrawsDark(), "iOS did not switch to Dark on this simulator; reboot it (simctl shutdown, boot)")
+        app.activate()
         app.buttons["tab_journal"].tap()
         let display = element("settings_display", in: app)
         XCTAssertTrue(display.waitForExistence(timeout: 2))
@@ -783,6 +787,23 @@ extension PureSudokuUITests {
 
     /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
     /// outside the 2 pt selection ring and the same-digit ring inset 3 pt.
+    /// True once iOS draws Dark, read off the Settings app's grouped background (near black in Dark,
+    /// light grey in Light), which no app setting can change. Waits up to `timeout` for the switch.
+    private func systemDrawsDark(timeout: TimeInterval = 5) -> Bool {
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        settings.activate()
+        defer { settings.terminate() }
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            let shot = XCUIScreen.main.screenshot().image
+            // The left margin at mid-height is background, outside the inset list.
+            let brightness = fillBrightness(of: CGRect(x: 1, y: shot.size.height / 2, width: 1, height: 1), in: shot)
+            if (0..<150).contains(brightness) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        } while Date() < deadline
+        return false
+    }
+
     private func fillBrightness(of frame: CGRect, in image: UIImage) -> Int {
         let point = CGPoint(x: ((frame.minX + 2.5) * image.scale).rounded(.down), y: ((frame.minY + 2.5) * image.scale).rounded(.down))
         guard let pixel = image.cgImage?.cropping(to: CGRect(origin: point, size: CGSize(width: 1, height: 1))) else { return -1 }
