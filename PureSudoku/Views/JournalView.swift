@@ -50,6 +50,21 @@ struct JournalView: View {
                     .foregroundStyle(theme.ink3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 22)
+                    .padding(.bottom, 26)
+                PSCard(theme: theme) {
+                    SettingRow(theme: theme, label: "Show build number", last: true) {
+                        PSToggle(theme: theme, isOn: settings.showBuildNumber, label: "Show build number",
+                                 onChange: settingsModel.setShowBuildNumber)
+                            .accessibilityIdentifier("journal_showBuildNumber")
+                    }
+                }
+                Text(SettingsViewModel.appVersionLine)
+                    .psFont(13, monospacedDigit: true)
+                    .foregroundStyle(theme.ink3)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 10)
+                    .accessibilityIdentifier("journal_version")
             }
             .padding(.bottom, 24)
         }

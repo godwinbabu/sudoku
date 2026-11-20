@@ -54,6 +54,9 @@ struct Settings: Codable, Equatable {
     var notation: CellNotation
     // Imports
     var keepImportImages: Bool
+    // About
+    /// Pins the version line (SettingsViewModel.versionLine) at the bottom of every screen.
+    var showBuildNumber: Bool
 
     init(
         appearance: Appearance = .afterDark,
@@ -74,7 +77,8 @@ struct Settings: Codable, Equatable {
         showTimer: Bool = true,
         coachWhenStuck: Bool = true,
         notation: CellNotation = .plain,
-        keepImportImages: Bool = true
+        keepImportImages: Bool = true,
+        showBuildNumber: Bool = false
     ) {
         self.appearance = appearance
         self.glow = glow
@@ -95,6 +99,7 @@ struct Settings: Codable, Equatable {
         self.coachWhenStuck = coachWhenStuck
         self.notation = notation
         self.keepImportImages = keepImportImages
+        self.showBuildNumber = showBuildNumber
     }
 
     static var `default`: Settings { Settings() }
@@ -160,7 +165,7 @@ struct Settings: Codable, Equatable {
         case appearance, glow, warmth, clarity, glowFloor, glowScale, lightsOutRevision, calibrated, drift, hideStatusBarInGames
         case useLocationForAfterDark, afterDarkStart, afterDarkEnd
         case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer, coachWhenStuck
-        case notation, keepImportImages
+        case notation, keepImportImages, showBuildNumber
         // Read only: v1 keys, and cellNameStyle (short/long) from before `notation`.
         // askBeforeHintResult is no longer read: the hint card has no "Try it yourself first?" step.
         case cellNameStyle
@@ -242,6 +247,7 @@ struct Settings: Codable, Equatable {
         let legacyNotation: CellNotation = value(.cellNameStyle, "long") == "short" ? .grid : defaults.notation
         notation = value(.notation, legacyNotation)
         keepImportImages = value(.keepImportImages, defaults.keepImportImages)
+        showBuildNumber = value(.showBuildNumber, defaults.showBuildNumber)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -267,5 +273,6 @@ struct Settings: Codable, Equatable {
         try c.encode(coachWhenStuck, forKey: .coachWhenStuck)
         try c.encode(notation, forKey: .notation)
         try c.encode(keepImportImages, forKey: .keepImportImages)
+        try c.encode(showBuildNumber, forKey: .showBuildNumber)
     }
 }

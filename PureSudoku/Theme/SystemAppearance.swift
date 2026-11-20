@@ -15,6 +15,20 @@ enum SystemAppearance {
         bar.largeTitleTextAttributes = [.foregroundColor: tint]
     }
 
+    /// Shrinks every screen's safe area by `height` at the bottom, pushed ones included: a SwiftUI
+    /// safeAreaInset does not reach inside a NavigationStack.
+    @MainActor
+    static func reserveBottom(_ height: CGFloat) {
+        // On the next turn of the run loop, outside SwiftUI's update and unanimated: changing it inside
+        // the launch update left the app never idle for XCTest.
+        DispatchQueue.main.async {
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                guard let root = scene.keyWindow?.rootViewController, root.additionalSafeAreaInsets.bottom != height else { continue }
+                UIView.performWithoutAnimation { root.additionalSafeAreaInsets.bottom = height }
+            }
+        }
+    }
+
     /// The app's screen, from its window scene (`UIScreen.main` is deprecated). Its traits ignore the
     /// app's own light or dark override, so they give the system setting. Nil only before a scene exists.
     @MainActor

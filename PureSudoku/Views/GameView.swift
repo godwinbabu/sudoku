@@ -117,6 +117,7 @@ struct GameView: View {
         .toolbar(.hidden, for: .navigationBar)
         .statusBarHidden(isHushed || isGoodnight || (theme.isNight && controller.settings.hideStatusBarInGames))
         .onChangeOf(theme.isNight || isHushed || isGoodnight) { controller.hidesHomeIndicator = $0 }
+        .onChangeOf(isHushed || isGoodnight) { controller.showsBlackout = $0 }
         .onAppear {
             controller.hidesHomeIndicator = theme.isNight || isHushed || isGoodnight
             viewModel.apply(settings: controller.settings)
@@ -125,6 +126,7 @@ struct GameView: View {
         }
         .onDisappear {
             controller.hidesHomeIndicator = false
+            controller.showsBlackout = false
             viewModel.handleSceneDidDisappear()
             drift.update(active: false)
             controller.driftSteps = 0

@@ -31,6 +31,20 @@ final class AppBundleTests: XCTestCase {
         XCTAssertEqual(info["ITSAppUsesNonExemptEncryption"] as? Bool, false)
     }
 
+    /// The Stamp build number phase writes the commit count and short SHA into the built plist.
+    func testBuiltPlistCarriesTheCommit() throws {
+        let info = appBundle.infoDictionary ?? [:]
+        let commit = try XCTUnwrap(info["PSGitCommit"] as? String)
+        XCTAssertNotNil(commit.range(of: #"^([0-9a-f]{7,}(\+dirty)?|unknown)$"#, options: .regularExpression), commit)
+        if commit != "unknown" { XCTAssertGreaterThan(Int(info["CFBundleVersion"] as? String ?? "") ?? 0, 0, "commit count") }
+    }
+
+    func testVersionLineFormatsAndFallsBack() {
+        let info = ["CFBundleShortVersionString": "1.0", "CFBundleVersion": "412", "PSGitCommit": "5e4a202+dirty"]
+        XCTAssertEqual(SettingsViewModel.versionLine(info), "Version 1.0 (412) · 5e4a202+dirty")
+        XCTAssertEqual(SettingsViewModel.versionLine(nil), "Version unknown (unknown) · unknown")
+    }
+
     /// The source plist must read the build settings, or `agvtool next-version` would not change the upload.
     func testInfoPlistReadsVersionBuildSettings() throws {
         let plist = URL(fileURLWithPath: #filePath)
