@@ -721,10 +721,13 @@ extension PureSudokuUITests {
 
     /// Match iPhone follows iOS: Dark mode draws the grey Dark theme (not Night's black, not Day's paper),
     /// with the same visible highlight ladder; Light mode goes back to Day (issue #94).
-    func testMatchIPhoneDarkShowsTheDarkTheme() {
-        let app = launchApp()
+    func testMatchIPhoneDarkShowsTheDarkTheme() throws {
         defer { XCUIDevice.shared.appearance = .light }
         XCUIDevice.shared.appearance = .dark
+        // Wait for iOS itself to draw Dark before judging the app: a simulator can save the setting yet keep
+        // drawing Light until it is rebooted (issue #100). Checked before launch, so the app opens in front.
+        try XCTSkipUnless(systemDrawsDark(), "iOS did not switch to Dark on this simulator; reboot it (simctl shutdown, boot)")
+        let app = launchApp()
         app.buttons["tab_journal"].tap()
         let display = element("settings_display", in: app)
         XCTAssertTrue(display.waitForExistence(timeout: 2))
@@ -779,6 +782,23 @@ extension PureSudokuUITests {
         RunLoop.current.run(until: Date().addingTimeInterval(0.5)) // the highlight animates in
         let shot = XCUIScreen.main.screenshot().image
         return [plain, peer, same, selected].map { fillBrightness(of: cell($0).frame, in: shot) }
+    }
+
+    /// True once iOS draws Dark, read off the Settings app's grouped background (near black in Dark,
+    /// light grey in Light), which no app setting can change. Waits up to `timeout` for the switch.
+    private func systemDrawsDark(timeout: TimeInterval = 5) -> Bool {
+        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        settings.activate()
+        defer { settings.terminate() }
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            let shot = XCUIScreen.main.screenshot().image
+            // The left margin at mid-height is background, outside the inset list.
+            let brightness = fillBrightness(of: CGRect(x: 1, y: shot.size.height / 2, width: 1, height: 1), in: shot)
+            if (0..<150).contains(brightness) { return true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        } while Date() < deadline
+        return false
     }
 
     /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
