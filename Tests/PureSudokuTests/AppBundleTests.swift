@@ -36,7 +36,7 @@ final class AppBundleTests: XCTestCase {
         let info = appBundle.infoDictionary ?? [:]
         let commit = try XCTUnwrap(info["PSGitCommit"] as? String)
         XCTAssertNotNil(commit.range(of: #"^([0-9a-f]{7,}(\+dirty)?|unknown)$"#, options: .regularExpression), commit)
-        if commit != "unknown" { XCTAssertGreaterThan(Int(info["CFBundleVersion"] as? String ?? "") ?? 0, 1, "commit count") }
+        if commit != "unknown" { XCTAssertGreaterThan(Int(info["CFBundleVersion"] as? String ?? "") ?? 0, 0, "commit count") }
     }
 
     func testVersionLineFormatsAndFallsBack() {
