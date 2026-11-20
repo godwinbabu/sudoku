@@ -28,6 +28,8 @@ final class AppController: ObservableObject {
     /// Set by a game during Night, Hush and Goodnight. The root hides the home indicator for it, so
     /// the setting reaches the window from inside a pushed game.
     @Published var hidesHomeIndicator = false
+    /// Set by a game while Hush or Goodnight shows pure black; the root hides the build label for it.
+    @Published var showsBlackout = false
     /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
     @Published private(set) var showsFirstNight = false
     /// This game's Drift steps, set by the game screen: the backlight follows the drifted glow.

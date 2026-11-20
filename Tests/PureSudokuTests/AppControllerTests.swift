@@ -75,6 +75,16 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(puzzle.initialGrid, TestData.puzzle.initialGrid)
     }
 
+    /// Show build number is off by default, also for files saved before it existed, and survives a relaunch.
+    func testShowBuildNumberDefaultsOffAndPersists() throws {
+        XCTAssertFalse(Settings().showBuildNumber)
+        XCTAssertFalse(try JSONDecoder().decode(Settings.self, from: Data("{}".utf8)).showBuildNumber)
+        let (controller, dir) = makeTestController()
+        SettingsViewModel(controller: controller).setShowBuildNumber(true)
+        let relaunched = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider())
+        XCTAssertTrue(relaunched.settings.showBuildNumber)
+    }
+
     func testUpdateSettingsAppliesImmediately() {
         let (controller, _) = makeTestController()
         controller.updateSettings { $0.showTimer = false }

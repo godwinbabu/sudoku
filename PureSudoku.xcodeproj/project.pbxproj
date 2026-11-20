@@ -496,6 +496,7 @@
 				00000000000000000000003C /* Sources */,
 				00000000000000000000003E /* Frameworks */,
 				00000000000000000000003D /* Resources */,
+				000000000000000000000700 /* Stamp build number */,
 			);
 			buildRules = (
 			);
@@ -614,6 +615,29 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		000000000000000000000700 /* Stamp build number */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)",
+			);
+			name = "Stamp build number";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Writes the commit count (CFBundleVersion) and short SHA (PSGitCommit) into the built Info.plist only.\n# The app target turns off ENABLE_USER_SCRIPT_SANDBOXING: git must read .git, which is not a declared input.\nplist=\"$TARGET_BUILD_DIR/$INFOPLIST_PATH\"\nsha=unknown\nif count=$(git -C \"$SRCROOT\" rev-list --count HEAD 2>/dev/null) && head=$(git -C \"$SRCROOT\" rev-parse --short HEAD 2>/dev/null); then\n  sha=$head\n  [ -n \"$(git -C \"$SRCROOT\" status --porcelain --untracked-files=no 2>/dev/null)\" ] && sha=\"$sha+dirty\"\n  /usr/bin/plutil -replace CFBundleVersion -string \"$count\" \"$plist\"\nfi\n/usr/bin/plutil -replace PSGitCommit -string \"$sha\" \"$plist\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		00000000000000000000003C /* Sources */ = {
@@ -839,6 +863,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 3WZ27HVC5C;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = PureSudoku/Supporting/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -869,6 +894,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 3WZ27HVC5C;
 				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				INFOPLIST_FILE = PureSudoku/Supporting/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.puzzle-games";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;

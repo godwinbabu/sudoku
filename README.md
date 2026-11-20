@@ -36,7 +36,7 @@ PureSudoku is a no-frills, offline iPhone Sudoku app modeled after the NYT exper
 
 ## Release
 - `Info.plist` reads the version from the `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` build settings.
-- Before each App Store Connect upload, raise the build number: run `agvtool next-version` in the repo root, or change Build under the target's General tab in Xcode. App Store Connect rejects a reused build number.
+- The build number is the commit count on HEAD, and the short commit SHA (with `+dirty` when tracked files have changes) is stored as `PSGitCommit`. The "Stamp build number" phase writes both into the built Info.plist only. Commit before each App Store Connect upload: it rejects a reused build number. Without git the build keeps `CURRENT_PROJECT_VERSION` and the SHA reads `unknown`.
 - `ITSAppUsesNonExemptEncryption` is `NO` because the app makes no network calls and links no crypto libraries. Check it again if that changes.
 
 ## Development Notes

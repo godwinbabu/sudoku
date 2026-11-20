@@ -634,6 +634,40 @@ extension PureSudokuUITests {
                        "the timer runs again")
     }
 
+    /// Journal shows the version line; Show build number pins it on every screen (CODESPEC 3.3).
+    func testShowBuildNumberPinsTheVersionLine() {
+        let app = launchApp()
+        app.buttons["tab_journal"].tap()
+        let toggle = element("journal_showBuildNumber", in: app) // a switch on iOS 17+, a button on 16
+        XCTAssertTrue(toggle.waitForExistence(timeout: 2))
+        for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+        XCTAssertTrue(app.staticTexts["journal_version"].label.hasPrefix("Version "))
+        // Off by default (a unit test checks that); a failed earlier run may have left it on.
+        if toggle.value as? String == "On" { toggle.tap() }
+        let label = element("buildLabel", in: app)
+        XCTAssertFalse(label.exists, "off: no pinned label")
+        toggle.tap()
+        addTeardownBlock { // leave the app as found
+            app.buttons["tab_journal"].tap()
+            for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+            if toggle.value as? String == "On" { toggle.tap() }
+        }
+        XCTAssertTrue(label.waitForExistence(timeout: 2))
+        XCTAssertEqual(label.label, app.staticTexts["journal_version"].label)
+        app.buttons["tab_play"].tap()
+        XCTAssertTrue(label.exists, "pinned on every screen")
+        XCTAssertGreaterThanOrEqual(label.frame.minY, app.buttons["tab_play"].frame.maxY, "below the tab bar, not over it")
+        startLevel("easy", in: app)
+        XCTAssertTrue(app.buttons["number_9"].waitForExistence(timeout: 5))
+        XCTAssertGreaterThanOrEqual(label.frame.minY, app.buttons["number_9"].frame.maxY, "below the number pad, not over it")
+        app.buttons["backButton"].tap()
+        app.buttons["tab_journal"].tap()
+        for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+        toggle.tap()
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: label)
+        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: 2), .completed, "off again: gone")
+    }
+
     /// The Assists settings live in Journal; Show timer off hides the game timer (CODESPEC 3.3).
     func testJournalShowTimerHidesTheTimer() {
         let app = launchApp()

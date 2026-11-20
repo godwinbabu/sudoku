@@ -104,4 +104,16 @@ final class SettingsViewModel: ObservableObject {
     func clearImportedImages() {
         controller.clearImportedImages()
     }
+
+    func setShowBuildNumber(_ value: Bool) {
+        controller.updateSettings { $0.showBuildNumber = value }
+    }
+
+    /// "Version 1.0 (412) · 5e4a202", from the Info.plist keys the Stamp build number phase writes.
+    nonisolated static func versionLine(_ info: [String: Any]?) -> String {
+        func value(_ key: String) -> String { info?[key] as? String ?? "unknown" }
+        return "Version \(value("CFBundleShortVersionString")) (\(value("CFBundleVersion"))) · \(value("PSGitCommit"))"
+    }
+
+    static let appVersionLine = versionLine(Bundle.main.infoDictionary)
 }

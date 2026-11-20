@@ -302,6 +302,8 @@ Testing requirements:
 	•	IMPORTS (kept from the old Settings screen): Keep import photos, and Clear imported photos, which asks first with a custom confirmation.
 	•	VoiceOver reads each table row as one line: “Expert: 3 solved, best 4:12, typical 5:00”, with “none yet” for a dash.
 	•	PRIVACY: “Everything stays on this iPhone. No account, no network, no analytics. Silent by design — no sounds or vibration unless you turn them on.”
+	•	Under Privacy: a Show build number switch (showBuildNumber, default off), then one selectable ink3 line, “Version 1.0 (412) · 5e4a202”: the marketing version, the build number (the commit count, written into the built Info.plist by the “Stamp build number” phase) and the short commit SHA (PSGitCommit, “+dirty” when tracked files had changes). A missing value reads “unknown”, e.g. a build made without git.
+	•	With Show build number on, the same line sits in a 16 pt strip reserved under every screen's safe area (the root view controller's additionalSafeAreaInsets, so pushed screens get it too), so it never covers a control: 11 pt, ink3 of the current palette, no fill, not hit-testable. Hush, Goodnight and the first-night flow hide it (they stay pure black) but keep its space, so the game does not move.
 	•	Migration: the old cellNameStyle key maps short → grid and long → plain. The old askBeforeHintResult key is ignored: the card has no “Try it yourself first?” step.
 
 Testing requirements:
@@ -644,7 +646,7 @@ Persist:
 	•	soundsEnabled, hapticsEnabled
 	•	mistakes, tidyNotes, showTimer
 	•	cell-name style, “try it yourself first”
-	•	keepImportImages
+	•	keepImportImages, showBuildNumber
 	•	v1 keys (theme, bedtimeMode, sleepBrightness, display profiles, autoCheckMistakes, autoRemoveCandidates) are read once and mapped (Section 7.1), never written.
 	3.	Technique progress (phase 5): one TechniqueProgress per technique (Section 2.3).
 	4.	Imported games (BYOS.md). Every unfinished import is kept, but only the 20 most recently played solved ones (plus any still waiting to hand off a late best time, until their count finishes); older solved imports are dropped on the next save. Unused import photos are cleaned up only when the set of photos in use changes, not on every autosave.

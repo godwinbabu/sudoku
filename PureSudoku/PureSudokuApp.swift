@@ -30,6 +30,26 @@ struct RootView: View {
                 FirstNightView().transition(.opacity).zIndex(2)
             }
         }
+        // In the strip updateDisplay reserves just below the safe area, so it never covers a control. No fill:
+        // the screen's own background shows through.
+        .overlay {
+            if controller.settings.showBuildNumber {
+                // Pure-black screens hide it but keep its strip, so the game does not shift under them.
+                let hidden = controller.showsBlackout || controller.showsFirstNight
+                GeometryReader { geometry in
+                    Text(SettingsViewModel.appVersionLine)
+                        .psFont(11, monospacedDigit: true)
+                        .foregroundStyle(controller.palette.ink3)
+                        .lineLimit(1)
+                        // The reader ends at the safe area; the strip is the next buildLabelHeight points.
+                        .position(x: geometry.size.width / 2, y: geometry.size.height + Self.buildLabelHeight / 2)
+                        .opacity(hidden ? 0 : 1)
+                        .accessibilityHidden(hidden)
+                        .accessibilityIdentifier("buildLabel")
+                }
+                .allowsHitTesting(false)
+            }
+        }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: controller.showsNightSheet)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: controller.showsFirstNight)
         .environmentObject(controller)
@@ -64,5 +84,8 @@ struct RootView: View {
                                                        nightBacklight: controller.nightBacklight)
         brightness.update(target: target, request: [controller.settings.glow, controller.isCalibrating ? 1 : 0])
         SystemAppearance.apply(controller.palette)
+        SystemAppearance.reserveBottom(controller.settings.showBuildNumber ? Self.buildLabelHeight : 0)
     }
+
+    private static let buildLabelHeight: CGFloat = 16
 }
