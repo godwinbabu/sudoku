@@ -660,6 +660,15 @@ extension PureSudokuUITests {
         startLevel("easy", in: app)
         XCTAssertTrue(app.buttons["number_9"].waitForExistence(timeout: 5))
         XCTAssertGreaterThanOrEqual(label.frame.minY, app.buttons["number_9"].frame.maxY, "below the number pad, not over it")
+        let padBottom = app.buttons["number_9"].frame.maxY
+        app.buttons["moreButton"].tap()
+        app.buttons["menu_hush"].tap()
+        let hush = element("hushView", in: app)
+        XCTAssertTrue(hush.waitForExistence(timeout: 2))
+        XCTAssertFalse(label.exists, "Hush stays pure black")
+        hush.tap()
+        XCTAssertTrue(label.waitForExistence(timeout: 2), "back after Hush")
+        XCTAssertEqual(app.buttons["number_9"].frame.maxY, padBottom, "the game did not move")
         app.buttons["backButton"].tap()
         app.buttons["tab_journal"].tap()
         for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
