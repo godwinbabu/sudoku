@@ -54,7 +54,10 @@ struct SudokuImageDetector {
     /// A recognised candidate's digit, and whether its own confidence (`VNRecognizedText.confidence`,
     /// not the observation's) is too low to trust. Nil when the text is not one digit 1...9.
     static func reading(text: String, confidence: Float) -> (digit: Int, unsure: Bool)? {
-        guard let value = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)), (1...9).contains(value) else { return nil }
+        var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A lone thin stroke can only be a 1 in a grid of digits: fast mode reads a sans-serif 1 as "I" (issue 98).
+        if ["I", "l", "|"].contains(text) { text = "1" }
+        guard let value = Int(text), (1...9).contains(value) else { return nil }
         return (value, confidence < unsureConfidence)
     }
 
@@ -64,10 +67,25 @@ struct SudokuImageDetector {
             throw DetectionError.invalidImage
         }
 
-        let corners = try await detectGridCorners(in: cgImage)
+        let corners: [CGPoint]
+        let gridImage: CGImage
+        if let found = try await detectGridCorners(in: cgImage) {
+            corners = found
+            gridImage = try warpGrid(from: cgImage, corners: corners)
+        } else if let box = Self.contentBox(in: cgImage), let cropped = cgImage.cropping(to: box) {
+            // A screenshot cropped to the grid: its border touches, or is cut by, the image edge.
+            let width = CGFloat(cgImage.width), height = CGFloat(cgImage.height)
+            let (left, right) = (box.minX / width, box.maxX / width)
+            let (top, bottom) = (1 - box.minY / height, 1 - box.maxY / height)
+            corners = [CGPoint(x: left, y: top), CGPoint(x: right, y: top), CGPoint(x: right, y: bottom), CGPoint(x: left, y: bottom)]
+            gridImage = cropped
+        } else {
+            throw DetectionError.gridNotFound
+        }
         progress(ReadProgress(corners: corners, cellsChecked: 0))
-        let warped = try warpGrid(from: cgImage, corners: corners)
-        let cells = zip(splitIntoCells(image: warped), splitIntoCells(image: warped, inset: 0.18)).map { ($0, $1) }
+        let lines = Self.gridLines(of: gridImage)
+        let cells = zip(splitIntoCells(image: gridImage, lines: lines),
+                        splitIntoCells(image: gridImage, lines: lines, inset: 0.18)).map { ($0, $1) }
         return try await recognizeDigits(in: cells) { progress(ReadProgress(corners: corners, cellsChecked: $0)) }
     }
 
@@ -82,21 +100,17 @@ struct SudokuImageDetector {
     }
 
     /// The best rectangle's corners: top left, top right, bottom right, bottom left (plain points, so
-    /// nothing non-Sendable leaves Vision's callback).
-    private func detectGridCorners(in cgImage: CGImage) async throws -> [CGPoint] {
+    /// nothing non-Sendable leaves Vision's callback). Nil when there is none.
+    private func detectGridCorners(in cgImage: CGImage) async throws -> [CGPoint]? {
         try await withCheckedThrowingContinuation { continuation in
             let request = VNDetectRectanglesRequest { request, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
                 }
-                guard let results = request.results as? [VNRectangleObservation] else {
-                    continuation.resume(throwing: DetectionError.gridNotFound)
-                    return
-                }
-                let sorted = results.sorted { $0.confidence > $1.confidence }
-                guard let best = sorted.first else {
-                    continuation.resume(throwing: DetectionError.gridNotFound)
+                let results = request.results as? [VNRectangleObservation] ?? []
+                guard let best = results.max(by: { $0.confidence < $1.confidence }) else {
+                    continuation.resume(returning: nil)
                     return
                 }
                 continuation.resume(returning: [best.topLeft, best.topRight, best.bottomRight, best.bottomLeft])
@@ -114,7 +128,31 @@ struct SudokuImageDetector {
         }
     }
 
-    private func warpGrid(from cgImage: CGImage, corners: [CGPoint]) throws -> UIImage {
+    /// The box around everything that differs from the page (the median colour of the image's outer
+    /// ring of pixels), in pixels from the top left. Nil when nothing stands out or the box is not
+    /// roughly square, so a photo with no grid still says so.
+    static func contentBox(in cgImage: CGImage) -> CGRect? {
+        let width = cgImage.width, height = cgImage.height
+        guard let pixels = grayPixels(of: cgImage, width: width, height: height) else { return nil }
+        let ring = (0..<width).flatMap { [pixels[$0], pixels[(height - 1) * width + $0]] }
+            + (0..<height).flatMap { [pixels[$0 * width], pixels[$0 * width + width - 1]] }
+        let page = Int(ring.sorted()[ring.count / 2])
+        var rows = [Int](repeating: 0, count: height), cols = [Int](repeating: 0, count: width)
+        for row in 0..<height {
+            for col in 0..<width where abs(Int(pixels[row * width + col]) - page) > 48 {
+                rows[row] += 1
+                cols[col] += 1
+            }
+        }
+        // A line counts once 2% of it stands out, so specks of noise do not widen the box.
+        guard let top = rows.firstIndex(where: { $0 * 50 > width }), let bottom = rows.lastIndex(where: { $0 * 50 > width }),
+              let left = cols.firstIndex(where: { $0 * 50 > height }), let right = cols.lastIndex(where: { $0 * 50 > height })
+        else { return nil }
+        let box = CGRect(x: left, y: top, width: right - left + 1, height: bottom - top + 1)
+        return (0.8...1.25).contains(box.width / box.height) ? box : nil
+    }
+
+    private func warpGrid(from cgImage: CGImage, corners: [CGPoint]) throws -> CGImage {
         let image = CIImage(cgImage: cgImage)
         let size = image.extent.size
         let pixels = corners.map { CGPoint(x: $0.x * size.width, y: $0.y * size.height) }
@@ -137,30 +175,76 @@ struct SudokuImageDetector {
         guard let corrected = context.createCGImage(output, from: output.extent) else {
             throw DetectionError.processingFailed
         }
-        return UIImage(cgImage: corrected)
+        return corrected
+    }
+
+    /// Where the 10 evenly spaced grid lines along one axis best fit `profile` (how much each pixel line
+    /// stands out): the first line and the spacing. The first line may sit a little outside the image
+    /// (a frame around the grid) and the last may be cut off (a tight crop).
+    static func gridLines(in profile: [Double]) -> GridLines {
+        let length = Double(profile.count)
+        // Each pixel takes its neighbours' peak, fading with distance, so a line rounded a pixel off the
+        // fitted spacing still counts while an exact fit still scores highest.
+        let reach = max(1, profile.count / 300)
+        let profile = profile.indices.map { index in
+            (-reach...reach).reduce(0.0) { peak, offset in
+                guard profile.indices.contains(index + offset) else { return peak }
+                return max(peak, profile[index + offset] * (1 - Double(abs(offset)) / Double(reach + 1)))
+            }
+        }
+        var best = (score: -1.0, start: 0.0, step: length / 9)
+        for step in stride(from: length / 9 * 0.85, through: length / 9 * 1.1, by: 0.25) {
+            for start in stride(from: -0.05 * length, through: 0.12 * length, by: 1) {
+                let score = (0...9).reduce(0.0) { sum, line in
+                    let index = Int((start + Double(line) * step).rounded())
+                    return profile.indices.contains(index) ? sum + profile[index] : sum
+                }
+                if score > best.score { best = (score, start, step) }
+            }
+        }
+        return (best.start, best.step)
+    }
+
+    typealias GridLines = (start: Double, step: Double)
+
+    /// The fitted grid lines of the grid image, columns then rows, so a frame or margin around the grid
+    /// does not shift the edge rows and columns onto the border (issue 98).
+    static func gridLines(of cgImage: CGImage) -> (cols: GridLines, rows: GridLines) {
+        let width = cgImage.width, height = cgImage.height
+        guard let pixels = grayPixels(of: cgImage, width: width, height: height) else {
+            return ((0, Double(width) / 9), (0, Double(height) / 9))
+        }
+        var rowMeans = [Double](repeating: 0, count: height), colMeans = [Double](repeating: 0, count: width)
+        for row in 0..<height {
+            for col in 0..<width {
+                let value = Double(pixels[row * width + col])
+                rowMeans[row] += value / Double(width)
+                colMeans[col] += value / Double(height)
+            }
+        }
+        // A grid line is a whole row (or column) of one colour, far from the typical row's mean.
+        func standOut(_ means: [Double]) -> [Double] {
+            let typical = means.sorted()[means.count / 2]
+            return means.map { abs($0 - typical) }
+        }
+        return (gridLines(in: standOut(colMeans)), gridLines(in: standOut(rowMeans)))
     }
 
     /// `inset` is the share of the cell trimmed from each side, to drop the grid lines.
-    private func splitIntoCells(image: UIImage, inset: Double = 0.08) -> [UIImage] {
-        guard let cgImage = image.cgImage else { return [] }
-        let width = cgImage.width
-        let height = cgImage.height
-        let cellWidth = width / 9
-        let cellHeight = height / 9
-        let insetX = Int(Double(cellWidth) * inset)
-        let insetY = Int(Double(cellHeight) * inset)
+    private func splitIntoCells(image cgImage: CGImage, lines: (cols: GridLines, rows: GridLines), inset: Double = 0.08) -> [UIImage] {
+        let (cols, rows) = lines
         var cells: [UIImage] = []
         cells.reserveCapacity(81)
         for row in 0..<9 {
             for col in 0..<9 {
                 let rect = CGRect(
-                    x: col * cellWidth + insetX,
-                    y: row * cellHeight + insetY,
-                    width: cellWidth - insetX * 2,
-                    height: cellHeight - insetY * 2
-                )
+                    x: cols.start + (Double(col) + inset) * cols.step,
+                    y: rows.start + (Double(row) + inset) * rows.step,
+                    width: cols.step * (1 - inset * 2),
+                    height: rows.step * (1 - inset * 2)
+                ).integral
                 if let cropped = cgImage.cropping(to: rect) {
-                    cells.append(UIImage(cgImage: cropped))
+                    cells.append(Self.normalized(UIImage(cgImage: cropped)))
                 } else {
                     cells.append(UIImage())
                 }
@@ -182,38 +266,65 @@ struct SudokuImageDetector {
     /// Fast recognition first. A cell where text was seen but not read, or that has ink, is read again
     /// from its inner area on a plain margin: digits beside a thick line (the edge column when the
     /// detected rectangle includes the border) and thin 1s that fast mode reads as "I" (issue 66).
+    /// An unsure digit is read again too, and a sure read wins (issue 98).
     private func read(cell: UIImage, inner: UIImage) async throws -> CellReading {
-        var passes = [try await recognizeDigit(in: cell, level: .fast)]
-        guard Self.settle(passes) == .rejected || (Self.settle(passes) == .empty && Self.hasInk(inner)) else {
-            return Self.settle(passes)
-        }
+        // A given fills about half the cell; a pencil-mark note about a fifth (issue 98).
+        let minimumHeight = cell.size.height * 0.36
+        var passes = [try await recognizeDigit(in: cell, level: .fast, minimumHeight: minimumHeight)]
+        let first = Self.settle(passes)
+        var unsure = false
+        if case .digit(_, unsure: true) = first { unsure = true }
+        guard unsure || first == .rejected || (first == .empty && Self.hasInk(inner)) else { return first }
         let padded = Self.padded(inner)
         for level in [VNRequestTextRecognitionLevel.fast, .accurate] {
-            passes.append(try await recognizeDigit(in: padded, level: level))
-            if case .digit = passes.last { break }
+            passes.append(try await recognizeDigit(in: padded, level: level, minimumHeight: minimumHeight))
+            if case .digit(_, unsure: false) = passes.last { break }
         }
         return Self.settle(passes)
     }
 
     /// The first digit any pass read; else rejected if any pass saw text, so it is ringed, never dropped.
     static func settle(_ passes: [CellReading]) -> CellReading {
+        if let sure = passes.first(where: { if case .digit(_, unsure: false) = $0 { return true } else { return false } }) { return sure }
         if let digit = passes.first(where: { if case .digit = $0 { return true } else { return false } }) { return digit }
         return passes.contains(.rejected) ? .rejected : .empty
     }
 
-    /// True when some pixels are much darker than the paper (median brightness).
-    static func hasInk(_ image: UIImage) -> Bool {
-        guard let cgImage = image.cgImage else { return false }
-        let side = 32
-        var pixels = [UInt8](repeating: 0, count: side * side)
+    /// The image's brightness, one byte per pixel, scaled to `width` by `height`.
+    static func grayPixels(of cgImage: CGImage, width: Int, height: Int) -> [UInt8]? {
+        var pixels = [UInt8](repeating: 0, count: width * height)
         let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
-            guard let context = CGContext(data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8,
-                                          bytesPerRow: side, space: CGColorSpaceCreateDeviceGray(),
+            guard let context = CGContext(data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                                          bytesPerRow: width, space: CGColorSpaceCreateDeviceGray(),
                                           bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
             return true
         }
-        guard drawn else { return false }
+        return drawn ? pixels : nil
+    }
+
+    /// The cell in grey with dark ink on light paper. Light ink (white digits on a dark or coloured
+    /// fill, as in dark mode) is inverted: it lies further above the paper (median) than any ink below it.
+    static func normalized(_ image: UIImage) -> UIImage {
+        guard let cgImage = image.cgImage,
+              var pixels = grayPixels(of: cgImage, width: cgImage.width, height: cgImage.height) else { return image }
+        let sorted = pixels.sorted()
+        let paper = Int(sorted[sorted.count / 2]), darkest = Int(sorted[sorted.count / 100])
+        let lightest = Int(sorted[sorted.count * 99 / 100])
+        if lightest - paper > paper - darkest {
+            for index in pixels.indices { pixels[index] = 255 - pixels[index] }
+        }
+        let gray = pixels.withUnsafeMutableBytes { buffer in
+            CGContext(data: buffer.baseAddress, width: cgImage.width, height: cgImage.height, bitsPerComponent: 8,
+                      bytesPerRow: cgImage.width, space: CGColorSpaceCreateDeviceGray(),
+                      bitmapInfo: CGImageAlphaInfo.none.rawValue)?.makeImage()
+        }
+        return gray.map { UIImage(cgImage: $0) } ?? image
+    }
+
+    /// True when some pixels are much darker than the paper (median brightness).
+    static func hasInk(_ image: UIImage) -> Bool {
+        guard let cgImage = image.cgImage, let pixels = grayPixels(of: cgImage, width: 32, height: 32) else { return false }
         let paper = Double(pixels.sorted()[pixels.count / 2])
         let dark = pixels.filter { Double($0) < paper * 0.55 }.count
         return dark * 100 >= pixels.count * 3
@@ -232,8 +343,11 @@ struct SudokuImageDetector {
         }
     }
 
-    private func recognizeDigit(in image: UIImage, level: VNRequestTextRecognitionLevel) async throws -> CellReading {
+    /// `minimumHeight` is in the image's points: shorter text is a note, not a given.
+    private func recognizeDigit(in image: UIImage, level: VNRequestTextRecognitionLevel,
+                                minimumHeight: CGFloat) async throws -> CellReading {
         guard let cgImage = image.cgImage else { return .empty }
+        let imageHeight = image.size.height
         return try await withCheckedThrowingContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
                 if let error {
@@ -251,6 +365,10 @@ struct SudokuImageDetector {
                     return
                 }
                 let box = bestObservation.boundingBox
+                guard box.height * imageHeight >= minimumHeight else {
+                    continuation.resume(returning: .empty)
+                    return
+                }
                 let area = box.width * box.height
                 let centerDistance = abs(box.midX - 0.5) + abs(box.midY - 0.5)
                 // The candidate's own score: the observation's can be high while this read is not.

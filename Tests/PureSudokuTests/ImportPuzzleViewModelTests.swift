@@ -214,12 +214,100 @@ final class ImportPuzzleViewModelTests: XCTestCase {
 
     /// A printed puzzle with thin 1s and digits next to the thick outer border (issue 66).
     func testPrintedGridPhotoIsReadInFull() async throws {
-        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "printed-grid", withExtension: "png"))
+        try await assertFixture("printed-grid", reads: "530070000600195000098000060800060003400803001700020006060000280000419005000080079")
+    }
+
+    /// NYT dark mode: white border on a near-black page, light digits on grey and amber fills, small
+    /// pencil-mark notes that are not givens (issue 98).
+    private static let nytDarkGrid = "073050048000824007000713069800000000040000005700001090006190002300402001010000000"
+
+    func testDarkScreenshotIsReadInFull() async throws {
+        try await assertFixture("nyt-dark-screenshot", reads: Self.nytDarkGrid)
+    }
+
+    /// The same board cropped to the grid, its border touching the image edges (issue 98).
+    func testDarkCropIsReadInFull() async throws {
+        try await assertFixture("nyt-dark-crop", reads: Self.nytDarkGrid)
+    }
+
+    /// A lone thin stroke is a 1 (issue 98); other letters are not digits.
+    func testThinStrokeReadsAsOne() {
+        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.6)?.digit, 1)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.6)?.unsure, false)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.1)?.unsure, true)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "l", confidence: 1)?.digit, 1)
+        XCTAssertNil(SudokuImageDetector.reading(text: "ll", confidence: 1))
+        XCTAssertNil(SudokuImageDetector.reading(text: "n", confidence: 1))
+    }
+
+    /// The grid lines fit a frame before the first line and a last line cut off by a crop (issue 98).
+    func testGridLinesFitFrameAndCutEdge() {
+        var profile = [Double](repeating: 1, count: 900)
+        for line in 0...8 { profile[30 + line * 100] = 100 }
+        let lines = SudokuImageDetector.gridLines(in: profile)
+        XCTAssertEqual(lines.start, 30, accuracy: 1)
+        XCTAssertEqual(lines.step, 100, accuracy: 0.5)
+
+        // Ten lines, one rounded a pixel short: the fit keeps all nine cells, not a shifted eight.
+        var rounded = [Double](repeating: 0, count: 900)
+        for position in [0, 100, 200, 300, 400, 499, 599, 699, 799, 899] { rounded[position] = 255 }
+        let fitted = SudokuImageDetector.gridLines(in: rounded)
+        XCTAssertEqual(fitted.start, 0, accuracy: 1.5)
+        XCTAssertEqual(fitted.step, 100, accuracy: 0.5)
+    }
+
+    /// The box around the grid on a plain page, touching the right edge; a wide box is no grid (issue 98).
+    func testContentBoxFindsGridOnDarkPage() throws {
+        func page(with box: CGRect) throws -> CGImage {
+            let format = UIGraphicsImageRendererFormat.default()
+            format.scale = 1
+            return try XCTUnwrap(UIGraphicsImageRenderer(size: CGSize(width: 100, height: 80), format: format).image { context in
+                UIColor(white: 0.07, alpha: 1).setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 100, height: 80))
+                UIColor.white.setFill()
+                context.fill(box)
+            }.cgImage)
+        }
+        let grid = CGRect(x: 40, y: 10, width: 60, height: 60)
+        XCTAssertEqual(SudokuImageDetector.contentBox(in: try page(with: grid)), grid)
+        XCTAssertNil(SudokuImageDetector.contentBox(in: try page(with: CGRect(x: 0, y: 30, width: 100, height: 20))))
+    }
+
+    /// White ink on a dark fill turns into dark ink on light paper; dark ink is left alone (issue 98).
+    func testNormalizedInvertsLightInk() throws {
+        func cell(fill: UIColor, ink: UIColor) -> UIImage {
+            let format = UIGraphicsImageRendererFormat.default()
+            format.scale = 1
+            return UIGraphicsImageRenderer(size: CGSize(width: 40, height: 40), format: format).image { context in
+                fill.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 40, height: 40))
+                ink.setFill()
+                context.fill(CGRect(x: 16, y: 8, width: 8, height: 24))
+            }
+        }
+        func corner(_ image: UIImage) throws -> UInt8 {
+            try XCTUnwrap(SudokuImageDetector.grayPixels(of: try XCTUnwrap(image.cgImage), width: 40, height: 40))[0]
+        }
+        func center(_ image: UIImage) throws -> UInt8 {
+            try XCTUnwrap(SudokuImageDetector.grayPixels(of: try XCTUnwrap(image.cgImage), width: 40, height: 40))[20 * 40 + 20]
+        }
+        let dark = SudokuImageDetector.normalized(cell(fill: UIColor(white: 0.25, alpha: 1), ink: .white))
+        XCTAssertGreaterThan(try corner(dark), try center(dark))
+        let amber = SudokuImageDetector.normalized(cell(fill: .orange, ink: .black))
+        XCTAssertGreaterThan(try corner(amber), try center(amber))
+    }
+
+    private func assertFixture(_ name: String, reads expected: String, file: StaticString = #filePath, line: UInt = #line) async throws {
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: name, withExtension: "png"))
         let image = try XCTUnwrap(UIImage(contentsOfFile: url.path))
+        let start = Date()
         let grid = try await SudokuImageDetector().detectGrid(from: image)
-        let expected = "530070000600195000098000060800060003400803001700020006060000280000419005000080079"
-        XCTAssertEqual(grid.values.map { String($0 ?? 0) }.joined(), expected)
-        XCTAssertTrue(grid.unsure.allSatisfy { grid.values[$0] != nil }, "no blank cell is ringed: \(grid.unsure.sorted())")
+        let read = grid.values.map { String($0 ?? 0) }.joined()
+        let seconds = String(format: "%.2f", Date().timeIntervalSince(start))
+        print("FIXTURE \(name) read in \(seconds)s: \(read), unsure \(grid.unsure.sorted())")
+        XCTAssertEqual(read, expected, file: file, line: line)
+        XCTAssertTrue(grid.unsure.allSatisfy { grid.values[$0] != nil },
+                      "no blank cell is ringed: \(grid.unsure.sorted())", file: file, line: line)
     }
 
     /// Any pass that saw text but no digit keeps the cell ringed; any digit wins (issue 66).
@@ -229,6 +317,9 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertEqual(SudokuImageDetector.settle([.rejected, .empty, .empty]), .rejected)
         XCTAssertEqual(SudokuImageDetector.settle([.rejected, .digit(1, unsure: false)]), Reading.digit(1, unsure: false))
         XCTAssertEqual(SudokuImageDetector.settle([.empty, .empty, .empty]), .empty)
+        // A sure read beats an earlier unsure one; with no sure read the first digit stays (issue 98).
+        XCTAssertEqual(SudokuImageDetector.settle([.digit(7, unsure: true), .digit(1, unsure: false)]), Reading.digit(1, unsure: false))
+        XCTAssertEqual(SudokuImageDetector.settle([.digit(7, unsure: true), .empty]), Reading.digit(7, unsure: true))
     }
 
     /// Text that was seen but not read as a digit is ringed and left blank, never dropped (issue 66).
