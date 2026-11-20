@@ -232,8 +232,9 @@ final class ImportPuzzleViewModelTests: XCTestCase {
 
     /// A lone thin stroke is a 1 (issue 98); other letters are not digits.
     func testThinStrokeReadsAsOne() {
-        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.5)?.digit, 1)
-        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.5)?.unsure, false)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.6)?.digit, 1)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.6)?.unsure, false)
+        XCTAssertEqual(SudokuImageDetector.reading(text: "I", confidence: 0.1)?.unsure, true)
         XCTAssertEqual(SudokuImageDetector.reading(text: "l", confidence: 1)?.digit, 1)
         XCTAssertNil(SudokuImageDetector.reading(text: "ll", confidence: 1))
         XCTAssertNil(SudokuImageDetector.reading(text: "n", confidence: 1))
@@ -246,6 +247,13 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         let lines = SudokuImageDetector.gridLines(in: profile)
         XCTAssertEqual(lines.start, 30, accuracy: 1)
         XCTAssertEqual(lines.step, 100, accuracy: 0.5)
+
+        // Ten lines, one rounded a pixel short: the fit keeps all nine cells, not a shifted eight.
+        var rounded = [Double](repeating: 0, count: 900)
+        for position in [0, 100, 200, 300, 400, 499, 599, 699, 799, 899] { rounded[position] = 255 }
+        let fitted = SudokuImageDetector.gridLines(in: rounded)
+        XCTAssertEqual(fitted.start, 0, accuracy: 1.5)
+        XCTAssertEqual(fitted.step, 100, accuracy: 0.5)
     }
 
     /// The box around the grid on a plain page, touching the right edge; a wide box is no grid (issue 98).
@@ -309,6 +317,9 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertEqual(SudokuImageDetector.settle([.rejected, .empty, .empty]), .rejected)
         XCTAssertEqual(SudokuImageDetector.settle([.rejected, .digit(1, unsure: false)]), Reading.digit(1, unsure: false))
         XCTAssertEqual(SudokuImageDetector.settle([.empty, .empty, .empty]), .empty)
+        // A sure read beats an earlier unsure one; with no sure read the first digit stays (issue 98).
+        XCTAssertEqual(SudokuImageDetector.settle([.digit(7, unsure: true), .digit(1, unsure: false)]), Reading.digit(1, unsure: false))
+        XCTAssertEqual(SudokuImageDetector.settle([.digit(7, unsure: true), .empty]), Reading.digit(7, unsure: true))
     }
 
     /// Text that was seen but not read as a digit is ringed and left blank, never dropped (issue 66).

@@ -54,10 +54,9 @@ struct SudokuImageDetector {
     /// A recognised candidate's digit, and whether its own confidence (`VNRecognizedText.confidence`,
     /// not the observation's) is too low to trust. Nil when the text is not one digit 1...9.
     static func reading(text: String, confidence: Float) -> (digit: Int, unsure: Bool)? {
-        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        // A lone thin stroke can only be a 1 in a grid of digits. Fast mode reads a sans-serif 1 as "I"
-        // at 0.5, so the stroke counts as sure (issue 98).
-        if ["I", "l", "|"].contains(text) { return (1, false) }
+        var text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // A lone thin stroke can only be a 1 in a grid of digits: fast mode reads a sans-serif 1 as "I" (issue 98).
+        if ["I", "l", "|"].contains(text) { text = "1" }
         guard let value = Int(text), (1...9).contains(value) else { return nil }
         return (value, confidence < unsureConfidence)
     }
@@ -184,6 +183,15 @@ struct SudokuImageDetector {
     /// (a frame around the grid) and the last may be cut off (a tight crop).
     static func gridLines(in profile: [Double]) -> GridLines {
         let length = Double(profile.count)
+        // Each pixel takes its neighbours' peak, fading with distance, so a line rounded a pixel off the
+        // fitted spacing still counts while an exact fit still scores highest.
+        let reach = max(1, profile.count / 300)
+        let profile = profile.indices.map { index in
+            (-reach...reach).reduce(0.0) { peak, offset in
+                guard profile.indices.contains(index + offset) else { return peak }
+                return max(peak, profile[index + offset] * (1 - Double(abs(offset)) / Double(reach + 1)))
+            }
+        }
         var best = (score: -1.0, start: 0.0, step: length / 9)
         for step in stride(from: length / 9 * 0.85, through: length / 9 * 1.1, by: 0.25) {
             for start in stride(from: -0.05 * length, through: 0.12 * length, by: 1) {
@@ -258,23 +266,26 @@ struct SudokuImageDetector {
     /// Fast recognition first. A cell where text was seen but not read, or that has ink, is read again
     /// from its inner area on a plain margin: digits beside a thick line (the edge column when the
     /// detected rectangle includes the border) and thin 1s that fast mode reads as "I" (issue 66).
+    /// An unsure digit is read again too, and a sure read wins (issue 98).
     private func read(cell: UIImage, inner: UIImage) async throws -> CellReading {
         // A given fills about half the cell; a pencil-mark note about a fifth (issue 98).
         let minimumHeight = cell.size.height * 0.36
         var passes = [try await recognizeDigit(in: cell, level: .fast, minimumHeight: minimumHeight)]
-        guard Self.settle(passes) == .rejected || (Self.settle(passes) == .empty && Self.hasInk(inner)) else {
-            return Self.settle(passes)
-        }
+        let first = Self.settle(passes)
+        var unsure = false
+        if case .digit(_, unsure: true) = first { unsure = true }
+        guard unsure || first == .rejected || (first == .empty && Self.hasInk(inner)) else { return first }
         let padded = Self.padded(inner)
         for level in [VNRequestTextRecognitionLevel.fast, .accurate] {
             passes.append(try await recognizeDigit(in: padded, level: level, minimumHeight: minimumHeight))
-            if case .digit = passes.last { break }
+            if case .digit(_, unsure: false) = passes.last { break }
         }
         return Self.settle(passes)
     }
 
     /// The first digit any pass read; else rejected if any pass saw text, so it is ringed, never dropped.
     static func settle(_ passes: [CellReading]) -> CellReading {
+        if let sure = passes.first(where: { if case .digit(_, unsure: false) = $0 { return true } else { return false } }) { return sure }
         if let digit = passes.first(where: { if case .digit = $0 { return true } else { return false } }) { return digit }
         return passes.contains(.rejected) ? .rejected : .empty
     }
