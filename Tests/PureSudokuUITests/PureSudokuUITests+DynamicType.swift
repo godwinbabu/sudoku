@@ -18,9 +18,14 @@ extension PureSudokuUITests {
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
         attachScreenshot(app, "night-sheet", size: "ax5")
-        let sheetOptions = ["day", "night", "afterDark"].map { "night_appearance_\($0)" }
-            + ["standard", "large", "bold"].map { "night_clarity_\($0)" }
-        for id in sheetOptions { assertReachable(app.buttons[id], id, in: app) }
+        let sheetOptions = ["light", "dark", "night"].map { "night_appearance_\($0)" } + ["night_afterDark"]
+            + ["readingLamp", "lightsOut", "redLight"].map { "night_preset_\($0)" }
+            + ["standard", "large", "bold"].map { "night_clarity_\($0)" } + ["night_drift", "night_calibrate"]
+        for id in sheetOptions {
+            assertReachable(element(id, in: app), id, in: app) // switches are not buttons on iOS 17+
+            if id == "night_preset_redLight" || id == "night_clarity_bold" { attachScreenshot(app, "night-sheet-" + id, size: "ax5") }
+        }
+        assertReachable(app.buttons["night_close"], "night_close", in: app)
         app.buttons["night_close"].tap()
         XCTAssertTrue(waitForAbsence(sheet, timeout: 6))
         app.buttons["backButton"].tap()
@@ -48,20 +53,11 @@ extension PureSudokuUITests {
         app.buttons["backButton"].tap()
 
         app.buttons["tab_journal"].tap()
-        let display = element("settings_display", in: app)
-        scrollClearOfTabBar(display, in: app, swipes: 10)
-        display.tap()
-        XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
-        attachScreenshot(app, "display-night", size: "ax5")
-        let displayOptions = ["day", "night", "afterDark"].map { "display_appearance_\($0)" }
-            + ["readingLamp", "lightsOut", "redLight"].map { "display_preset_\($0)" }
-            + ["standard", "large", "bold"].map { "display_clarity_\($0)" }
-        for id in displayOptions {
-            assertReachable(app.buttons[id], id, in: app)
-            if id == "display_preset_redLight" || id == "display_clarity_bold" {
-                attachScreenshot(app, "display-night-" + id, size: "ax5")
-            }
+        XCTAssertTrue(element("journalView", in: app).waitForExistence(timeout: 2))
+        for id in ["mistakes_onCheck", "notation_grid"].map({ "journal_" + $0 }) + ["journal_showBuildNumber", "journal_licences"] {
+            assertReachable(element(id, in: app), id, in: app)
         }
+        attachScreenshot(app, "journal-lower", size: "ax5")
     }
 
     /// Scrolls toward `button` until it can be tapped, then asserts it. The drag runs down the right
@@ -147,20 +143,14 @@ extension PureSudokuUITests {
         scrollClearOfTabBar(row, in: app, swipes: 6)
         XCTAssertTrue(row.isHittable)
         attachScreenshot(app, "journal")
-        let display = element("settings_display", in: app)
-        scrollClearOfTabBar(display, in: app, swipes: 8)
-        display.tap()
-        XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["display_back"].isHittable)
-        attachScreenshot(app, "display-night")
-        app.buttons["display_appearance_day"].tap() // Day shows the second, Night preview strip
-        attachScreenshot(app, "display-day")
+        app.buttons["nightButton"].tap()
+        XCTAssertTrue(element("nightSheet", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["night_close"].isHittable)
+        attachScreenshot(app, "display-sheet")
         app.swipeUp()
-        app.swipeUp()
-        attachScreenshot(app, "display-night-lower")
-        app.swipeDown()
-        app.swipeDown()
-        app.swipeDown()
+        attachScreenshot(app, "display-sheet-lower")
+        assertReachable(app.buttons["night_close"], "night_close", in: app)
+        app.buttons["night_close"].tap()
     }
 
     /// From an open hint: the coach card, then the Check result in the hint slot.
@@ -191,8 +181,7 @@ extension PureSudokuUITests {
         var app = launchApp(Self.largeText + ["-uiTestNearlySolved"])
         let importButton = app.buttons["importPuzzleButton"]
         XCTAssertTrue(importButton.waitForExistence(timeout: 2))
-        scrollClearOfTabBar(importButton, in: app, swipes: 6)
-        importButton.tap()
+        importButton.tap() // beside the tab bar, never scrolled away
         XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["importTypeItIn"].isHittable)
         attachScreenshot(app, "import")
@@ -216,11 +205,8 @@ extension PureSudokuUITests {
         app.terminate()
 
         app = launchApp(Self.largeText + ["-uiTestFirstNight"], skipFirstNight: false)
-        app.buttons["tab_journal"].tap()
-        let display = element("settings_display", in: app)
-        scrollClearOfTabBar(display, in: app, swipes: 8)
-        display.tap()
-        let night = app.buttons["display_appearance_night"]
+        app.buttons["nightButton"].tap()
+        let night = app.buttons["night_appearance_night"]
         XCTAssertTrue(night.waitForExistence(timeout: 2))
         night.tap()
         XCTAssertTrue(element("firstNight", in: app).waitForExistence(timeout: 3))
@@ -239,8 +225,13 @@ extension PureSudokuUITests {
         scrollClearOfTabBar(start, in: app, swipes: 4)
         start.tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
-        let day = app.buttons["display_appearance_day"]
-        for _ in 0..<6 where !day.isHittable { app.swipeDown() }
-        day.tap() // leave the app in Day
+        // The flow closes the Display sheet first (CODESPEC 7.1); reopen it to leave the app in Light.
+        XCTAssertTrue(waitUntilHittable(app.buttons["nightButton"]))
+        app.buttons["nightButton"].tap()
+        let light = app.buttons["night_appearance_light"]
+        assertReachable(light, "night_appearance_light", in: app)
+        light.tap() // leave the app in Light
+        assertReachable(app.buttons["night_close"], "night_close", in: app)
+        app.buttons["night_close"].tap()
     }
 }

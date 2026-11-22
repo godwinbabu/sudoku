@@ -16,7 +16,7 @@ struct GameView: View {
     @State private var pausedForFirstNight = false
     @State private var isGoodnight = false
     @State private var lessonTechnique: Technique?
-    @State private var techniqueLine: String?
+    @State private var techniques: [String] = []
     @StateObject private var drift = DriftController()
     private let difficulty: Difficulty
 
@@ -38,20 +38,41 @@ struct GameView: View {
         if controller.driftSteps != drift.steps { controller.driftSteps = drift.steps } // the backlight drifts too
     }
 
-    /// Header, board top gap, hint slot, tools and keypad (everything but the board).
-    private static let chromeHeight: CGFloat = 48 + 6 + 12 + 124 + 54 + 6 + 64 + 4
+    /// The hint card's reserved slot: room for a three-line body and its 44 pt buttons (HANDOFF 6.2).
+    static let hintSlotHeight: CGFloat = 170
+    /// Navigation row, gaps, hint slot, the bars and the gap above them (everything but the board). Keep in
+    /// step with the header (44), the tool bar (52, `bars`) and the keypad (64): the keypad leaves the screen
+    /// on short phones if these grow without this.
+    static let chromeHeight: CGFloat = 44 + 8 + 10 + hintSlotHeight + 8 + 52 + 8 + 64
+
+    /// The board's side: screen width − 12, smaller only when the screen is too short for the board, the
+    /// hint slot and the bars together (HANDOFF 5), so the keypad always stays on screen.
+    static func boardSide(width: CGFloat, height: CGFloat, barsBottom: CGFloat) -> CGFloat {
+        max(120, min(width - 12, height - chromeHeight - barsBottom))
+    }
 
     var body: some View {
         let theme = palette
         let isDone = viewModel.state.isCompleted
         GeometryReader { geometry in
-            let side = min(geometry.size.width - 24, geometry.size.height - Self.chromeHeight, 440)
+            // The bars sit 28 pt above the screen's bottom edge, inside the home-indicator area, but stay
+            // above the pinned build number's strip when it shows.
+            let barsBottom = controller.settings.showBuildNumber ? max(0, 28 - geometry.safeAreaInsets.bottom)
+                : 28 - geometry.safeAreaInsets.bottom
+            let side = Self.boardSide(width: geometry.size.width, height: geometry.size.height, barsBottom: barsBottom)
             VStack(spacing: 0) {
                 // The header, board, tools and keypad must fit one screen (CODESPEC 9): the board,
                 // tools and keys keep a fixed size and show the Large Content Viewer instead.
                 header(theme: theme)
-                boardArea(theme: theme, side: max(side, 200))
-                    .padding(.top, 6)
+                boardArea(theme: theme, side: side)
+                    .padding(.top, 8)
+                if isDone {
+                    SolvedPanel(theme: theme, greeting: GameViewModel.greeting(), summary: solvedSummary, note: solvedNote,
+                                techniques: techniques, bottomPadding: barsBottom + 6,
+                                onAnother: another, onGoodnight: { isGoodnight = true })
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                        .transition(.opacity)
+                } else {
                 // The hint card fills this slot; the tools and keypad below keep their place.
                 Group {
                     if let coach = viewModel.coach, !isDone {
@@ -63,25 +84,16 @@ struct GameView: View {
                     }
                 }
                 // At accessibility sizes the slot also takes the free room above the tools.
-                .frame(minHeight: 124, maxHeight: dynamicTypeSize.isAccessibilitySize ? .infinity : 124)
-                .padding([.top, .horizontal], 12)
-                Spacer(minLength: 0)
-                tools(theme: theme)
-                    .padding(.horizontal, 18)
-                    .opacity(isDone ? 0.3 : 1)
-                NumberPadView(theme: theme, remaining: viewModel.remaining,
-                              isNotesMode: viewModel.inputMode == .candidate) { digit in
-                    viewModel.setDigit(digit)
-                    if let message = viewModel.placedAnnouncement(digit) {
-                        UIAccessibility.post(notification: .announcement, argument: message)
-                    }
+                .frame(minHeight: Self.hintSlotHeight, maxHeight: dynamicTypeSize.isAccessibilitySize ? .infinity : Self.hintSlotHeight)
+                .padding(.top, 10)
+                .padding(.horizontal, 16)
+                Spacer(minLength: 8)
+                bars(theme: theme)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, barsBottom)
                 }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 6)
-                    .padding(.bottom, 4)
-                    .opacity(isDone || viewModel.isPaused ? 0.3 : 1) // disabled while paused, so it looks it
-                    .disabled(isDone || viewModel.isPaused)
             }
+            .animation(reduceMotion ? .easeInOut(duration: 0.15) : .easeInOut(duration: 0.6), value: isDone)
             .frame(width: geometry.size.width)
         }
         .background(theme.bg.ignoresSafeArea())
@@ -151,22 +163,32 @@ struct GameView: View {
 
     // MARK: - Header
 
+    /// Round glass Back; the level and timer in the middle; a glass capsule with Night and More (HANDOFF 6.2).
     private func header(theme: PSPalette) -> some View {
-        HStack(spacing: 4) {
-            HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
-                .accessibilityIdentifier("backButton")
+        ZStack {
             TimerButton(clock: viewModel.clock, title: difficulty.displayName, theme: theme, showsTimer: viewModel.showTimer,
                         isPaused: viewModel.isPaused, isCompleted: viewModel.state.isCompleted, action: togglePause)
-            HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: "Night") {
-                showsMenu = false
-                controller.showsNightSheet = true
+                .padding(.horizontal, 56)
+            HStack(spacing: 0) {
+                HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back", round: true) { dismiss() }
+                    .accessibilityIdentifier("backButton")
+                Spacer(minLength: 0)
+                HStack(spacing: 0) {
+                    HeaderIconButton(theme: theme, symbol: "moon", label: "Night") {
+                        showsMenu = false
+                        controller.showsNightSheet = true
+                    }
+                    .accessibilityIdentifier("nightButton")
+                    HeaderIconButton(theme: theme, symbol: "ellipsis", label: "More") { showsMenu.toggle() }
+                        .accessibilityIdentifier("moreButton")
+                }
+                .padding(.horizontal, 4)
+                .frame(height: 44)
+                .psGlass(theme, in: Capsule())
             }
-            .accessibilityIdentifier("nightButton")
-            HeaderIconButton(theme: theme, symbol: "ellipsis", label: "More") { showsMenu.toggle() }
-                .accessibilityIdentifier("moreButton")
         }
-        .padding(.horizontal, 10)
-        .frame(height: 48)
+        .padding(.horizontal, 16)
+        .frame(height: 44)
     }
 
     // MARK: - Board
@@ -184,35 +206,32 @@ struct GameView: View {
                         .buttonStyle(PSButtonStyle(theme: theme))
                 }
                 .frame(width: side, height: side)
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(theme.hair, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 12).fill(theme.surface))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.edge, lineWidth: 1))
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("pauseOverlay")
             } else {
                 SudokuGridView(
                     cells: viewModel.state.cells,
-                    selectedCellID: viewModel.hint == nil ? viewModel.selectedCellID : nil,
+                    // The finished board shows no selection (HANDOFF 6.5).
+                    selectedCellID: viewModel.hint == nil && !isDone ? viewModel.selectedCellID : nil,
                     theme: theme,
-                    highlight: viewModel.hintHighlight
+                    highlight: viewModel.hintHighlight,
+                    dimsOutsideFocus: false
                 ) { viewModel.select(cell: $0) }
                     .frame(width: side, height: side)
-                    // Faint enough that the Solved summary on top reads cleanly, Day and Night (QA #45).
-                    .opacity(isDone ? 0.1 : 1)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: isDone)
+                    // The finished board fades to 30% over 600 ms (HANDOFF 6.5); 150 ms with Reduce Motion.
+                    .opacity(isDone ? 0.3 : 1)
                     .allowsHitTesting(!isDone)
-            }
-            if isDone {
-                SolvedPanel(theme: theme, summary: solvedSummary, note: solvedNote,
-                            techniques: techniqueLine, onAnother: another, onGoodnight: { isGoodnight = true })
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // it sits on the board, so it must fit there
             }
         }
         .frame(maxWidth: .infinity)
         .task(id: isDone) {
-            techniqueLine = nil
+            techniques = []
             guard isDone else { return }
             let counts = await viewModel.techniquesNeeded()
-            guard !Task.isCancelled, !counts.isEmpty else { return }
-            techniqueLine = "This grid took " + counts.map { "\($0.name) ×\($0.count)" }.joined(separator: ", ") + "."
+            guard !Task.isCancelled else { return }
+            techniques = counts.map(\.name)
         }
     }
 
@@ -274,26 +293,6 @@ struct GameView: View {
         }
         .psFont(13)
         .multilineTextAlignment(.center)
-    }
-
-    private func tools(theme: PSPalette) -> some View {
-        let notesOn = viewModel.inputMode == .candidate
-        return HStack(spacing: 0) {
-            ToolButton(theme: theme, symbol: "arrow.uturn.backward", label: "Undo") { viewModel.undo() }
-                .disabled(!viewModel.canUndo)
-                .accessibilityIdentifier("tool_undo")
-            ToolButton(theme: theme, symbol: "eraser", label: "Erase") { viewModel.clearSelectedCell() }
-                .accessibilityIdentifier("tool_erase")
-            ToolButton(theme: theme, symbol: "pencil", label: "Notes", isActive: notesOn, badge: notesOn ? "ON" : "OFF") {
-                viewModel.inputMode = notesOn ? .normal : .candidate
-            }
-            .accessibilityIdentifier("tool_notes")
-            .accessibilityValue(notesOn ? "On" : "Off")
-            ToolButton(theme: theme, symbol: "lightbulb", label: hintToolLabel,
-                       isActive: viewModel.hint != nil || viewModel.coach != nil || viewModel.isStuck) { viewModel.hintTool() }
-                .accessibilityIdentifier("tool_hint")
-        }
-        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
     }
 
     /// Hint; Next step while a hint is open; Show me / Apply in the coach; Coach once stuck.
@@ -361,8 +360,8 @@ struct GameView: View {
                 }
                 .frame(width: dynamicTypeSize.isAccessibilitySize ? 300 : 230)
                 .accessibilityAction(.escape) { showsMenu = false }
-                .padding(.top, 50)
-                .padding(.trailing, 12)
+                .padding(.top, 52)
+                .padding(.trailing, 16)
             }
             .transition(.opacity)
         }
@@ -432,6 +431,57 @@ struct GameView: View {
     }
 }
 
+// MARK: - Tool bar and keypad
+
+extension GameView {
+    /// The tool bar over the keypad, both glass, 8 pt apart (HANDOFF 6.2). In Notes mode the keypad
+    /// gains a 1.5 pt accent outline.
+    func bars(theme: PSPalette) -> some View {
+        let isDone = viewModel.state.isCompleted
+        let notesOn = viewModel.inputMode == .candidate
+        let bar = RoundedRectangle(cornerRadius: 26)
+        return VStack(spacing: 8) {
+            tools(theme: theme)
+                .frame(height: 52)
+                .psGlass(theme, in: bar)
+                .opacity(isDone ? 0.3 : 1)
+            NumberPadView(theme: theme, remaining: viewModel.remaining) { digit in
+                viewModel.setDigit(digit)
+                if let message = viewModel.placedAnnouncement(digit) {
+                    UIAccessibility.post(notification: .announcement, argument: message)
+                }
+            }
+            .frame(height: 64)
+            .psGlass(theme, in: bar)
+            .overlay(bar.strokeBorder(theme.accent, lineWidth: 1.5).opacity(notesOn ? 1 : 0))
+            .opacity(isDone || viewModel.isPaused ? 0.3 : 1) // disabled while paused, so it looks it
+            .disabled(isDone || viewModel.isPaused)
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: notesOn)
+    }
+
+    func tools(theme: PSPalette) -> some View {
+        let notesOn = viewModel.inputMode == .candidate
+        return HStack(spacing: 0) {
+            ToolButton(theme: theme, symbol: "arrow.uturn.backward", label: "Undo") { viewModel.undo() }
+                .disabled(!viewModel.canUndo)
+                .accessibilityIdentifier("tool_undo")
+            ToolButton(theme: theme, symbol: "eraser", label: "Erase") { viewModel.clearSelectedCell() }
+                .accessibilityIdentifier("tool_erase")
+            ToolButton(theme: theme, symbol: "pencil", label: notesOn ? "Notes on" : "Notes off", isActive: notesOn,
+                       spokenLabel: "Notes") {
+                viewModel.inputMode = notesOn ? .normal : .candidate
+            }
+            .accessibilityIdentifier("tool_notes")
+            .accessibilityValue(notesOn ? "On" : "Off")
+            ToolButton(theme: theme, symbol: "lightbulb", label: hintToolLabel,
+                       isActive: viewModel.hint != nil || viewModel.coach != nil || viewModel.isStuck) { viewModel.hintTool() }
+                .accessibilityIdentifier("tool_hint")
+        }
+        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
+    }
+}
+
 /// The header's level name and timer. Only this view observes the clock, so a tick redraws it alone.
 private struct TimerButton: View {
     @ObservedObject var clock: GameClock
@@ -444,22 +494,28 @@ private struct TimerButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 1) {
-                Text(title.uppercased())
-                    .psFont(11, weight: .semibold)
-                    .tracking(0.9)
-                    .foregroundStyle(theme.ink3)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .psFont(21, weight: .heavy, design: .serif)
+                    .foregroundStyle(theme.ink)
+                    .lineLimit(1)
                 if showsTimer {
-                    HStack(spacing: 5) {
-                        Text(GameView.timeString(clock.seconds))
-                            .accessibilityIdentifier("timerLabel")
-                        if isPaused { Image(systemName: "pause").psFont(11, weight: .semibold) }
+                    HStack(spacing: 4) {
+                        // DM Sans has no tabular digits, so the time sits in a fixed "00:00" box and the
+                        // centred title does not slide as it ticks.
+                        ZStack(alignment: .leading) {
+                            Text(clock.seconds < 3600 ? "00:00" : "0:00:00").hidden().accessibilityHidden(true)
+                            Text(GameView.timeString(clock.seconds))
+                                .accessibilityIdentifier("timerLabel")
+                        }
+                        if isPaused { Image(systemName: "pause.fill").psFont(11, weight: .semibold) }
                     }
-                    .psFont(15, weight: .medium, monospacedDigit: true)
+                    .psFont(15, weight: .semibold, monospacedDigit: true)
                     .foregroundStyle(theme.ink2)
                 }
             }
-            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 48 pt tall
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 44 pt tall
+            .minimumScaleFactor(0.7)
             .frame(maxWidth: .infinity, minHeight: 44)
             .contentShape(Rectangle())
         }

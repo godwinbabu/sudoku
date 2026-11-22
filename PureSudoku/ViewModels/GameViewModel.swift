@@ -716,6 +716,16 @@ final class GameViewModel: ObservableObject {
         }
     }
 
+    /// The Solved screen's greeting: morning from 5, afternoon from 12, evening from 17, night from 21.
+    static func greeting(at date: Date = Date(), calendar: Calendar = .current) -> String {
+        switch calendar.component(.hour, from: date) {
+        case 5..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        case 17..<21: return "Good evening"
+        default: return "Good night"
+        }
+    }
+
     /// The Solved summary's technique counts (`LogicalSolver.techniquesNeeded`), off the main thread.
     func techniquesNeeded() async -> [(name: String, count: Int)] {
         let puzzle = state.puzzle

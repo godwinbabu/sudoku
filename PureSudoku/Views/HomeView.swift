@@ -1,15 +1,13 @@
 import SwiftUI
 
-/// The Play tab (CODESPEC 3.1, Design/v2/README.md "Play tab"): the Continue card, the five levels,
-/// the Import row and saved imports.
+/// The Play tab (CODESPEC 3.1, HANDOFF 6.1): the date and the moon, the title, the Continue card, the
+/// five levels and saved imports. Import is the round button beside the tab bar.
 struct HomeView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @ObservedObject var viewModel: MainMenuViewModel
     let onContinue: (Difficulty) -> Void
     let onNew: (Difficulty) -> Void
-    let onImport: () -> Void
     let onOpenImport: (ImportedGame) -> Void
     @State private var deleting: ImportedGame?
     @State private var replacing: Difficulty?
@@ -18,25 +16,22 @@ struct HomeView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                ScreenHead(title: "Pure Sudoku")
-                Text(viewModel.subLine())
-                    .psFont(14)
-                    .foregroundStyle(theme.ink3)
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 20)
-                if let notice = controller.resetNotice {
-                    resetNotice(notice)
+                ScreenHead(title: "Sudoku Masters", line: viewModel.dateLine())
+                Group {
+                    if let notice = controller.resetNotice {
+                        resetNotice(notice)
+                    }
+                    if let notice = controller.saveFailureNotice {
+                        noticeBox(notice).accessibilityIdentifier("saveFailureNotice")
+                    }
+                    if let game = viewModel.continueGame {
+                        continueCard(game)
+                    }
+                    groupLabel("New puzzle")
+                    levels
+                    savedImports
                 }
-                if let notice = controller.saveFailureNotice {
-                    noticeBox(notice).accessibilityIdentifier("saveFailureNotice")
-                }
-                if let game = viewModel.continueGame {
-                    continueCard(game)
-                }
-                SectionLabel(theme: theme, title: "New puzzle")
-                levels
-                importRow
-                savedImports
+                .padding(.horizontal, 16)
             }
             .padding(.bottom, 24)
         }
@@ -45,9 +40,20 @@ struct HomeView: View {
         .accessibilityIdentifier("homeView")
     }
 
+    /// A group's label: 15 pt, 600, ink2, 24 pt above and 8 below (HANDOFF 6.1).
+    private func groupLabel(_ title: String) -> some View {
+        Text(title)
+            .psFont(15, weight: .semibold)
+            .foregroundStyle(theme.ink2)
+            .accessibilityAddTraits(.isHeader)
+            .padding(.horizontal, 4)
+            .padding(.top, 24)
+            .padding(.bottom, 8)
+    }
+
     // MARK: Reset notice (CODESPEC 8)
 
-    /// A hairline box, no fill, so it stays calm at night; shown until dismissed.
+    /// A card with an outline, shown until dismissed.
     private func resetNotice(_ text: String) -> some View {
         noticeBox(text) {
             Button("OK") {
@@ -63,115 +69,100 @@ struct HomeView: View {
     private func noticeBox(_ text: String, @ViewBuilder action: () -> some View = { EmptyView() }) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(text)
-                .psFont(14)
+                .psFont(15)
                 .foregroundStyle(theme.ink2)
                 .fixedSize(horizontal: false, vertical: true)
             action()
         }
-        .padding(14)
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.hair, lineWidth: 1))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 20)
+        .psCard(theme, radius: 26)
+        .overlay(RoundedRectangle(cornerRadius: 26).strokeBorder(theme.hair, lineWidth: 1))
+        .padding(.bottom, 16)
         .transition(.opacity)
         .accessibilityElement(children: .contain)
     }
 
     // MARK: Continue
 
+    /// A 72 pt progress ring with the filled count, the level and time, and a Resume pill (HANDOFF 6.1).
+    /// The whole card resumes the game.
     private func continueCard(_ game: GameState) -> some View {
         let filled = game.cells.filter { $0.value != nil }.count
         return Button { onContinue(game.puzzle.difficulty) } label: {
-            HStack(spacing: 16) {
-                MiniBoard(cells: game.cells, theme: theme).frame(width: 112, height: 112)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("CONTINUE").psFont(12, weight: .semibold).tracking(0.96).foregroundStyle(theme.ink2)
-                    Text(game.puzzle.difficulty.displayName)
-                        .psFont(24, weight: .medium, design: .serif).foregroundStyle(theme.ink)
-                    Text("\(GameView.timeString(game.elapsedSeconds)) · \(filled) of 81")
-                        .psFont(14, monospacedDigit: true).foregroundStyle(theme.ink2)
-                    GeometryReader { proxy in
-                        Capsule().fill(theme.hair)
-                            .overlay(alignment: .leading) {
-                                Capsule().fill(theme.accentDim).frame(width: proxy.size.width * CGFloat(filled) / 81)
-                            }
-                    }
-                    .frame(height: 3)
-                    .padding(.top, 4)
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle().stroke(theme.line, lineWidth: 7)
+                    Circle()
+                        .trim(from: 0, to: CGFloat(filled) / 81)
+                        .stroke(theme.accent, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    Text("\(filled)")
+                        .font(PSFont.fixed(22, weight: .heavy).monospacedDigit())
+                        .foregroundStyle(theme.ink)
                 }
+                .padding(3.5)
+                .frame(width: 72, height: 72)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Continue").psFont(13, weight: .medium).foregroundStyle(theme.ink2)
+                    Text(game.puzzle.difficulty.displayName)
+                        .psFont(24, weight: .heavy, design: .serif).foregroundStyle(theme.ink)
+                    Text("\(GameView.timeString(game.elapsedSeconds)) · \(filled) of 81")
+                        .psFont(15, monospacedDigit: true).foregroundStyle(theme.ink2)
+                }
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Resume")
+                    .psFont(16, weight: .bold)
+                    .foregroundStyle(theme.btnInk)
+                    .padding(.horizontal, 18)
+                    .frame(height: 44)
+                    .background(Capsule().fill(theme.btnBg))
+                    .overlay(Capsule().strokeBorder(theme.btnEdge, lineWidth: 1.5))
+                    .fixedSize()
             }
-            .padding(14)
+            .padding(16)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(RoundedRectangle(cornerRadius: 18).fill(theme.isNight ? .clear : theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(theme.hair, lineWidth: 1))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 26)
+        .psCard(theme, radius: 26)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Continue \(game.puzzle.difficulty.displayName), \(filled) of 81 filled")
+        .accessibilityHint("Resume")
         .accessibilityIdentifier("continueCard")
     }
 
     // MARK: Levels
 
+    /// One grouped list: name (`row`) over its hardest techniques (`label`, ink2), and a chevron.
     private var levels: some View {
         VStack(spacing: 0) {
-            ForEach(Difficulty.allCases) { level in
+            ForEach(Array(Difficulty.allCases.enumerated()), id: \.element) { index, level in
                 Button {
                     // A level starts a new puzzle; an unfinished game there is never replaced silently.
                     if viewModel.hasUnfinishedEntries(at: level) { replacing = level } else { onNew(level) }
                 } label: {
-                    HStack(spacing: 14) {
-                        TierGlyph(lit: level.rank, theme: theme)
-                        // At accessibility sizes the best time goes under the name instead of beside it.
-                        let bestBeside = !dynamicTypeSize.isAccessibilitySize
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(level.displayName).psFont(17, weight: .medium).foregroundStyle(theme.ink)
-                            Text(level.techniqueSummary).psFont(13).foregroundStyle(theme.ink3)
-                            if !bestBeside { bestTime(level) }
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(level.displayName).psFont(19, weight: .heavy, design: .serif).foregroundStyle(theme.ink)
+                            Text(level.techniqueSummary).psFont(13).foregroundStyle(theme.ink2)
                         }
                         Spacer(minLength: 0)
-                        if bestBeside { bestTime(level) }
-                        Image(systemName: "chevron.right").psFont(14).foregroundStyle(theme.ink3)
+                        Image(systemName: "chevron.right").font(.system(size: 15, weight: .semibold)).foregroundStyle(theme.ink2)
                     }
-                    .padding(.horizontal, 6)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .frame(minHeight: 64)
+                    .frame(minHeight: 60)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
+                .overlay(alignment: .top) { if index > 0 { theme.line.frame(height: 1) } }
                 .accessibilityIdentifier("difficulty_\(level.rawValue)")
             }
         }
-        .overlay(alignment: .top) { theme.hair.frame(height: 1) }
-        .padding(.horizontal, 16)
-    }
-
-    @ViewBuilder
-    private func bestTime(_ level: Difficulty) -> some View {
-        if let best = viewModel.stats.bestTime(for: level) {
-            Text("Best \(GameView.timeString(best))")
-                .psFont(13, monospacedDigit: true).foregroundStyle(theme.ink3)
-        }
-    }
-
-    private var importRow: some View {
-        Button(action: onImport) {
-            HStack(spacing: 10) {
-                Image(systemName: "camera").psFont(20)
-                Text("Import a puzzle from a photo").psFont(15)
-            }
-            .foregroundStyle(theme.ink2)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal, 22)
-        .padding(.top, 18)
-        .accessibilityIdentifier("importPuzzleButton")
+        .psCard(theme, radius: 26)
+        .clipShape(RoundedRectangle(cornerRadius: 26))
     }
 
     // MARK: Saved imports (BYOS: "return to them later")
@@ -180,23 +171,23 @@ struct HomeView: View {
     private var savedImports: some View {
         let saved = controller.savedImports
         if !saved.isEmpty {
-            SectionLabel(theme: theme, title: "Saved imports").padding(.top, 22)
+            groupLabel("Saved imports")
             VStack(spacing: 0) {
-                ForEach(saved) { imported in
+                ForEach(Array(saved.enumerated()), id: \.element.id) { index, imported in
                     HStack(spacing: 4) {
                         Button { onOpenImport(imported) } label: {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(imported.gameState.puzzle.difficulty.displayName)
-                                        .psFont(16).foregroundStyle(theme.ink)
+                                        .psFont(19, weight: .heavy, design: .serif).foregroundStyle(theme.ink)
                                     Text(imported.createdAt.formatted(date: .abbreviated, time: .shortened))
-                                        .psFont(13).foregroundStyle(theme.ink3)
+                                        .psFont(13).foregroundStyle(theme.ink2)
                                 }
                                 Spacer()
                                 Text("\(imported.gameState.cells.filter { $0.value != nil }.count) of 81")
-                                    .psFont(13, monospacedDigit: true).foregroundStyle(theme.ink3)
+                                    .psFont(13, monospacedDigit: true).foregroundStyle(theme.ink2)
                             }
-                            .frame(minHeight: 52)
+                            .frame(minHeight: 60)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -205,12 +196,12 @@ struct HomeView: View {
                         HeaderIconButton(theme: theme, symbol: "trash", label: "Delete import") { deleting = imported }
                             .accessibilityIdentifier("deleteImport_\(imported.id)")
                     }
-                    .padding(.leading, 6)
-                    .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
+                    .padding(.leading, 16)
+                    .padding(.trailing, 4)
+                    .overlay(alignment: .top) { if index > 0 { theme.line.frame(height: 1) } }
                 }
             }
-            .overlay(alignment: .top) { theme.hair.frame(height: 1) }
-            .padding(.horizontal, 16)
+            .psCard(theme, radius: 26)
         }
     }
 
@@ -289,52 +280,5 @@ struct ConfirmPanel: View {
             .padding(.top, 10)
         }
         .padding(16)
-    }
-}
-
-/// Five bars 3 pt wide, rising; the first `lit` are `accent`, the rest `hair`. The level name beside
-/// it carries the meaning, so hue is never alone.
-struct TierGlyph: View {
-    let lit: Int
-    let theme: PSPalette
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 3) {
-            ForEach(1...5, id: \.self) { bar in
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(bar <= lit ? theme.accent : theme.hair)
-                    .frame(width: 3, height: 4 + CGFloat(bar) * 2.6)
-            }
-        }
-        .frame(width: 26, alignment: .leading)
-        .accessibilityHidden(true)
-    }
-}
-
-/// A small non-interactive board for the Continue card: lines and digits only, no cell fills.
-struct MiniBoard: View {
-    let cells: [SudokuCell]
-    let theme: PSPalette
-
-    var body: some View {
-        Canvas { context, size in
-            let side = min(size.width, size.height), cell = side / 9
-            for index in 0...9 {
-                let offset = CGFloat(index) * cell
-                let major = index % 3 == 0
-                var path = Path()
-                path.move(to: CGPoint(x: offset, y: 0)); path.addLine(to: CGPoint(x: offset, y: side))
-                path.move(to: CGPoint(x: 0, y: offset)); path.addLine(to: CGPoint(x: side, y: offset))
-                context.stroke(path, with: .color(major ? theme.lineMajor : theme.line), lineWidth: major ? 1 : 0.5)
-            }
-            for item in cells {
-                guard let value = item.value else { continue }
-                let text = Text("\(value)")
-                    .font(.system(size: cell * 0.62, weight: item.given ? .semibold : .regular))
-                    .foregroundColor(item.given ? theme.ink : theme.accent) // draw needs a Text; Text's foregroundStyle is iOS 17
-                context.draw(text, at: CGPoint(x: (CGFloat(item.col) + 0.5) * cell, y: (CGFloat(item.row) + 0.5) * cell))
-            }
-        }
-        .accessibilityHidden(true)
     }
 }

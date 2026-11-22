@@ -24,6 +24,10 @@ final class SettingsViewModel: ObservableObject {
         controller.setAppearance(value)
     }
 
+    func setNightAfterDark(_ value: Bool) {
+        controller.setNightAfterDark(value)
+    }
+
     /// The preset matching the current glow and warmth (after the floor), if any.
     var currentPreset: NightPreset? { NightPreset.matching(settings) }
 

@@ -40,8 +40,9 @@ final class PureSudokuUITests: XCTestCase {
             XCTAssertTrue(app.buttons["difficulty_\(level)"].exists, level)
         }
         // Each level names the hardest technique it needs (CODESPEC 1, 2.2).
-        XCTAssertTrue(app.buttons["difficulty_expert"].label.contains("Wings & fish"), app.buttons["difficulty_expert"].label)
-        XCTAssertTrue(app.buttons["difficulty_master"].label.contains("Chains & beyond"), app.buttons["difficulty_master"].label)
+        let expert = app.buttons["difficulty_expert"].label
+        XCTAssertTrue(expert.contains("Skyscraper, XY-Wing, X-Wing"), expert)
+        XCTAssertTrue(app.buttons["difficulty_master"].label.contains("XY-Chain and beyond"), app.buttons["difficulty_master"].label)
         XCTAssertFalse(app.buttons["bedtimeToggle"].exists, "the Night bar is gone; the moon replaces it")
     }
 
@@ -70,7 +71,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(expert.waitForExistence(timeout: 2))
         startLevel("expert", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["EXPERT"].exists, "the header names the level")
+        XCTAssertTrue(app.staticTexts["Expert"].exists, "the header names the level")
         XCTAssertFalse(app.buttons["tab_play"].exists, "the game covers the tab bar")
         let cell = firstEmptyCell(in: app)
         let id = cell.identifier
@@ -224,7 +225,8 @@ final class PureSudokuUITests: XCTestCase {
         let labels = ["Step 1 of 3", "Step 2 of 3", "Step 3 of 3"]
         for (index, label) in labels.enumerated() {
             XCTAssertTrue(stepLabel.label.hasPrefix(label), stepLabel.label)
-            if index == 1 { XCTAssertTrue(app.buttons["hint_lesson"].exists, "the lesson link shows from step 2") }
+            // v3: steps 1 and 2 have one Next button; Lesson joins the action at step 3 (HANDOFF 6.2).
+            XCTAssertEqual(app.buttons["hint_lesson"].exists, index == 2, "Lesson at step 3 only")
             if index < 2 {
                 XCTAssertFalse(app.buttons["hint_apply"].exists)
                 app.buttons["hint_next"].tap()
@@ -338,18 +340,19 @@ final class PureSudokuUITests: XCTestCase {
         (0..<9).flatMap { row in (0..<9).map { app.buttons["cell_\(row)_\($0)"].label } }
     }
 
-    /// Journal → Display & Night, then Night from the moon and a game in Night (CODESPEC 12).
-    func testJournalDisplayAndANightGame() {
+    /// Journal → Licences, then Night from the moon and a game in Night (CODESPEC 3.3, 12).
+    func testJournalLicencesAndANightGame() {
         let app = launchApp()
         app.buttons["tab_journal"].tap()
-        let display = element("settings_display", in: app)
-        XCTAssertTrue(display.waitForExistence(timeout: 2))
-        display.tap()
-        XCTAssertTrue(element("displaySettings", in: app).waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["display_preset_lightsOut"].exists)
-        XCTAssertTrue(app.buttons["display_appearance_afterDark"].exists)
-        XCTAssertFalse(app.buttons["tab_play"].exists, "Display & Night covers the tab bar")
-        app.buttons["display_back"].tap()
+        let licences = element("journal_licences", in: app)
+        XCTAssertTrue(licences.waitForExistence(timeout: 2))
+        scrollClearOfTabBar(licences, in: app, swipes: 12)
+        licences.tap()
+        XCTAssertTrue(element("licencesView", in: app).waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'SIL OPEN FONT LICENSE'")).firstMatch.exists,
+                      "the OFL text ships with the app")
+        XCTAssertFalse(app.buttons["tab_play"].exists, "Licences covers the tab bar")
+        app.buttons["licences_back"].tap()
         XCTAssertTrue(waitUntilHittable(app.buttons["tab_play"]))
         app.buttons["tab_play"].tap()
 
@@ -359,7 +362,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
         snapshot(app, "night-game")
         app.buttons["backButton"].tap()
-        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+        restoreAppearance(original, in: app) // leave the app as found
     }
 
     /// Opens an Easy game from Home, checks for the timer, and goes back.
@@ -372,16 +375,32 @@ final class PureSudokuUITests: XCTestCase {
         return shows
     }
 
-    /// Picks Day, Night or After dark in the Night sheet; returns the one selected before.
-    private func setAppearance(_ appearance: String, in app: XCUIApplication) -> String? {
+    /// What `setAppearance` found, so a test can put it back.
+    private struct AppearanceState {
+        let appearance: String
+        let nightAfterDark: Bool
+    }
+
+    /// Picks Light, Dark or Night in the Display sheet and sets Night after dark (off by default, so the
+    /// clock can't change the look); returns what was set before.
+    @discardableResult
+    private func setAppearance(_ appearance: String, nightAfterDark: Bool = false, in app: XCUIApplication) -> AppearanceState? {
         app.buttons["nightButton"].tap()
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
-        let original = ["day", "night", "afterDark"].first { app.buttons["night_appearance_\($0)"].isSelected }
+        let original = ["light", "dark", "night"].first { app.buttons["night_appearance_\($0)"].isSelected }
+        let afterDark = element("night_afterDark", in: app) // a switch on iOS 17+, a button on 16
+        let wasOn = afterDark.waitForExistence(timeout: 1) && afterDark.value as? String == "On"
         app.buttons["night_appearance_\(appearance)"].tap()
+        if wasOn != nightAfterDark { afterDark.tap() }
         app.buttons["night_close"].tap()
         XCTAssertTrue(waitForAbsence(sheet))
-        return original
+        return original.map { AppearanceState(appearance: $0, nightAfterDark: wasOn) }
+    }
+
+    private func restoreAppearance(_ state: AppearanceState?, in app: XCUIApplication) {
+        guard let state else { return }
+        setAppearance(state.appearance, nightAfterDark: state.nightAfterDark, in: app)
     }
 
     /// The moon opens the Night sheet on the main menu and in a game; the backdrop and × close it (CODESPEC 12.2).
@@ -392,7 +411,7 @@ final class PureSudokuUITests: XCTestCase {
         moon.tap()
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["night_appearance_afterDark"].exists)
+        XCTAssertTrue(element("night_afterDark", in: app).exists)
         XCTAssertTrue(app.buttons["night_clarity_bold"].exists)
         app.buttons["night_close"].tap()
         XCTAssertTrue(waitForAbsence(sheet), "× closes the sheet")
@@ -419,10 +438,10 @@ final class PureSudokuUITests: XCTestCase {
         moon.tap()
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
-        let ids = ["day", "night", "afterDark"].map { "night_appearance_\($0)" }
+        let ids = ["light", "dark", "night"].map { "night_appearance_\($0)" }
         let original = ids.first { app.buttons[$0].isSelected }
-        app.buttons["night_appearance_night"].tap() // the Night-only controls appear
-        let controls = ids + ["readingLamp", "lightsOut", "redLight"].map { "night_preset_\($0)" }
+        app.buttons["night_appearance_night"].tap()
+        let controls = ids + ["night_afterDark"] + ["readingLamp", "lightsOut", "redLight"].map { "night_preset_\($0)" }
             + ["night_glow", "night_warmth"] + ["standard", "large", "bold"].map { "night_clarity_\($0)" }
             + ["night_drift", "night_calibrate"]
         for id in controls {
@@ -438,17 +457,14 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(waitForAbsence(sheet))
     }
 
-    /// First night, without the skip argument: picking Night on Display & Night shows the flow on
-    /// top; it runs to the end and returns to the page (CODESPEC 12.3).
+    /// First night, without the skip argument: picking Night in the Display sheet shows the flow on
+    /// top; it runs to the end and returns to the sheet (CODESPEC 12.3).
     func testFirstNightShowsAboveSettingsAndCompletes() {
         let app = launchApp(["-uiTestFirstNight"], skipFirstNight: false)
         XCTAssertFalse(element("firstNight", in: app).exists, "Day: no first night yet")
-        app.buttons["tab_journal"].tap()
-        let display = element("settings_display", in: app)
-        XCTAssertTrue(display.waitForExistence(timeout: 2))
-        display.tap()
-        XCTAssertTrue(app.buttons["display_appearance_night"].waitForExistence(timeout: 2))
-        app.buttons["display_appearance_night"].tap()
+        app.buttons["nightButton"].tap()
+        XCTAssertTrue(app.buttons["night_appearance_night"].waitForExistence(timeout: 2))
+        app.buttons["night_appearance_night"].tap()
 
         XCTAssertTrue(element("firstNight", in: app).waitForExistence(timeout: 3))
         let calibrate = app.buttons["firstNight_calibrate"]
@@ -462,9 +478,13 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Glow set to 55%."].waitForExistence(timeout: 2))
         app.buttons["firstNight_start"].tap()
         XCTAssertTrue(waitForAbsence(element("firstNight", in: app)))
-        let day = app.buttons["display_appearance_day"]
-        XCTAssertTrue(waitUntilHittable(day), "back on Display & Night")
-        day.tap() // leave the app in Day
+        // The flow closes the Display sheet first (CODESPEC 7.1); reopen it to leave the app in Light.
+        XCTAssertTrue(waitUntilHittable(app.buttons["nightButton"]))
+        app.buttons["nightButton"].tap()
+        let light = app.buttons["night_appearance_light"]
+        XCTAssertTrue(waitUntilHittable(light))
+        light.tap() // leave the app in Light
+        app.buttons["night_close"].tap()
     }
 
     /// Learn: Up next, then five tiers of techniques (CODESPEC 13.5).
@@ -544,7 +564,16 @@ final class PureSudokuUITests: XCTestCase {
     func scrollClearOfTabBar(_ element: XCUIElement, in app: XCUIApplication, swipes: Int = 8) {
         let tab = app.buttons["tab_play"]
         let bottom = tab.exists ? tab.frame.minY : app.windows.firstMatch.frame.maxY
-        for _ in 0..<swipes where !element.exists || element.frame.maxY > bottom { app.swipeUp() }
+        let top: CGFloat = 60 // below the status bar
+        for _ in 0..<swipes {
+            guard element.exists else { app.swipeUp(); continue }
+            let frame = element.frame
+            if frame.maxY <= bottom && frame.minY >= top { return }
+            // Drag just far enough, without a fling: a swipe can carry a tall row past the top.
+            let distance = frame.maxY > bottom ? min(frame.maxY - bottom + 16, 300) : max(frame.minY - top - 16, -300)
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -distance)))
+        }
     }
 
     func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
@@ -615,9 +644,10 @@ extension PureSudokuUITests {
         app.buttons["tool_hint"].tap()
         XCTAssertTrue(app.buttons["hint_next"].waitForExistence(timeout: 2))
         app.buttons["hint_next"].tap()
+        app.buttons["hint_next"].tap()
         let lesson = app.buttons["hint_lesson"]
         XCTAssertTrue(lesson.waitForExistence(timeout: 2))
-        // "Step 2 of 3: Hidden Single" names the technique.
+        // "Step 3 of 3: Hidden Single" names the technique.
         let technique = try XCTUnwrap(element("hintStep", in: app).label.components(separatedBy: ": ").last)
         lesson.tap()
         XCTAssertTrue(element("lessonBoard", in: app).waitForExistence(timeout: 5), "the lesson is pushed")
@@ -640,7 +670,8 @@ extension PureSudokuUITests {
         app.buttons["tab_journal"].tap()
         let toggle = element("journal_showBuildNumber", in: app) // a switch on iOS 17+, a button on 16
         XCTAssertTrue(toggle.waitForExistence(timeout: 2))
-        for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+        // Hittable is not enough: a row behind the tab bar still reports hittable.
+        for _ in 0..<8 where !toggle.isHittable || toggle.frame.maxY > app.buttons["tab_play"].frame.minY { app.swipeUp() }
         XCTAssertTrue(app.staticTexts["journal_version"].label.hasPrefix("Version "))
         // Off by default (a unit test checks that); a failed earlier run may have left it on.
         if toggle.value as? String == "On" { toggle.tap() }
@@ -649,7 +680,7 @@ extension PureSudokuUITests {
         toggle.tap()
         addTeardownBlock { // leave the app as found
             app.buttons["tab_journal"].tap()
-            for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+            for _ in 0..<8 where !toggle.isHittable || toggle.frame.maxY > app.buttons["tab_play"].frame.minY { app.swipeUp() }
             if toggle.value as? String == "On" { toggle.tap() }
         }
         XCTAssertTrue(label.waitForExistence(timeout: 2))
@@ -672,7 +703,7 @@ extension PureSudokuUITests {
         XCTAssertEqual(app.buttons["number_9"].frame.maxY, padBottom, "the game did not move")
         app.buttons["backButton"].tap()
         app.buttons["tab_journal"].tap()
-        for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+        for _ in 0..<8 where !toggle.isHittable || toggle.frame.maxY > app.buttons["tab_play"].frame.minY { app.swipeUp() }
         toggle.tap()
         let off = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: label)
         XCTAssertEqual(XCTWaiter().wait(for: [off], timeout: 2), .completed, "off again: gone")
@@ -697,14 +728,23 @@ extension PureSudokuUITests {
 
 /// Import (CODESPEC 3.4).
 extension PureSudokuUITests {
-    /// On short screens (iPhone Duo) the button sits under the tab bar until Home scrolls.
+    /// The round import button beside the tab bar (HANDOFF 6.1).
     private func tapImportButton(in app: XCUIApplication) {
         let button = app.buttons["importPuzzleButton"]
         XCTAssertTrue(button.waitForExistence(timeout: 2))
-        let tabTop = app.buttons["tab_play"].frame.minY
-        for _ in 0..<4 where button.frame.maxY > tabTop { app.swipeUp() }
-        XCTAssertLessThanOrEqual(button.frame.maxY, tabTop, "Import still under the tab bar")
+        XCTAssertTrue(button.isHittable)
         button.tap()
+    }
+
+    /// The import button also shows on Journal and Learn; it opens Import on the Play tab (HANDOFF 6.1).
+    func testImportFromAnotherTabOpensImportOnPlay() {
+        let app = launchApp()
+        app.buttons["tab_journal"].tap()
+        tapImportButton(in: app)
+        XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2))
+        app.buttons["importDiscard"].tap()
+        XCTAssertTrue(app.buttons["tab_play"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["tab_play"].isSelected, "back on Play")
     }
 
     func testImportButtonOpensImportScreen() {
@@ -760,48 +800,32 @@ extension PureSudokuUITests {
         XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
         XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
         app.buttons["backButton"].tap()
-        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+        restoreAppearance(original, in: app) // leave the app as found
     }
 
-    /// Match iPhone follows iOS: Dark mode draws the grey Dark theme (not Night's black, not Day's paper),
-    /// with the same visible highlight ladder; Light mode goes back to Day (issue #94).
-    func testMatchIPhoneDarkShowsTheDarkTheme() throws {
-        defer { XCUIDevice.shared.appearance = .light }
-        XCUIDevice.shared.appearance = .dark
-        // Wait for iOS itself to draw Dark before judging the app: a simulator can save the setting yet keep
-        // drawing Light until it is rebooted (issue #100). Checked before launch, so the app opens in front.
-        try XCTSkipUnless(systemDrawsDark(), "iOS did not switch to Dark on this simulator; reboot it (simctl shutdown, boot)")
+    /// Dark draws the Dark theme with the v3 focus tint; switching to Light from the game's moon
+    /// repaints the board at once (issue #94, HANDOFF 6.3).
+    func testDarkShowsTheDarkTheme() {
         let app = launchApp()
-        app.buttons["tab_journal"].tap()
-        let display = element("settings_display", in: app)
-        XCTAssertTrue(display.waitForExistence(timeout: 2))
-        display.tap()
-        let original = ["day", "night", "afterDark", "matchSystem"].first { app.buttons["display_appearance_\($0)"].isSelected }
-        app.buttons["display_appearance_matchSystem"].tap()
-        // No first-night check here: launchApp suppresses that flow. testMatchIPhoneDarkIsTheDarkThemeNotNight covers it.
-        app.buttons["display_back"].tap()
-        XCTAssertTrue(waitUntilHittable(app.buttons["tab_play"]))
-        app.buttons["tab_play"].tap()
+        let original = setAppearance("dark", in: app)
+        XCTAssertTrue(waitUntilHittable(app.buttons["difficulty_easy"]))
         startLevel("easy", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
 
         let brightness = highlightBrightness(in: app)
-        // Dark's ground is #161513 (sum 62): not Night's black (0) and far from Day's paper (~700).
-        XCTAssertTrue((40...120).contains(brightness[0]), "Dark ground: \(brightness)")
-        XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
-        XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
+        // v3 Dark: the board is #151517 (sum 65), far from Light's ~765. The selection's row, column and box
+        // carry the focus tint; the same digit elsewhere shows by weight, not a fill (HANDOFF 6.2).
+        let (plain, peer, same, selected) = (brightness[0], brightness[1], brightness[2], brightness[3])
+        XCTAssertTrue((40...120).contains(plain), "Dark board: \(brightness)")
+        XCTAssertGreaterThan(peer, plain + 5, "peers are tinted: \(brightness)")
+        XCTAssertEqual(selected, peer, accuracy: 4, "the selected cell shares the tint; its ring marks it: \(brightness)")
+        XCTAssertEqual(same, plain, accuracy: 4, "no fill for the same digit: \(brightness)")
 
-        XCUIDevice.shared.appearance = .light
-        RunLoop.current.run(until: Date().addingTimeInterval(1))
+        setAppearance("light", in: app)
         let plainNow = highlightBrightness(in: app)[0]
-        XCTAssertGreaterThan(plainNow, 600, "iOS Light gives Day: \(plainNow)")
-
+        XCTAssertGreaterThan(plainNow, 600, "Light: \(plainNow)")
         app.buttons["backButton"].tap()
-        app.buttons["tab_journal"].tap()
-        XCTAssertTrue(display.waitForExistence(timeout: 2))
-        display.tap()
-        if let original { app.buttons["display_appearance_\(original)"].tap() } // leave the app as found
-        app.buttons["display_back"].tap()
+        restoreAppearance(original, in: app) // leave the app as found
     }
 
     /// Selects a given whose digit appears again out of its sight, and returns the rendered fill brightness of
@@ -828,27 +852,9 @@ extension PureSudokuUITests {
         return [plain, peer, same, selected].map { fillBrightness(of: cell($0).frame, in: shot) }
     }
 
-    /// True once iOS draws Dark, read off the Settings app's grouped background (near black in Dark,
-    /// light grey in Light), which no app setting can change. Waits up to `timeout` for the switch.
-    private func systemDrawsDark(timeout: TimeInterval = 5) -> Bool {
-        let settings = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
-        settings.activate()
-        defer { settings.terminate() }
-        let deadline = Date().addingTimeInterval(timeout)
-        repeat {
-            let shot = XCUIScreen.main.screenshot().image
-            // The left margin at mid-height is background, outside the inset list.
-            let brightness = fillBrightness(of: CGRect(x: 1, y: shot.size.height / 2, width: 1, height: 1), in: shot)
-            if (0..<150).contains(brightness) { return true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
-        } while Date() < deadline
-        return false
-    }
-
-    /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
-    /// outside the 2 pt selection ring and the same-digit ring inset 3 pt.
     private func fillBrightness(of frame: CGRect, in image: UIImage) -> Int {
-        let point = CGPoint(x: ((frame.minX + 2.5) * image.scale).rounded(.down), y: ((frame.minY + 2.5) * image.scale).rounded(.down))
+        // The top edge's middle: outside the 3 pt inset rings, and clear of the board's rounded corners.
+        let point = CGPoint(x: (frame.midX * image.scale).rounded(.down), y: ((frame.minY + 2.5) * image.scale).rounded(.down))
         guard let pixel = image.cgImage?.cropping(to: CGRect(origin: point, size: CGSize(width: 1, height: 1))) else { return -1 }
         var rgba = [UInt8](repeating: 0, count: 4)
         let drawn: Bool = rgba.withUnsafeMutableBytes { buffer in

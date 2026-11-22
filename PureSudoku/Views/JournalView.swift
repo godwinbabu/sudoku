@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The Journal tab (CODESPEC 3.3, Design/v2/README.md "Journal"): streak and week, the solved table,
-/// Settings → Display & Night, Assists, Imports and Privacy. Every control is drawn from the palette.
+/// The Journal tab (CODESPEC 3.3, HANDOFF 6.4): the streak and week, the Solved table, Assists, More
+/// (the settings the design does not place) and About. Every control is drawn from the palette.
 struct JournalView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
@@ -20,51 +20,19 @@ struct JournalView: View {
         let settings = settingsModel.settings
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                ScreenHead(title: "Journal")
-                streak
-                SectionLabel(theme: theme, title: "Solved")
-                solved.padding(.bottom, 26)
-                SectionLabel(theme: theme, title: "Settings")
-                PSCard(theme: theme) {
-                    NavigationLink {
-                        DisplaySettingsView(viewModel: SettingsViewModel(controller: controller))
-                    } label: {
-                        SettingRow(theme: theme, label: "Display & Night", sub: "Day, Night, glow, warmth, clarity, quiet", last: true) {
-                            Image(systemName: "chevron.right").psFont(14).foregroundStyle(theme.ink3)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("settings_display")
+                ScreenHead(title: "Journal", line: "Nothing here leaves this iPhone")
+                Group {
+                    streak
+                    groupLabel("Solved")
+                    solved
+                    groupLabel("Assists")
+                    assists(settings)
+                    groupLabel("More")
+                    more(settings)
+                    groupLabel("About")
+                    about
                 }
-                .padding(.bottom, 26)
-                SectionLabel(theme: theme, title: "Assists")
-                assists(settings).padding(.bottom, 26)
-                SectionLabel(theme: theme, title: "Imports")
-                imports(settings).padding(.bottom, 26)
-                SectionLabel(theme: theme, title: "Privacy")
-                Text("Everything stays on this iPhone. No account, no network, no analytics. "
-                     + "Silent by design — no sounds or vibration unless you turn them on.")
-                    .psFont(14)
-                    .lineSpacing(4)
-                    .foregroundStyle(theme.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 26)
-                PSCard(theme: theme) {
-                    SettingRow(theme: theme, label: "Show build number", last: true) {
-                        PSToggle(theme: theme, isOn: settings.showBuildNumber, label: "Show build number",
-                                 onChange: settingsModel.setShowBuildNumber)
-                            .accessibilityIdentifier("journal_showBuildNumber")
-                    }
-                }
-                Text(SettingsViewModel.appVersionLine)
-                    .psFont(13, monospacedDigit: true)
-                    .foregroundStyle(theme.ink3)
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 22)
-                    .padding(.top, 10)
-                    .accessibilityIdentifier("journal_version")
+                .padding(.horizontal, 16)
             }
             .padding(.bottom, 24)
         }
@@ -82,47 +50,68 @@ struct JournalView: View {
         .accessibilityIdentifier("journalView")
     }
 
+    private func groupLabel(_ title: String) -> some View {
+        Text(title)
+            .psFont(15, weight: .semibold)
+            .foregroundStyle(theme.ink2)
+            .accessibilityAddTraits(.isHeader)
+            .padding(.horizontal, 4)
+            .padding(.top, 24)
+            .padding(.bottom, 8)
+    }
+
+    /// The count (Bricolage 40), "days in a row", and the week: filled circles by day, a ring with a dot
+    /// at night; a plain ring for a day without a solve. Shape, not hue, carries it.
     private var streak: some View {
-        PSAdaptiveStack(alignment: .bottom, spacing: 18) {
-            VStack(alignment: .leading, spacing: 4) {
+        PSAdaptiveStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text("\(viewModel.streak())")
-                    .psFont(56, weight: .medium, design: .serif, monospacedDigit: true)
+                    .font(PSFont.fixed(40, weight: .heavy).monospacedDigit())
                     .foregroundStyle(theme.ink)
-                Text("nights in a row").psFont(14).foregroundStyle(theme.ink3)
+                Text("days in a row").psFont(15).foregroundStyle(theme.ink2).fixedSize()
                 if let line = viewModel.lastSolvedLine() {
-                    Text(line).psFont(13).foregroundStyle(theme.ink3)
+                    Text(line).psFont(13).foregroundStyle(theme.ink2)
                 }
             }
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("journal_streak")
-            HStack(spacing: 4) {
+            Spacer(minLength: 0)
+            HStack(spacing: 2) {
                 ForEach(Array(viewModel.week().enumerated()), id: \.offset) { _, item in
                     VStack(spacing: 6) {
-                        // Solved: a filled dot; not solved: a ring. Shape, not hue, carries it.
-                        Circle()
-                            .fill(item.solved ? theme.accent : .clear)
-                            .overlay(Circle().strokeBorder(item.solved ? .clear : theme.ink3, lineWidth: 1.5))
-                            .frame(width: 10, height: 10)
-                        Text(item.day).psFont(11).foregroundStyle(theme.ink3)
+                        dayMarker(solved: item.solved)
+                        Text(item.day).psFont(11, weight: .semibold).foregroundStyle(theme.ink2)
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(minWidth: 28)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("\(item.name), \(item.solved ? "solved" : "not solved")")
                 }
             }
-            .padding(.bottom, 4)
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 6)
-        .padding(.bottom, 26)
+        .padding(16)
+        .psCard(theme, radius: 26)
+        .padding(.bottom, 0)
+    }
+
+    @ViewBuilder
+    private func dayMarker(solved: Bool) -> some View {
+        if solved && !theme.isNight {
+            Circle().fill(theme.accent).frame(width: 22, height: 22)
+        } else {
+            Circle()
+                .strokeBorder(solved ? theme.accent : theme.line, lineWidth: 2)
+                .overlay { if solved { Circle().fill(theme.accent).frame(width: 8, height: 8) } }
+                .frame(width: 22, height: 22)
+        }
     }
 
     private var solved: some View {
-        PSCard(theme: theme) {
-            tableRow("", "Solved", "Best", "Typical", header: true)
+        VStack(spacing: 0) {
+            tableRow("Level", "Solved", "Best", "Typical", header: true)
             ForEach(Difficulty.allCases) { level in
                 tableRow(level.displayName, viewModel.solvedText(for: level),
                          viewModel.formattedBestTime(for: level), viewModel.formattedTypicalTime(for: level))
+                    .overlay(alignment: .top) { theme.line.frame(height: 1) }
                     .accessibilityLabel(viewModel.rowLabel(for: level))
                     .accessibilityIdentifier("journal_row_\(level.rawValue)")
             }
@@ -131,21 +120,25 @@ struct JournalView: View {
                 Text(viewModel.totalsLine)
             }
             .psFont(13)
-            .foregroundStyle(theme.ink3)
+            .foregroundStyle(theme.ink2)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(16)
+            .overlay(alignment: .top) { theme.line.frame(height: 1) }
         }
+        .psCard(theme, radius: 26)
     }
 
     @ViewBuilder
     private func tableRow(_ level: String, _ count: String, _ best: String, _ typical: String, header: Bool = false) -> some View {
+        let name = Text(level)
+            .font(header ? nil : PSFont.fixed(19, weight: .heavy))
+            .foregroundStyle(header ? theme.ink2 : theme.ink)
         Group {
             if dynamicTypeSize.isAccessibilitySize {
                 // Too wide for one line: the level above, its three numbers in equal columns below.
                 VStack(alignment: .leading, spacing: 2) {
-                    if !level.isEmpty { Text(level).foregroundStyle(theme.ink) }
+                    name
                     HStack(spacing: 8) {
                         ForEach(Array([count, best, typical].enumerated()), id: \.offset) {
                             Text($0.element).frame(maxWidth: .infinity, alignment: .trailing)
@@ -154,72 +147,187 @@ struct JournalView: View {
                 }
             } else {
                 HStack(spacing: 0) {
-                    Text(level).foregroundStyle(theme.ink).frame(maxWidth: .infinity, alignment: .leading)
-                    Text(count).frame(width: 60, alignment: .trailing)
-                    Text(best).frame(width: 70, alignment: .trailing)
-                    Text(typical).frame(width: 70, alignment: .trailing)
+                    name.frame(maxWidth: .infinity, alignment: .leading)
+                    Text(count).frame(width: 64, alignment: .trailing)
+                    Text(best).frame(width: 74, alignment: .trailing)
+                    Text(typical).frame(width: 84, alignment: .trailing)
                 }
             }
         }
-        .psFont(header ? 12 : 15, monospacedDigit: true)
-        .foregroundStyle(header ? theme.ink3 : theme.ink2)
+        .psFont(header ? 13 : 15, weight: header ? .medium : .regular, monospacedDigit: true)
+        .foregroundStyle(header ? theme.ink2 : theme.ink)
         .padding(.horizontal, 16)
-        .padding(.vertical, header ? 10 : 12)
-        .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
+        .frame(minHeight: header ? 34 : 40)
+        .padding(.vertical, header ? 2 : 0)
         .accessibilityElement(children: .combine)
     }
 
-    private func assists(_ settings: Settings) -> some View {
-        PSCard(theme: theme) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Show mistakes").psFont(16).foregroundStyle(theme.ink)
-                PSSegmented(theme: theme, options: MistakeMode.allCases.map { ($0, $0.displayName) }, selection: settings.mistakes,
-                            idPrefix: "journal_mistakes_", onSelect: settingsModel.setMistakes)
-                Text("Right away marks digits that clash with another digit. Check puzzle finds the rest.")
-                    .psFont(13).foregroundStyle(theme.ink3)
+    private func row(_ title: String, sub: String? = nil, divider: Bool = true, @ViewBuilder control: () -> some View) -> some View {
+        PSAdaptiveStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).psFont(16, weight: .semibold).foregroundStyle(theme.ink)
+                if let sub {
+                    Text(sub).psFont(13).foregroundStyle(theme.ink2).fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
-            SettingRow(theme: theme, label: "Tidy notes", sub: "Placing a digit removes it from notes in the same row, column and box.") {
+            Spacer(minLength: 0)
+            control()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(minHeight: 56)
+        .overlay(alignment: .top) { if divider { theme.line.frame(height: 1) } }
+    }
+
+    /// A title over a segmented choice, for settings with more than two values.
+    private func choice<Value: Hashable>(_ title: String, options: [(Value, String)], selection: Value, id: String,
+                                         divider: Bool = true, onSelect: @escaping (Value) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).psFont(16, weight: .semibold).foregroundStyle(theme.ink)
+            PSSegmented(theme: theme, options: options, selection: selection, idPrefix: id, onSelect: onSelect)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { if divider { theme.line.frame(height: 1) } }
+    }
+
+    /// Show mistakes, Tidy notes, Show timer, Cell names in hints (HANDOFF 6.4).
+    private func assists(_ settings: Settings) -> some View {
+        VStack(spacing: 0) {
+            choice("Show mistakes", options: MistakeMode.allCases.map { ($0, $0.displayName) }, selection: settings.mistakes,
+                   id: "journal_mistakes_", divider: false, onSelect: settingsModel.setMistakes)
+            row("Tidy notes") {
                 PSToggle(theme: theme, isOn: settings.tidyNotes, label: "Tidy notes", onChange: settingsModel.setTidyNotes)
                     .accessibilityIdentifier("journal_tidyNotes")
             }
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Cell names in hints").psFont(16).foregroundStyle(theme.ink)
-                PSSegmented(theme: theme, options: CellNotation.allCases.map { ($0, $0.displayName) }, selection: settings.notation,
-                            idPrefix: "journal_notation_", onSelect: settingsModel.setNotation)
-                Text(settings.notation == .grid ? "Short grid codes: R for row, C for column, B for box." : "Written out in words.")
-                    .psFont(13).foregroundStyle(theme.ink3)
+            row("Show timer") {
+                PSToggle(theme: theme, isOn: settings.showTimer, label: "Show timer", onChange: settingsModel.setShowTimer)
+                    .accessibilityIdentifier("journal_showTimer")
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
-            SettingRow(theme: theme, label: "Coach when I'm stuck",
-                       sub: "After two minutes without a new digit, Hint walks you through the patterns on your board.") {
+            choice("Cell names in hints", options: CellNotation.allCases.map { ($0, $0.displayName) }, selection: settings.notation,
+                   id: "journal_notation_", onSelect: settingsModel.setNotation)
+        }
+        .psCard(theme, radius: 26)
+    }
+
+    /// Settings v3 does not place (owner's choice): the coach, quiet and status bar, imports, build number.
+    private func more(_ settings: Settings) -> some View {
+        VStack(spacing: 0) {
+            row("Coach when I'm stuck", sub: "After two minutes without a new digit, Hint walks you through the patterns on your board.",
+                divider: false) {
                 PSToggle(theme: theme, isOn: settings.coachWhenStuck, label: "Coach when I'm stuck",
                          onChange: settingsModel.setCoachWhenStuck)
                     .accessibilityIdentifier("journal_coachWhenStuck")
             }
-            SettingRow(theme: theme, label: "Show timer", last: true) {
-                PSToggle(theme: theme, isOn: settings.showTimer, label: "Show timer", onChange: settingsModel.setShowTimer)
-                    .accessibilityIdentifier("journal_showTimer")
+            row("Hide status bar in games", sub: "Clock and battery give off light too.") {
+                PSToggle(theme: theme, isOn: settings.hideStatusBarInGames, label: "Hide status bar in games",
+                         onChange: settingsModel.setHideStatusBar)
+                    .accessibilityIdentifier("journal_hideStatusBar")
             }
-        }
-    }
-
-    /// Kept from the old Settings screen, which had no other home for them.
-    private func imports(_ settings: Settings) -> some View {
-        PSCard(theme: theme) {
-            SettingRow(theme: theme, label: "Keep import photos", sub: "Saved on this iPhone with the puzzle.") {
+            row("Sounds") {
+                PSToggle(theme: theme, isOn: settings.soundsEnabled, label: "Sounds", onChange: settingsModel.setSounds)
+                    .accessibilityIdentifier("journal_sounds")
+            }
+            row("Vibration", sub: "Night always keeps sound and vibration off.") {
+                PSToggle(theme: theme, isOn: settings.hapticsEnabled, label: "Vibration", onChange: settingsModel.setHaptics)
+                    .accessibilityIdentifier("journal_haptics")
+            }
+            row("Keep import photos", sub: "Saved on this iPhone with the puzzle.") {
                 PSToggle(theme: theme, isOn: settings.keepImportImages, label: "Keep import photos",
                          onChange: settingsModel.setKeepImportImages)
-                .accessibilityIdentifier("journal_keepImages")
+                    .accessibilityIdentifier("journal_keepImages")
             }
-            SettingRow(theme: theme, label: "Imported photos", last: true) {
+            row("Imported photos") {
                 LinkButton(theme: theme, title: "Clear") { confirmsClear = true }
                     .accessibilityIdentifier("journal_clearImages")
             }
+            row("Show build number") {
+                PSToggle(theme: theme, isOn: settings.showBuildNumber, label: "Show build number",
+                         onChange: settingsModel.setShowBuildNumber)
+                    .accessibilityIdentifier("journal_showBuildNumber")
+            }
         }
+        .psCard(theme, radius: 26)
+    }
+
+    /// The privacy promise, the font licences and the version.
+    private var about: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Everything stays on this iPhone. No account, no network, no analytics. "
+                 + "Silent by design — no sounds or vibration unless you turn them on.")
+                .psFont(15)
+                .foregroundStyle(theme.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(16)
+            NavigationLink { LicencesView() } label: {
+                HStack {
+                    Text("Licences").psFont(16, weight: .semibold).foregroundStyle(theme.ink)
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 15, weight: .semibold)).foregroundStyle(theme.ink2)
+                }
+                .padding(.horizontal, 16)
+                .frame(minHeight: 56)
+                .contentShape(Rectangle())
+                .overlay(alignment: .top) { theme.line.frame(height: 1) }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("journal_licences")
+            Text(SettingsViewModel.appVersionLine)
+                .psFont(13, monospacedDigit: true)
+                .foregroundStyle(theme.ink2)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .overlay(alignment: .top) { theme.line.frame(height: 1) }
+                .accessibilityIdentifier("journal_version")
+        }
+        .psCard(theme, radius: 26)
+    }
+}
+
+/// The SIL Open Font License texts the bundled fonts require (Resources/Fonts), read from the app bundle.
+struct LicencesView: View {
+    @EnvironmentObject private var controller: AppController
+    @Environment(\.psPalette) private var theme
+    @Environment(\.dismiss) private var dismiss
+
+    /// The licence files shipped with the fonts, in display order.
+    static let files = [("Bricolage Grotesque", "OFL-BricolageGrotesque"), ("DM Sans", "OFL-DMSans")]
+
+    static func text(_ file: String) -> String? {
+        Bundle.main.url(forResource: file, withExtension: "txt", subdirectory: "Fonts")
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8) }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back", round: true) { dismiss() }
+                    .accessibilityIdentifier("licences_back")
+                Text("Licences")
+                    .psFont(33, weight: .heavy, design: .serif)
+                    .foregroundStyle(theme.ink)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
+                ForEach(Self.files, id: \.1) { name, file in
+                    Text(name).psFont(19, weight: .heavy, design: .serif).foregroundStyle(theme.ink).padding(.top, 8)
+                    Text(Self.text(file) ?? "")
+                        .psFont(13)
+                        .foregroundStyle(theme.ink2)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 8)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 24)
+        }
+        .statusBackdrop(theme.bg)
+        .background(theme.bg.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        // The system status bar is white in dark mode, brighter than any ink (CODESPEC 12.7).
+        .statusBarHidden(controller.isNight)
+        .accessibilityIdentifier("licencesView")
     }
 }

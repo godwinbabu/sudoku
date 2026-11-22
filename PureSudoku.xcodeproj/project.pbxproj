@@ -54,6 +54,7 @@
 		0000000000000000000000E7 /* GameChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E6 /* GameChrome.swift */; };
 		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
 		000000000000000000000062 /* Media in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* Media */; };
+		000000000000000000000711 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000710 /* Fonts */; };
 		000000000000000000000063 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002D /* README.md */; };
 		000000000000000000000611 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000610 /* PrivacyInfo.xcprivacy */; };
 		000000000000000000000064 /* TestData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* TestData.swift */; };
@@ -99,7 +100,6 @@
 		0000000000000000000000F3 /* DriftController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F2 /* DriftController.swift */; };
 		0000000000000000000000F5 /* NightControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F4 /* NightControls.swift */; };
 		0000000000000000000000F7 /* NightSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F6 /* NightSheetView.swift */; };
-		0000000000000000000000F9 /* DisplaySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000F8 /* DisplaySettingsView.swift */; };
 		0000000000000000000000FB /* FirstNightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000FA /* FirstNightView.swift */; };
 		0000000000000000000000FD /* NightScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000FC /* NightScheduleTests.swift */; };
 		0000000000000000000001E1 /* printed-grid.png in Resources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000001E0 /* printed-grid.png */; };
@@ -177,6 +177,7 @@
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
 		0000000000000000000000E6 /* GameChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameChrome.swift; sourceTree = "<group>"; };
 		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
+		000000000000000000000710 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Fonts; sourceTree = "<group>"; };
 		00000000000000000000002D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		00000000000000000000002E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		00000000000000000000002F /* TestData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestData.swift; sourceTree = "<group>"; };
@@ -226,7 +227,6 @@
 		0000000000000000000000F2 /* DriftController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriftController.swift; sourceTree = "<group>"; };
 		0000000000000000000000F4 /* NightControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightControls.swift; sourceTree = "<group>"; };
 		0000000000000000000000F6 /* NightSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightSheetView.swift; sourceTree = "<group>"; };
-		0000000000000000000000F8 /* DisplaySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplaySettingsView.swift; sourceTree = "<group>"; };
 		0000000000000000000000FA /* FirstNightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstNightView.swift; sourceTree = "<group>"; };
 		0000000000000000000000FC /* NightScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NightScheduleTests.swift; sourceTree = "<group>"; };
 		0000000000000000000001E0 /* printed-grid.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "printed-grid.png"; path = "Fixtures/printed-grid.png"; sourceTree = "<group>"; };
@@ -371,7 +371,6 @@
 				000000000000000000000028 /* NumberPadView.swift */,
 				0000000000000000000000E6 /* GameChrome.swift */,
 				0000000000000000000000FA /* FirstNightView.swift */,
-				0000000000000000000000F8 /* DisplaySettingsView.swift */,
 				0000000000000000000000F6 /* NightSheetView.swift */,
 				0000000000000000000000F4 /* NightControls.swift */,
 				0000000000000000000000A5 /* ImportPuzzleView.swift */,
@@ -385,6 +384,7 @@
 			isa = PBXGroup;
 			children = (
 				00000000000000000000002C /* Media */,
+				000000000000000000000710 /* Fonts */,
 				00000000000000000000002D /* README.md */,
 			);
 			path = Resources;
@@ -601,6 +601,7 @@
 			files = (
 				000000000000000000000060 /* Assets.xcassets in Resources */,
 				000000000000000000000062 /* Media in Resources */,
+				000000000000000000000711 /* Fonts in Resources */,
 				000000000000000000000063 /* README.md in Resources */,
 				000000000000000000000611 /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -715,7 +716,6 @@
 				0000000000000000000000D5 /* SystemAppearance.swift in Sources */,
 				0000000000000000000000CF /* ScreenBrightnessController.swift in Sources */,
 				0000000000000000000000FB /* FirstNightView.swift in Sources */,
-				0000000000000000000000F9 /* DisplaySettingsView.swift in Sources */,
 				0000000000000000000000F7 /* NightSheetView.swift in Sources */,
 				0000000000000000000000F5 /* NightControls.swift in Sources */,
 				0000000000000000000000F3 /* DriftController.swift in Sources */,

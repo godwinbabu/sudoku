@@ -9,7 +9,8 @@ final class AppControllerTests: XCTestCase {
         controller.updateSettings {
             $0.soundsEnabled = true
             $0.hapticsEnabled = true
-            $0.appearance = .day
+            $0.appearance = .light
+            $0.nightAfterDark = false
         }
         XCTAssertTrue(controller.soundsActive)
         XCTAssertTrue(controller.hapticsActive)
@@ -99,6 +100,16 @@ final class AppControllerTests: XCTestCase {
         viewModel.resetPuzzle()
         XCTAssertEqual(controller.activeGames[.easy]?.isCompleted, false)
         XCTAssertEqual(controller.stats, Stats(), "revealed games do not count")
+    }
+
+    /// Home's date line is the weekday, month and day, with no streak count (HANDOFF 6.1, 7).
+    func testHomeDateLine() throws {
+        let (controller, _) = makeTestController()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 22)))
+        let line = MainMenuViewModel(controller: controller).dateLine(at: date, calendar: calendar, locale: Locale(identifier: "en_US"))
+        XCTAssertEqual(line, "Saturday, November 21")
     }
 
     /// A route whose game is gone resolves to no game, never to another level's game.

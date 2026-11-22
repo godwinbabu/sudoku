@@ -3,8 +3,8 @@ import SwiftUI
 // Controls shared by the Night sheet, Display & Night and the first-night flow (Design/v2/README.md).
 // All are drawn from the palette, so nothing renders system white at night (CODESPEC 12.4).
 
-/// Segmented control: 34 pt segments in a 1 pt hair ring. Day marks the choice with a surface2
-/// fill; Night with an accentDim ring, because nothing lit may sit behind text. At accessibility
+/// Segmented control (HANDOFF 6.3): a `fill` pill track with a `fillEdge` outline. Light and Dark mark
+/// the choice with a `segment` pill; Night with a `btnEdge` ring, because nothing lit may sit behind text. At accessibility
 /// text sizes the options stack, full width, and each shape grows with its text (CODESPEC 9).
 struct PSSegmented<Value: Hashable>: View {
     let theme: PSPalette
@@ -22,18 +22,17 @@ struct PSSegmented<Value: Hashable>: View {
                 let on = value == selection
                 Button { onSelect(value) } label: {
                     Text(title)
-                        .psFont(14, weight: on ? .semibold : .regular)
-                        .foregroundStyle(on ? theme.ink : theme.ink2)
+                        .psFont(15, weight: on ? .semibold : .regular)
+                        .foregroundStyle(theme.ink)
                         .lineLimit(stacked ? nil : 1)
                         .minimumScaleFactor(stacked ? 1 : 0.8)
                         .fixedSize(horizontal: false, vertical: stacked)
                         .padding(.vertical, stacked ? 8 : 0)
                         .frame(maxWidth: .infinity, minHeight: stacked ? 44 : 34)
                         .background(
-                            RoundedRectangle(cornerRadius: 9)
-                                .fill(on && !theme.isNight ? theme.surface2 : .clear)
-                                .overlay(RoundedRectangle(cornerRadius: 9)
-                                    .strokeBorder(on && theme.isNight ? theme.accentDim : .clear, lineWidth: 1))
+                            Capsule()
+                                .fill(on ? theme.segment : .clear)
+                                .overlay(Capsule().strokeBorder(on ? theme.btnEdge : .clear, lineWidth: 1))
                         )
                         .padding(.vertical, stacked ? 3 : 5)
                         .contentShape(Rectangle())
@@ -46,11 +45,17 @@ struct PSSegmented<Value: Hashable>: View {
         }
         .padding(.horizontal, 3)
         .padding(.vertical, stacked ? 3 : 0)
-        .background(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.hair, lineWidth: 1).frame(height: stacked ? nil : 40))
+        .background(
+            RoundedRectangle(cornerRadius: stacked ? 22 : 20)
+                .fill(theme.fill)
+                .overlay(RoundedRectangle(cornerRadius: stacked ? 22 : 20).strokeBorder(theme.fillEdge, lineWidth: 1))
+                .frame(height: stacked ? nil : 40)
+        )
     }
 }
 
-/// A 48 × 28 switch with a 44 pt target. Night: an outline track with an accent knob.
+/// A 51 × 31 switch with a 44 pt target (HANDOFF 6.3). On is a `btnBg` track with a `btnInk` knob; at
+/// night a `btnEdge` outline with an accent knob. Off is an outline with an ink3 knob.
 struct PSToggle: View {
     let theme: PSPalette
     let isOn: Bool
@@ -61,17 +66,17 @@ struct PSToggle: View {
     static func offRing(_ theme: PSPalette) -> Color { theme.isDark ? theme.ink3 : theme.hair }
 
     var body: some View {
-        let ring = isOn ? (theme.isNight ? theme.accentDim : .clear) : Self.offRing(theme)
-        let knob = isOn ? (theme.isNight ? theme.accent : theme.bg) : theme.ink3
+        let ring = isOn ? theme.btnEdge : Self.offRing(theme)
+        let knob = isOn ? theme.btnInk : theme.ink3
         Button { onChange(!isOn) } label: {
             Capsule()
-                .fill(isOn && !theme.isNight ? theme.accent : .clear)
+                .fill(isOn ? theme.btnBg : .clear)
                 .overlay(Capsule().strokeBorder(ring, lineWidth: 1.5))
                 .overlay(alignment: isOn ? .trailing : .leading) {
-                    Circle().fill(knob).frame(width: 20, height: 20).padding(4)
+                    Circle().fill(knob).frame(width: 25, height: 25).padding(3)
                 }
-                .frame(width: 48, height: 28)
-                .frame(minWidth: 48, minHeight: 44)
+                .frame(width: 51, height: 31)
+                .frame(minWidth: 51, minHeight: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -88,8 +93,8 @@ private struct ToggleTrait: ViewModifier {
     }
 }
 
-/// A 6 pt track with a 28 pt ink thumb in a 5 pt bg halo (at night an ink ring, so the knob is never
-/// the brightest shape). Steps by whole numbers.
+/// A 4 pt `line` track with `accent` progress and a 26 pt `bg` thumb in a 2 pt `accent` ring
+/// (HANDOFF 6.3), so the knob is never the brightest shape at night. Steps by whole numbers.
 struct PSSlider: View {
     let theme: PSPalette
     let value: Double
@@ -102,18 +107,20 @@ struct PSSlider: View {
     var body: some View {
         GeometryReader { geometry in
             let span = range.upperBound - range.lowerBound
-            let usable = max(1, geometry.size.width - 28)
+            let usable = max(1, geometry.size.width - 26)
             let x = (min(range.upperBound, max(range.lowerBound, value)) - range.lowerBound) / span * usable
             ZStack(alignment: .leading) {
                 Group {
-                    if let track { Capsule().fill(track) } else { Capsule().fill(theme.hair) }
+                    if let track { Capsule().fill(track) } else { Capsule().fill(theme.line) }
                 }
-                .frame(height: 6)
+                .frame(height: 4)
+                if track == nil {
+                    Capsule().fill(theme.accent).frame(width: x + 13, height: 4)
+                }
                 Circle()
-                    .fill(theme.isNight ? theme.bg : theme.ink)
-                    .overlay(Circle().strokeBorder(theme.isNight ? theme.ink2 : .clear, lineWidth: 2))
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(theme.bg).frame(width: 38, height: 38))
+                    .fill(theme.bg)
+                    .overlay(Circle().strokeBorder(theme.accent, lineWidth: 2))
+                    .frame(width: 26, height: 26)
                     .offset(x: x)
             }
             .frame(maxHeight: .infinity)
@@ -136,139 +143,9 @@ struct PSSlider: View {
     }
 
     private func set(_ x: Double, usable: Double, span: Double) {
-        let raw = range.lowerBound + (x - 14) / usable * span
+        let raw = range.lowerBound + (x - 13) / usable * span
         let next = min(range.upperBound, max(range.lowerBound, raw.rounded()))
         if next != value { onChange(next) }
-    }
-
-    /// The Warmth track: real Kelvin colours at 75% of the current luminance. At night each stop is
-    /// also capped at 75% of the ink's light, so the cool end never outshines the digits.
-    static func kelvinTrack(luminance: Double, inkWarmth: Double? = nil) -> LinearGradient {
-        func lightness(_ c: RGB255) -> Double { 0.2126 * pow(c.r / 255, 2.2) + 0.7152 * pow(c.g / 255, 2.2) + 0.0722 * pow(c.b / 255, 2.2) }
-        let ink = inkWarmth.map { lightness(Blackbody.rgb(kelvin: Blackbody.kelvin(forWarmth: $0))) }
-        let colors = stride(from: 0.0, through: 100, by: 25).map { warmth -> Color in
-            let c = Blackbody.rgb(kelvin: Blackbody.kelvin(forWarmth: warmth))
-            let cap = ink.map { pow(min(1, $0 / lightness(c)), 1 / 2.2) } ?? 1
-            let s = luminance * 0.75 * cap
-            return Color(.sRGB, red: c.r * s / 255, green: c.g * s / 255, blue: c.b * s / 255, opacity: 1)
-        }
-        return LinearGradient(colors: colors, startPoint: .leading, endPoint: .trailing)
-    }
-}
-
-/// A label, its value and a footnote above a slider.
-struct SliderRow<Control: View>: View {
-    let theme: PSPalette
-    let label: String
-    let value: String
-    let sub: String
-    @ViewBuilder let control: Control
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            PSAdaptiveStack(alignment: .firstTextBaseline) {
-                Text(label).psFont(16).foregroundStyle(theme.ink)
-                Spacer(minLength: 0)
-                Text(value).psFont(15, monospacedDigit: true).foregroundStyle(theme.ink2)
-            }
-            control
-            Text(sub).psFont(13).foregroundStyle(theme.ink3)
-        }
-        .padding(.horizontal, 22)
-        .padding(.bottom, 16)
-    }
-}
-
-/// The Glow and Warmth sliders, shared by the Night sheet and Display & Night.
-struct NightSliders: View {
-    let theme: PSPalette
-    let settings: Settings
-    let glowNote: String
-    let warmthNote: String
-    var idPrefix = ""
-    let onGlow: (Double) -> Void
-    let onWarmth: (Double) -> Void
-
-    var body: some View {
-        let glow = "\(Int(settings.glow))%"
-        let kelvin = NightSheetView.kelvinText(settings.warmth)
-        // At night the track is capped by the ink's light; in Day it is the plain Kelvin ramp.
-        let track = PSSlider.kelvinTrack(luminance: theme.luminance, inkWarmth: theme.isNight ? settings.warmth : nil)
-        VStack(spacing: 0) {
-            SliderRow(theme: theme, label: "Glow", value: glow, sub: glowNote) {
-                PSSlider(theme: theme, value: settings.glow, label: "Glow", valueText: glow, onChange: onGlow)
-                    .accessibilityIdentifier("\(idPrefix)glow")
-            }
-            SliderRow(theme: theme, label: "Warmth", value: kelvin, sub: warmthNote) {
-                PSSlider(theme: theme, value: settings.warmth, track: track, label: "Warmth", valueText: kelvin, onChange: onWarmth)
-                    .accessibilityIdentifier("\(idPrefix)warmth")
-            }
-        }
-    }
-}
-
-/// Three preset chips: 36 pt tall (44 pt target), a 1.5 pt ring that is accentDim when active.
-/// At accessibility text sizes they stack, full width, and each ring grows with its text (CODESPEC 9).
-struct PresetChips: View {
-    let theme: PSPalette
-    let current: NightPreset?
-    var idPrefix = "preset_"
-    let onSelect: (NightPreset) -> Void
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    var body: some View {
-        let stacked = dynamicTypeSize.isAccessibilitySize
-        let layout = stacked ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
-        layout {
-            ForEach(NightPreset.allCases) { preset in
-                let on = preset == current
-                Button { onSelect(preset) } label: {
-                    Text(preset.title)
-                        .psFont(13, weight: .medium)
-                        .foregroundStyle(on ? theme.accent : theme.ink2)
-                        .lineLimit(stacked ? nil : 1)
-                        .minimumScaleFactor(stacked ? 1 : 0.8)
-                        .fixedSize(horizontal: false, vertical: stacked)
-                        .padding(.vertical, stacked ? 8 : 0)
-                        .frame(maxWidth: .infinity, minHeight: stacked ? 44 : 36)
-                        .background(Capsule().strokeBorder(on ? theme.accentDim : theme.hair, lineWidth: 1.5))
-                        .padding(.vertical, stacked ? 0 : 4)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityShowsLargeContentViewer()
-                .accessibilityIdentifier("\(idPrefix)\(preset.rawValue)")
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-        .padding(.horizontal, 22)
-        .padding(.bottom, 10)
-    }
-}
-
-/// A list row: title, optional footnote, trailing control; a hair line under it unless last.
-struct SettingRow<Trailing: View>: View {
-    let theme: PSPalette
-    let label: String
-    var sub: String?
-    var last = false
-    @ViewBuilder let trailing: Trailing
-
-    var body: some View {
-        PSAdaptiveStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).psFont(16).foregroundStyle(theme.ink)
-                if let sub {
-                    Text(sub).psFont(13).foregroundStyle(theme.ink3).fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            trailing
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 4)
-        .frame(minHeight: 52)
-        .overlay(alignment: .bottom) { if !last { theme.hair.frame(height: 1) } }
     }
 }
 
@@ -324,7 +201,7 @@ struct SamplePreview: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            cell { digit("5", color: theme.ink, weight: type.givenWeight(night: theme.isNight)) }
+            cell { digit("5", color: theme.ink, weight: type.givenWeight) }
             cell { digit("3", color: theme.accent, weight: type.userWeight) }
             cell(selected: true) { digit("7", color: theme.accent, weight: type.userWeight) }
             cell {

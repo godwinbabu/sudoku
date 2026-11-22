@@ -10,15 +10,15 @@ final class NightPaletteTests: XCTestCase {
     /// Preset snapshots on glow scale 2 (CODESPEC 7.2, 12.3). They replace the styles.css snapshots,
     /// which were too dark to read.
     private let snapshots: [(NightPreset, [String: [Int]])] = [
-        (.readingLamp, ["surface": [18, 10, 3], "surface2": [28, 16, 4], "ink": [255, 146, 39], "ink2": [230, 132, 35],
+        (.readingLamp, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [255, 146, 39], "ink2": [217, 124, 33],
                         "ink3": [199, 114, 31], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [76, 44, 12],
                         "lineMajor": [153, 88, 23], "hair": [64, 37, 10], "sel": [84, 36, 0], "peer": [43, 18, 0],
                         "same": [64, 27, 0], "err": [242, 66, 61], "status": [112, 64, 17]]),
-        (.lightsOut, ["surface": [18, 9, 0], "surface2": [28, 14, 0], "ink": [255, 132, 0], "ink2": [230, 119, 0],
+        (.lightsOut, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [255, 132, 0], "ink2": [217, 112, 0],
                       "ink3": [199, 103, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [76, 40, 0],
                       "lineMajor": [153, 79, 0], "hair": [64, 33, 0], "sel": [84, 33, 0], "peer": [43, 17, 0],
                       "same": [64, 25, 0], "err": [242, 66, 61], "status": [112, 58, 0]]),
-        (.redLight, ["surface": [15, 5, 0], "surface2": [23, 8, 0], "ink": [208, 70, 0], "ink2": [188, 63, 0],
+        (.redLight, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [208, 70, 0], "ink2": [177, 60, 0],
                      "ink3": [163, 55, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [63, 21, 0],
                      "lineMajor": [125, 42, 0], "hair": [52, 18, 0], "sel": [69, 23, 0], "peer": [35, 12, 0],
                      "same": [52, 18, 0], "err": [198, 54, 50], "status": [92, 31, 0]])
@@ -146,7 +146,9 @@ final class NightPaletteTests: XCTestCase {
 
     func testSettingsRoundTrip() throws {
         var settings = Settings()
-        settings.appearance = .matchSystem
+        settings.appearance = .dark
+        settings.nightAfterDark = false
+        settings.adoptsSystemStyle = false
         settings.glow = 33
         settings.warmth = 90
         settings.clarity = .bold
@@ -179,12 +181,13 @@ final class NightPaletteTests: XCTestCase {
     func testV1ThemeAndAssistsMigrate() throws {
         let light = try decodeV1(["theme": "light", "autoCheckMistakes": false, "autoRemoveCandidates": false,
                                   "hasCalibratedDisplay": true])
-        XCTAssertEqual(light.appearance, .day)
+        XCTAssertEqual(light.appearance, .light)
+        XCTAssertFalse(light.nightAfterDark)
         XCTAssertEqual(light.mistakes, .onCheck)
         XCTAssertFalse(light.tidyNotes)
         XCTAssertTrue(light.calibrated)
         XCTAssertEqual(try decodeV1(["theme": "dark"]).appearance, .night)
-        XCTAssertEqual(try decodeV1(["theme": "system"]).appearance, .matchSystem)
+        XCTAssertTrue(try decodeV1(["theme": "system"]).adoptsSystemStyle, "system → the system style, once")
         XCTAssertEqual(try decodeV1(["theme": "dark", "sleepBrightness": "dim"]).glow, NightPreset.lightsOut.glow)
     }
 
@@ -227,19 +230,33 @@ final class NightPaletteTests: XCTestCase {
         func at(_ hour: Int, _ minute: Int) -> Date {
             calendar.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: hour, minute: minute))!
         }
-        var settings = Settings(appearance: .afterDark)
+        var settings = Settings(appearance: .light, nightAfterDark: true, adoptsSystemStyle: false)
         settings.useLocationForAfterDark = false
         XCTAssertTrue(settings.isNight(now: at(21, 0), systemIsDark: false, calendar: calendar))
         XCTAssertTrue(settings.isNight(now: at(6, 29), systemIsDark: false, calendar: calendar))
         XCTAssertFalse(settings.isNight(now: at(6, 30), systemIsDark: false, calendar: calendar))
         XCTAssertFalse(settings.isNight(now: at(12, 0), systemIsDark: true, calendar: calendar))
-        settings.appearance = .matchSystem
-        XCTAssertFalse(settings.isNight(now: at(12, 0), systemIsDark: true, calendar: calendar), "Match iPhone never means Night")
-        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .dark)
-        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .day)
-        settings.appearance = .afterDark
-        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .night)
-        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .day, "After dark ignores iOS")
+        settings.appearance = .dark
+        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: false, calendar: calendar), .dark, "Dark by day")
+        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .night, "Night after dark")
+        settings.nightAfterDark = false
+        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .dark, "switch off: no Night")
+        settings.appearance = .light
+        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .day, "Light ignores iOS")
+    }
+
+    /// v2 appearances migrate once: Day → Light, Night → Night, After dark → Light with Night after dark,
+    /// Match iPhone → the system style (HANDOFF 6.3).
+    func testV2AppearanceMigrates() throws {
+        func decode(_ appearance: String) throws -> Settings {
+            try JSONDecoder().decode(Settings.self, from: JSONSerialization.data(withJSONObject: ["appearance": appearance]))
+        }
+        let day = try decode("day"), night = try decode("night"), afterDark = try decode("afterDark"), match = try decode("matchSystem")
+        XCTAssertEqual([day.appearance, night.appearance, afterDark.appearance], [.light, .night, .light])
+        XCTAssertEqual([day.nightAfterDark, night.nightAfterDark, afterDark.nightAfterDark, match.nightAfterDark],
+                       [false, false, true, false])
+        XCTAssertEqual([day.adoptsSystemStyle, night.adoptsSystemStyle, afterDark.adoptsSystemStyle, match.adoptsSystemStyle],
+                       [false, false, false, true])
     }
 
     // MARK: Dark (CODESPEC 7.2)
@@ -252,7 +269,7 @@ final class NightPaletteTests: XCTestCase {
             let context = "variant \(n)"
             XCTAssertTrue(p.isDark)
             XCTAssertFalse(p.isNight)
-            XCTAssertTrue(p.ringsSameDigit)
+            XCTAssertFalse(p.ringsSameDigit, "Dark shows the same digit by weight")
             for (textName, text) in [("ink", p.ink), ("ink2", p.ink2), ("ink3", p.ink3), ("accent", p.accent), ("err", p.err)] {
                 for (ground, fill) in [("bg", p.bg), ("surface", p.surface), ("surface2", p.surface2)] {
                     XCTAssertGreaterThanOrEqual(contrast(luminance(text), luminance(fill)), 4.5, "\(textName) on \(ground), \(context)")
@@ -372,19 +389,14 @@ final class NightPaletteTests: XCTestCase {
     }
 
     /// Above 95% the Warmth note stops quoting a number; Red light is above it.
-    func testWarmthNoteAboveNinetyFivePercent() {
-        XCTAssertEqual(NightSheetView.warmthNote(95), "Blue light about 95% lower than daylight white.")
-        XCTAssertEqual(NightSheetView.warmthNote(96), "Almost no blue light.")
-        let red = PSPalette.night(glow: NightPreset.redLight.glow, warmth: NightPreset.redLight.warmth, clarity: .standard)
-        XCTAssertEqual(NightSheetView.warmthNote(red.blueReduction), "Almost no blue light.")
-    }
-
     /// At night givens are one weight heavier, so entered digits differ by shape as well as hue.
-    func testNightGivensAreHeavier() {
-        XCTAssertEqual(PSType(.standard).givenWeight(night: false), .semibold)
-        XCTAssertEqual(PSType(.standard).givenWeight(night: true), .bold)
-        XCTAssertEqual(PSType(.large).givenWeight(night: true), .heavy)
-        XCTAssertEqual(PSType(.bold).givenWeight(night: true), .black)
+    /// Givens are 800 at every Clarity and in every theme; entries stay lighter, so the two differ by
+    /// shape where Night's single hue can't tell them apart (HANDOFF 2).
+    func testGivensAreHeavierThanEntries() {
+        for clarity in Clarity.allCases {
+            XCTAssertEqual(PSType(clarity).givenWeight, .heavy)
+            XCTAssertEqual(PSType(clarity).userWeight, .medium)
+        }
     }
 
     func testPlayersOwnBrightnessWinsUntilGlowChanges() {
@@ -462,6 +474,71 @@ final class PSFontTests: XCTestCase {
             let accessibility3 = PSFont.scaledSize(size, at: .accessibility3)
             XCTAssertGreaterThan(xxxLarge, size, "\(size)")
             XCTAssertGreaterThan(accessibility3, xxxLarge, "\(size)")
+        }
+    }
+}
+
+// MARK: v3 (HANDOFF 2, 4, 8)
+
+extension NightPaletteTests {
+    /// v3 contrast rules in every theme (HANDOFF 8): text tokens keep 4.5:1 on the background and on
+    /// surfaces, and the box lines keep 3:1.
+    func testEveryThemeKeepsTextContrast() {
+        var themes: [(String, PSPalette)] = [("light", .day(clarity: .standard)), ("dark", .dark(clarity: .standard))]
+        // Red light is dim deep red by choice (glow 30, 1200 K), so it is held to the cell-mark 3:1 rule only.
+        for preset in NightPreset.allCases where preset != .redLight {
+            themes.append((preset.title, .night(glow: preset.glow, warmth: preset.warmth, clarity: .standard)))
+        }
+        for (name, p) in themes {
+            for (ground, fill) in [("bg", p.bg), ("surface", p.surface)] {
+                for (token, text) in [("ink", p.ink), ("ink2", p.ink2), ("accent", p.accent), ("err", p.err)] {
+                    XCTAssertGreaterThanOrEqual(contrast(luminance(text), luminance(fill)), 4.5, "\(name) \(token) on \(ground)")
+                }
+                XCTAssertGreaterThanOrEqual(contrast(luminance(p.lineMajor), luminance(fill)), 3, "\(name) lineMajor on \(ground)")
+            }
+            if !p.isNight {
+                XCTAssertGreaterThanOrEqual(contrast(luminance(p.btnInk), luminance(p.btnBg)), 4.5, "\(name) primary button")
+            }
+        }
+    }
+
+    /// Cell lines stay visible inside the selected box: they differ from both the plain board and the
+    /// focus tint (Dark lines are lighter than every fill, Light lines darker).
+    func testGridLinesShowOnTintedCells() {
+        for (name, p) in [("light", PSPalette.day(clarity: .standard)), ("dark", PSPalette.dark(clarity: .standard)),
+                          ("dark contrast", PSPalette.dark(clarity: .standard, increaseContrast: true))] {
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+            UIColor(p.focus).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+            let tinted = luminance(p.focus, opacity: Double(alpha), over: p.surface)
+            for (fill, value) in [("board", luminance(p.surface)), ("tint", tinted)] {
+                XCTAssertGreaterThanOrEqual(contrast(luminance(p.line), value), 1.25, "\(name) line on \(fill)")
+            }
+        }
+        // Night keeps stepped fills: the lines show on the peer fill that covers the selected box.
+        for preset in NightPreset.allCases where preset != .redLight {
+            let p = PSPalette.night(glow: preset.glow, warmth: preset.warmth, clarity: .standard)
+            XCTAssertGreaterThanOrEqual(contrast(luminance(p.line), luminance(p.peer)), 1.25, "\(preset.title) line on peer")
+        }
+    }
+
+    /// Night draws no lit fill behind text: surfaces, glass, fills and the primary button are black or clear.
+    func testNightHasNoLitFills() {
+        let p = PSPalette.night(glow: 100, warmth: 0, clarity: .standard)
+        for (token, color) in [("surface", p.surface), ("surface2", p.surface2), ("glass", p.glass),
+                               ("fill", p.fill), ("btnBg", p.btnBg), ("segment", p.segment), ("pill", p.pill)] {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+            XCTAssertTrue(a == 0 || (r == 0 && g == 0 && b == 0), token)
+        }
+    }
+
+    /// The bundled faces register under the PostScript names PSFont asks for (Info.plist UIAppFonts).
+    func testBundledFontsLoad() {
+        for weight in [Font.Weight.regular, .medium, .semibold, .bold] {
+            for display in [true, false] {
+                let name = PSFont.faceName(weight: weight, display: display)
+                XCTAssertNotNil(UIFont(name: name, size: 12), name)
+            }
         }
     }
 }

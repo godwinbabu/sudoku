@@ -60,16 +60,15 @@ final class StatsViewModel: ObservableObject {
     }
 
     func formattedBestTime(for difficulty: Difficulty) -> String {
-        stats.bestTime(for: difficulty).map(Self.format) ?? "—"
+        stats.bestTime(for: difficulty).map(Self.format) ?? "–"
     }
 
     func formattedTypicalTime(for difficulty: Difficulty) -> String {
-        stats.typicalTime(for: difficulty).map(Self.format) ?? "—"
+        stats.typicalTime(for: difficulty).map(Self.format) ?? "–"
     }
 
     func solvedText(for difficulty: Difficulty) -> String {
-        let count = stats.solvedCount(for: difficulty)
-        return count == 0 ? "—" : "\(count)"
+        "\(stats.solvedCount(for: difficulty))"
     }
 
     /// "Expert: 3 solved, best 4:12, typical 5:00", with "none yet" for missing values.

@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>Sudoku Masters</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -31,6 +33,15 @@
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<true/>
 	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fonts/BricolageGrotesque-500.ttf</string>
+		<string>Fonts/BricolageGrotesque-800.ttf</string>
+		<string>Fonts/DMSans-400.ttf</string>
+		<string>Fonts/DMSans-500.ttf</string>
+		<string>Fonts/DMSans-600.ttf</string>
+		<string>Fonts/DMSans-700.ttf</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

@@ -20,6 +20,26 @@ enum PSFont {
         }
     }
 
+    /// The bundled face for a weight (Resources/Fonts, OFL). Display text uses Bricolage Grotesque, which
+    /// ships in 500 and 800 only; everything else uses DM Sans.
+    static func faceName(weight: Font.Weight, display: Bool) -> String {
+        if display {
+            return [.semibold, .bold, .heavy, .black].contains(weight)
+                ? "BricolageGrotesque96ptExtraBold-ExtraBold" : "BricolageGrotesque96ptExtraBold-Medium"
+        }
+        switch weight {
+        case .medium: return "DMSans9pt-Medium"
+        case .semibold: return "DMSans9pt-SemiBold"
+        case .bold, .heavy, .black: return "DMSans9pt-Bold"
+        default: return "DMSans9pt-Regular"
+        }
+    }
+
+    /// A bundled face at a fixed size. Board digits and keys use this: they follow Clarity, not Dynamic Type.
+    static func fixed(_ size: CGFloat, weight: Font.Weight, display: Bool = true) -> Font {
+        .custom(faceName(weight: weight, display: display), fixedSize: size)
+    }
+
     /// `size` scaled for `dynamicTypeSize`; equal to `size` at `.large`.
     static func scaledSize(_ size: CGFloat, at dynamicTypeSize: DynamicTypeSize) -> CGFloat {
         let traits = UITraitCollection(preferredContentSizeCategory: UIContentSizeCategory(dynamicTypeSize))
@@ -35,8 +55,14 @@ private struct PSFontModifier: ViewModifier {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func body(content: Content) -> some View {
-        let font = Font.system(size: PSFont.scaledSize(size, at: dynamicTypeSize), weight: weight, design: design)
-        content.font(monospacedDigit ? font.monospacedDigit() : font)
+        // `.serif` was the v2 display face; v3 draws display text in Bricolage Grotesque (HANDOFF 4).
+        let display = design == .serif
+        let font = Font.custom(PSFont.faceName(weight: weight, display: display),
+                               fixedSize: PSFont.scaledSize(size, at: dynamicTypeSize))
+        content
+            .font(monospacedDigit ? font.monospacedDigit() : font)
+            // −0.02 em on Bricolage at 21 pt and above.
+            .tracking(display && size >= 21 ? -0.02 * size : 0)
     }
 }
 

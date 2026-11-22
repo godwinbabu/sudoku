@@ -9,7 +9,7 @@ In addition to the app, you must also create a comprehensive test suite:
 Unit tests for Sudoku logic, game state, stats, and persistence.
 UI tests for core flows (starting a game, entering numbers, toggling notes, etc.).
 0. Tech Stack & Project Setup
-App name (display name): PureSudoku
+App name (display name): Sudoku Masters (v3, design_handoff_v3/). The target, module, bundle id and test targets keep the name PureSudoku.
 Target platform: iOS only, iPhone screens (later should scale to iPad, but not required now).
 Language: Swift 5+
 UI framework: SwiftUI (preferred).
@@ -220,17 +220,16 @@ Testing requirements:
 
 3.1 App structure and Home
 	•	MainMenuView holds three tabs: Play (HomeView), Learn (LearnView) and Journal (JournalView). Each tab has its own NavigationStack.
-	•	The tab bar is drawn by the app (PSTabBar), not the system, so it stays dark at night: bg fill, 1 pt hair top border, Play (square.grid.3x3), Learn (book), Journal (chart.bar). The active tab is accent with a semibold label; the others are ink3. The selected tab also carries the selected trait.
-	•	The tab bar belongs to each tab’s root screen, so anything pushed (a game, a lesson, Import, Display & Night) covers it.
-	•	Each tab’s header has the serif title and the moon, which opens the Night sheet (Section 12.7). Import has the moon in its bar.
-	•	No system sheets, alerts, context menus or confirmation dialogs: Display & Night and lessons are pushed; confirmations are custom popovers. The camera and the Photos picker on Import are the only system screens left, and each opens only after an explicit tap (Section 3.4).
-	•	At night the status bar is hidden on every screen but the game, which follows Hide status bar in games (Section 3.2). Screens that scroll from the top (Home, Learn, Journal, Display & Night) draw a bg strip behind the status bar, so content never sits under the clock.
-	•	Home, top to bottom (Design/v2/README.md, “Play tab”):
-	•	“Pure Sudoku” and the moon; the sub-line “Saturday night · 6-night streak” (the part of the day; the streak only when it is above zero).
-	•	Continue card, only when an unfinished level game exists: a 112 pt mini board (lines and digits, no fills), “CONTINUE”, the level, “6:52 · 44 of 81” and a 3 pt progress bar. It resumes the game saved last (lastUpdated).
-	•	NEW PUZZLE: five 64 pt rows, one per level. Each has a tier glyph (five rising bars, the first N lit; the level name beside it carries the meaning), the level name over its hardest technique (“Singles only”, “Pointing & claiming”, “Pairs & triples”, “Wings & fish”, “Chains & beyond”), the best time when there is one, and a chevron.
-	•	“Import a puzzle from a photo” (44 pt).
-	•	Saved imports: unfinished imports, most recently played first. A trash button asks first, with a custom confirmation.
+	•	The tab bar is drawn by the app (PSTabBar), not the system, so it stays dark at night (HANDOFF 6.1): a floating glass capsule 62 pt tall, 21 pt from the left, right and bottom screen edges (above the build-number strip when it shows), with Play (square.grid.3x3), Learn (book) and Journal (chart.bar), each a symbol over an 11 pt label. Content scrolls under it. The active tab is accent with a bold label on a pill (clear at night); the others are ink. The selected tab also carries the selected trait. A separate 62 pt round glass button, 10 pt to its right, imports a puzzle from a photo (“Import a puzzle from a photo”); from Learn or Journal it switches to Play first.
+	•	The tab bar belongs to each tab’s root screen, so anything pushed (a game, a lesson, Import, Licences) covers it.
+	•	Each tab’s header (ScreenHead) is a 44 pt row with an optional line on the left and the moon on a 44 pt round glass button, which opens the Night sheet (Section 12.7), then the large title (Bricolage 33, 800). Import has the moon in its bar.
+	•	No system sheets, alerts, context menus or confirmation dialogs: the Display sheet is drawn by the app, lessons are pushed; confirmations are custom popovers. The camera and the Photos picker on Import are the only system screens left, and each opens only after an explicit tap (Section 3.4).
+	•	At night the status bar is hidden on every screen but the game, which follows Hide status bar in games (Section 3.2). Screens that scroll from the top (Home, Learn, Journal, Licences) draw a bg strip behind the status bar, so content never sits under the clock.
+	•	Home, top to bottom (HANDOFF 6.1, screens/home-*.png), 16 pt side padding:
+	•	The date line (“Saturday, November 21”, 15 pt, ink2) and the moon; then “Sudoku Masters”. No streak here.
+	•	Continue card, only when an unfinished level game exists: surface, 26 pt corners, 16 pt padding. A 72 pt progress ring (7 pt stroke, line track, accent progress = filled ÷ 81) with the filled count inside; “Continue”, the level (Bricolage 24, 800), “6:52 · 44 of 81”; and a primary Resume pill (44 pt). The whole card resumes the game saved last (lastUpdated).
+	•	“New puzzle” (15 pt, 600, ink2), then one grouped list (surface, 26 pt corners, line separators): five 60 pt rows with the level name (Bricolage 19, 800) over the techniques its puzzles need (“Singles”, “Pointing and claiming”, “Naked and hidden pairs”, “Skyscraper, XY-Wing, X-Wing”, “XY-Chain and beyond”, worded from what the generator's puzzles use) and a chevron. Best times are in Journal.
+	•	Saved imports: unfinished imports, most recently played first, in the same grouped style. A trash button asks first, with a custom confirmation.
 	•	Behavior:
 	•	Tapping a level always starts a new puzzle at that level. If an unfinished game with player entries (digits or notes) is saved at that level, a custom confirmation asks first: “Replace your unfinished Hard game?” with Continue (resume it) and New. Only one game per level is saved, so this is the player’s way back to older games too.
 	•	The Continue card opens the saved game as it was.
@@ -241,25 +240,28 @@ Testing requirements:
 	•	UI tests:
 	•	Launch shows the five level rows, each with its technique line; there is no Night bar.
 	•	The tabs switch, and each tab has the moon.
+	•	The import button opens Import from Play, and from Journal it opens Import on Play.
 	•	Home starts an Expert game; back on Home, the Continue card resumes it with its entry.
 	•	A level with an unfinished game asks first; Continue resumes it, New starts a different puzzle; a level with no entries does not ask.
 	•	Unit tests:
 	•	The Continue card picks the unfinished game played last, never a finished one; a level always starts a new puzzle.
+	•	Home's date line reads “Saturday, November 21” (en_US).
 
 3.2 Game Screen
-	•	SwiftUI view: GameView. Layout and sizes: Design/v2/README.md, “Game”.
+	•	SwiftUI view: GameView. Layout and sizes: design_handoff_v3/HANDOFF.md 6.2 and screens/game-*.png.
 	•	From top to bottom:
-	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (opens the Night sheet, Section 12.2); More.
-	•	Board: 3×3 boxes on a lineMajor ground, each 3×3 cells on a line ground. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
-	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1), or the coach card (Section 6.3.3). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never), and offers the coach once the player is stuck (Section 6.3.3).
-	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
-	•	Keypad: 1×9. Each key shows how many of its digit are left. A digit with none left fades to 28% and is disabled. In Notes mode each key shows its digit small, at its pencil-mark position.
+	•	Navigation row (44 pt, 16 pt side padding): a round glass Back; in the middle the level (Bricolage 21, 800) and the timer (15 pt, ink2; tap to pause); a glass capsule holding the moon (opens the Night sheet, Section 12.2) and More.
+	•	Board, 8 pt below: screen width − 12 (6 pt from each edge), smaller only on a screen too short for it. Cells on surface with 12 pt corners and a 1 pt edge outline; line between cells and lineMajor between boxes, no outer frame. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
+	•	Hint slot (170 pt, 10 pt below the board): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1), or the coach card (Section 6.3.3). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never), and offers the coach once the player is stuck (Section 6.3.3).
+	•	Tool bar and keypad: two glass bars (26 pt corners), 12 pt from the sides, 8 pt apart, the lower one 28 pt above the screen's bottom edge.
+	•	Tools (52 pt): Undo, Erase, Notes (“Notes on” / “Notes off”; VoiceOver reads “Notes” with the value On / Off) and Hint, each a symbol over an 11 pt label. The active tool is accent and heavier; no chip. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
+	•	Keypad (64 pt): 1×9, no key backgrounds. Each key is its digit (Bricolage 28, 800) over how many are left (11 pt, ink2). A digit with none left turns ink2, loses its count and is disabled. In Notes mode the keypad bar gains a 1.5 pt accent outline.
 	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen. Check puzzle is left out when mistakes are set to Never, since it would mark nothing.
 	•	Fill all notes writes, in every empty cell, the digits its row, column and box still allow. One Undo reverts it.
 	•	Restart puzzle asks first, with a custom confirmation styled like the menu. At night its backdrop is black at 92%, so the board and notes do not show around the card.
 	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops. The keypad dims to 30% and is disabled, like the tools.
 	•	Hush: a two-finger tap anywhere, or the More menu, pauses the game and shows pure black. “Tap anywhere to return” fades out after about 3.5 s. Any tap returns and resumes. The black fades out over 0.3 s but stops taking taps at once, so the next tap reaches the control under it (issue #67).
-	•	Solved: the board fades to 10% over 600 ms (30% left its digits competing with the summary). Over it: “Solved.”, the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: “Assisted · counts for your streak, not best times”), and the techniques the grid needs, by name: “This grid took Hidden Single ×38, Naked Single ×9.” They come from LogicalSolver.techniquesNeeded(for:), which replays the hint engine from the givens once, off the main thread. Buttons: Another (a new puzzle at this level; imports and practice go back) and Goodnight.
+	•	Solved (HANDOFF 6.5): the board fades to 30% over 600 ms (150 ms with Reduce Motion) and shows no selection; the hint slot, tool bar and keypad give way to the summary below the board: “Solved” (Bricolage 52, 800), a greeting for the time of day (“Good morning” 5:00–11:59, “Good afternoon” 12:00–16:59, “Good evening” 17:00–20:59, “Good night” 21:00–4:59; GameViewModel.greeting), the level, time and hint count, a note on what the solve counts for (Practice: not counted; Revealed: not counted; Assisted: “Assisted · counts for your streak, not best times”), and “This grid needed” with one outlined chip per technique. The techniques come from LogicalSolver.techniquesNeeded(for:), which replays the hint engine from the givens once, off the main thread. At the bottom, 50 pt tall: Another (secondary; a new puzzle at this level; imports and practice go back) and Goodnight (primary). No confetti, sound or haptic.
 	•	Goodnight: pure black with “Sleep well.” fading out. A tap returns to Home.
 	•	In a Night game the status bar is hidden (hideStatusBarInGames) and the home indicator auto-hides. Hush, Goodnight and the first-night screen hide it too, in Day as well. The game reports this to AppController (hidesHomeIndicator) and the root view applies it.
 	•	Drift (Section 12.3) applies to the game's palette while Night and the Drift setting are on.
@@ -276,33 +278,24 @@ Testing requirements:
 	•	Start an Easy game, tap a cell, tap a number; verify the cell displays that number.
 	•	Toggle Notes mode, tap another cell, tap a number; verify smaller candidate text appears in that cell.
 	•	Restart the puzzle from the More menu and verify that user-entered values and candidates are cleared.
-	•	The Notes badge reads Off, then On, then Off.
+	•	The Notes tool reads Off, then On, then Off.
 	•	A two-finger tap shows Hush; a tap returns.
 	•	Unit tests:
 	•	A digit's keypad count drops as it is placed; at zero its key is disabled.
 	•	Fill all notes keeps each cell's answer, skips digits a peer holds, and is one Undo.
 
 3.3 Journal (stats and settings)
-	•	SwiftUI view: JournalView (Design/v2/README.md, “Journal”). It replaces the old SettingsView and StatsView.
-	•	Streak: the current streak (NY 56, zero once a whole day passes without a solve; a night runs until 4 am, so a solve at 00:30 counts for the evening before, Stats.playDay) over “nights in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled dot; other days are rings, so shape carries it, not hue. VoiceOver reads the full weekday (“Tuesday, solved”). Stats files from before the week seed it with the last solve day. When the streak is 0 but this week has a solve, a line under it reads “Last solved Tuesday.”, so 0 beside filled dots is not a contradiction.
-	•	SOLVED: a table of level, Solved, Best and Typical. Typical is the median of the last 50 unassisted solve times at that level. A dash means none yet. Under it: “N assisted solves kept your streak but don’t set best times.” and “N solved in all · N imported · h:mm:ss played”.
-	•	SETTINGS: a Display & Night row that pushes DisplaySettingsView. Display & Night holds, top to bottom:
-	•	A live preview strip: five 52 pt cells (given 5, entered 3, selected 7, mistake 4, notes).
-	•	Appearance: Day, Night, After dark, Match iPhone, with a checkmark (Section 7.1). With After dark chosen, a block shows either “Tonight · Sunset 6:12 PM → sunrise 6:41 AM” with “Worked out on this iPhone from your rough location and the date. Nothing leaves the phone.”, or “Hours · 9:00 PM → 6:30 AM” with − / + buttons (15-minute steps). A chip switches between the two (“Use fixed hours instead” / “Use sunset and sunrise”).
-	•	Night screen: presets, Glow and Warmth (Section 12.3), with the same footnotes as the Night sheet. In Day a second sample strip, drawn in the Night palette on black, shows what the sliders do at night.
-	•	Your eyes: Clarity; Lowest readable glow (“Set at N%. Glow and Drift never go below it.”) with Check again.
-	•	Quiet: Drift; Hide status bar in games; Sounds; Vibration (“Night always keeps sound and vibration off.”). Then a footnote about Hush.
-	•	Every control is drawn from the palette (custom segments, switches and sliders), never a system control that could render light.
-	•	ASSISTS (palette segments and switches):
-	•	Show mistakes: Right away / When I check / Never, with the caption “Right away marks digits that clash with another digit. Check puzzle finds the rest.” Never means no automatic marks and no Check; the hint still points at a mistake first.
+	•	SwiftUI view: JournalView (HANDOFF 6.4, screens/journal-*.png). It replaces the old SettingsView and StatsView. Header line “Nothing here leaves this iPhone”, title “Journal”. Groups are surface cards (26 pt corners) under 15 pt ink2 labels.
+	•	Streak card: the current streak (Bricolage 40, 800; zero once a whole day passes without a solve; a night runs until 4 am, so a solve at 00:30 counts for the evening before, Stats.playDay) over “days in a row”, and this week’s seven days, Monday first. A day with a counted solve is a filled circle by day and a ring with a dot at night; other days are plain rings, so shape carries it, not hue. VoiceOver reads the full weekday (“Tuesday, solved”). Stats files from before the week seed it with the last solve day. When the streak is 0 but this week has a solve, a line under it reads “Last solved Tuesday.”, so 0 beside filled dots is not a contradiction.
+	•	Solved: a table of Level, Solved, Best and Typical; level names in Bricolage 19, 800. Typical is the median of the last 50 unassisted solve times at that level. An en dash means none yet; Solved shows 0. Under it: “N assisted solves kept your streak but don’t set best times.” and “N solved in all · N imported · h:mm:ss played”.
+	•	Assists (palette segments and switches):
+	•	Show mistakes: Right away / When I check / Never. Never means no automatic marks and no Check; the hint still points at a mistake first.
 	•	Tidy notes (remove a placed digit from the notes it sees).
-	•	Cell names in hints (notation): “row 5, column 2” (plain, default) or “R5C2” (grid), with a line explaining the choice. Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
-	•	Coach when I'm stuck on/off (default on, Section 6.3.3).
 	•	Show timer on/off.
-	•	IMPORTS (kept from the old Settings screen): Keep import photos, and Clear imported photos, which asks first with a custom confirmation.
+	•	Cell names in hints (notation): “row 5, column 2” (plain, default) or “R5C2” (grid). Grid also names houses “R5”, “C2” and “B4”. Every hint and lesson sentence goes through the CellNotation formatter, which also picks the article (“an 8”).
+	•	More (settings the v3 design does not place): Coach when I'm stuck (default on, Section 6.3.3); Hide status bar in games; Sounds; Vibration (“Night always keeps sound and vibration off.”); Keep import photos; Imported photos · Clear (asks first with a custom confirmation); Show build number.
 	•	VoiceOver reads each table row as one line: “Expert: 3 solved, best 4:12, typical 5:00”, with “none yet” for a dash.
-	•	PRIVACY: “Everything stays on this iPhone. No account, no network, no analytics. Silent by design — no sounds or vibration unless you turn them on.”
-	•	Under Privacy: a Show build number switch (showBuildNumber, default off), then one selectable ink3 line, “Version 1.0 (412) · 5e4a202”: the marketing version, the build number (the commit count, written into the built Info.plist by the “Stamp build number” phase) and the short commit SHA (PSGitCommit, “+dirty” when tracked files had changes). A missing value reads “unknown”, e.g. a build made without git.
+	•	About: “Everything stays on this iPhone. No account, no network, no analytics. Silent by design — no sounds or vibration unless you turn them on.”; Licences, which pushes LicencesView with the SIL Open Font License text of Bricolage Grotesque and DM Sans (read from Resources/Fonts); then one selectable line, “Version 1.0 (412) · 5e4a202”: the marketing version, the build number (the commit count, written into the built Info.plist by the “Stamp build number” phase) and the short commit SHA (PSGitCommit, “+dirty” when tracked files had changes). A missing value reads “unknown”, e.g. a build made without git.
 	•	With Show build number on, the same line (a fixed 11 pt, not Dynamic Type, so it fits its strip) sits in a 16 pt strip reserved under every screen's safe area (the root view controller's additionalSafeAreaInsets, so pushed screens get it too), so it never covers a control: ink3 of the current palette, no fill, not hit-testable, following Drift in a Night game. Hush, Goodnight and the first-night flow hide it (they stay pure black); the strip stays reserved, so the game does not move.
 	•	Migration: the old cellNameStyle key maps short → grid and long → plain. The old askBeforeHintResult key is ignored: the card has no “Try it yourself first?” step.
 
@@ -315,7 +308,7 @@ Testing requirements:
 	•	Journal stats: typical is the median of unassisted times; assisted solves count for the streak and counts, not best or typical; Reveal counts for nothing; one week entry per day; the streak drops to zero after a missed day.
 	•	UI tests:
 	•	Journal → Show timer off, then a game shows no timer (and on shows it).
-	•	Journal → Display & Night shows the presets and After dark.
+	•	Journal → Licences shows the OFL text; Back returns.
 
 ⸻
 
@@ -438,15 +431,16 @@ Hint and Reveal Cell are two separate actions. Hint teaches; Reveal Cell fills a
 	•	Mistake first (always checked, whatever Show mistakes is set to):
 	•	A wrong digit, or a cell whose notes leave out its correct digit. Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored.
 	•	Step 1 “Where to look”: “Something in box 4 doesn’t fit.” (the box is spotlit). Button: Show me.
-	•	Step 2 “Mistake”: when a peer already holds the digit, “The 7 in row 3, column 4 repeats the 7 in row 3, column 8.” (dashed ring on the cell, solid ring on the peer, their shared row, column or box spotlit). Otherwise “The 7 in row 3, column 4 can’t be right.” Button: Show me why.
+	•	Step 2 “Mistake”: when a peer already holds the digit, “The 7 in row 3, column 4 repeats the 7 in row 3, column 8.” (dashed ring on the cell, solid ring on the peer, their shared row, column or box spotlit). Otherwise “The 7 in row 3, column 4 can’t be right.” Button: Next.
 	•	Step 3 “Why”: with a peer, “Row 3 already has a 7 (column 8).” (in a column: “(row N)”; in a box: the full cell name) Otherwise “Nothing on the board clashes with it yet, but the puzzle has one solution, and it has a different digit here.” Button: Clear it. It clears the digit (or the notes) as one undoable edit and does not mark the solve assisted.
 	•	Imports whose entries fit no solution: one card, “Some of your entries don’t fit together. Try undoing recent moves.”, with Undo.
 	•	Technique steps (from the logical solver, Section 13.3: the simplest step on the player’s board, using their notes where they exist; the same board always gives the same hint):
-	•	Step 1 “Where to look”: the nudge, with a spotlight on the focus cells. “Look at box 4. Where can 5 go?”
-	•	Step 2 “Technique” · tier: the technique name (serif) and its one-line definition. The pattern cells are filled and, in cells without notes, the candidates it relies on are shown.
+	•	Card (HANDOFF 6.2): surface, 22 pt corners, 1 pt edge outline, padding 12 / 16 / 14. Top row: the heading (Bricolage 21, 800) — “Where to look”, then the technique name from step 2 — and “Hint · N of 3” (13 pt, ink2), then ×. Body 15 pt in ink (13 pt if it would not fit, then it scrolls). Steps 1 and 2 have one primary Next (with a secondary “All patterns” at step 1, opening the coach); step 3 has a secondary Lesson (104 pt) and the primary action. Buttons are 44 pt.
+	•	Step 1 “Where to look”: the nudge, with the unit tinted. “Look at box 4. Where can 5 go?”
+	•	Step 2 “Technique”: the technique name and its one-line definition. The pattern cells are filled and, in cells without notes, the candidates it relies on are shown.
 	•	Step 3 “Why”: evidence rings, the dashed target with its ghost digit, struck-through eliminations. “Every other empty cell in box 4 already sees a 5. So 5 can only go in row 5, column 2.” If the player’s notes, not placed digits, rule a cell out, it reads “sees or has ruled out”.
 	•	Step 3 button: “Place 5 · assisted”, or for eliminations “Remove 5 · assisted” (one digit) / “Apply · assisted”. It makes the change as one undoable edit (Section 6.7). An elimination in a cell without notes first writes that cell’s candidates as notes, so the deduction is kept and the next hint moves on.
-	•	“Lesson →” (from step 2) pushes the technique’s lesson (Section 13.5); Back returns to the game. The timer stops while the game is off screen, also across a trip to the background, and runs again when the game shows.
+	•	Lesson (step 3) pushes the technique’s lesson (Section 13.5); Back returns to the game. The timer stops while the game is off screen, also across a trip to the background, and runs again when the game shows.
 	•	Each hint carries: nudge, technique, tier, short (definition), why, focus, evidence, pattern, elim and target (TechniqueStep and HintSession).
 	•	If the solver finds no step it can explain, the card opens at step 3: “This step needs a technique beyond what hints explain yet. Placing 5 in row 5, column 2.” with “Place 5 · assisted”. It never returns nothing.
 	•	Every hint opens at step 1 (the earlier fading plan, which opened new techniques at the “why” rung, is dropped).
@@ -556,42 +550,44 @@ Testing requirements:
 
 7.1 Appearance
 
-Implement:
+Implement (HANDOFF 6.3):
 enum Appearance: String, Codable {
-    case day          // warm paper palette
-    case night        // black canvas, warm digits, silent
-    case afterDark    // Night from sunset to sunrise; Day otherwise
-    case matchSystem  // Day or Dark with iOS Light and Dark mode; never Night
+    case light, dark, night
 }
+plus Settings.nightAfterDark (Night from sunset to sunrise, whatever appearance says by day) and Settings.adoptsSystemStyle (true until the app first resolves Light or Dark from the system style).
 
-The resolved look (Look) is Day, Dark or Night; it is worked out on read and never saved. Match iPhone gives Day with iOS Light mode and Dark with iOS Dark mode, read from the screen's own traits (which ignore the app's override). Night or After dark inside its window gives Night; Day or After dark outside it gives Day. Only Night brings the bedtime behaviour: the backlight (12.3), Drift, the first-night flow and runtime silence (12.7). Dark is an ordinary theme: sounds and haptics follow settings, the player's brightness is untouched and Clarity applies. The display side effects (UIKit colours, brightness, first night) refresh whenever the look changes, including Day ↔ Dark.
+The resolved look (Look) is Day (Light), Dark or Night; it is worked out on read and never saved. Night when appearance is Night, or Night after dark is on inside its window; otherwise Light or Dark as chosen. A fresh install, and a v2 Match iPhone setting, follow iOS until the first screen appears, then keep the style found (AppController.adoptSystemStyleIfNeeded). There is no Match iPhone choice. Only Night brings the bedtime behaviour: the backlight (12.3), Drift, the first-night flow and runtime silence (12.7). Dark is an ordinary theme: sounds and haptics follow settings, the player's brightness is untouched and Clarity applies. The display side effects (UIKit colours, brightness, first night) refresh whenever the look changes, including Light ↔ Dark.
 
-	•	Default: afterDark. AfterDarkScheduler decides the window:
+	•	Default: Night after dark on. AfterDarkScheduler decides the window:
 	•	With location (useLocationForAfterDark and a known place): sunset to sunrise, worked out on the device with the NOAA solar equations. No network.
-	•	Location is CoreLocation with reduced accuracy (NSLocationDefaultAccuracyReduced). The app asks only when the player picks After dark or “Use sunset and sunrise”. If permission was given earlier, the place is refreshed at launch without asking.
-	•	Without location (off, denied, not known yet, or a day with no sunset): fixed hours, 9:00 PM → 6:30 AM by default, editable on Display & Night. If permission is taken away, the cached place is dropped.
+	•	Location is CoreLocation with reduced accuracy (NSLocationDefaultAccuracyReduced). The app asks only when the player turns Night after dark on or taps “Use sunset and sunrise”. If permission was given earlier, the place is refreshed at launch without asking.
+	•	Without location (off, denied, not known yet, or a day with no sunset): fixed hours, 9:00 PM → 6:30 AM by default, editable in the Display sheet. If permission is taken away, the cached place is dropped.
 	•	Each local day uses one source: the sun when it rises and sets that day, else the fixed hours. A day's sun times are those of the solar day whose noon falls on that local day (right across the date line; near the poles the sunset may be after midnight). The next boundary is the first moment Night really changes. The candidates are every sunrise and sunset, every fixed-hour start and end (including the end of a window that began the day before), and every local midnight, where a day can change source. While the app runs, when Night first comes on in Day it shows the first-night flow, which closes the Night sheet and the camera picker first.
 	•	Fixed hours are instants on the calendar: a wall time that happens twice (clocks go back) means its first occurrence; a skipped one (clocks go forward) means the next valid time. The Night check and the boundary list use the same rule.
 	•	The maths uses a Gregorian calendar in the device’s current time zone, whatever calendar the device shows.
 	•	A one-shot timer fires at the next boundary. It is re-armed after any settings change, a new place, a permission change, a clock change (significantTimeChangeNotification) or a time zone change. The palette then changes inside a 600 ms fade (instant with Reduce Motion).
-	•	Match iPhone leaves the colour scheme to iOS (so Dark is dark and Day light without feeding back); the other choices pin it (Day = light, Night = dark).
+	•	Light pins the light colour scheme, Dark and Night the dark one; until the system style is adopted, Light and Dark are left to iOS so its style can be read without feedback.
 	•	The palette (PSPalette) and type scale (PSType) are injected through the SwiftUI environment (psPalette, psType) from the app root. Views never hard-code colours.
-	•	v1 settings migrate once: theme light → Day, dark → Night, system → Match iPhone; sleepBrightness normal / dim / extraDim → glow 55 / 30 / 18; the active display profile (the bedtime profile when bedtimeMode is on) then sets glow = (1 − dimness) × 60 and warmth; theme sleep or bedtimeMode → Night with the Lights out preset, unless hasCalibratedDisplay, when the profile wins; autoCheckMistakes true → Right away, false → When I check; autoRemoveCandidates → tidyNotes; hasCalibratedDisplay → calibrated.
+	•	v2 settings migrate once: day → Light, night → Night, afterDark → Light with Night after dark on, matchSystem → the system style (adoptsSystemStyle).
+	•	v1 settings migrate once: theme light → Light, dark → Night, system → the system style; sleepBrightness normal / dim / extraDim → glow 55 / 30 / 18; the active display profile (the bedtime profile when bedtimeMode is on) then sets glow = (1 − dimness) × 60 and warmth; theme sleep or bedtimeMode → Night with the Lights out preset, unless hasCalibratedDisplay, when the profile wins; autoCheckMistakes true → Right away, false → When I check; autoRemoveCandidates → tidyNotes; hasCalibratedDisplay → calibrated.
 
 7.2 Visual Rules
-	•	Day palette (fixed): bg #F4F1E9, surface #EBE6DA, surface2 #E2DCCD, ink #1B1A17, ink2 #57534B, ink3 #8A857A, accent #9A5712, accentDim #C9A27A, line #CFC8B8 (Clarity Large/Bold: #B9B1A0), lineMajor #2E2B25, hair #D8D1C1, sel #EFD9B0, peer #ECE6D9, same #F1E2C6, err #B3261E.
-	•	Dark palette (fixed; Match iPhone with iOS Dark mode): bg #161513, surface #22201D, surface2 #2D2A26, ink #F3EFE7, ink2 #C9C3B8, ink3 #A39D92, accent #F4B366, accentDim #8A6A44, line #3A3732 (Clarity Large/Bold or Increase Contrast: #4D4943), lineMajor #8C867B, hair #3A3732, sel #534022, peer #282521, same #42341E, err #FF9C90, status #F3EFE7, focusDim 0.45. Increase Contrast also uses ink2 #DDD8CF, ink3 #BFB9AE, lineMajor #A9A397, hair #4D4943. Text (ink, ink2, ink3, accent, err) keeps 4.5:1 on bg, surface and surface2, and ink, accent and err keep 4.5:1 on every cell fill; notes, ghost digits, rings, the accent button and toggle (the off toggle outline is ink3 in Dark) keep 3:1 against what they sit on. Fills step plain < peer < same < sel by at least 5 L*, and peer stays darker than line. Dark follows the Day rules for fills (filled primary buttons, cards and selected segments), with the same-digit ring and the 75% ghost digit of Night.
+	•	v3 look (design_handoff_v3/HANDOFF.md): floating glass controls over a plain board, one accent colour. Type: Bricolage Grotesque for display text (`.serif` in psFont) and DM Sans for everything else, bundled in Resources/Fonts under the SIL Open Font License with their licence files. psFont keeps Dynamic Type scaling; Bricolage at 21 pt and above tracks −0.02 em.
+	•	Day palette (Light, fixed): bg #F2F2F7, surface #FFFFFF, surface2 #E5E5EA, ink #000000, ink2 and ink3 #63636A, accent #007580, accentDim #7FBAC0, line #D4D4DA (Clarity Large/Bold: #BCBCC2), lineMajor #3A3A3C, hair #D4D4DA, sel #CCE5E7, peer #E6F2F3, same #DBEDEF, err #C4281C. v3 roles: btnBg #007580, btnInk #FFFFFF, fill #767680 at 14%, focus #007C89 at 10%, glass white 62% with a white 90% edge, segment #FFFFFF, pill black 7%; edge, btnEdge and fillEdge are clear.
+	•	Dark palette (fixed; Appearance Dark): bg #000000, surface #151517, surface2 #2C2C2E, ink #F2F2F7, ink2 and ink3 #A1A1AA, accent #5AD4E6, accentDim #2D6A73, line #48484A (Clarity Large/Bold or Increase Contrast: #545458; lighter than every cell fill, the focus tint included), lineMajor #7C7C82, hair #2C2C2E, sel #163337, peer #0A1719, same #0F2427, err #FF6B5E, status #F2F2F7. Increase Contrast also uses ink2 and ink3 #C7C7CC, lineMajor #A1A1AA, hair #3A3A3C. v3 roles: btnBg #5AD4E6, btnInk #00262B, fill #767680 at 30%, focus #5AD4E6 at 13%, glass #48484E at 50% with a white 16% edge, segment #636366, pill white 12%. Text (ink, ink2, ink3, accent, err) keeps 4.5:1 on bg, surface and surface2, and ink, accent and err keep 4.5:1 on every cell fill; notes, ghost digits, rings, the accent button and toggle (the off toggle outline is ink3 in Dark) keep 3:1 against what they sit on. Fills step plain < peer < same < sel by at least 5 L*, and peer stays darker than line. Dark follows the Day rules for fills (filled primary buttons, cards and selected segments). Cell fills sel, peer and same are kept for Night; Light and Dark use the focus tint on the board.
+	•	Glass (floating controls only: tab bar, tool bar, keypad, round navigation buttons): system Liquid Glass on iOS 26 and later; before that .ultraThinMaterial with a 1 pt glassEdge stroke and a soft shadow; at night no material: black (so content scrolling under the tab bar never shows through) with the 1 pt glassEdge outline; with Reduce Transparency, surface plus a hair stroke.
+	•	Controls: primary button = btnBg pill, btnInk bold 15 pt text, 44 pt tall (1.5 pt btnEdge outline at night); secondary = fill pill with accent text (fillEdge outline at night); segmented = fill pill track, selected segment pill in segment colour (btnEdge ring at night); switch 51 × 31, on = btnBg track with btnInk knob; slider = 4 pt line track, accent progress, 26 pt bg thumb with a 2 pt accent ring.
 	•	Night palette (computed from glow, warmth and Clarity; never hard-coded):
 	•	K = warmth mapped 6500 → 1200 K, interpolated in mireds, rounded to 50 K. Warmth 0 / 45 / 75 / 100 = 6500 / 2200 / 1500 / 1200 K.
 	•	base = blackbody colour of K (Tanner Helland approximation). accent = blackbody of warmth × 0.55 + 52.
 	•	s = floor + (1 − floor) × min(1, glow / 40)^0.9 (above 40, glow drives the backlight, Section 12.3), with floor 0.20 / 0.30 / 0.38 for Clarity Standard / Large / Bold. Increase Contrast uses the Bold floor.
-	•	bg is always #000 (OLED pixels off). Every other token is base or accent times a fixed share of s (Design/v2/README.md, “Night palette”), except that the shares that carry readable text and outlines are raised for contrast: ink2 0.90, ink3 0.78, accentDim 0.65, line 0.30, lineMajor 0.60, hair 0.25. The cell fills are sel 0.33, same 0.25 and peer 0.17, all of accent so the steps hold at any warmth: they step plain < peer < same < sel by at least 5 L* at full strength, peer stays darker than line, no fill is brighter than ink, and at full palette strength (glow 40 and up, any warmth and Clarity) every cell mark (digits, notes, mistakes, ghost digits, rings) keeps at least 3:1 against the fill it sits on. Below glow 40 contrast follows the player's floor; make no contrast claim there.
+	•	bg is always #000 (OLED pixels off). surface and surface2 are #000 too (v3: nothing lit behind text; cards are drawn by their outline). Every other token is base or accent times a fixed share of s: ink 1, ink2 0.85, ink3 0.78, accent 0.96, accentDim 0.65, line 0.30 (v2's value, so lines show on the stepped cell fills), lineMajor 0.60, hair and edge 0.25, focus 0.08 (v3 levels, with ink2, line and lineMajor raised to keep the contrast rules below). btnInk is accent, btnEdge accentDim, fillEdge and glassEdge edge; btnBg, fill, glass, segment and pill are clear. The cell fills are sel 0.33, same 0.25 and peer 0.17, all of accent so the steps hold at any warmth: they step plain < peer < same < sel by at least 5 L* at full strength, peer stays darker than line, no fill is brighter than ink, and at full palette strength (glow 40 and up, any warmth and Clarity) every cell mark (digits, notes, mistakes, ghost digits, rings) keeps at least 3:1 against the fill it sits on. Below glow 40 contrast follows the player's floor; make no contrast claim there.
 	•	Never use a black overlay to dim; it dims everything by the same amount and makes small marks unreadable first.
 	•	Night rules: no filled shapes behind text; primary buttons are outlines (1.5 pt accentDim stroke, accent text); cards are transparent with a 1 pt hair border (popovers over the board, such as the More menu and confirmations, fill #000 so the board does not show through).
 	•	The tab bar, tab headers, Home and Journal follow the same rules: hairlines, no fills behind text at night (Day keeps the surface fill on cards).
 	•	Every state must show by shape or weight, not hue alone (Day and Night):
 	•	Selection: a filled background plus a heavier outline.
-	•	Same digit (Night and Dark): the same fill plus a thinner, inset ring (Section 7.3).
+	•	Same digit: at Night the same fill plus a thinner, inset ring; in Light and Dark weight 800 only (Section 7.3).
 	•	Error: an underline bar plus the err colour.
 	•	Hint roles: rings for evidence and targets, strike-through for eliminations.
 	•	Import: unsure cells are ringed, conflicts underlined, and each legend line has a matching ring or underline swatch (Section 3.4).
@@ -607,12 +603,12 @@ The resolved look (Look) is Day, Dark or Night; it is worked out on read and nev
 	•	Immediately mark conflicting cells as error (error marker, see 7.2).
 	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks. Check marks are saved with the game (GameState.checkedWrong), apart from duplicate marks: a Check mark stays until its cell is edited, in any mode, and a duplicate mark never becomes one.
 	•	Cell states (Design/v2/README.md, “Cell states”):
-	•	Given: ink, given weight. Entered: accent, entered weight. At night givens go one weight heavier (semibold → bold, bold → heavy, heavy → black), because at low glow ink and accent are close in colour.
-	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill; in Night and Dark also a 1.5 pt accent ring, inset 3 pt with radius 4, so it shows by shape and never reads as the selection ring. The ring is skipped on the selected cell and on hint evidence and target cells (selection ring > hint rings > same-digit ring). It applies wherever the board is drawn (game, practice, import review).
+	•	Given: ink, Bricolage 800. Entered: accent, Bricolage 500 (the bundled font has no 600 / 700, so Clarity changes size only). Digits are 0.62 × the cell × Clarity. The weight gap keeps givens and entries apart at night, where ink and accent are close in colour.
+	•	Selected: a 2 pt solid accent ring inset 3 pt, radius 9. Light and Dark: the selected cell and its peers (row, column, box) get the focus tint; the same digit elsewhere goes to 800, as do matching notes; no other fill. Night keeps stepped fills (sel, peer, same) and a same-digit 1.5 pt accent ring, inset 3 pt with radius 4, so it shows by shape and never reads as the selection ring. The ring is skipped on the selected cell and on hint evidence and target cells (selection ring > hint rings > same-digit ring). It applies wherever the board is drawn (game, practice, import review).
 	•	Mistake: err digit plus a 3 pt bar under it (120% of its width): err by day, ink at night, where err and accent look alike. VoiceOver adds “mistake” (and “given” for givens) as the cell's value.
-	•	Notes: 3×3 at cell × 0.25; a note matching the selected digit is bold accent.
-	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim: 0.28 by day, 0.45 at night so the rest of the board stays readable), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit (75% at night) on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
-	•	By step: 1 spotlight; 2 adds the pattern fill; 3 adds evidence rings, the target and struck eliminations.
+	•	Notes: a 3×3 mini grid inset 3 pt top and bottom, 4 pt left and right, DM Sans 600 at cell × 0.24 in ink2; each digit in its fixed place. A note matching the selected digit is bold; a hint's key notes are bold accent.
+	•	Hint marks: the unit and pattern cells get the focus tint (at night pattern cells keep the same fill); proof cells a 2 pt solid accent ring and the target a 2 pt dashed one, both inset 3 pt with radius 9; at the Why step the answer shows in accent at 800 inside the dashed ring (a mistake gets the ring without it); ruled-out cells a 1 pt dotted ink3 ring. The game board does not dim other cells; in lessons, digits outside the step's cells are ink2 at 500. VoiceOver adds “proof” and “hint target” to those cells' values.
+	•	By step: 1 the unit; 2 adds the pattern; 3 adds proof rings, the target and struck eliminations.
 	•	Hint highlights:
 	•	Fade in (about 0.15 s). Never blink or pulse.
 	•	Stay until the player moves to another step or closes the card.
@@ -620,7 +616,8 @@ The resolved look (Look) is Day, Dark or Night; it is worked out on read and nev
 Testing requirements:
 	•	Unit tests:
 	•	Appearance is persisted and restored; v1 settings migrate (Section 7.1).
-	•	Night palettes for the three presets match the Design/v2/styles.css snapshots within ±1 per channel.
+	•	Night palettes for the three presets match the snapshots in NightPaletteTests within ±1 per channel; Night surfaces, fills, glass and the primary button are black or clear.
+	•	Light, Dark, Reading lamp and Lights out keep ink, ink2, accent and err at 4.5:1 and lineMajor at 3:1 on bg and surface (Red light is dim by design). The bundled fonts load under the names psFont uses.
 	•	Kelvin for warmth 0 / 45 / 75 / 100 is 6500 / 2200 / 1500 / 1200.
 	•	UI tests (basic):
 	•	Switch theme to Dark and verify at least that background or some key UI element changes (sanity check).
@@ -710,7 +707,7 @@ Testing requirements:
 	•	Hint latency: a hint (one solver step) must be ready within 50 ms on the oldest supported iPhone. Grading a puzzle may take longer but must run off the main thread.
 	•	Hint correctness (phase 2 onward): no hint may ever remove a correct candidate or place a wrong digit.
 	•	Accessibility:
-	•	Support Dynamic Type. Chrome text (screen titles, rows, cards, Home, Learn, lessons, Journal, Display & Night, the Night sheet, hint and confirmation cards, Import, First night) scales from the design’s size at the default text size, following the nearest system text style. At accessibility sizes, a label and its control stack instead of sitting side by side, button pairs stack, and screens that no longer fit scroll.
+	•	Support Dynamic Type. Chrome text (screen titles, rows, cards, Home, Learn, lessons, Journal, the Display sheet, hint and confirmation cards, Import, First night) scales from the design’s size at the default text size, following the nearest system text style. At accessibility sizes, a label and its control stack instead of sitting side by side, button pairs stack, and screens that no longer fit scroll.
 	•	The game screen must still fit one screen: the header, the tool row and the Solved panel stop growing at xxxLarge; the board and the 1×9 keypad keep a fixed size (the board has its own Clarity sizes, and candidate marks keep their minimum size). Keypad keys, tools, header icons and tab bar items show the Large Content Viewer on a long press. At accessibility sizes the hint slot also takes the free room above the tools; hint text that still does not fit steps down one size, then scrolls, and never truncates.
 	•	Color contrast:
 	•	Day: at least 4.5:1 for digits and text, 3:1 for grid lines and large or bold text.
@@ -937,10 +934,10 @@ Testing requirements:
 
 12.7 Night shortcut and silence
 	•	Bedtime Mode is replaced by Night (Section 7.1). The moon on every tab, on Import and in the game header opens the Night sheet. The old main-menu Night bar is removed.
-	•	Night sheet (NightSheetView): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge, 36 × 5 grabber. Backdrop black at 55% at night and in Dark, warm at 18% in Day; tapping it or × closes the sheet. At least 56 pt of backdrop always shows; when the controls do not fit (iPhone SE, large text) the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live.
-	•	Contents: “Night”; Day · Night · After dark segments (none marked for Match iPhone, which adds the line “Follows your iPhone: Day or Dark.”; After dark adds a line on the hours in use); then, only for Night and After dark: three presets, Glow (“Below your iPhone’s lowest brightness.” up to 40, else “Above 40%, the screen itself gets brighter.”), Warmth in Kelvin on a Kelvin-colour track (“Blue light about N% lower than daylight white.”, or “Almost no blue light.” above 95%); Clarity (“Bigger, heavier digits and stronger lines, by day and at night.”, the same sentence on Display & Night); then, only for Night and After dark: Drift and Find my lowest glow (Start). Display & Night always keeps the Night tuning and calibration, because they set future nights; calibration holds the backlight at its minimum while it is on screen, in any look.
-	•	At night the selected segment is an accentDim ring, not a fill, the slider knob is a 2 pt ink2 ring on black, and the Warmth track is capped at 75% of the ink’s light, so no fill is brighter than ink. The sheet, the first-night screen and every screen but the game hide the white system status bar at night; the game follows Hide status bar in games.
-	•	The one accepted system alert is the iOS location permission prompt. It appears only after the player taps After dark (or “Use sunset and sunrise”), and it follows the dark colour scheme at night.
+	•	Display sheet (NightSheetView, HANDOFF 6.3): a custom bottom panel drawn over every screen from the app root, never a system sheet. Top radius 28, bg fill, hair top edge (edge at night), 36 × 5 grabber. Backdrop black at 55% at night and in Dark, 18% in Light; tapping it or Done closes the sheet. At least 56 pt of backdrop always shows; the panel scrolls. VoiceOver treats the panel as modal. It fades in and out. The screen behind repaints live, and changing Appearance re-themes the sheet at once.
+	•	Contents: “Display” (Bricolage 28) and Done; a preview strip (two givens, two entries in the current settings); Appearance: Light · Dark · Night segments, then a card with “Night after dark — Switches at sunset, back at sunrise” and a switch; when it is on (and Appearance is not Night) the card also shows tonight's sun times, or the fixed hours with − / + (15-minute steps), and “Use fixed hours instead” / “Use sunset and sunrise”. Night (always shown; applies whenever Night is on): Reading lamp · Lights out · Red light segments; a card with Glow (slider and %), Warmth (slider and Kelvin), Clarity (Standard · Large · Bold) and Drift (“Dims and warms slowly over 30 minutes”); then a secondary “Find my lowest glow” button. Calibration holds the backlight at its minimum while it is on screen, in any look.
+	•	At night the selected segment is a btnEdge ring, not a fill, the slider knob is a 2 pt accent ring on black, and the on switch is an outline with an accent knob, so no fill is brighter than ink. The sheet, the first-night screen and every screen but the game hide the white system status bar at night; the game follows Hide status bar in games.
+	•	The one accepted system alert is the iOS location permission prompt. It appears only after the player turns Night after dark on (or taps “Use sunset and sunrise”), and it follows the dark colour scheme at night.
 	•	Hush and Goodnight (Section 3.2) go to pure black in one tap.
 	•	When Night is active:
 	•	Sounds and haptics are off at runtime, whatever the saved settings say (the saved choice is kept for Day and Dark).
@@ -951,10 +948,10 @@ Testing requirements:
 Testing requirements:
 	•	Unit tests:
 	•	With Night active, soundsActive and hapticsActive are false, the palette is the Night palette and the colour scheme is dark.
-	•	With Match iPhone and iOS dark: isNight is false, the palette is Dark, the colour scheme is left to iOS (dark), brightness is untouched, sounds and haptics follow settings, and the first-night flow does not appear. Dark palette contrast pairs and fill ladder (Section 7.2).
+	•	With Appearance Dark: isNight is false, the palette is Dark, the colour scheme is dark, brightness is untouched, sounds and haptics follow settings, and the first-night flow does not appear. Dark palette contrast pairs and fill ladder (Section 7.2).
 	•	UI tests:
 	•	Turn Night on from the moon on Home and open a game.
-	•	The moon opens the Night sheet on Home and in a game; × and the backdrop close it.
+	•	The moon opens the Display sheet on Home and in a game; Done and the backdrop close it. Every control in it can be reached, also at the largest text size.
 
 ⸻
 
@@ -1012,17 +1009,17 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	When strength falls low, the Learn screen offers an optional review drill. No streak alarms, no notifications.
 
 13.5 Learn screen (phase 5, redesigned in phase 6)
-	•	The Learn tab, top to bottom (Design/v2/README.md, “Learn”):
-	•	“Learn” and the moon; the sub-line “N of 27 techniques in your hands” (mastered techniques only).
-	•	Up next card: the first technique in curriculum order that is not mastered. “UP NEXT · N STEPS”, the name (serif 24), and a reason: the level that needs it, then the player’s credits (“4 of 10 unaided uses so far”) or the hints they met it in. An accent chevron. No card once everything is mastered.
-	•	The five Learn tiers (Section 13.2), each a section label and rows: the mastery dot (Section 7.2), the name, its one-line definition (one per technique, saying “row, column or box”, never “house”), and the credit count (“12×”), or “Lesson” for the four written lessons.
-	•	A lesson is pushed, never a sheet, with its own header: Back, “TIER · LESSON”, the title (serif 34) and an intro. Then the board (at most 342 pt wide, SudokuGridView with the hint marks), the step text (17 pt, at least 92 pt tall) and a footer: a previous-step circle, step pills, and Next, which becomes Practise on the last step.
+	•	The Learn tab, top to bottom (HANDOFF 6.6, screens/learn-*.png):
+	•	The line “27 techniques in 5 tiers”, the moon and “Learn”.
+	•	Up next card: the first technique in curriculum order that is not mastered: “Up next · Tier”, the name (Bricolage 24, 800), its one-line definition and a primary “Start lesson”. No card once everything is mastered.
+	•	The five Learn tiers (Section 13.2), each a label and a grouped list: the name (Bricolage 19, 800), its status — Mastered (with an accent check), Learning, Up next or New — and a chevron. The one-line definitions (one per technique, saying “row, column or box”, never “house”) show on the Up next card and in the lesson.
+	•	A lesson is pushed, never a sheet (screens/lesson-*.png): a round glass Back and “Tier · lesson N of 27”; the title (Bricolage 33, 800) and its one-line definition; the board (screen width − 12, SudokuGridView with the hint marks; digits outside the step's cells are ink2 at 500, not faded); a step card with “Step N of M” and the step text (15 pt); then Back (secondary, 104 pt) and Next (primary), which becomes Practise on the last step, and before that a text button “Practise on a real puzzle”. The lesson scripts have no step titles yet, so the card has no heading.
 	•	Four lessons are written by hand, ported from Design/v2/ui_kits/puresudoku-2/Learn.jsx as data (LessonScript): Hidden Single (5 steps), Pointing (4), Naked Pair (4), X-Wing (4). Their boards are drawn for teaching, not taken from a puzzle. Their text uses plain cell names.
 	•	Every other lesson uses the template: a bundled puzzle solved up to the first step of that technique, shown as the three hint steps (where to look; why; what changes, with the removals struck and the placement as a ghost digit). Its text follows the cell-name setting.
 	•	The written lessons’ boards are real Sudoku: every note shown is a true candidate, every pattern is the digit’s full set of places, and the solver’s own detector finds the lesson’s step on that board (a unit test checks this).
 	•	Practise opens the first bundled practice puzzle that needs the technique (from the drill index; for the template, not the example puzzle).
 	•	Practice puzzles are not saved and do not count toward stats or the streak; they do count toward learning (mastery and strength).
-	•	Every hint card links to its technique’s lesson from step 2 (“Lesson →”), and shows the technique’s Learn tier.
+	•	Every technique hint links to its lesson at step 3 (Lesson).
 
 13.6 Build phases
 Each phase ships on its own and keeps the app working.
@@ -1042,5 +1039,5 @@ Testing requirements:
 	•	A board needing two techniques in a row (e.g. pointing, then a naked pair) yields both steps in order.
 	•	Unit tests (phase 5): strength decay.
 	•	Unit tests (redesign phase 6): mastered at 10 credits; old progress decodes (and keeps old mastery); a manual placement credits the technique the engine would use for it, once; hint card moves (placements and eliminations) and the cell a hint showed earn nothing; the four written lessons load with 5, 4, 4 and 4 steps and the expected marks; every technique sits in one of the five Learn tiers.
-	•	UI tests (redesign phase 6): Learn shows the five tiers; a lesson steps forward and back, and Practise on the last step opens a puzzle; “Lesson →” opens that technique’s lesson, and Back returns to the same game.
+	•	UI tests (redesign phase 6): Learn shows the five tiers; a lesson steps forward and back, and Practise on the last step opens a puzzle; the hint card's Lesson opens that technique’s lesson, and Back returns to the same game.
 	•	Unit tests (XY-Chain): a hand-made four-cell chain gives exactly the eliminations seen by both ends; the corpus oracle walks every XY-Chain step link by link.

@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-/// The curriculum (CODESPEC 13.5): Up next, then every technique in five tiers with its mastery dot.
-/// A plain stack, not a List: List rows add system chevrons, which stay grey at night (CODESPEC 12.7).
+/// The curriculum (CODESPEC 13.5, HANDOFF 6.6): the Up next card, then every technique in five tiers, each
+/// a grouped list. A plain stack, not a List: List rows add system chevrons, which stay grey at night.
 struct LearnView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
@@ -10,31 +10,34 @@ struct LearnView: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 0) {
-                ScreenHead(title: "Learn")
-                Text("\(inHand) of \(Lesson.techniques.count) techniques in your hands")
-                    .psFont(14)
-                    .foregroundStyle(theme.ink3)
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 18)
-                if let next = upNext { upNextCard(next) }
-                ForEach(LearnTier.allCases) { tier in
-                    SectionLabel(theme: theme, title: tier.displayName)
-                        .accessibilityIdentifier("learn_tier_\(tier.displayName.lowercased())")
-                    VStack(spacing: 0) {
-                        ForEach(Lesson.techniques.filter { $0.learnTier == tier }) { row($0) }
+                ScreenHead(title: "Learn", line: "\(Lesson.techniques.count) techniques in \(LearnTier.allCases.count) tiers")
+                Group {
+                    if let next = upNext { upNextCard(next) }
+                    ForEach(LearnTier.allCases) { tier in
+                        Text(tier.displayName)
+                            .psFont(15, weight: .semibold)
+                            .foregroundStyle(theme.ink2)
+                            .accessibilityAddTraits(.isHeader)
+                            .padding(.horizontal, 4)
+                            .padding(.top, 24)
+                            .padding(.bottom, 8)
+                            .accessibilityIdentifier("learn_tier_\(tier.displayName.lowercased())")
+                        VStack(spacing: 0) {
+                            ForEach(Array(Lesson.techniques.filter { $0.learnTier == tier }.enumerated()), id: \.element) {
+                                row($0.element, divider: $0.offset > 0)
+                            }
+                        }
+                        .psCard(theme, radius: 26)
+                        .clipShape(RoundedRectangle(cornerRadius: 26))
                     }
-                    .overlay(alignment: .top) { theme.hair.frame(height: 1) }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 22)
                 }
+                .padding(.horizontal, 16)
             }
             .padding(.bottom, 24)
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("learnView")
     }
-
-    private var inHand: Int { Self.inHandCount { controller.progress(for: $0).level } }
 
     /// Mastered techniques only: half-learned ones are not yet "in your hands".
     static func inHandCount(_ level: (Technique) -> TechniqueProgress.Level) -> Int {
@@ -46,64 +49,50 @@ struct LearnView: View {
         Lesson.techniques.first { controller.progress(for: $0).level != .mastered }
     }
 
+    /// Tier, name, its one-sentence definition and a primary Start lesson (HANDOFF 6.6).
     private func upNextCard(_ technique: Technique) -> some View {
-        let progress = controller.progress(for: technique)
-        var reason = "Needed for \(technique.level.displayName) puzzles."
-        if progress.credits > 0 {
-            reason += " \(progress.credits) of \(TechniqueProgress.creditsNeeded) unaided uses so far."
-        } else if progress.hintsSeen > 0 {
-            reason += " You’ve met it in \(progress.hintsSeen) hint\(progress.hintsSeen == 1 ? "" : "s") so far."
-        }
-        return NavigationLink { LessonView(technique: technique) } label: {
-            HStack(spacing: 14) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("UP NEXT · \(Lesson.stepCount(for: technique)) STEPS")
-                        .psFont(12, weight: .semibold).tracking(0.96).foregroundStyle(theme.ink2)
-                    Text(technique.displayName)
-                        .psFont(24, weight: .medium, design: .serif).foregroundStyle(theme.ink)
-                    Text(reason).psFont(14).foregroundStyle(theme.ink2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Chevron(color: theme.accent)
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Up next · \(technique.learnTier.displayName)").psFont(13, weight: .medium).foregroundStyle(theme.ink2)
+            Text(technique.displayName).psFont(24, weight: .heavy, design: .serif).foregroundStyle(theme.ink)
+            Text(technique.definition).psFont(15).foregroundStyle(theme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            NavigationLink { LessonView(technique: technique) } label: {
+                Text("Start lesson").frame(maxWidth: .infinity)
             }
-            .padding(EdgeInsets(top: 16, leading: 18, bottom: 16, trailing: 16))
-            .contentShape(Rectangle())
+            .buttonStyle(PSButtonStyle(theme: theme))
+            .padding(.top, 14)
+            .accessibilityIdentifier("learn_upNext")
         }
-        .buttonStyle(.plain)
-        // Night: no lit fill behind text, only the hairline (CODESPEC 7.2).
-        .background(RoundedRectangle(cornerRadius: 18).fill(theme.isNight ? .clear : theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(theme.hair, lineWidth: 1))
-        .padding(.horizontal, 16)
-        .padding(.bottom, 28)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("learn_upNext")
+        .padding(16)
+        .psCard(theme, radius: 26)
+        .accessibilityElement(children: .contain)
     }
 
-    private func row(_ technique: Technique) -> some View {
-        let progress = controller.progress(for: technique)
-        let trailing = progress.credits > 0 ? "\(progress.credits)×" : LessonScript.all[technique] != nil ? "Lesson" : ""
+    /// Name (`row`), then its status — Mastered with a check, Learning, Up next or New — and a chevron.
+    private func row(_ technique: Technique, divider: Bool) -> some View {
+        let level = controller.progress(for: technique).level
+        let status = technique == upNext ? "Up next" : Self.levelName(level)
         return NavigationLink { LessonView(technique: technique) } label: {
-            HStack(spacing: 14) {
-                StatusDot(level: progress.level, theme: theme)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(technique.displayName).psFont(16).foregroundStyle(theme.ink)
-                    Text(technique.definition).psFont(13).foregroundStyle(theme.ink3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Text(trailing).psFont(12, monospacedDigit: true).foregroundStyle(theme.ink3)
-                    .accessibilityLabel(Self.creditsLabel(progress.credits, otherwise: trailing))
+            HStack(spacing: 10) {
+                Text(technique.displayName)
+                    .psFont(19, weight: .heavy, design: .serif)
+                    .foregroundStyle(theme.ink)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text(status).psFont(15).foregroundStyle(theme.ink2)
+                Image(systemName: level == .mastered ? "checkmark" : "chevron.right")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(level == .mastered ? theme.accent : theme.ink2)
+                    .accessibilityHidden(true)
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 12)
-            .frame(minHeight: 44)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(minHeight: 60)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .overlay(alignment: .bottom) { theme.hair.frame(height: 1) }
+        .overlay(alignment: .top) { if divider { theme.line.frame(height: 1) } }
         .accessibilityElement(children: .combine)
-        .accessibilityValue(Self.levelName(progress.level))
+        .accessibilityValue(status)
         .accessibilityIdentifier("learn_\(technique.rawValue)")
     }
 
@@ -119,37 +108,6 @@ struct LearnView: View {
         case .learning: return "Learning"
         case .mastered: return "Mastered"
         }
-    }
-}
-
-/// 12 pt status dot. The shape carries the meaning, not the hue: mastered is filled, learning is
-/// half filled, new is an empty ring.
-struct StatusDot: View {
-    let level: TechniqueProgress.Level
-    let theme: PSPalette
-
-    var body: some View {
-        ZStack {
-            switch level {
-            case .mastered: Circle().fill(theme.accent)
-            case .learning:
-                Circle().strokeBorder(theme.accent, lineWidth: 1.5)
-                Circle().fill(theme.accent).mask(HStack(spacing: 0) { Rectangle(); Color.clear })
-            case .new: Circle().strokeBorder(theme.ink3, lineWidth: 1.5)
-            }
-        }
-        .frame(width: 12, height: 12)
-        .accessibilityHidden(true)
-    }
-}
-
-/// A disclosure chevron drawn in palette colours; the system one stays grey at night.
-struct Chevron: View {
-    let color: Color
-
-    var body: some View {
-        Image(systemName: "chevron.right").psFont(14, weight: .semibold).foregroundStyle(color)
-            .accessibilityHidden(true)
     }
 }
 
@@ -170,17 +128,18 @@ struct LessonView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(technique.displayName)
-                        .psFont(34, weight: .medium, design: .serif)
+                        .psFont(33, weight: .heavy, design: .serif)
                         .foregroundStyle(theme.ink)
                         .accessibilityAddTraits(.isHeader)
                         .accessibilityIdentifier("lesson_title")
-                    Text(lesson?.intro ?? technique.definition)
-                        .psFont(15).lineSpacing(3).foregroundStyle(theme.ink2)
+                        .padding(.top, 4)
+                    Text(technique.definition)
+                        .psFont(15).foregroundStyle(theme.ink2)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 8)
-                    content.padding(.top, 14)
+                        .padding(.top, 2)
+                    content.padding(.top, 10)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 16)
             }
             if let lesson { footer(lesson) }
         }
@@ -196,83 +155,93 @@ struct LessonView: View {
         }
     }
 
+    /// Round glass Back and "Tier · lesson N of M" (HANDOFF 6.6).
     private var header: some View {
         HStack(spacing: 0) {
-            HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
+            HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back", round: true) { dismiss() }
                 .accessibilityIdentifier("lesson_back")
-            Text("\(technique.learnTier.displayName) · Lesson".uppercased())
-                .psFont(12, weight: .semibold).tracking(0.96).foregroundStyle(theme.ink2)
+            Text("\(technique.learnTier.displayName) · lesson \(lessonNumber) of \(Lesson.techniques.count)")
+                .psFont(15, weight: .medium).foregroundStyle(theme.ink2)
                 .frame(maxWidth: .infinity)
             Color.clear.frame(width: 44, height: 44)
         }
-        .padding(.horizontal, 10)
-        .frame(minHeight: 48)
+        .padding(.horizontal, 16)
+        .frame(minHeight: 44)
     }
 
+    private var lessonNumber: Int { (Lesson.techniques.firstIndex(of: technique) ?? 0) + 1 }
+
+    /// The board (screen width − 12) and a step card; only the cells that matter are at full strength.
     @ViewBuilder
     private var content: some View {
         if let lesson {
             let step = lesson.steps[index]
             SudokuGridView(cells: lesson.cells, selectedCellID: nil, theme: theme, highlight: step.highlight) { _ in }
-                .frame(maxWidth: 342)
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, -10)
                 .allowsHitTesting(false)
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("lessonBoard")
-            Text(step.text)
-                .psFont(17).lineSpacing(4).foregroundStyle(theme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
-                .padding(.top, 18)
-                .id(index)
-                .transition(.opacity)
-                .accessibilityIdentifier("lesson_stepText")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Step \(index + 1) of \(lesson.steps.count)")
+                    .psFont(13, weight: .medium).foregroundStyle(theme.ink2)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .accessibilityIdentifier("lesson_progress")
+                Text(step.text)
+                    .psFont(15).lineSpacing(2).foregroundStyle(theme.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
+                    .id(index)
+                    .transition(.opacity)
+                    .accessibilityIdentifier("lesson_stepText")
+            }
+            .padding(EdgeInsets(top: 12, leading: 16, bottom: 14, trailing: 16))
+            .psCard(theme)
+            .padding(.top, 10)
         } else if loaded {
             Text("No example puzzle for this technique yet.").psFont(15).foregroundStyle(theme.ink2)
         } else {
-            ProgressView().tint(theme.ink3).frame(maxWidth: .infinity, minHeight: 342)
+            ProgressView().tint(theme.ink2).frame(maxWidth: .infinity, minHeight: 342)
         }
     }
 
-    /// Back circle, step pills, then Next, which becomes Practise on the last step.
+    /// Back (secondary) and Next (primary), which becomes Practise on the last step; before that a text
+    /// button, "Practise on a real puzzle" (HANDOFF 6.6).
     private func footer(_ lesson: Lesson) -> some View {
         let last = index == lesson.steps.count - 1
-        return HStack(spacing: 10) {
-            Button { go(to: index - 1) } label: {
-                Image(systemName: "chevron.left").font(.system(size: 17, weight: .medium)).foregroundStyle(theme.ink2)
-                    .frame(width: 44, height: 44)
-                    .overlay(Circle().strokeBorder(theme.hair, lineWidth: 1))
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .disabled(index == 0)
-            .opacity(index == 0 ? 0.3 : 1)
-            .accessibilityLabel("Previous step")
-            .accessibilityIdentifier("lesson_previous")
-            HStack(spacing: 5) {
-                ForEach(lesson.steps.indices, id: \.self) { step in
-                    Capsule().fill(step <= index ? theme.accent : theme.hair).frame(width: step == index ? 16 : 6, height: 6)
+        return VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                Button("Back") { go(to: index - 1) }
+                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 48))
+                    .frame(width: 104)
+                    .disabled(index == 0)
+                    .accessibilityLabel("Previous step")
+                    .accessibilityIdentifier("lesson_previous")
+                if !last {
+                    Button { go(to: index + 1) } label: { Text("Next").frame(maxWidth: .infinity) }
+                        .buttonStyle(PSButtonStyle(theme: theme, height: 48))
+                        .accessibilityIdentifier("lesson_next")
+                } else if let entry = lesson.practice.first {
+                    practiseLink(entry) { Text("Practise").frame(maxWidth: .infinity) }
+                        .buttonStyle(PSButtonStyle(theme: theme, height: 48))
+                        .accessibilityIdentifier("lesson_practise")
                 }
             }
-            .frame(maxWidth: .infinity)
-            .accessibilityElement()
-            .accessibilityLabel("Step \(index + 1) of \(lesson.steps.count)")
-            .accessibilityIdentifier("lesson_progress")
-            if !last {
-                Button("Next") { go(to: index + 1) }
-                    .buttonStyle(PSButtonStyle(theme: theme))
-                    .accessibilityIdentifier("lesson_next")
-            } else if let entry = lesson.practice.first {
-                NavigationLink {
-                    GameView(viewModel: controller.makePracticeGameViewModel(entry, number: 1), difficulty: entry.difficulty)
-                } label: { Text("Practise") }
-                    .buttonStyle(PSButtonStyle(theme: theme))
-                    .accessibilityIdentifier("lesson_practise")
+            if !last, let entry = lesson.practice.first {
+                practiseLink(entry) { Text("Practise on a real puzzle").psFont(15, weight: .semibold).foregroundStyle(theme.accent) }
+                    .buttonStyle(.plain)
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("lesson_practiseLink")
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.top, 8)
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
+    }
+
+    private func practiseLink(_ entry: BundledPuzzles.Entry, @ViewBuilder label: () -> some View) -> some View {
+        NavigationLink {
+            GameView(viewModel: controller.makePracticeGameViewModel(entry, number: 1), difficulty: entry.difficulty)
+        } label: { label() }
     }
 
     /// Steps fade, never slide (CODESPEC 12.4).

@@ -110,7 +110,7 @@ final class HintLadderTests: XCTestCase {
 
         XCTAssertEqual(viewModel.hint?.level, 1)
         XCTAssertEqual(viewModel.hint?.stepLabel, "Where to look")
-        XCTAssertEqual(viewModel.hint?.actionLabel, "Which technique?")
+        XCTAssertEqual(viewModel.hint?.actionLabel, "Next")
         XCTAssertNil(viewModel.hint?.title)
         XCTAssertFalse(viewModel.hintHighlight.areaCells.isEmpty, "step 1 spotlights the focus")
         XCTAssertTrue(viewModel.hintHighlight.ghostDigits.isEmpty)
@@ -122,7 +122,7 @@ final class HintLadderTests: XCTestCase {
         XCTAssertEqual(viewModel.hint?.title, step.technique.displayName)
         XCTAssertEqual(viewModel.hint?.tierLabel, "Beginner")
         XCTAssertEqual(viewModel.hint?.text(.plain), step.technique.definition)
-        XCTAssertEqual(viewModel.hint?.actionLabel, "Show me why")
+        XCTAssertEqual(viewModel.hint?.actionLabel, "Next")
         XCTAssertEqual(viewModel.hint?.lessonTechnique, step.technique)
         XCTAssertTrue(viewModel.hintHighlight.ghostDigits.isEmpty, "a single's answer waits for step 3")
 
@@ -412,7 +412,7 @@ extension HintLadderTests {
         XCTAssertEqual(step.evidence(on: board), [11, 32, 52, 54])
     }
 
-    /// On a 390 pt wide phone (336 pt of text), every step-2 definition fits the card at full size,
+    /// On a 390 pt wide phone (326 pt of text), every step-2 definition fits the card at full size,
     /// and step 3 of the Beginner and Intermediate intersection techniques fits without scrolling.
     /// Longer step-3 texts (subsets, wings, uniqueness) scroll inside the card.
     func testHintTextsFitTheCard() throws {
@@ -432,8 +432,9 @@ extension HintLadderTests {
     private static func fits(_ text: String, size: CGFloat) -> Bool {
         let style = NSMutableParagraphStyle()
         style.lineSpacing = HintCardView.lineSpacing
-        let attributed = NSAttributedString(string: text, attributes: [.font: UIFont.systemFont(ofSize: size), .paragraphStyle: style])
-        let box = CGSize(width: 336, height: CGFloat.greatestFiniteMagnitude)
+        let font = UIFont(name: PSFont.faceName(weight: .regular, display: false), size: size)!
+        let attributed = NSAttributedString(string: text, attributes: [.font: font, .paragraphStyle: style])
+        let box = CGSize(width: 326, height: CGFloat.greatestFiniteMagnitude)
         return attributed.boundingRect(with: box, options: [.usesLineFragmentOrigin], context: nil).height <= HintCardView.bodyHeight
     }
 

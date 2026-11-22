@@ -137,13 +137,28 @@ final class AppController: ObservableObject {
         suppressesFirstNight = arguments.contains("-uiTestSkipFirstNight")
         // UI tests only: start in Day, before the first night, to walk through that flow.
         if arguments.contains("-uiTestFirstNight") {
-            settings.appearance = .day
+            settings.appearance = .light
+            settings.nightAfterDark = false
+            settings.adoptsSystemStyle = false
             settings.calibrated = false
         }
+        applyAppearanceArgument(arguments)
         #endif
         self.afterDark.onBoundary = { [weak self] in self?.afterDarkBoundary() }
         self.afterDark.schedule(for: settings)
     }
+
+    #if DEBUG
+    /// Screenshots: start in a given appearance (`-uiTestAppearance night`).
+    private func applyAppearanceArgument(_ arguments: [String]) {
+        guard let flag = arguments.firstIndex(of: "-uiTestAppearance"), flag + 1 < arguments.count,
+              let appearance = Appearance(rawValue: arguments[flag + 1]) else { return }
+        settings.appearance = appearance
+        settings.nightAfterDark = false
+        settings.adoptsSystemStyle = false
+        settings.calibrated = true
+    }
+    #endif
 
     /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
     /// until then `isUnique` is false, so uniqueness techniques stay off (CODESPEC 2.1).
@@ -395,7 +410,7 @@ final class AppController: ObservableObject {
         (SystemAppearance.screen?.traitCollection ?? UITraitCollection.current).userInterfaceStyle == .dark
     }
 
-    /// The look is worked out on read, so After dark follows the clock and Match iPhone the system setting.
+    /// The look is worked out on read, so Night after dark follows the clock, and a fresh install the system style.
     var look: Look { afterDark.look(settings, systemIsDark: systemIsDark()) }
     /// Only Night brings the bedtime behaviour; Dark is an ordinary theme.
     var isNight: Bool { look == .night }
@@ -406,10 +421,28 @@ final class AppController: ObservableObject {
     var soundsActive: Bool { settings.soundsEnabled && !isNight }
     var hapticsActive: Bool { settings.hapticsEnabled && !isNight }
 
-    /// Picking After dark (or sunset and sunrise) is the only thing that asks for location.
+    /// Only turning Night after dark on (or "Use sunset and sunrise") asks for location.
     func setAppearance(_ appearance: Appearance) {
-        updateSettings { $0.appearance = appearance }
-        if appearance == .afterDark && settings.useLocationForAfterDark { afterDark.requestLocation() }
+        updateSettings {
+            $0.appearance = appearance
+            $0.adoptsSystemStyle = false
+        }
+    }
+
+    /// Night after dark: location is asked for only when the switch is turned on (HANDOFF 6.3).
+    func setNightAfterDark(_ isOn: Bool) {
+        updateSettings { $0.nightAfterDark = isOn }
+        if isOn && settings.useLocationForAfterDark { afterDark.requestLocation() }
+    }
+
+    /// A fresh install or a v2 Match iPhone setting takes the system's current style once, then keeps it.
+    func adoptSystemStyleIfNeeded() {
+        guard settings.adoptsSystemStyle else { return }
+        let dark = systemIsDark()
+        updateSettings {
+            $0.appearance = dark ? .dark : .light
+            $0.adoptsSystemStyle = false
+        }
     }
 
     func setUsesSunForAfterDark(_ on: Bool) {

@@ -21,8 +21,13 @@ struct ClockTime: Codable, Equatable {
 }
 
 struct Settings: Codable, Equatable {
-    // Display & Night (CODESPEC 12)
+    // Display & Night (CODESPEC 12, HANDOFF 6.3)
     var appearance: Appearance
+    /// Night from sunset to sunrise (or the fixed hours), whatever `appearance` says by day.
+    var nightAfterDark: Bool
+    /// True until the app first resolves Light or Dark from the system style: a fresh install, or a v2
+    /// "Match iPhone" setting. Until then the look follows iOS.
+    var adoptsSystemStyle: Bool
     /// 0...100
     var glow: Double
     /// 0...100
@@ -59,7 +64,9 @@ struct Settings: Codable, Equatable {
     var showBuildNumber: Bool
 
     init(
-        appearance: Appearance = .afterDark,
+        appearance: Appearance = .light,
+        nightAfterDark: Bool = true,
+        adoptsSystemStyle: Bool = true,
         glow: Double = NightPreset.lightsOut.glow,
         warmth: Double = NightPreset.lightsOut.warmth,
         clarity: Clarity = .standard,
@@ -81,6 +88,8 @@ struct Settings: Codable, Equatable {
         showBuildNumber: Bool = false
     ) {
         self.appearance = appearance
+        self.nightAfterDark = nightAfterDark
+        self.adoptsSystemStyle = adoptsSystemStyle
         self.glow = glow
         self.warmth = warmth
         self.clarity = clarity
@@ -104,25 +113,27 @@ struct Settings: Codable, Equatable {
 
     static var `default`: Settings { Settings() }
 
-    /// What to draw: Match iPhone is Day or Dark with iOS; Night is .night, or .afterDark inside the window.
+    /// What to draw: Night when chosen, or inside the after-dark window with Night after dark on;
+    /// otherwise Light or Dark (the system style until it has been adopted once).
     func look(now: Date = Date(), sunset: Date? = nil, sunrise: Date? = nil, systemIsDark: Bool, calendar: Calendar = .current) -> Look {
-        if appearance == .matchSystem { return systemIsDark ? .dark : .day }
-        return isNight(now: now, sunset: sunset, sunrise: sunrise, systemIsDark: systemIsDark, calendar: calendar) ? .night : .day
+        if isNight(now: now, sunset: sunset, sunrise: sunrise, systemIsDark: systemIsDark, calendar: calendar) { return .night }
+        if adoptsSystemStyle { return systemIsDark ? .dark : .day }
+        return appearance == .dark ? .dark : .day
     }
 
-    /// Night is active when appearance is .night, or .afterDark inside the window. Match iPhone never
-    /// brings Night: iOS Dark mode gives the Dark look (CODESPEC 7.1).
+    /// Night is active when appearance is .night, or Night after dark is on inside the window (CODESPEC 7.1).
     func isNight(now: Date = Date(), sunset: Date? = nil, sunrise: Date? = nil, systemIsDark: Bool, calendar: Calendar = .current) -> Bool {
-        switch appearance {
-        case .day, .matchSystem: return false
-        case .night: return true
-        case .afterDark:
-            if useLocationForAfterDark, let sunset, let sunrise { return now >= sunset || now < sunrise }
-            let today = calendar.startOfDay(for: now)
-            return [-1, 0].contains { offset in
-                guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return false }
-                return fixedWindows(startingOn: day, calendar: calendar).contains { $0.contains(now) }
-            }
+        if appearance == .night { return true }
+        return nightAfterDark && isAfterDark(now: now, sunset: sunset, sunrise: sunrise, calendar: calendar)
+    }
+
+    /// Inside tonight's window: sunset to sunrise with location, else the fixed hours.
+    func isAfterDark(now: Date, sunset: Date?, sunrise: Date?, calendar: Calendar) -> Bool {
+        if useLocationForAfterDark, let sunset, let sunrise { return now >= sunset || now < sunrise }
+        let today = calendar.startOfDay(for: now)
+        return [-1, 0].contains { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { return false }
+            return fixedWindows(startingOn: day, calendar: calendar).contains { $0.contains(now) }
         }
     }
 
@@ -162,7 +173,8 @@ struct Settings: Codable, Equatable {
     // MARK: Codable, with migration from the v1 keys
 
     private enum CodingKeys: String, CodingKey {
-        case appearance, glow, warmth, clarity, glowFloor, glowScale, lightsOutRevision, calibrated, drift, hideStatusBarInGames
+        case appearance, nightAfterDark, adoptsSystemStyle
+        case glow, warmth, clarity, glowFloor, glowScale, lightsOutRevision, calibrated, drift, hideStatusBarInGames
         case useLocationForAfterDark, afterDarkStart, afterDarkEnd
         case soundsEnabled, hapticsEnabled, mistakes, tidyNotes, showTimer, coachWhenStuck
         case notation, keepImportImages, showBuildNumber
@@ -179,6 +191,7 @@ struct Settings: Codable, Equatable {
         let warmth: Double
     }
 
+    // swiftlint:disable:next function_body_length
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let defaults = Settings()
@@ -186,19 +199,21 @@ struct Settings: Codable, Equatable {
             (try? c.decodeIfPresent(T.self, forKey: key)) ?? fallback
         }
 
-        var appearance = defaults.appearance
+        // v2 stored "day", "night", "afterDark" or "matchSystem"; v1 a `theme`. All map onto v3's
+        // appearance + nightAfterDark + adoptsSystemStyle (HANDOFF 6.3).
+        var appearance = "light"
         var warmth = defaults.warmth
-        // v1: theme light → Day, dark → Night, system → Match iPhone, sleep or Bedtime Mode → Night with Lights out.
+        // v1: theme light → Light, dark → Night, system → the system style, sleep or Bedtime Mode → Night with Lights out.
         if let theme: String = try? c.decodeIfPresent(String.self, forKey: .theme) {
             switch theme {
-            case "light": appearance = .day
-            case "dark", "sleep": appearance = .night
-            default: appearance = .matchSystem
+            case "light": appearance = "light"
+            case "dark", "sleep": appearance = "night"
+            default: appearance = "matchSystem"
             }
             let bedtime = value(.bedtimeMode, false)
             let sleepy = theme == "sleep" || bedtime
             if sleepy {
-                appearance = .night
+                appearance = "night"
                 warmth = NightPreset.lightsOut.warmth
             }
             // A v1 display profile is the player's own tuning: keep its warmth (its brightness was glow scale 1,
@@ -213,7 +228,11 @@ struct Settings: Codable, Equatable {
             }
         }
 
-        self.appearance = value(.appearance, appearance)
+        let stored: String = value(.appearance, appearance)
+        self.appearance = Appearance(rawValue: stored) ?? (stored == "night" ? .night : .light)
+        // v2 After dark → Light by day with Night after dark on; v2 Night and Day keep the switch off.
+        nightAfterDark = value(.nightAfterDark, stored == "afterDark")
+        adoptsSystemStyle = value(.adoptsSystemStyle, stored == "matchSystem")
         self.glow = value(.glow, defaults.glow)
         self.warmth = value(.warmth, warmth)
         // Read before the glow-scale migration below changes glow.
@@ -253,6 +272,8 @@ struct Settings: Codable, Equatable {
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(appearance, forKey: .appearance)
+        try c.encode(nightAfterDark, forKey: .nightAfterDark)
+        try c.encode(adoptsSystemStyle, forKey: .adoptsSystemStyle)
         try c.encode(glow, forKey: .glow)
         try c.encode(warmth, forKey: .warmth)
         try c.encode(clarity, forKey: .clarity)

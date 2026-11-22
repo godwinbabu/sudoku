@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>v3 — Lesson</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+.r{font-family:"DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.r.light{--bg:#F2F2F7;--surface:#FFFFFF;--edge:transparent;--ink:#000000;--ink2:#63636A;--line:#D4D4DA;--lineM:#3A3A3C;--accent:#007580;--focus:rgba(0,124,137,.10);--btnBg:#007580;--btnInk:#FFFFFF;--btnEdge:transparent;--fill:rgba(118,118,128,.14);--fillEdge:transparent;--glass:rgba(255,255,255,.62);--glassEdge:rgba(255,255,255,.9);--glassShadow:0 10px 30px rgba(0,0,0,.14)}
+.r.dark{--bg:#000000;--surface:#151517;--edge:transparent;--ink:#F2F2F7;--ink2:#A1A1AA;--line:#2C2C2E;--lineM:#7C7C82;--accent:#5AD4E6;--focus:rgba(90,212,230,.13);--btnBg:#5AD4E6;--btnInk:#00262B;--btnEdge:transparent;--fill:rgba(118,118,128,.3);--fillEdge:transparent;--glass:rgba(72,72,78,.5);--glassEdge:rgba(255,255,255,.16);--glassShadow:0 10px 30px rgba(0,0,0,.6)}
+.r.night{--bg:#000000;--surface:#000000;--edge:#3A2410;--ink:#D08A3C;--ink2:#A56A2E;--line:#24160A;--lineM:#80522A;--accent:#D9602B;--focus:#140A02;--btnBg:transparent;--btnInk:#D9602B;--btnEdge:#8A3F1C;--fill:transparent;--fillEdge:#3A2410;--glass:transparent;--glassEdge:#3A2410;--glassShadow:none}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border:1px solid var(--glassEdge);box-shadow:var(--glassShadow)}
+.disp{font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-weight:800;letter-spacing:-.02em}
+button{font:inherit;color:inherit}
+.c{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-size:23px;font-weight:500;color:var(--ink2);font-variant-numeric:tabular-nums;border-right:1px solid var(--line);border-bottom:1px solid var(--line);box-sizing:border-box}
+.c:nth-child(9n){border-right:0}.c:nth-child(n+73){border-bottom:0}
+.c.br{border-right:2px solid var(--lineM)}.c.bb{border-bottom:2px solid var(--lineM)}
+.c.fx{background:var(--focus);color:var(--ink);font-weight:800}
+.c.ev{color:var(--ink);font-weight:800}
+.c.ev::after{content:"";position:absolute;inset:3px;border:2px solid var(--accent);border-radius:9px}
+.c.tg::after{content:"";position:absolute;inset:3px;border:2px dashed var(--accent);border-radius:9px}
+</style>
+</helmet>
+<div class="r {{mode}}" style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; background: var(--bg); color: var(--ink); padding: 54px 16px 0">
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 44px">
+    <a class="glass" href="S-Learn.dc.html" aria-label="Back to Learn" style="width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; box-sizing: border-box"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></a>
+    <span style="font-size: 15px; font-weight: 500; color: var(--ink2)">Beginner · lesson 3 of 17</span>
+    <span style="width: 44px"></span>
+  </div>
+  <h1 class="disp" style="margin: 4px 0 2px; font-size: 33px; line-height: 38px">Hidden Single</h1>
+  <p style="margin: 0 0 10px; font-size: 15px; line-height: 20px; color: var(--ink2)">A digit with one possible cell in a unit.</p>
+
+  <div role="img" aria-label="Diagram: box 4 is highlighted. The 5s in row 4, row 6 and column 1 are ringed. Row 5, column 2 has a dashed ring." style="margin: 0 -12px; background: var(--surface); border: 1px solid var(--edge); border-radius: 12px; overflow: hidden; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr))">
+    <sc-for list="{{cells}}" as="c" hint-placeholder-count="81"><div class="{{c.k}}">{{c.d}}</div></sc-for>
+  </div>
+
+  <div style="margin-top: 10px; background: var(--surface); border: 1px solid var(--edge); border-radius: 22px; padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 4px">
+    <div style="display: flex; align-items: baseline; justify-content: space-between">
+      <span class="disp" style="font-size: 21px; line-height: 26px">Rule out cells</span>
+      <span style="font-size: 13px; font-weight: 500; color: var(--ink2)">Step 2 of 4</span>
+    </div>
+    <p style="margin: 0; font-size: 15px; line-height: 20px">Where can 5 go in box 4? Row 4, row 6 and column 1 each already hold a 5, so every empty cell they cross is out.</p>
+  </div>
+
+  <div style="position: absolute; left: 16px; right: 16px; bottom: 22px; display: flex; flex-direction: column; gap: 4px; align-items: center">
+    <div style="display: flex; gap: 8px; width: 100%">
+      <button style="flex: 0 0 104px; height: 48px; border: 1px solid var(--fillEdge); border-radius: 24px; background: var(--fill); color: var(--accent); font-size: 15px; font-weight: 700">Back</button>
+      <button style="flex: 1; height: 48px; border: 1.5px solid var(--btnEdge); border-radius: 24px; background: var(--btnBg); color: var(--btnInk); font-size: 15px; font-weight: 700">Next</button>
+    </div>
+    <button style="height: 44px; border: 0; background: transparent; padding: 0 12px; font-size: 15px; font-weight: 600; color: var(--accent)">Practise on a real puzzle</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["light","dark","night"],"default":"dark"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+const G = '23........7..9..48...34.2....9..145........91..395.8..9..2...8.5.....6.2.42..6.79';
+const U = '.....8.........3....8..5....2..6......68..7..7................................1..';
+const EV = [34, 49, 63], T = 37;
+const cells = [];
+for (let i = 0; i < 81; i++) {
+const r = Math.floor(i / 9), c = i % 9;
+let k = 'c';
+if (c % 3 === 2 && c < 8) k += ' br';
+if (r % 3 === 2 && r < 8) k += ' bb';
+if (r >= 3 && r <= 5 && c <= 2) k += ' fx';
+if (EV.indexOf(i) >= 0) k += ' ev';
+if (i === T) k += ' tg';
+cells.push({ d: G[i] !== '.' ? G[i] : U[i] !== '.' ? U[i] : '', k: k });
+}
+return { mode: this.props.mode ?? 'dark', cells: cells };
+}
+}
+</script>
+</body>
+</html>

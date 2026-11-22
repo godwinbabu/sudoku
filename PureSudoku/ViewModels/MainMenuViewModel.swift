@@ -57,19 +57,12 @@ final class MainMenuViewModel: ObservableObject {
     }
 
     /// "Saturday night · 6-night streak".
-    func subLine(at date: Date = Date(), calendar: Calendar = .current) -> String {
-        let hour = calendar.component(.hour, from: date)
-        let part = switch hour {
-        case 5..<12: "morning"
-        case 12..<17: "afternoon"
-        case 17..<21: "evening"
-        default: "night"
-        }
+    /// Home's date line, "Saturday, November 21" (HANDOFF 6.1). No streak here: no streak pressure (HANDOFF 7).
+    func dateLine(at date: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> String {
         let formatter = DateFormatter()
         formatter.calendar = calendar
-        formatter.dateFormat = "EEEE"
-        let day = formatter.string(from: date)
-        let streak = stats.currentStreak(at: date, calendar: calendar)
-        return streak > 0 ? "\(day) \(part) · \(streak)-night streak" : "\(day) \(part)"
+        formatter.locale = locale
+        formatter.setLocalizedDateFormatFromTemplate("EEEEMMMMd")
+        return formatter.string(from: date)
     }
 }

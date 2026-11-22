@@ -7,6 +7,8 @@ struct MainMenuView: View {
     @EnvironmentObject private var controller: AppController
     @StateObject private var viewModel: MainMenuViewModel
     @State private var tab = AppTab.play
+    /// Set by the tab bar's import button on Learn or Journal: Play opens the import flow when it shows.
+    @State private var wantsImport = false
 
     /// The model is an autoclosure: StateObject builds it once, not on every parent redraw (issue 70).
     init(viewModel: @autoclosure @escaping () -> MainMenuViewModel) {
@@ -15,11 +17,20 @@ struct MainMenuView: View {
 
     var body: some View {
         switch tab {
-        case .play: PlayTab(viewModel: viewModel, tab: $tab)
-        case .learn: RootStack(tab: $tab) { LearnView().tabBar($tab) }
+        case .play: PlayTab(viewModel: viewModel, tab: $tab, wantsImport: $wantsImport)
+        case .learn: RootStack(tab: $tab) { LearnView().tabBar($tab, onImport: importFromAnotherTab) }
         case .journal: RootStack(tab: $tab) { JournalView(viewModel: StatsViewModel(controller: controller),
-                                                            settings: SettingsViewModel(controller: controller)).tabBar($tab) }
+                                                            settings: SettingsViewModel(controller: controller))
+                .tabBar($tab, onImport: importFromAnotherTab) }
         }
+    }
+}
+
+extension MainMenuView {
+    /// Import lives in Play's navigation stack.
+    private func importFromAnotherTab() {
+        wantsImport = true
+        tab = .play
     }
 }
 
@@ -53,6 +64,7 @@ private struct PlayTab: View {
     @EnvironmentObject private var controller: AppController
     @ObservedObject var viewModel: MainMenuViewModel
     @Binding var tab: AppTab
+    @Binding var wantsImport: Bool
     @State private var path = NavigationPath()
     @State private var routeViewModels: [UUID: GameViewModel] = [:]
     /// Each game route's depth in `path`. Its model is kept until the path is shorter than that, so a
@@ -63,8 +75,8 @@ private struct PlayTab: View {
     var body: some View {
         NavigationStack(path: $path) {
             HomeView(viewModel: viewModel, onContinue: continueGame, onNew: startGame,
-                     onImport: { path.append(ImportRoute()) }, onOpenImport: openImportedGame)
-                .tabBar($tab)
+                     onOpenImport: openImportedGame)
+                .tabBar($tab) { path.append(ImportRoute()) }
                 .navigationDestination(for: GameRoute.self) { route in
                     if let viewModel = routeViewModels[route.id] ?? makeViewModel(for: route) {
                         GameView(viewModel: viewModel, difficulty: route.difficulty)
@@ -82,6 +94,11 @@ private struct PlayTab: View {
         }
         .environment(\.popToRoot) { path = NavigationPath() }
         .onChangeOf(path.count) { dropRoutes(deeperThan: $0) }
+        .onAppear {
+            guard wantsImport else { return }
+            wantsImport = false
+            path.append(ImportRoute())
+        }
     }
 
     private func push(_ route: GameRoute) {
@@ -159,66 +176,91 @@ private struct ImportRoute: Hashable, Identifiable {
 
 // MARK: - Shared chrome for the tab screens
 
-/// The tab bar: Play, Learn, Journal. `bg` fill and a 1 pt `hair` top border; the active tab is
-/// `accent` with a semibold label, the others `ink2`, readable at night (Design/v2/README.md, QA #29).
+/// The tab bar (HANDOFF 6.1): a floating glass capsule with Play, Learn and Journal, and a round glass
+/// import button beside it. The selected tab is `accent` and heavier on a `pill` (clear at night).
 struct PSTabBar: View {
     @Environment(\.psPalette) private var theme
     @Binding var selection: AppTab
+    let onImport: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            ForEach(AppTab.allCases, id: \.self) { item in
-                let on = item == selection
-                Button { selection = item } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: item.symbol).font(.system(size: 21, weight: on ? .semibold : .regular))
-                            .accessibilityHidden(true) // the label names the tab once
-                        Text(item.title).font(.system(size: 11, weight: on ? .semibold : .medium))
+        HStack(spacing: 10) {
+            HStack(spacing: 0) {
+                ForEach(AppTab.allCases, id: \.self) { item in
+                    let on = item == selection
+                    Button { selection = item } label: {
+                        VStack(spacing: 2) {
+                            Image(systemName: item.symbol).font(.system(size: 20, weight: on ? .semibold : .regular))
+                                .frame(height: 24)
+                                .accessibilityHidden(true) // the label names the tab once
+                            Text(item.title).font(PSFont.fixed(11, weight: on ? .bold : .medium, display: false))
+                        }
+                        .foregroundStyle(on ? theme.accent : theme.ink)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Capsule().fill(on ? theme.pill : .clear))
+                        .contentShape(Rectangle())
                     }
-                    .foregroundStyle(on ? theme.accent : theme.ink2)
-                    .frame(maxWidth: .infinity, minHeight: 50)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .accessibilityShowsLargeContentViewer { Label(item.title, systemImage: item.symbol) }
+                    .accessibilityIdentifier("tab_\(item.rawValue)")
+                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .accessibilityShowsLargeContentViewer { Label(item.title, systemImage: item.symbol) }
-                .accessibilityIdentifier("tab_\(item.rawValue)")
-                .accessibilityAddTraits(on ? .isSelected : [])
             }
+            .padding(4)
+            .frame(height: 62)
+            .psGlass(theme, in: Capsule())
+            Button(action: onImport) {
+                Image(systemName: "camera")
+                    .font(.system(size: 21))
+                    .foregroundStyle(theme.ink)
+                    .frame(width: 62, height: 62)
+                    .psGlass(theme, in: Circle())
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Import a puzzle from a photo")
+            .accessibilityShowsLargeContentViewer { Label("Import", systemImage: "camera") }
+            .accessibilityIdentifier("importPuzzleButton")
         }
-        .padding(.top, 8)
-        .background(theme.bg.ignoresSafeArea(edges: .bottom))
-        .overlay(alignment: .top) { theme.hair.frame(height: 1) }
+        .padding(.horizontal, 21)
     }
 }
 
-/// A tab screen's header: the serif title and the moon, which opens the Night sheet (CODESPEC 12.7).
+/// A tab screen's header (HANDOFF 6.1): a 44 pt row with an optional line on the left and the round glass
+/// moon (opens the Night sheet) on the right, then the large title.
 struct ScreenHead: View {
     @Environment(\.psPalette) private var theme
     let title: String
+    var line: String?
 
     var body: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                if let line {
+                    Text(line).psFont(15, weight: .medium).foregroundStyle(theme.ink2)
+                }
+                Spacer(minLength: 8)
+                NightButton()
+            }
+            .frame(minHeight: 44)
             Text(title)
-                .psFont(30, weight: .medium, design: .serif)
-                .tracking(-0.3)
+                .psFont(33, weight: .heavy, design: .serif)
                 .foregroundStyle(theme.ink)
                 .accessibilityAddTraits(.isHeader)
-            Spacer()
-            NightButton()
+                .padding(.top, 4)
+                .padding(.bottom, 16)
         }
-        .padding(.leading, 22)
-        .padding(.trailing, 12)
-        .frame(minHeight: 52)
+        .padding(.horizontal, 16)
     }
 }
 
-/// The moon: opens the Night sheet from any screen.
+/// The moon on round glass: opens the Night sheet from any screen.
 struct NightButton: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
 
     var body: some View {
-        HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: "Night") {
+        HeaderIconButton(theme: theme, symbol: "moon", label: "Night", round: true) {
             controller.showsNightSheet = true
         }
         .accessibilityIdentifier("nightButton")
@@ -229,22 +271,31 @@ private struct TabBarModifier: ViewModifier {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
     @Binding var tab: AppTab
+    let onImport: () -> Void
 
     func body(content: Content) -> some View {
-        content
-            .statusBackdrop(theme.bg)
-            .safeAreaInset(edge: .bottom, spacing: 0) { PSTabBar(selection: $tab) }
-            .background(theme.bg.ignoresSafeArea())
-            .toolbar(.hidden, for: .navigationBar)
-            // The system status bar is white in dark mode, brighter than any ink (CODESPEC 12.7).
-            .statusBarHidden(controller.isNight)
+        GeometryReader { proxy in
+            content
+                .statusBackdrop(theme.bg)
+                // Content scrolls under the floating bar, which sits 21 pt above the screen's bottom edge
+                // (above the build number's strip when it shows).
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    PSTabBar(selection: $tab, onImport: onImport)
+                        .padding(.bottom, controller.settings.showBuildNumber ? max(0, 21 - proxy.safeAreaInsets.bottom)
+                                 : 21 - proxy.safeAreaInsets.bottom)
+                }
+        }
+        .background(theme.bg.ignoresSafeArea())
+        .toolbar(.hidden, for: .navigationBar)
+        // The system status bar is white in dark mode, brighter than any ink (CODESPEC 12.7).
+        .statusBarHidden(controller.isNight)
     }
 }
 
 extension View {
     /// A tab's root screen: the tab bar below it, no system navigation bar, no status bar at night.
-    func tabBar(_ tab: Binding<AppTab>) -> some View {
-        modifier(TabBarModifier(tab: tab))
+    func tabBar(_ tab: Binding<AppTab>, onImport: @escaping () -> Void) -> some View {
+        modifier(TabBarModifier(tab: tab, onImport: onImport))
     }
 
     /// An opaque strip behind the status bar, so scrolled content never sits under the clock.
