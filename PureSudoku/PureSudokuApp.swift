@@ -61,11 +61,11 @@ struct RootView: View {
         .preferredColorScheme(controller.preferredColorScheme)
         .persistentSystemOverlays(controller.hidesHomeIndicator || controller.showsFirstNight ? .hidden : .automatic)
         .onChangeOf(scenePhase) { _ in
-            controller.objectWillChange.send() // After dark and Match iPhone may have changed while away
+            controller.objectWillChange.send() // Night after dark (and an unadopted system style) may have changed while away
             updateDisplay()
         }
         .onChangeOf(controller.settings) { _ in updateDisplay() }
-        // After dark can flip on any redraw (e.g. an autosave); Match iPhone flips Day ↔ Dark with iOS.
+        // Night after dark can flip on any redraw (e.g. an autosave); before adoption the system style can change too.
         // The look, not isNight: Day ↔ Dark keeps isNight false but changes the UIKit colours.
         .onChangeOf(controller.look) { _ in updateDisplay() }
         .onChangeOf(controller.driftSteps) { _ in updateDisplay() }

@@ -100,7 +100,7 @@ struct FirstNightView: View {
         .padding(.bottom, 24)
     }
 
-    /// The welcome heading by time of day: Night can first come on at any hour (Match iPhone, Night).
+    /// The welcome heading by time of day: Night can first come on at any hour (picking Night, or Night after dark).
     static func greeting(hour: Int) -> String {
         switch hour {
         case 5..<12: return "Good morning."

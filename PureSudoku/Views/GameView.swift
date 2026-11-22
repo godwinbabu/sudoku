@@ -40,7 +40,9 @@ struct GameView: View {
 
     /// The hint card's reserved slot: room for a three-line body and its 44 pt buttons (HANDOFF 6.2).
     static let hintSlotHeight: CGFloat = 170
-    /// Navigation row, gaps, hint slot, the bars and the gap above them (everything but the board).
+    /// Navigation row, gaps, hint slot, the bars and the gap above them (everything but the board). Keep in
+    /// step with the header (44), the tool bar (52, `bars`) and the keypad (64): the keypad leaves the screen
+    /// on short phones if these grow without this.
     static let chromeHeight: CGFloat = 44 + 8 + 10 + hintSlotHeight + 8 + 52 + 8 + 64
 
     /// The board's side: screen width − 12, smaller only when the screen is too short for the board, the
@@ -502,7 +504,7 @@ private struct TimerButton: View {
                         // DM Sans has no tabular digits, so the time sits in a fixed "00:00" box and the
                         // centred title does not slide as it ticks.
                         ZStack(alignment: .leading) {
-                            Text("00:00").hidden().accessibilityHidden(true)
+                            Text(clock.seconds < 3600 ? "00:00" : "0:00:00").hidden().accessibilityHidden(true)
                             Text(GameView.timeString(clock.seconds))
                                 .accessibilityIdentifier("timerLabel")
                         }
