@@ -9,7 +9,8 @@ final class AppControllerTests: XCTestCase {
         controller.updateSettings {
             $0.soundsEnabled = true
             $0.hapticsEnabled = true
-            $0.appearance = .day
+            $0.appearance = .light
+            $0.nightAfterDark = false
         }
         XCTAssertTrue(controller.soundsActive)
         XCTAssertTrue(controller.hapticsActive)

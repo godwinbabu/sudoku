@@ -2,21 +2,15 @@ import SwiftUI
 
 // The PureSudoku 2 colour model (CODESPEC 7.2, 12). Ported from Design/v2/ui_kits/puresudoku-2/night.js.
 
+/// The player's choice (HANDOFF 6.3). Night after dark is a separate switch (`Settings.nightAfterDark`).
 enum Appearance: String, Codable, CaseIterable, Identifiable {
-    case day, night, afterDark, matchSystem
+    case light, dark, night
     var id: String { rawValue }
-    var displayName: String {
-        switch self {
-        case .day: return "Day"
-        case .night: return "Night"
-        case .afterDark: return "After dark"
-        case .matchSystem: return "Match iPhone"
-        }
-    }
+    var displayName: String { rawValue.capitalized }
 }
 
-/// What the app draws right now (CODESPEC 7.1). Match iPhone resolves to Day or Dark; only Night
-/// brings the bedtime behaviour (backlight, Drift, first night, silence).
+/// What the app draws right now (CODESPEC 7.1): Light (`.day`), Dark, or Night. Only Night brings the
+/// bedtime behaviour (backlight, Drift, first night, silence).
 enum Look: Equatable {
     case day, dark, night
 }
@@ -64,8 +58,6 @@ struct PSType: Equatable {
 
 struct PSPalette: Equatable {
     var bg, surface, surface2, ink, ink2, ink3, accent, accentDim, line, lineMajor, hair, sel, peer, same, err, status: Color
-    /// Opacity for cells outside a hint or lesson spotlight.
-    var focusDim: Double
     var isNight: Bool
     var kelvin: Int?
     /// Estimated % blue reduction against daylight white at full brightness (display only; say "about").
@@ -143,7 +135,7 @@ extension PSPalette {
             line: clarity == .standard ? hex(0xD4D4DA) : hex(0xBCBCC2), lineMajor: hex(0x3A3A3C), hair: hex(0xD4D4DA),
             // Cell fills are the teal focus tint at 10 / 14 / 20% over white.
             sel: hex(0xCCE5E7), peer: hex(0xE6F2F3), same: hex(0xDBEDEF), err: hex(0xC4281C), status: hex(0x000000),
-            focusDim: 0.28, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1,
+            isNight: false, kelvin: nil, blueReduction: 0, luminance: 1,
             btnBg: hex(0x007580), btnInk: hex(0xFFFFFF),
             fill: hex(0x767680, 0.14),
             focus: hex(0x007C89, 0.10),
@@ -167,7 +159,7 @@ extension PSPalette {
             hair: increaseContrast ? hex(0x3A3A3C) : hex(0x2C2C2E),
             // Cell fills are the accent at 10 / 17 / 24% over black.
             sel: hex(0x163337), peer: hex(0x0A1719), same: hex(0x0F2427), err: hex(0xFF6B5E), status: hex(0xF2F2F7),
-            focusDim: 0.45, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1, isDark: true,
+            isNight: false, kelvin: nil, blueReduction: 0, luminance: 1, isDark: true,
             btnBg: hex(0x5AD4E6), btnInk: hex(0x00262B),
             fill: hex(0x767680, 0.30),
             focus: hex(0x5AD4E6, 0.13),
@@ -214,7 +206,7 @@ extension PSPalette {
             // fill at full strength (CODESPEC 7.2, issue #93).
             sel: mul(acc, s * 0.33), peer: mul(acc, s * 0.17), same: mul(acc, s * 0.25),
             err: mul(errColor, s * 0.95), status: mul(base, s * 0.44),
-            focusDim: 0.45, isNight: true, kelvin: Int(kelvin),
+            isNight: true, kelvin: Int(kelvin),
             blueReduction: Int(((1 - (base.b / 255) * s) * 100).rounded()), luminance: s,
             edge: edge, btnInk: mul(acc, s * 0.96), btnEdge: accentDim, fillEdge: edge,
             focus: mul(base, s * 0.08), glassEdge: edge

@@ -282,31 +282,3 @@ struct ConfirmPanel: View {
         .padding(16)
     }
 }
-
-/// A small non-interactive board for the Continue card: lines and digits only, no cell fills.
-struct MiniBoard: View {
-    let cells: [SudokuCell]
-    let theme: PSPalette
-
-    var body: some View {
-        Canvas { context, size in
-            let side = min(size.width, size.height), cell = side / 9
-            for index in 0...9 {
-                let offset = CGFloat(index) * cell
-                let major = index % 3 == 0
-                var path = Path()
-                path.move(to: CGPoint(x: offset, y: 0)); path.addLine(to: CGPoint(x: offset, y: side))
-                path.move(to: CGPoint(x: 0, y: offset)); path.addLine(to: CGPoint(x: side, y: offset))
-                context.stroke(path, with: .color(major ? theme.lineMajor : theme.line), lineWidth: major ? 1 : 0.5)
-            }
-            for item in cells {
-                guard let value = item.value else { continue }
-                let text = Text("\(value)")
-                    .font(.system(size: cell * 0.62, weight: item.given ? .semibold : .regular))
-                    .foregroundColor(item.given ? theme.ink : theme.accent) // draw needs a Text; Text's foregroundStyle is iOS 17
-                context.draw(text, at: CGPoint(x: (CGFloat(item.col) + 0.5) * cell, y: (CGFloat(item.row) + 0.5) * cell))
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}

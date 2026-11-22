@@ -120,7 +120,7 @@ struct SudokuGridView: View {
     }
 }
 
-/// The spotlight: with a hint open, everything outside its cells fades to `focusDim`.
+/// The spotlight: in a lesson, digits outside the hint's cells step back to ink2 at 500.
 private struct BoardMarks {
     let focus: Set<Int>
     var spotlight: Bool { !focus.isEmpty }
@@ -173,7 +173,7 @@ struct SudokuCellView: View {
                     .strokeBorder(theme.ink3, style: StrokeStyle(lineWidth: 1, dash: [1, 2]))
                     .padding(4)
             }
-            content.opacity(state.inFocus ? 1 : theme.focusDim)
+            content
         }
         .frame(width: side, height: side)
         .background(fill)
@@ -210,10 +210,11 @@ struct SudokuCellView: View {
         // Digit ≈ 0.62 × cell (HANDOFF 4); givens and the selected digit 800, entries 500.
         let digitSize = side * 0.62 * type.digitScale
         if let value = cell.value {
-            let heavy = cell.given || value == state.selectedDigit
+            // Outside a lesson's spotlight digits step back to ink2 at 500 (HANDOFF 6.6), never faded.
+            let heavy = state.inFocus && (cell.given || value == state.selectedDigit)
             Text("\(value)")
                 .font(PSFont.fixed(digitSize, weight: heavy ? .heavy : type.userWeight).monospacedDigit())
-                .foregroundStyle(cell.isError ? theme.err : cell.given ? theme.ink : theme.accent)
+                .foregroundStyle(cell.isError ? theme.err : !state.inFocus ? theme.ink2 : cell.given ? theme.ink : theme.accent)
                 .overlay(alignment: .bottom) {
                     // A mistake also gets a bar under the digit, so it never depends on hue (CODESPEC 7.2).
                     if cell.isError {

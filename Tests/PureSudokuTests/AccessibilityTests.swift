@@ -15,9 +15,4 @@ final class AccessibilityTests: XCTestCase {
         cell.isError = false
         XCTAssertEqual(SudokuGridView.stateText(cell, ringed: nil), "", "a plain entry adds nothing")
     }
-
-    func testTheNightSpotlightKeepsTheBoardReadable() {
-        XCTAssertEqual(PSPalette.night(glow: 45, warmth: 65, clarity: .standard).focusDim, 0.45)
-        XCTAssertEqual(PSPalette.day(clarity: .standard).focusDim, 0.28)
-    }
 }

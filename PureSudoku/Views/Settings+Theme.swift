@@ -15,9 +15,10 @@ extension Settings {
         palette(look: isNight ? .night : .day, increaseContrast: increaseContrast)
     }
 
-    /// Match iPhone leaves the colour scheme to iOS (Day or Dark), so a forced scheme never feeds back
-    /// into the system setting it follows; the other choices pin it.
+    /// Light pins light, Dark and Night pin dark. Until the system style has been adopted, Light and Dark
+    /// are left to iOS, so the app can read it without its own override feeding back.
     func preferredColorScheme(look: Look) -> ColorScheme? {
-        appearance == .matchSystem ? nil : (look == .night ? .dark : .light)
+        if adoptsSystemStyle && look != .night { return nil }
+        return look == .day ? .light : .dark
     }
 }

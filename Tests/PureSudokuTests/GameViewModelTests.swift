@@ -469,3 +469,21 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.canUndo)
     }
 }
+
+// The Solved screen's greeting (HANDOFF 6.5, owner's request).
+extension GameViewModelTests {
+    func testSolvedGreetingFollowsTheHour() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let expected: [(minutes: Int, greeting: String)] = [
+            (4 * 60 + 59, "Good night"), (5 * 60, "Good morning"), (11 * 60 + 59, "Good morning"), (12 * 60, "Good afternoon"),
+            (16 * 60 + 59, "Good afternoon"), (17 * 60, "Good evening"), (20 * 60 + 59, "Good evening"), (21 * 60, "Good night"),
+            (0, "Good night")
+        ]
+        let midnight = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 22)))
+        for item in expected {
+            let date = midnight.addingTimeInterval(TimeInterval(item.minutes * 60))
+            XCTAssertEqual(GameViewModel.greeting(at: date, calendar: calendar), item.greeting, "minute \(item.minutes)")
+        }
+    }
+}

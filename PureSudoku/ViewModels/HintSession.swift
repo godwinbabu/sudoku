@@ -204,7 +204,7 @@ struct HintSession: Equatable {
 
 /// Grid overlay for an open hint. Cells are 0...80.
 struct HintHighlight: Equatable {
-    /// The spotlight: everything else fades to `focusDim`.
+    /// The unit the hint is about (focus tint); in lessons, everything else steps back to ink2.
     var areaCells: Set<Int> = []
     /// Pattern cells (filled like same-digit cells).
     var patternCells: Set<Int> = []

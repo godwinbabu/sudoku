@@ -37,8 +37,8 @@ struct PSButtonStyle: ButtonStyle {
 }
 
 /// Glass for controls that float over content (HANDOFF 3): system Liquid Glass on iOS 26 and later,
-/// a thin material with a `glassEdge` stroke and soft shadow before that. Night has no material at all,
-/// only the 1 pt outline; Reduce Transparency gives `surface` plus a stroke.
+/// a thin material with a `glassEdge` stroke and soft shadow before that. Night has no material at all:
+/// black with the 1 pt outline; Reduce Transparency gives `surface` plus a stroke.
 struct PSGlass<S: InsettableShape>: ViewModifier {
     let theme: PSPalette
     let shape: S
@@ -46,7 +46,8 @@ struct PSGlass<S: InsettableShape>: ViewModifier {
 
     func body(content: Content) -> some View {
         if theme.isNight {
-            content.background(shape.strokeBorder(theme.glassEdge, lineWidth: 1))
+            // Black, not clear: content scrolls under the tab bar. Black is no lit fill (HANDOFF 2).
+            content.background(shape.fill(theme.bg)).overlay(shape.strokeBorder(theme.glassEdge, lineWidth: 1))
         } else if reduceTransparency {
             content
                 .background(shape.fill(theme.surface))
@@ -180,53 +181,106 @@ struct MenuRow: View {
     }
 }
 
-/// "Solved." over the faded board.
+/// The Solved screen under the faded board (HANDOFF 6.5): "Solved", a greeting for the time of day,
+/// the level and time, what the solve counts for, one outlined chip per technique the grid needed, and
+/// Another (secondary) and Goodnight (primary) at the bottom. No confetti, sound or haptic.
 struct SolvedPanel: View {
     let theme: PSPalette
+    let greeting: String
     let summary: String
     let note: String?
-    let techniques: String?
+    let techniques: [String]
+    var bottomPadding: CGFloat = 0
     let onAnother: () -> Void
     let onGoodnight: () -> Void
 
     var body: some View {
-        VStack(spacing: 10) {
-            Text("Solved.")
-                .psFont(44, weight: .medium, design: .serif)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Solved")
+                .psFont(52, weight: .heavy, design: .serif)
                 .foregroundStyle(theme.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text(greeting)
+                .psFont(17, weight: .medium)
+                .foregroundStyle(theme.ink)
+                .accessibilityIdentifier("solved_greeting")
             Text(summary)
-                .psFont(15, monospacedDigit: true)
+                .psFont(17, monospacedDigit: true)
                 .foregroundStyle(theme.ink2)
             if let note {
-                Text(note)
-                    .psFont(13)
-                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                    .foregroundStyle(theme.ink2)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .overlay(Capsule().strokeBorder(theme.hair, lineWidth: 1))
+                Text(note).psFont(13).foregroundStyle(theme.ink2).padding(.top, 6)
             }
-            if let techniques {
-                Text(techniques)
-                    .psFont(13)
-                    .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                    .foregroundStyle(theme.ink2)
-                    .padding(.top, 4)
+            if !techniques.isEmpty {
+                Text("This grid needed").psFont(13, weight: .medium).foregroundStyle(theme.ink2).padding(.top, 18).padding(.bottom, 8)
+                FlowLayout(spacing: 6) {
+                    ForEach(techniques, id: \.self) { name in
+                        Text(name)
+                            .psFont(14, weight: .semibold)
+                            .foregroundStyle(theme.ink)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 32)
+                            .background(Capsule().fill(theme.fill))
+                            .overlay(Capsule().strokeBorder(theme.fillEdge, lineWidth: 1))
+                    }
+                }
+                .accessibilityElement(children: .combine)
             }
+            Spacer(minLength: 16)
             PSButtonRow(trailing: false) {
-                Button("Another", action: onAnother)
-                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
+                Button(action: onAnother) { Text("Another").frame(maxWidth: .infinity) }
+                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 50))
                     .accessibilityIdentifier("solved_another")
-                Button("Goodnight", action: onGoodnight)
-                    .buttonStyle(PSButtonStyle(theme: theme))
+                Button(action: onGoodnight) { Text("Goodnight").frame(maxWidth: .infinity) }
+                    .buttonStyle(PSButtonStyle(theme: theme, height: 50))
                     .accessibilityIdentifier("solved_goodnight")
             }
-            .padding(.top, 14)
+            .padding(.bottom, bottomPadding)
         }
-        .multilineTextAlignment(.center)
-        .padding(.horizontal, 40)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.top, 22)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("solvedPanel")
+    }
+}
+
+/// Lays its children out in rows, wrapping to the next row when one is full.
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrange(subviews, width: proposal.width ?? .infinity)
+        return CGSize(width: proposal.width ?? rows.map(\.width).max() ?? 0,
+                      height: rows.map(\.height).reduce(0, +) + spacing * CGFloat(max(0, rows.count - 1)))
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var y = bounds.minY
+        for row in arrange(subviews, width: bounds.width) {
+            var x = bounds.minX
+            for index in row.items {
+                let size = subviews[index].sizeThatFits(.unspecified)
+                subviews[index].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                x += size.width + spacing
+            }
+            y += row.height + spacing
+        }
+    }
+
+    private struct Row { var items: [Int] = []; var width: CGFloat = 0; var height: CGFloat = 0 }
+
+    private func arrange(_ subviews: Subviews, width: CGFloat) -> [Row] {
+        var rows = [Row()]
+        for (index, subview) in subviews.enumerated() {
+            let size = subview.sizeThatFits(.unspecified)
+            if !rows[rows.count - 1].items.isEmpty && rows[rows.count - 1].width + spacing + size.width > width { rows.append(Row()) }
+            var row = rows[rows.count - 1]
+            row.width += (row.items.isEmpty ? 0 : spacing) + size.width
+            row.height = max(row.height, size.height)
+            row.items.append(index)
+            rows[rows.count - 1] = row
+        }
+        return rows
     }
 }
 

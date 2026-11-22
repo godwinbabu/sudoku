@@ -167,7 +167,7 @@ final class AfterDarkScheduler: NSObject {
     /// whichever day's window they belong to, and local midnights, where a day can change source),
     /// then returns the first where `isNight` really changes.
     func nextBoundary(after date: Date? = nil, settings: Settings) -> Date? {
-        guard settings.appearance == .afterDark else { return nil }
+        guard settings.nightAfterDark, settings.appearance != .night else { return nil }
         let date = date ?? now
         let calendar = calendar
         let today = calendar.startOfDay(for: date)

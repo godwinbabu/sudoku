@@ -81,6 +81,7 @@ struct RootView: View {
     }
 
     private func updateDisplay() {
+        controller.adoptSystemStyleIfNeeded() // the scene exists now, so its traits give the system style
         controller.updateFirstNight()
         let target = ScreenBrightnessController.target(phase: scenePhase, isNight: controller.isNight,
                                                        isCalibrating: controller.isCalibrating,

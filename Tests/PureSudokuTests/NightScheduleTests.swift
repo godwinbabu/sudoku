@@ -62,7 +62,7 @@ final class NightScheduleTests: XCTestCase {
         let uk = calendar("Europe/London")
         let noon = date(uk, "2024-06-21 12:00")
         let scheduler = scheduler(at: noon, place: london, calendar: uk)
-        let settings = Settings(appearance: .afterDark)
+        let settings = Settings(nightAfterDark: true, adoptsSystemStyle: false)
         XCTAssertTrue(scheduler.usesSun(settings))
         XCTAssertFalse(scheduler.isNight(settings, systemIsDark: false, at: date(uk, "2024-06-21 21:17")))
         XCTAssertTrue(scheduler.isNight(settings, systemIsDark: false, at: date(uk, "2024-06-21 21:25")))
@@ -81,7 +81,7 @@ final class NightScheduleTests: XCTestCase {
     func testAfterDarkWithoutLocationUsesFixedHours() {
         let uk = calendar("Europe/London")
         let noon = date(uk, "2024-06-21 12:00")
-        let settings = Settings(appearance: .afterDark)
+        let settings = Settings(nightAfterDark: true, adoptsSystemStyle: false)
         for scheduler in [scheduler(at: noon, place: nil, calendar: uk), scheduler(at: noon, place: london, calendar: uk)] {
             var settings = settings
             // With a place, turning location off also falls back to the fixed hours.
@@ -98,18 +98,20 @@ final class NightScheduleTests: XCTestCase {
 
     func testEditedFixedHoursMoveTheBoundary() {
         let uk = calendar("Europe/London")
-        var settings = Settings(appearance: .afterDark, useLocationForAfterDark: false)
+        var settings = Settings(nightAfterDark: true, adoptsSystemStyle: false, useLocationForAfterDark: false)
         settings.afterDarkStart = ClockTime(hour: 22, minute: 15)
         let scheduler = scheduler(at: date(uk, "2024-06-21 12:00"), place: nil, calendar: uk)
         XCTAssertFalse(scheduler.isNight(settings, systemIsDark: false, at: date(uk, "2024-06-21 22:00")))
         XCTAssertEqual(scheduler.nextBoundary(settings: settings), date(uk, "2024-06-21 22:15"))
     }
 
-    func testOnlyAfterDarkHasBoundaries() {
+    func testOnlyNightAfterDarkHasBoundaries() {
         let scheduler = scheduler(at: Date(), place: london, calendar: .current)
-        for appearance in [Appearance.day, .night, .matchSystem] {
-            XCTAssertNil(scheduler.nextBoundary(settings: Settings(appearance: appearance)))
+        for appearance in Appearance.allCases {
+            XCTAssertNil(scheduler.nextBoundary(settings: Settings(appearance: appearance, nightAfterDark: false)))
         }
+        XCTAssertNil(scheduler.nextBoundary(settings: Settings(appearance: .night, nightAfterDark: true)), "Night all the time")
+        XCTAssertNotNil(scheduler.nextBoundary(settings: Settings(appearance: .dark, nightAfterDark: true)))
     }
 
     func testShiftingFixedHoursWrapsAroundMidnight() {
@@ -128,7 +130,7 @@ final class NightScheduleTests: XCTestCase {
         let scheduler = scheduler(at: date(uk, "2024-06-21 12:00"), place: nil, calendar: uk)
         var repaints = 0
         scheduler.onBoundary = { repaints += 1 }
-        scheduler.schedule(for: Settings(appearance: .afterDark))
+        scheduler.schedule(for: Settings(nightAfterDark: true, adoptsSystemStyle: false))
         XCTAssertEqual(scheduler.scheduledFire, date(uk, "2024-06-21 21:00").addingTimeInterval(1))
         scheduler.useCoordinate(london)
         assertNear(scheduler.scheduledFire, date(uk, "2024-06-21 21:21"))
@@ -139,7 +141,7 @@ final class NightScheduleTests: XCTestCase {
     func testRevokedPermissionDropsThePlace() {
         let uk = calendar("Europe/London")
         let scheduler = scheduler(at: date(uk, "2024-06-21 12:00"), place: london, calendar: uk)
-        let settings = Settings(appearance: .afterDark)
+        let settings = Settings(nightAfterDark: true, adoptsSystemStyle: false)
         scheduler.schedule(for: settings)
         XCTAssertTrue(scheduler.usesSun(settings))
         scheduler.handleAuthorization(.denied)
@@ -180,7 +182,7 @@ final class NightScheduleTests: XCTestCase {
         let uk = calendar("Europe/London")
         let scheduler = scheduler(at: date(uk, "2024-06-21 12:00"), place: london, calendar: buddhist)
         assertNear(scheduler.sunTimes(on: date(uk, "2024-06-21 12:00"))?.sunset, date(uk, "2024-06-21 21:21"))
-        let fixed = Settings(appearance: .afterDark, useLocationForAfterDark: false)
+        let fixed = Settings(nightAfterDark: true, adoptsSystemStyle: false, useLocationForAfterDark: false)
         XCTAssertEqual(scheduler.nextBoundary(after: date(uk, "2024-06-21 12:00"), settings: fixed), date(uk, "2024-06-21 21:00"))
         XCTAssertTrue(scheduler.isNight(fixed, systemIsDark: false, at: date(uk, "2024-06-21 23:00")))
     }
@@ -190,7 +192,7 @@ final class NightScheduleTests: XCTestCase {
         let scheduler = scheduler(at: Date(), place: nil, calendar: .current)
         var repaints = 0
         scheduler.onBoundary = { repaints += 1 }
-        scheduler.schedule(for: Settings(appearance: .afterDark))
+        scheduler.schedule(for: Settings(nightAfterDark: true, adoptsSystemStyle: false))
         NotificationCenter.default.post(name: .NSSystemTimeZoneDidChange, object: nil)
         NotificationCenter.default.post(name: UIApplication.significantTimeChangeNotification, object: nil)
         XCTAssertEqual(repaints, 2)
@@ -202,7 +204,7 @@ final class NightScheduleTests: XCTestCase {
         let scheduler = scheduler(at: Date(), place: nil, calendar: .current)
         var repaints = 0
         scheduler.onBoundary = { repaints += 1 }
-        scheduler.schedule(for: Settings(appearance: .afterDark))
+        scheduler.schedule(for: Settings(nightAfterDark: true, adoptsSystemStyle: false))
         await Task.detached {
             NotificationCenter.default.post(name: .NSSystemTimeZoneDidChange, object: nil)
         }.value
@@ -215,7 +217,7 @@ final class NightScheduleTests: XCTestCase {
     /// Night check and the boundary list. New York, 3 November 2024, hours 9:00 PM → 1:30 AM.
     func testRepeatedHourUsesTheFirstOccurrence() throws {
         let ny = calendar("America/New_York")
-        var settings = Settings(appearance: .afterDark, useLocationForAfterDark: false)
+        var settings = Settings(nightAfterDark: true, adoptsSystemStyle: false, useLocationForAfterDark: false)
         settings.afterDarkEnd = ClockTime(hour: 1, minute: 30)
         let scheduler = scheduler(at: Date(), place: nil, calendar: ny)
         let utc = ISO8601DateFormatter()
@@ -235,7 +237,7 @@ final class NightScheduleTests: XCTestCase {
         let oslo = calendar("Europe/Oslo")
         let tromso = Coordinate(latitude: 69.65, longitude: 18.96)
         let scheduler = scheduler(at: date(oslo, "2024-05-17 23:00"), place: tromso, calendar: oslo)
-        let settings = Settings(appearance: .afterDark)
+        let settings = Settings(nightAfterDark: true, adoptsSystemStyle: false)
         XCTAssertNotNil(scheduler.sunTimes(on: date(oslo, "2024-05-17 12:00")))
         XCTAssertNil(scheduler.sunTimes(on: date(oslo, "2024-05-18 12:00")))
         assertNear(scheduler.sunTimes(on: date(oslo, "2024-05-17 12:00"))?.sunset, date(oslo, "2024-05-18 00:11"))
@@ -253,7 +255,7 @@ final class NightScheduleTests: XCTestCase {
         let oslo = calendar("Europe/Oslo")
         let tromso = Coordinate(latitude: 69.65, longitude: 18.96)
         let scheduler = scheduler(at: date(oslo, "2024-07-01 12:00"), place: tromso, calendar: oslo)
-        let settings = Settings(appearance: .afterDark)
+        let settings = Settings(nightAfterDark: true, adoptsSystemStyle: false)
         var day = date(oslo, "2024-07-01 12:00")
         while scheduler.sunTimes(on: oslo.date(byAdding: .day, value: 1, to: day)!) == nil {
             day = oslo.date(byAdding: .day, value: 1, to: day)!
@@ -302,12 +304,13 @@ final class NightScheduleTests: XCTestCase {
     func testBoundariesAreExactAcrossTromsoSummer() {
         let oslo = calendar("Europe/Oslo")
         let scheduler = scheduler(at: Date(), place: Coordinate(latitude: 69.65, longitude: 18.96), calendar: oslo)
-        walk(scheduler, Settings(appearance: .afterDark), from: date(oslo, "2024-05-01 00:00"), to: date(oslo, "2024-08-31 00:00"))
+        walk(scheduler, Settings(nightAfterDark: true, adoptsSystemStyle: false),
+             from: date(oslo, "2024-05-01 00:00"), to: date(oslo, "2024-08-31 00:00"))
     }
 
     func testBoundariesAreExactAcrossNewYorkClockChanges() {
         let ny = calendar("America/New_York")
-        var late = Settings(appearance: .afterDark, useLocationForAfterDark: false)
+        var late = Settings(nightAfterDark: true, adoptsSystemStyle: false, useLocationForAfterDark: false)
         late.afterDarkStart = ClockTime(hour: 21, minute: 0)
         late.afterDarkEnd = ClockTime(hour: 1, minute: 30)
         var skipped = late
@@ -316,8 +319,8 @@ final class NightScheduleTests: XCTestCase {
         let withSun = scheduler(at: Date(), place: newYork, calendar: ny)
         let noPlace = scheduler(at: Date(), place: nil, calendar: ny)
         for (from, to) in [("2024-03-07 00:00", "2024-03-14 00:00"), ("2024-10-31 00:00", "2024-11-07 00:00")] {
-            walk(withSun, Settings(appearance: .afterDark), from: date(ny, from), to: date(ny, to))
-            walk(noPlace, Settings(appearance: .afterDark), from: date(ny, from), to: date(ny, to))
+            walk(withSun, Settings(nightAfterDark: true, adoptsSystemStyle: false), from: date(ny, from), to: date(ny, to))
+            walk(noPlace, Settings(nightAfterDark: true, adoptsSystemStyle: false), from: date(ny, from), to: date(ny, to))
             walk(noPlace, late, from: date(ny, from), to: date(ny, to))
             walk(noPlace, skipped, from: date(ny, from), to: date(ny, to))
         }
@@ -390,7 +393,7 @@ final class NightScheduleTests: XCTestCase {
 
     func testFirstNightAppearsExactlyOnce() {
         let (controller, dir) = makeTestController()
-        controller.updateSettings { $0.appearance = .day }
+        controller.updateSettings { $0.appearance = .light; $0.nightAfterDark = false; $0.adoptsSystemStyle = false }
         controller.updateFirstNight()
         XCTAssertFalse(controller.showsFirstNight, "not in Day")
 
@@ -414,8 +417,8 @@ final class NightScheduleTests: XCTestCase {
 
     /// C9: the flow keeps the Night palette even if Night ends while it is open.
     func testFirstNightKeepsTheNightPalette() {
-        XCTAssertTrue(FirstNightView.palette(Settings(appearance: .day)).isNight)
-        XCTAssertEqual(FirstNightView.palette(Settings(appearance: .day, glow: 18, warmth: 75)).ink,
+        XCTAssertTrue(FirstNightView.palette(Settings(nightAfterDark: false, adoptsSystemStyle: false)).isNight)
+        XCTAssertEqual(FirstNightView.palette(Settings(nightAfterDark: false, adoptsSystemStyle: false, glow: 18, warmth: 75)).ink,
                        Settings(glow: 18, warmth: 75).palette(isNight: true).ink)
     }
 
@@ -452,12 +455,14 @@ final class NightScheduleTests: XCTestCase {
 
 // The Dark theme (issue #94).
 extension NightScheduleTests {
-    /// Match iPhone with iOS dark is the Dark theme, not Night: no bedtime behaviour (CODESPEC 7.1, issue #94).
-    func testMatchIPhoneDarkIsTheDarkThemeNotNight() {
+    /// Dark is an ordinary theme, not Night: no bedtime behaviour (CODESPEC 7.1, issue #94).
+    func testDarkIsAThemeNotNight() {
         let (controller, _) = makeTestController()
-        controller.systemIsDark = { true }
+        controller.systemIsDark = { false }
         controller.updateSettings {
-            $0.appearance = .matchSystem
+            $0.appearance = .dark
+            $0.nightAfterDark = false
+            $0.adoptsSystemStyle = false
             $0.soundsEnabled = true
             $0.hapticsEnabled = true
         }
@@ -465,7 +470,7 @@ extension NightScheduleTests {
         XCTAssertFalse(controller.isNight)
         XCTAssertTrue(controller.palette.isDark)
         XCTAssertFalse(controller.palette.isNight, "so Drift stays off in a game")
-        XCTAssertNil(controller.preferredColorScheme, "iOS keeps the scheme: dark, with no feedback")
+        XCTAssertEqual(controller.preferredColorScheme, .dark, "Dark pins the scheme, whatever iOS says")
         XCTAssertTrue(controller.soundsActive)
         XCTAssertTrue(controller.hapticsActive)
         XCTAssertNil(ScreenBrightnessController.target(phase: .active, isNight: controller.isNight, isCalibrating: false,
@@ -473,9 +478,25 @@ extension NightScheduleTests {
         controller.updateFirstNight()
         XCTAssertFalse(controller.showsFirstNight, "no first night in Dark")
 
-        controller.systemIsDark = { false }
-        XCTAssertEqual(controller.look, .day)
+        controller.setAppearance(.light)
+        controller.systemIsDark = { true }
+        XCTAssertEqual(controller.look, .day, "Light stays light in iOS Dark mode")
         XCTAssertFalse(controller.palette.isDark)
+    }
+
+    /// A fresh install (or a v2 Match iPhone setting) follows iOS until the scene appears, then keeps
+    /// the style it found (HANDOFF 6.3).
+    func testFreshInstallAdoptsTheSystemStyleOnce() {
+        let (controller, _) = makeTestController()
+        controller.updateSettings { $0.appearance = .light; $0.nightAfterDark = false; $0.adoptsSystemStyle = true }
+        controller.systemIsDark = { true }
+        XCTAssertEqual(controller.look, .dark)
+        XCTAssertNil(controller.preferredColorScheme, "iOS keeps the scheme until it is adopted")
+        controller.adoptSystemStyleIfNeeded()
+        XCTAssertEqual(controller.settings.appearance, .dark)
+        XCTAssertFalse(controller.settings.adoptsSystemStyle)
+        controller.systemIsDark = { false }
+        XCTAssertEqual(controller.look, .dark, "kept, not followed")
     }
 
     /// Dark → Night starts the first night if still uncalibrated; Night → Dark gives the screen back. Tuning
@@ -483,7 +504,9 @@ extension NightScheduleTests {
     func testSwitchingBetweenDarkAndNight() {
         let (controller, dir) = makeTestController()
         controller.systemIsDark = { true }
-        controller.updateSettings { $0.appearance = .matchSystem; $0.glow = 33; $0.warmth = 80 }
+        controller.updateSettings {
+            $0.appearance = .dark; $0.nightAfterDark = false; $0.adoptsSystemStyle = false; $0.glow = 33; $0.warmth = 80
+        }
         controller.updateFirstNight()
         XCTAssertFalse(controller.showsFirstNight)
 
@@ -496,14 +519,14 @@ extension NightScheduleTests {
         XCTAssertNotNil(ScreenBrightnessController.target(phase: .active, isNight: controller.isNight, isCalibrating: false,
                                                           nightBacklight: controller.nightBacklight))
 
-        controller.setAppearance(.matchSystem)
+        controller.setAppearance(.dark)
         XCTAssertEqual(controller.look, .dark)
         XCTAssertNil(ScreenBrightnessController.target(phase: .active, isNight: controller.isNight, isCalibrating: false,
                                                        nightBacklight: controller.nightBacklight), "Night → Dark restores")
 
         let images = ImportedImageStore(directory: dir.appendingPathComponent("ImportedImages", isDirectory: true))
         let reopened = AppController(persistence: PersistenceManager(directory: dir), timeProvider: MockTimeProvider(), imageStore: images)
-        XCTAssertEqual(reopened.settings.appearance, .matchSystem)
+        XCTAssertEqual(reopened.settings.appearance, .dark)
         XCTAssertTrue(reopened.settings.calibrated)
         XCTAssertEqual(reopened.settings.glowFloor, 8)
         XCTAssertEqual(reopened.settings.warmth, 80)

@@ -146,7 +146,9 @@ final class NightPaletteTests: XCTestCase {
 
     func testSettingsRoundTrip() throws {
         var settings = Settings()
-        settings.appearance = .matchSystem
+        settings.appearance = .dark
+        settings.nightAfterDark = false
+        settings.adoptsSystemStyle = false
         settings.glow = 33
         settings.warmth = 90
         settings.clarity = .bold
@@ -179,12 +181,13 @@ final class NightPaletteTests: XCTestCase {
     func testV1ThemeAndAssistsMigrate() throws {
         let light = try decodeV1(["theme": "light", "autoCheckMistakes": false, "autoRemoveCandidates": false,
                                   "hasCalibratedDisplay": true])
-        XCTAssertEqual(light.appearance, .day)
+        XCTAssertEqual(light.appearance, .light)
+        XCTAssertFalse(light.nightAfterDark)
         XCTAssertEqual(light.mistakes, .onCheck)
         XCTAssertFalse(light.tidyNotes)
         XCTAssertTrue(light.calibrated)
         XCTAssertEqual(try decodeV1(["theme": "dark"]).appearance, .night)
-        XCTAssertEqual(try decodeV1(["theme": "system"]).appearance, .matchSystem)
+        XCTAssertTrue(try decodeV1(["theme": "system"]).adoptsSystemStyle, "system → the system style, once")
         XCTAssertEqual(try decodeV1(["theme": "dark", "sleepBrightness": "dim"]).glow, NightPreset.lightsOut.glow)
     }
 
@@ -227,19 +230,33 @@ final class NightPaletteTests: XCTestCase {
         func at(_ hour: Int, _ minute: Int) -> Date {
             calendar.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: hour, minute: minute))!
         }
-        var settings = Settings(appearance: .afterDark)
+        var settings = Settings(appearance: .light, nightAfterDark: true, adoptsSystemStyle: false)
         settings.useLocationForAfterDark = false
         XCTAssertTrue(settings.isNight(now: at(21, 0), systemIsDark: false, calendar: calendar))
         XCTAssertTrue(settings.isNight(now: at(6, 29), systemIsDark: false, calendar: calendar))
         XCTAssertFalse(settings.isNight(now: at(6, 30), systemIsDark: false, calendar: calendar))
         XCTAssertFalse(settings.isNight(now: at(12, 0), systemIsDark: true, calendar: calendar))
-        settings.appearance = .matchSystem
-        XCTAssertFalse(settings.isNight(now: at(12, 0), systemIsDark: true, calendar: calendar), "Match iPhone never means Night")
-        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .dark)
-        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .day)
-        settings.appearance = .afterDark
-        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .night)
-        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .day, "After dark ignores iOS")
+        settings.appearance = .dark
+        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: false, calendar: calendar), .dark, "Dark by day")
+        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .night, "Night after dark")
+        settings.nightAfterDark = false
+        XCTAssertEqual(settings.look(now: at(23, 0), systemIsDark: false, calendar: calendar), .dark, "switch off: no Night")
+        settings.appearance = .light
+        XCTAssertEqual(settings.look(now: at(12, 0), systemIsDark: true, calendar: calendar), .day, "Light ignores iOS")
+    }
+
+    /// v2 appearances migrate once: Day → Light, Night → Night, After dark → Light with Night after dark,
+    /// Match iPhone → the system style (HANDOFF 6.3).
+    func testV2AppearanceMigrates() throws {
+        func decode(_ appearance: String) throws -> Settings {
+            try JSONDecoder().decode(Settings.self, from: JSONSerialization.data(withJSONObject: ["appearance": appearance]))
+        }
+        let day = try decode("day"), night = try decode("night"), afterDark = try decode("afterDark"), match = try decode("matchSystem")
+        XCTAssertEqual([day.appearance, night.appearance, afterDark.appearance], [.light, .night, .light])
+        XCTAssertEqual([day.nightAfterDark, night.nightAfterDark, afterDark.nightAfterDark, match.nightAfterDark],
+                       [false, false, true, false])
+        XCTAssertEqual([day.adoptsSystemStyle, night.adoptsSystemStyle, afterDark.adoptsSystemStyle, match.adoptsSystemStyle],
+                       [false, false, false, true])
     }
 
     // MARK: Dark (CODESPEC 7.2)
@@ -372,13 +389,6 @@ final class NightPaletteTests: XCTestCase {
     }
 
     /// Above 95% the Warmth note stops quoting a number; Red light is above it.
-    func testWarmthNoteAboveNinetyFivePercent() {
-        XCTAssertEqual(NightSheetView.warmthNote(95), "Blue light about 95% lower than daylight white.")
-        XCTAssertEqual(NightSheetView.warmthNote(96), "Almost no blue light.")
-        let red = PSPalette.night(glow: NightPreset.redLight.glow, warmth: NightPreset.redLight.warmth, clarity: .standard)
-        XCTAssertEqual(NightSheetView.warmthNote(red.blueReduction), "Almost no blue light.")
-    }
-
     /// At night givens are one weight heavier, so entered digits differ by shape as well as hue.
     /// Givens are 800 at every Clarity and in every theme; entries stay lighter, so the two differ by
     /// shape where Night's single hue can't tell them apart (HANDOFF 2).

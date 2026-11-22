@@ -16,7 +16,7 @@ struct GameView: View {
     @State private var pausedForFirstNight = false
     @State private var isGoodnight = false
     @State private var lessonTechnique: Technique?
-    @State private var techniqueLine: String?
+    @State private var techniques: [String] = []
     @StateObject private var drift = DriftController()
     private let difficulty: Difficulty
 
@@ -59,6 +59,13 @@ struct GameView: View {
                 header(theme: theme)
                 boardArea(theme: theme, side: max(side, 200))
                     .padding(.top, 8)
+                if isDone {
+                    SolvedPanel(theme: theme, greeting: GameViewModel.greeting(), summary: solvedSummary, note: solvedNote,
+                                techniques: techniques, bottomPadding: 34 - geometry.safeAreaInsets.bottom,
+                                onAnother: another, onGoodnight: { isGoodnight = true })
+                        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+                        .transition(.opacity)
+                } else {
                 // The hint card fills this slot; the tools and keypad below keep their place.
                 Group {
                     if let coach = viewModel.coach, !isDone {
@@ -77,7 +84,9 @@ struct GameView: View {
                 bars(theme: theme)
                     .padding(.horizontal, 12)
                     .padding(.bottom, barsBottom)
+                }
             }
+            .animation(reduceMotion ? .easeInOut(duration: 0.15) : .easeInOut(duration: 0.6), value: isDone)
             .frame(width: geometry.size.width)
         }
         .background(theme.bg.ignoresSafeArea())
@@ -197,30 +206,25 @@ struct GameView: View {
             } else {
                 SudokuGridView(
                     cells: viewModel.state.cells,
-                    selectedCellID: viewModel.hint == nil ? viewModel.selectedCellID : nil,
+                    // The finished board shows no selection (HANDOFF 6.5).
+                    selectedCellID: viewModel.hint == nil && !isDone ? viewModel.selectedCellID : nil,
                     theme: theme,
                     highlight: viewModel.hintHighlight,
                     dimsOutsideFocus: false
                 ) { viewModel.select(cell: $0) }
                     .frame(width: side, height: side)
-                    // Faint enough that the Solved summary on top reads cleanly, Day and Night (QA #45).
-                    .opacity(isDone ? 0.1 : 1)
-                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: isDone)
+                    // The finished board fades to 30% over 600 ms (HANDOFF 6.5); 150 ms with Reduce Motion.
+                    .opacity(isDone ? 0.3 : 1)
                     .allowsHitTesting(!isDone)
-            }
-            if isDone {
-                SolvedPanel(theme: theme, summary: solvedSummary, note: solvedNote,
-                            techniques: techniqueLine, onAnother: another, onGoodnight: { isGoodnight = true })
-                    .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // it sits on the board, so it must fit there
             }
         }
         .frame(maxWidth: .infinity)
         .task(id: isDone) {
-            techniqueLine = nil
+            techniques = []
             guard isDone else { return }
             let counts = await viewModel.techniquesNeeded()
-            guard !Task.isCancelled, !counts.isEmpty else { return }
-            techniqueLine = "This grid took " + counts.map { "\($0.name) ×\($0.count)" }.joined(separator: ", ") + "."
+            guard !Task.isCancelled else { return }
+            techniques = counts.map(\.name)
         }
     }
 
@@ -282,53 +286,6 @@ struct GameView: View {
         }
         .psFont(13)
         .multilineTextAlignment(.center)
-    }
-
-    /// The tool bar over the keypad, both glass, 8 pt apart (HANDOFF 6.2). In Notes mode the keypad
-    /// gains a 1.5 pt accent outline.
-    private func bars(theme: PSPalette) -> some View {
-        let isDone = viewModel.state.isCompleted
-        let notesOn = viewModel.inputMode == .candidate
-        let bar = RoundedRectangle(cornerRadius: 26)
-        return VStack(spacing: 8) {
-            tools(theme: theme)
-                .frame(height: 52)
-                .psGlass(theme, in: bar)
-                .opacity(isDone ? 0.3 : 1)
-            NumberPadView(theme: theme, remaining: viewModel.remaining) { digit in
-                viewModel.setDigit(digit)
-                if let message = viewModel.placedAnnouncement(digit) {
-                    UIAccessibility.post(notification: .announcement, argument: message)
-                }
-            }
-            .frame(height: 64)
-            .psGlass(theme, in: bar)
-            .overlay(bar.strokeBorder(theme.accent, lineWidth: 1.5).opacity(notesOn ? 1 : 0))
-            .opacity(isDone || viewModel.isPaused ? 0.3 : 1) // disabled while paused, so it looks it
-            .disabled(isDone || viewModel.isPaused)
-        }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: notesOn)
-    }
-
-    private func tools(theme: PSPalette) -> some View {
-        let notesOn = viewModel.inputMode == .candidate
-        return HStack(spacing: 0) {
-            ToolButton(theme: theme, symbol: "arrow.uturn.backward", label: "Undo") { viewModel.undo() }
-                .disabled(!viewModel.canUndo)
-                .accessibilityIdentifier("tool_undo")
-            ToolButton(theme: theme, symbol: "eraser", label: "Erase") { viewModel.clearSelectedCell() }
-                .accessibilityIdentifier("tool_erase")
-            ToolButton(theme: theme, symbol: "pencil", label: notesOn ? "Notes on" : "Notes off", isActive: notesOn,
-                       spokenLabel: "Notes") {
-                viewModel.inputMode = notesOn ? .normal : .candidate
-            }
-            .accessibilityIdentifier("tool_notes")
-            .accessibilityValue(notesOn ? "On" : "Off")
-            ToolButton(theme: theme, symbol: "lightbulb", label: hintToolLabel,
-                       isActive: viewModel.hint != nil || viewModel.coach != nil || viewModel.isStuck) { viewModel.hintTool() }
-                .accessibilityIdentifier("tool_hint")
-        }
-        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
     }
 
     /// Hint; Next step while a hint is open; Show me / Apply in the coach; Coach once stuck.
@@ -464,6 +421,57 @@ struct GameView: View {
     static func timeString(_ seconds: Int) -> String {
         let hours = seconds / 3600, minutes = (seconds % 3600) / 60, secs = seconds % 60
         return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, secs) : String(format: "%d:%02d", minutes, secs)
+    }
+}
+
+// MARK: - Tool bar and keypad
+
+extension GameView {
+    /// The tool bar over the keypad, both glass, 8 pt apart (HANDOFF 6.2). In Notes mode the keypad
+    /// gains a 1.5 pt accent outline.
+    func bars(theme: PSPalette) -> some View {
+        let isDone = viewModel.state.isCompleted
+        let notesOn = viewModel.inputMode == .candidate
+        let bar = RoundedRectangle(cornerRadius: 26)
+        return VStack(spacing: 8) {
+            tools(theme: theme)
+                .frame(height: 52)
+                .psGlass(theme, in: bar)
+                .opacity(isDone ? 0.3 : 1)
+            NumberPadView(theme: theme, remaining: viewModel.remaining) { digit in
+                viewModel.setDigit(digit)
+                if let message = viewModel.placedAnnouncement(digit) {
+                    UIAccessibility.post(notification: .announcement, argument: message)
+                }
+            }
+            .frame(height: 64)
+            .psGlass(theme, in: bar)
+            .overlay(bar.strokeBorder(theme.accent, lineWidth: 1.5).opacity(notesOn ? 1 : 0))
+            .opacity(isDone || viewModel.isPaused ? 0.3 : 1) // disabled while paused, so it looks it
+            .disabled(isDone || viewModel.isPaused)
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: notesOn)
+    }
+
+    func tools(theme: PSPalette) -> some View {
+        let notesOn = viewModel.inputMode == .candidate
+        return HStack(spacing: 0) {
+            ToolButton(theme: theme, symbol: "arrow.uturn.backward", label: "Undo") { viewModel.undo() }
+                .disabled(!viewModel.canUndo)
+                .accessibilityIdentifier("tool_undo")
+            ToolButton(theme: theme, symbol: "eraser", label: "Erase") { viewModel.clearSelectedCell() }
+                .accessibilityIdentifier("tool_erase")
+            ToolButton(theme: theme, symbol: "pencil", label: notesOn ? "Notes on" : "Notes off", isActive: notesOn,
+                       spokenLabel: "Notes") {
+                viewModel.inputMode = notesOn ? .normal : .candidate
+            }
+            .accessibilityIdentifier("tool_notes")
+            .accessibilityValue(notesOn ? "On" : "Off")
+            ToolButton(theme: theme, symbol: "lightbulb", label: hintToolLabel,
+                       isActive: viewModel.hint != nil || viewModel.coach != nil || viewModel.isStuck) { viewModel.hintTool() }
+                .accessibilityIdentifier("tool_hint")
+        }
+        .disabled(viewModel.state.isCompleted || viewModel.isPaused)
     }
 }
 
