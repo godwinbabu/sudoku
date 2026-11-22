@@ -140,10 +140,21 @@ final class AppController: ObservableObject {
             settings.appearance = .day
             settings.calibrated = false
         }
+        applyAppearanceArgument(arguments)
         #endif
         self.afterDark.onBoundary = { [weak self] in self?.afterDarkBoundary() }
         self.afterDark.schedule(for: settings)
     }
+
+    #if DEBUG
+    /// Screenshots: start in a given appearance (`-uiTestAppearance night`).
+    private func applyAppearanceArgument(_ arguments: [String]) {
+        guard let flag = arguments.firstIndex(of: "-uiTestAppearance"), flag + 1 < arguments.count,
+              let appearance = Appearance(rawValue: arguments[flag + 1]) else { return }
+        settings.appearance = appearance
+        settings.calibrated = true
+    }
+    #endif
 
     /// Imports saved before solution counting have no uniqueness flag. Count them off the main thread;
     /// until then `isUnique` is false, so uniqueness techniques stay off (CODESPEC 2.1).

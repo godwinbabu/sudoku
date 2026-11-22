@@ -640,7 +640,8 @@ extension PureSudokuUITests {
         app.buttons["tab_journal"].tap()
         let toggle = element("journal_showBuildNumber", in: app) // a switch on iOS 17+, a button on 16
         XCTAssertTrue(toggle.waitForExistence(timeout: 2))
-        for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+        // Hittable is not enough: a row behind the tab bar still reports hittable.
+        for _ in 0..<8 where !toggle.isHittable || toggle.frame.maxY > app.buttons["tab_play"].frame.minY { app.swipeUp() }
         XCTAssertTrue(app.staticTexts["journal_version"].label.hasPrefix("Version "))
         // Off by default (a unit test checks that); a failed earlier run may have left it on.
         if toggle.value as? String == "On" { toggle.tap() }
@@ -649,7 +650,7 @@ extension PureSudokuUITests {
         toggle.tap()
         addTeardownBlock { // leave the app as found
             app.buttons["tab_journal"].tap()
-            for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+            for _ in 0..<8 where !toggle.isHittable || toggle.frame.maxY > app.buttons["tab_play"].frame.minY { app.swipeUp() }
             if toggle.value as? String == "On" { toggle.tap() }
         }
         XCTAssertTrue(label.waitForExistence(timeout: 2))
@@ -672,7 +673,7 @@ extension PureSudokuUITests {
         XCTAssertEqual(app.buttons["number_9"].frame.maxY, padBottom, "the game did not move")
         app.buttons["backButton"].tap()
         app.buttons["tab_journal"].tap()
-        for _ in 0..<6 where !toggle.isHittable { app.swipeUp() }
+        for _ in 0..<8 where !toggle.isHittable || toggle.frame.maxY > app.buttons["tab_play"].frame.minY { app.swipeUp() }
         toggle.tap()
         let off = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: label)
         XCTAssertEqual(XCTWaiter().wait(for: [off], timeout: 2), .completed, "off again: gone")
@@ -763,7 +764,7 @@ extension PureSudokuUITests {
         if let original { _ = setAppearance(original, in: app) } // leave the app as found
     }
 
-    /// Match iPhone follows iOS: Dark mode draws the grey Dark theme (not Night's black, not Day's paper),
+    /// Match iPhone follows iOS: Dark mode draws the Dark theme (not Day's light ground),
     /// with the same visible highlight ladder; Light mode goes back to Day (issue #94).
     func testMatchIPhoneDarkShowsTheDarkTheme() throws {
         defer { XCUIDevice.shared.appearance = .light }
@@ -786,8 +787,8 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
 
         let brightness = highlightBrightness(in: app)
-        // Dark's ground is #161513 (sum 62): not Night's black (0) and far from Day's paper (~700).
-        XCTAssertTrue((40...120).contains(brightness[0]), "Dark ground: \(brightness)")
+        // v3 Dark's ground is black or the #151517 board surface (sum ≤ 65), far from Day's ~740.
+        XCTAssertTrue((0...120).contains(brightness[0]), "Dark ground: \(brightness)")
         XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
         XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
 

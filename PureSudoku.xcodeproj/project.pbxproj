@@ -54,6 +54,7 @@
 		0000000000000000000000E7 /* GameChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000E6 /* GameChrome.swift */; };
 		000000000000000000000060 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000011 /* Assets.xcassets */; };
 		000000000000000000000062 /* Media in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002C /* Media */; };
+		000000000000000000000711 /* Fonts in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000710 /* Fonts */; };
 		000000000000000000000063 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002D /* README.md */; };
 		000000000000000000000611 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000610 /* PrivacyInfo.xcprivacy */; };
 		000000000000000000000064 /* TestData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000002F /* TestData.swift */; };
@@ -177,6 +178,7 @@
 		000000000000000000000028 /* NumberPadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberPadView.swift; sourceTree = "<group>"; };
 		0000000000000000000000E6 /* GameChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameChrome.swift; sourceTree = "<group>"; };
 		00000000000000000000002C /* Media */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Media; sourceTree = "<group>"; };
+		000000000000000000000710 /* Fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Fonts; sourceTree = "<group>"; };
 		00000000000000000000002D /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		00000000000000000000002E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		00000000000000000000002F /* TestData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestData.swift; sourceTree = "<group>"; };
@@ -385,6 +387,7 @@
 			isa = PBXGroup;
 			children = (
 				00000000000000000000002C /* Media */,
+				000000000000000000000710 /* Fonts */,
 				00000000000000000000002D /* README.md */,
 			);
 			path = Resources;
@@ -601,6 +604,7 @@
 			files = (
 				000000000000000000000060 /* Assets.xcassets in Resources */,
 				000000000000000000000062 /* Media in Resources */,
+				000000000000000000000711 /* Fonts in Resources */,
 				000000000000000000000063 /* README.md in Resources */,
 				000000000000000000000611 /* PrivacyInfo.xcprivacy in Resources */,
 			);

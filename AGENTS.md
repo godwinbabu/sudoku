@@ -23,10 +23,9 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
    - Do NOT add network calls, remote analytics, or cloud sync unless the spec is explicitly updated.
 
 3. **App identity is fixed**
-   - App name: `PureSudoku`
-   - Keep this consistent in:
-     - Targets
-     - Bundle display name
+   - Display name: `Sudoku Masters` (v3). Code name: `PureSudoku`
+   - Keep the code name consistent in:
+     - Targets and the module
      - Tests (`PureSudokuTests`, `PureSudokuUITests`)
    - Do not rename the app or change the product bundle id without explicit user instruction.
 

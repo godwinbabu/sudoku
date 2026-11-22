@@ -10,16 +10,16 @@ final class NightPaletteTests: XCTestCase {
     /// Preset snapshots on glow scale 2 (CODESPEC 7.2, 12.3). They replace the styles.css snapshots,
     /// which were too dark to read.
     private let snapshots: [(NightPreset, [String: [Int]])] = [
-        (.readingLamp, ["surface": [18, 10, 3], "surface2": [28, 16, 4], "ink": [255, 146, 39], "ink2": [230, 132, 35],
-                        "ink3": [199, 114, 31], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [76, 44, 12],
+        (.readingLamp, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [255, 146, 39], "ink2": [217, 124, 33],
+                        "ink3": [199, 114, 31], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [51, 29, 8],
                         "lineMajor": [153, 88, 23], "hair": [64, 37, 10], "sel": [84, 36, 0], "peer": [43, 18, 0],
                         "same": [64, 27, 0], "err": [242, 66, 61], "status": [112, 64, 17]]),
-        (.lightsOut, ["surface": [18, 9, 0], "surface2": [28, 14, 0], "ink": [255, 132, 0], "ink2": [230, 119, 0],
-                      "ink3": [199, 103, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [76, 40, 0],
+        (.lightsOut, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [255, 132, 0], "ink2": [217, 112, 0],
+                      "ink3": [199, 103, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [51, 26, 0],
                       "lineMajor": [153, 79, 0], "hair": [64, 33, 0], "sel": [84, 33, 0], "peer": [43, 17, 0],
                       "same": [64, 25, 0], "err": [242, 66, 61], "status": [112, 58, 0]]),
-        (.redLight, ["surface": [15, 5, 0], "surface2": [23, 8, 0], "ink": [208, 70, 0], "ink2": [188, 63, 0],
-                     "ink3": [163, 55, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [63, 21, 0],
+        (.redLight, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [208, 70, 0], "ink2": [177, 60, 0],
+                     "ink3": [163, 55, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [42, 14, 0],
                      "lineMajor": [125, 42, 0], "hair": [52, 18, 0], "sel": [69, 23, 0], "peer": [35, 12, 0],
                      "same": [52, 18, 0], "err": [198, 54, 50], "status": [92, 31, 0]])
     ]
@@ -462,6 +462,52 @@ final class PSFontTests: XCTestCase {
             let accessibility3 = PSFont.scaledSize(size, at: .accessibility3)
             XCTAssertGreaterThan(xxxLarge, size, "\(size)")
             XCTAssertGreaterThan(accessibility3, xxxLarge, "\(size)")
+        }
+    }
+}
+
+// MARK: v3 (HANDOFF 2, 4, 8)
+
+extension NightPaletteTests {
+    /// v3 contrast rules in every theme (HANDOFF 8): text tokens keep 4.5:1 on the background and on
+    /// surfaces, and the box lines keep 3:1.
+    func testEveryThemeKeepsTextContrast() {
+        var themes: [(String, PSPalette)] = [("light", .day(clarity: .standard)), ("dark", .dark(clarity: .standard))]
+        // Red light is dim deep red by choice (glow 30, 1200 K), so it is held to the cell-mark 3:1 rule only.
+        for preset in NightPreset.allCases where preset != .redLight {
+            themes.append((preset.title, .night(glow: preset.glow, warmth: preset.warmth, clarity: .standard)))
+        }
+        for (name, p) in themes {
+            for (ground, fill) in [("bg", p.bg), ("surface", p.surface)] {
+                for (token, text) in [("ink", p.ink), ("ink2", p.ink2), ("accent", p.accent), ("err", p.err)] {
+                    XCTAssertGreaterThanOrEqual(contrast(luminance(text), luminance(fill)), 4.5, "\(name) \(token) on \(ground)")
+                }
+                XCTAssertGreaterThanOrEqual(contrast(luminance(p.lineMajor), luminance(fill)), 3, "\(name) lineMajor on \(ground)")
+            }
+            if !p.isNight {
+                XCTAssertGreaterThanOrEqual(contrast(luminance(p.btnInk), luminance(p.btnBg)), 4.5, "\(name) primary button")
+            }
+        }
+    }
+
+    /// Night draws no lit fill behind text: surfaces, glass, fills and the primary button are black or clear.
+    func testNightHasNoLitFills() {
+        let p = PSPalette.night(glow: 100, warmth: 0, clarity: .standard)
+        for (token, color) in [("surface", p.surface), ("surface2", p.surface2), ("glass", p.glass),
+                               ("fill", p.fill), ("btnBg", p.btnBg), ("segment", p.segment), ("pill", p.pill)] {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+            XCTAssertTrue(a == 0 || (r == 0 && g == 0 && b == 0), token)
+        }
+    }
+
+    /// The bundled faces register under the PostScript names PSFont asks for (Info.plist UIAppFonts).
+    func testBundledFontsLoad() {
+        for weight in [Font.Weight.regular, .medium, .semibold, .bold] {
+            for display in [true, false] {
+                let name = PSFont.faceName(weight: weight, display: display)
+                XCTAssertNotNil(UIFont(name: name, size: 12), name)
+            }
         }
     }
 }

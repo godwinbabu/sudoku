@@ -3,8 +3,8 @@ import SwiftUI
 // Controls shared by the Night sheet, Display & Night and the first-night flow (Design/v2/README.md).
 // All are drawn from the palette, so nothing renders system white at night (CODESPEC 12.4).
 
-/// Segmented control: 34 pt segments in a 1 pt hair ring. Day marks the choice with a surface2
-/// fill; Night with an accentDim ring, because nothing lit may sit behind text. At accessibility
+/// Segmented control (HANDOFF 6.3): a `fill` pill track with a `fillEdge` outline. Light and Dark mark
+/// the choice with a `segment` pill; Night with a `btnEdge` ring, because nothing lit may sit behind text. At accessibility
 /// text sizes the options stack, full width, and each shape grows with its text (CODESPEC 9).
 struct PSSegmented<Value: Hashable>: View {
     let theme: PSPalette
@@ -22,18 +22,17 @@ struct PSSegmented<Value: Hashable>: View {
                 let on = value == selection
                 Button { onSelect(value) } label: {
                     Text(title)
-                        .psFont(14, weight: on ? .semibold : .regular)
-                        .foregroundStyle(on ? theme.ink : theme.ink2)
+                        .psFont(15, weight: on ? .semibold : .regular)
+                        .foregroundStyle(theme.ink)
                         .lineLimit(stacked ? nil : 1)
                         .minimumScaleFactor(stacked ? 1 : 0.8)
                         .fixedSize(horizontal: false, vertical: stacked)
                         .padding(.vertical, stacked ? 8 : 0)
                         .frame(maxWidth: .infinity, minHeight: stacked ? 44 : 34)
                         .background(
-                            RoundedRectangle(cornerRadius: 9)
-                                .fill(on && !theme.isNight ? theme.surface2 : .clear)
-                                .overlay(RoundedRectangle(cornerRadius: 9)
-                                    .strokeBorder(on && theme.isNight ? theme.accentDim : .clear, lineWidth: 1))
+                            Capsule()
+                                .fill(on ? theme.segment : .clear)
+                                .overlay(Capsule().strokeBorder(on ? theme.btnEdge : .clear, lineWidth: 1))
                         )
                         .padding(.vertical, stacked ? 3 : 5)
                         .contentShape(Rectangle())
@@ -46,11 +45,17 @@ struct PSSegmented<Value: Hashable>: View {
         }
         .padding(.horizontal, 3)
         .padding(.vertical, stacked ? 3 : 0)
-        .background(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.hair, lineWidth: 1).frame(height: stacked ? nil : 40))
+        .background(
+            RoundedRectangle(cornerRadius: stacked ? 22 : 20)
+                .fill(theme.fill)
+                .overlay(RoundedRectangle(cornerRadius: stacked ? 22 : 20).strokeBorder(theme.fillEdge, lineWidth: 1))
+                .frame(height: stacked ? nil : 40)
+        )
     }
 }
 
-/// A 48 × 28 switch with a 44 pt target. Night: an outline track with an accent knob.
+/// A 51 × 31 switch with a 44 pt target (HANDOFF 6.3). On is a `btnBg` track with a `btnInk` knob; at
+/// night a `btnEdge` outline with an accent knob. Off is an outline with an ink3 knob.
 struct PSToggle: View {
     let theme: PSPalette
     let isOn: Bool
@@ -61,17 +66,17 @@ struct PSToggle: View {
     static func offRing(_ theme: PSPalette) -> Color { theme.isDark ? theme.ink3 : theme.hair }
 
     var body: some View {
-        let ring = isOn ? (theme.isNight ? theme.accentDim : .clear) : Self.offRing(theme)
-        let knob = isOn ? (theme.isNight ? theme.accent : theme.bg) : theme.ink3
+        let ring = isOn ? theme.btnEdge : Self.offRing(theme)
+        let knob = isOn ? theme.btnInk : theme.ink3
         Button { onChange(!isOn) } label: {
             Capsule()
-                .fill(isOn && !theme.isNight ? theme.accent : .clear)
+                .fill(isOn ? theme.btnBg : .clear)
                 .overlay(Capsule().strokeBorder(ring, lineWidth: 1.5))
                 .overlay(alignment: isOn ? .trailing : .leading) {
-                    Circle().fill(knob).frame(width: 20, height: 20).padding(4)
+                    Circle().fill(knob).frame(width: 25, height: 25).padding(3)
                 }
-                .frame(width: 48, height: 28)
-                .frame(minWidth: 48, minHeight: 44)
+                .frame(width: 51, height: 31)
+                .frame(minWidth: 51, minHeight: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -88,8 +93,8 @@ private struct ToggleTrait: ViewModifier {
     }
 }
 
-/// A 6 pt track with a 28 pt ink thumb in a 5 pt bg halo (at night an ink ring, so the knob is never
-/// the brightest shape). Steps by whole numbers.
+/// A 4 pt `line` track with `accent` progress and a 26 pt `bg` thumb in a 2 pt `accent` ring
+/// (HANDOFF 6.3), so the knob is never the brightest shape at night. Steps by whole numbers.
 struct PSSlider: View {
     let theme: PSPalette
     let value: Double
@@ -102,18 +107,20 @@ struct PSSlider: View {
     var body: some View {
         GeometryReader { geometry in
             let span = range.upperBound - range.lowerBound
-            let usable = max(1, geometry.size.width - 28)
+            let usable = max(1, geometry.size.width - 26)
             let x = (min(range.upperBound, max(range.lowerBound, value)) - range.lowerBound) / span * usable
             ZStack(alignment: .leading) {
                 Group {
-                    if let track { Capsule().fill(track) } else { Capsule().fill(theme.hair) }
+                    if let track { Capsule().fill(track) } else { Capsule().fill(theme.line) }
                 }
-                .frame(height: 6)
+                .frame(height: 4)
+                if track == nil {
+                    Capsule().fill(theme.accent).frame(width: x + 13, height: 4)
+                }
                 Circle()
-                    .fill(theme.isNight ? theme.bg : theme.ink)
-                    .overlay(Circle().strokeBorder(theme.isNight ? theme.ink2 : .clear, lineWidth: 2))
-                    .frame(width: 28, height: 28)
-                    .background(Circle().fill(theme.bg).frame(width: 38, height: 38))
+                    .fill(theme.bg)
+                    .overlay(Circle().strokeBorder(theme.accent, lineWidth: 2))
+                    .frame(width: 26, height: 26)
                     .offset(x: x)
             }
             .frame(maxHeight: .infinity)
@@ -136,7 +143,7 @@ struct PSSlider: View {
     }
 
     private func set(_ x: Double, usable: Double, span: Double) {
-        let raw = range.lowerBound + (x - 14) / usable * span
+        let raw = range.lowerBound + (x - 13) / usable * span
         let next = min(range.upperBound, max(range.lowerBound, raw.rounded()))
         if next != value { onChange(next) }
     }

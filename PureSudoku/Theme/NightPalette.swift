@@ -83,6 +83,15 @@ struct PSPalette: Equatable {
     var luminance: Double
     /// The neutral Dark theme for iPhone Dark mode (not Night). It follows the Day rules for fills.
     var isDark = false
+    /// v3 roles (HANDOFF 2). `edge` outlines every surface (clear in Light and Dark); `btn*` is the
+    /// primary button; `fill` the secondary button and segmented track; `focus` the hint-unit tint;
+    /// `glass` floating controls; `segment` the selected segment; `pill` the selected tab.
+    var edge = Color.clear
+    var btnBg = Color.clear, btnInk = Color.clear, btnEdge = Color.clear
+    var fill = Color.clear, fillEdge = Color.clear
+    var focus = Color.clear
+    var glass = Color.clear, glassEdge = Color.clear
+    var segment = Color.clear, pill = Color.clear
 
     /// Same-digit cells are also ringed in Night and Dark, where fills alone are faint (CODESPEC 7.3).
     var ringsSameDigit: Bool { isNight || isDark }
@@ -129,31 +138,48 @@ extension PSPalette {
         Color(.sRGB, red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255, blue: Double(v & 0xFF) / 255, opacity: 1)
     }
 
+    static func hex(_ v: UInt32, _ opacity: Double) -> Color {
+        hex(v).opacity(opacity)
+    }
+
+    /// Light (HANDOFF 2): iOS grouped grey ground, white surfaces, black ink, one teal accent.
     static func day(clarity: Clarity) -> PSPalette {
         PSPalette(
-            bg: hex(0xF4F1E9), surface: hex(0xEBE6DA), surface2: hex(0xE2DCCD),
-            ink: hex(0x1B1A17), ink2: hex(0x57534B), ink3: hex(0x8A857A),
-            accent: hex(0x9A5712), accentDim: hex(0xC9A27A),
-            line: clarity == .standard ? hex(0xCFC8B8) : hex(0xB9B1A0), lineMajor: hex(0x2E2B25), hair: hex(0xD8D1C1),
-            sel: hex(0xEFD9B0), peer: hex(0xECE6D9), same: hex(0xF1E2C6), err: hex(0xB3261E), status: hex(0x1B1A17),
-            focusDim: 0.28, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1
+            bg: hex(0xF2F2F7), surface: hex(0xFFFFFF), surface2: hex(0xE5E5EA),
+            ink: hex(0x000000), ink2: hex(0x63636A), ink3: hex(0x63636A),
+            accent: hex(0x007580), accentDim: hex(0x7FBAC0),
+            line: clarity == .standard ? hex(0xD4D4DA) : hex(0xBCBCC2), lineMajor: hex(0x3A3A3C), hair: hex(0xD4D4DA),
+            // Cell fills are the teal focus tint at 10 / 14 / 20% over white.
+            sel: hex(0xCCE5E7), peer: hex(0xE6F2F3), same: hex(0xDBEDEF), err: hex(0xC4281C), status: hex(0x000000),
+            focusDim: 0.28, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1,
+            btnBg: hex(0x007580), btnInk: hex(0xFFFFFF),
+            fill: hex(0x767680, 0.14),
+            focus: hex(0x007C89, 0.10),
+            glass: hex(0xFFFFFF, 0.62), glassEdge: hex(0xFFFFFF, 0.90),
+            segment: hex(0xFFFFFF), pill: hex(0x000000, 0.07)
         )
     }
 
-    /// Dark (CODESPEC 7.2): grey-black ground, near-white ink, an amber accent. Text keeps 4.5:1 on the
-    /// background, cards and every cell fill; marks and rings keep 3:1. Increase Contrast lifts lines and
-    /// secondary text.
+    /// Dark (HANDOFF 2): black ground, near-black surfaces, light ink, a cyan accent. Text keeps 4.5:1 on
+    /// the background, cards and every cell fill; marks and rings keep 3:1. Increase Contrast lifts lines
+    /// and secondary text.
     static func dark(clarity: Clarity, increaseContrast: Bool = false) -> PSPalette {
         let strong = clarity != .standard || increaseContrast
+        let ink2 = increaseContrast ? hex(0xC7C7CC) : hex(0xA1A1AA)
         return PSPalette(
-            bg: hex(0x161513), surface: hex(0x22201D), surface2: hex(0x2D2A26),
-            ink: hex(0xF3EFE7), ink2: increaseContrast ? hex(0xDDD8CF) : hex(0xC9C3B8),
-            ink3: increaseContrast ? hex(0xBFB9AE) : hex(0xA39D92),
-            accent: hex(0xF4B366), accentDim: hex(0x8A6A44),
-            line: strong ? hex(0x4D4943) : hex(0x3A3732), lineMajor: increaseContrast ? hex(0xA9A397) : hex(0x8C867B),
-            hair: increaseContrast ? hex(0x4D4943) : hex(0x3A3732),
-            sel: hex(0x534022), peer: hex(0x282521), same: hex(0x42341E), err: hex(0xFF9C90), status: hex(0xF3EFE7),
-            focusDim: 0.45, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1, isDark: true
+            bg: hex(0x000000), surface: hex(0x151517), surface2: hex(0x2C2C2E),
+            ink: hex(0xF2F2F7), ink2: ink2, ink3: ink2,
+            accent: hex(0x5AD4E6), accentDim: hex(0x2D6A73),
+            line: strong ? hex(0x3A3A3C) : hex(0x2C2C2E), lineMajor: increaseContrast ? hex(0xA1A1AA) : hex(0x7C7C82),
+            hair: increaseContrast ? hex(0x3A3A3C) : hex(0x2C2C2E),
+            // Cell fills are the accent at 10 / 17 / 24% over black.
+            sel: hex(0x163337), peer: hex(0x0A1719), same: hex(0x0F2427), err: hex(0xFF6B5E), status: hex(0xF2F2F7),
+            focusDim: 0.45, isNight: false, kelvin: nil, blueReduction: 0, luminance: 1, isDark: true,
+            btnBg: hex(0x5AD4E6), btnInk: hex(0x00262B),
+            fill: hex(0x767680, 0.30),
+            focus: hex(0x5AD4E6, 0.13),
+            glass: hex(0x48484E, 0.50), glassEdge: hex(0xFFFFFF, 0.16),
+            segment: hex(0x636366), pill: hex(0xFFFFFF, 0.12)
         )
     }
 
@@ -181,17 +207,24 @@ extension PSPalette {
             return Color(.sRGB, red: channel(c.r), green: channel(c.g), blue: channel(c.b), opacity: 1)
         }
         let errColor = RGB255(r: 255, g: 70, b: 64)
+        // v3 levels (HANDOFF 2), adjusted to keep contrast: ink2 0.85 (3:1 on the selected cell), line 0.20
+        // (above the peer fill) and lineMajor 0.60 (the table's 0.42 falls below 3:1 on black).
+        let edge = mul(base, s * 0.25)
+        let accentDim = mul(acc, s * 0.65)
         return PSPalette(
-            bg: .black, surface: mul(base, s * 0.07), surface2: mul(base, s * 0.11),
-            ink: mul(base, s), ink2: mul(base, s * 0.90), ink3: mul(base, s * 0.78),
-            accent: mul(acc, s * 0.96), accentDim: mul(acc, s * 0.65),
-            line: mul(base, s * 0.30 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: mul(base, s * 0.25),
+            // No lit fill behind text: surfaces are black and drawn by their `edge` outline.
+            bg: .black, surface: .black, surface2: .black,
+            ink: mul(base, s), ink2: mul(base, s * 0.85), ink3: mul(base, s * 0.78),
+            accent: mul(acc, s * 0.96), accentDim: accentDim,
+            line: mul(base, s * 0.20 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: edge,
             // Fills step plain < peer < same < sel (all accent, so the steps hold at any warmth), peer stays below line, and every cell mark keeps 3:1 on its
             // fill at full strength (CODESPEC 7.2, issue #93).
             sel: mul(acc, s * 0.33), peer: mul(acc, s * 0.17), same: mul(acc, s * 0.25),
             err: mul(errColor, s * 0.95), status: mul(base, s * 0.44),
             focusDim: 0.45, isNight: true, kelvin: Int(kelvin),
-            blueReduction: Int(((1 - (base.b / 255) * s) * 100).rounded()), luminance: s
+            blueReduction: Int(((1 - (base.b / 255) * s) * 100).rounded()), luminance: s,
+            edge: edge, btnInk: mul(acc, s * 0.96), btnEdge: accentDim, fillEdge: edge,
+            focus: mul(base, s * 0.08), glassEdge: edge
         )
     }
 }

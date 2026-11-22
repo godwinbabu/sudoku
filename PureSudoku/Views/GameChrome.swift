@@ -1,38 +1,70 @@
 import SwiftUI
 import UIKit
 
-/// Primary and ghost buttons. Day: primary is an `accent` fill. Night: primary is a 1.5 pt `accentDim`
-/// outline with `accent` text, because nothing lit may sit behind text (CODESPEC 7.2).
+/// Primary and secondary buttons (HANDOFF 3, 6). Primary is a `btnBg` pill with `btnInk` text; at night
+/// a 1.5 pt `btnEdge` outline, because nothing lit may sit behind text. Secondary (`.ghost`) is a `fill`
+/// pill with `accent` text, outlined by `fillEdge` at night.
 struct PSButtonStyle: ButtonStyle {
     enum Kind { case primary, ghost }
     let theme: PSPalette
     var kind = Kind.primary
-    var height: CGFloat = 40
+    var height: CGFloat = 44
     /// Disabled buttons are a hair outline with ink3 text: at least 3:1 in Day, unlike a faded fill.
     @Environment(\.isEnabled) private var isEnabled
 
     func makeBody(configuration: Configuration) -> some View {
-        let primary = kind == .primary && isEnabled
+        let primary = kind == .primary
         let fontSize: CGFloat = height < 40 ? 14 : 15
         configuration.label
-            .psFont(fontSize, weight: .semibold)
+            .psFont(fontSize, weight: .bold)
             .multilineTextAlignment(.center)
             .padding(.horizontal, fontSize < 15 ? 14 : 18)
             .padding(.vertical, 6)
             // The capsule grows with its label (CODESPEC 9), so wrapped text stays inside it.
             .frame(minHeight: height)
-            .foregroundStyle(!isEnabled ? theme.ink3
-                             : primary ? (theme.isNight ? theme.accent : theme.bg) : (theme.isNight ? theme.ink2 : theme.ink))
-            .background(Capsule().fill(primary && !theme.isNight ? theme.accent : .clear))
+            .foregroundStyle(!isEnabled ? theme.ink3 : primary ? theme.btnInk : theme.accent)
+            .background(Capsule().fill(!isEnabled ? .clear : primary ? theme.btnBg : theme.fill))
             .overlay(
-                Capsule()
-                    .strokeBorder(primary ? (theme.isNight ? theme.accentDim : .clear) : theme.hair, lineWidth: primary ? 1.5 : 1)
+                Capsule().strokeBorder(!isEnabled ? theme.hair : primary ? theme.btnEdge : theme.fillEdge,
+                                       lineWidth: primary && isEnabled ? 1.5 : 1)
             )
             // The target is at least 44 × 44 pt, even when the capsule is drawn smaller.
             .padding(.vertical, max(0, (44 - height) / 2))
             .frame(minWidth: 44)
             .opacity(configuration.isPressed ? 0.7 : 1)
             .contentShape(Rectangle())
+    }
+}
+
+/// Glass for controls that float over content (HANDOFF 3): system Liquid Glass on iOS 26 and later,
+/// a thin material with a `glassEdge` stroke and soft shadow before that. Night has no material at all,
+/// only the 1 pt outline; Reduce Transparency gives `surface` plus a stroke.
+struct PSGlass<S: InsettableShape>: ViewModifier {
+    let theme: PSPalette
+    let shape: S
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    func body(content: Content) -> some View {
+        if theme.isNight {
+            content.background(shape.strokeBorder(theme.glassEdge, lineWidth: 1))
+        } else if reduceTransparency {
+            content
+                .background(shape.fill(theme.surface))
+                .overlay(shape.strokeBorder(theme.hair, lineWidth: 1))
+        } else if #available(iOS 26, *) {
+            content.glassEffect(.regular, in: shape)
+        } else {
+            content
+                .background(.ultraThinMaterial, in: shape)
+                .overlay(shape.strokeBorder(theme.glassEdge, lineWidth: 1))
+                .shadow(color: .black.opacity(theme.isDark ? 0.6 : 0.14), radius: 15, y: 10)
+        }
+    }
+}
+
+extension View {
+    func psGlass<S: InsettableShape>(_ theme: PSPalette, in shape: S) -> some View {
+        modifier(PSGlass(theme: theme, shape: shape))
     }
 }
 
