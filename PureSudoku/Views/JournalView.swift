@@ -287,6 +287,7 @@ struct JournalView: View {
 
 /// The SIL Open Font License texts the bundled fonts require (Resources/Fonts), read from the app bundle.
 struct LicencesView: View {
+    @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
     @Environment(\.dismiss) private var dismiss
 
@@ -325,6 +326,8 @@ struct LicencesView: View {
         .statusBackdrop(theme.bg)
         .background(theme.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        // The system status bar is white in dark mode, brighter than any ink (CODESPEC 12.7).
+        .statusBarHidden(controller.isNight)
         .accessibilityIdentifier("licencesView")
     }
 }

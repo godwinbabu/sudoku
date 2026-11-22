@@ -495,8 +495,11 @@ extension NightScheduleTests {
         controller.adoptSystemStyleIfNeeded()
         XCTAssertEqual(controller.settings.appearance, .dark)
         XCTAssertFalse(controller.settings.adoptsSystemStyle)
+        XCTAssertEqual(controller.preferredColorScheme, .dark, "pinned once adopted")
         controller.systemIsDark = { false }
         XCTAssertEqual(controller.look, .dark, "kept, not followed")
+        controller.adoptSystemStyleIfNeeded()
+        XCTAssertEqual(controller.settings.appearance, .dark, "a second call does nothing")
     }
 
     /// Dark → Night starts the first night if still uncalibrated; Night → Dark gives the screen back. Tuning

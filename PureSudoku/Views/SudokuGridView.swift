@@ -83,7 +83,9 @@ struct SudokuGridView: View {
                             .accessibilityIdentifier("cell_\(cell.row)_\(cell.col)")
                             .accessibilityValue(Self.stateText(cell, ringed: ringedText(index), isTarget: isTarget(index)))
                             .accessibilityAddTraits(cell.id == layout.selected?.id ? .isSelected : [])
-                            .accessibilityHint(ringedText(index) == nil ? "" : "Hard to read. Double-tap to confirm.")
+                            // Import review only: hint proof rings are not something to confirm.
+                            .accessibilityHint(ringedCellValue != nil && ringedText(index) != nil
+                                               ? "Hard to read. Double-tap to confirm." : "")
                         }
                     }
                 }

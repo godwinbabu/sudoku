@@ -174,7 +174,7 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
 **Responsibilities:**
 
 - Implement visual requirements:
-  - Day, Dark and Night (Day · Night · After dark · Match iPhone, CODESPEC 7.1, 12.7). Match iPhone gives Day or Dark, never Night.
+  - Light, Dark and Night, plus Night after dark (CODESPEC 7.1, 12.7). Only Night brings the bedtime behaviour.
   - Night with Glow (light) and Warmth (colour) as separate controls; never claim warm colours protect sleep.
 - Ensure layout is **one-handed friendly**:
   - Number pad and key actions reachable at bottom.
@@ -192,7 +192,7 @@ All agents **must treat `CODESPEC.md` as the source of truth** for behavior, fea
   - Confirm it behaves well in:
     - Day
     - Night at low Glow (with bedtime constraints), including when Night comes from After dark
-    - Dark (Match iPhone with iOS Dark mode)
+    - Dark
 
 ---
 

@@ -41,7 +41,13 @@ struct GameView: View {
     /// The hint card's reserved slot: room for a three-line body and its 44 pt buttons (HANDOFF 6.2).
     static let hintSlotHeight: CGFloat = 170
     /// Navigation row, gaps, hint slot, the bars and the gap above them (everything but the board).
-    private static let chromeHeight: CGFloat = 44 + 8 + 10 + hintSlotHeight + 8 + 52 + 8 + 64
+    static let chromeHeight: CGFloat = 44 + 8 + 10 + hintSlotHeight + 8 + 52 + 8 + 64
+
+    /// The board's side: screen width − 12, smaller only when the screen is too short for the board, the
+    /// hint slot and the bars together (HANDOFF 5), so the keypad always stays on screen.
+    static func boardSide(width: CGFloat, height: CGFloat, barsBottom: CGFloat) -> CGFloat {
+        max(120, min(width - 12, height - chromeHeight - barsBottom))
+    }
 
     var body: some View {
         let theme = palette
@@ -51,17 +57,16 @@ struct GameView: View {
             // above the pinned build number's strip when it shows.
             let barsBottom = controller.settings.showBuildNumber ? max(0, 28 - geometry.safeAreaInsets.bottom)
                 : 28 - geometry.safeAreaInsets.bottom
-            // Screen width − 12; only a short screen shrinks it (HANDOFF 5).
-            let side = min(geometry.size.width - 12, geometry.size.height - Self.chromeHeight - barsBottom)
+            let side = Self.boardSide(width: geometry.size.width, height: geometry.size.height, barsBottom: barsBottom)
             VStack(spacing: 0) {
                 // The header, board, tools and keypad must fit one screen (CODESPEC 9): the board,
                 // tools and keys keep a fixed size and show the Large Content Viewer instead.
                 header(theme: theme)
-                boardArea(theme: theme, side: max(side, 200))
+                boardArea(theme: theme, side: side)
                     .padding(.top, 8)
                 if isDone {
                     SolvedPanel(theme: theme, greeting: GameViewModel.greeting(), summary: solvedSummary, note: solvedNote,
-                                techniques: techniques, bottomPadding: 34 - geometry.safeAreaInsets.bottom,
+                                techniques: techniques, bottomPadding: barsBottom + 6,
                                 onAnother: another, onGoodnight: { isGoodnight = true })
                         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
                         .transition(.opacity)
@@ -494,8 +499,13 @@ private struct TimerButton: View {
                     .lineLimit(1)
                 if showsTimer {
                     HStack(spacing: 4) {
-                        Text(GameView.timeString(clock.seconds))
-                            .accessibilityIdentifier("timerLabel")
+                        // DM Sans has no tabular digits, so the time sits in a fixed "00:00" box and the
+                        // centred title does not slide as it ticks.
+                        ZStack(alignment: .leading) {
+                            Text("00:00").hidden().accessibilityHidden(true)
+                            Text(GameView.timeString(clock.seconds))
+                                .accessibilityIdentifier("timerLabel")
+                        }
                         if isPaused { Image(systemName: "pause.fill").psFont(11, weight: .semibold) }
                     }
                     .psFont(15, weight: .semibold, monospacedDigit: true)

@@ -362,7 +362,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
         snapshot(app, "night-game")
         app.buttons["backButton"].tap()
-        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+        restoreAppearance(original, in: app) // leave the app as found
     }
 
     /// Opens an Easy game from Home, checks for the timer, and goes back.
@@ -375,19 +375,32 @@ final class PureSudokuUITests: XCTestCase {
         return shows
     }
 
-    /// Picks Light, Dark or Night in the Display sheet, with Night after dark off so the clock can't
-    /// change the look; returns the appearance selected before.
-    private func setAppearance(_ appearance: String, in app: XCUIApplication) -> String? {
+    /// What `setAppearance` found, so a test can put it back.
+    private struct AppearanceState {
+        let appearance: String
+        let nightAfterDark: Bool
+    }
+
+    /// Picks Light, Dark or Night in the Display sheet and sets Night after dark (off by default, so the
+    /// clock can't change the look); returns what was set before.
+    @discardableResult
+    private func setAppearance(_ appearance: String, nightAfterDark: Bool = false, in app: XCUIApplication) -> AppearanceState? {
         app.buttons["nightButton"].tap()
         let sheet = element("nightSheet", in: app)
         XCTAssertTrue(sheet.waitForExistence(timeout: 2))
         let original = ["light", "dark", "night"].first { app.buttons["night_appearance_\($0)"].isSelected }
-        app.buttons["night_appearance_\(appearance)"].tap()
         let afterDark = element("night_afterDark", in: app) // a switch on iOS 17+, a button on 16
-        if afterDark.waitForExistence(timeout: 1), afterDark.value as? String == "On" { afterDark.tap() }
+        let wasOn = afterDark.waitForExistence(timeout: 1) && afterDark.value as? String == "On"
+        app.buttons["night_appearance_\(appearance)"].tap()
+        if wasOn != nightAfterDark { afterDark.tap() }
         app.buttons["night_close"].tap()
         XCTAssertTrue(waitForAbsence(sheet))
-        return original
+        return original.map { AppearanceState(appearance: $0, nightAfterDark: wasOn) }
+    }
+
+    private func restoreAppearance(_ state: AppearanceState?, in app: XCUIApplication) {
+        guard let state else { return }
+        setAppearance(state.appearance, nightAfterDark: state.nightAfterDark, in: app)
     }
 
     /// The moon opens the Night sheet on the main menu and in a game; the backdrop and × close it (CODESPEC 12.2).
@@ -787,7 +800,7 @@ extension PureSudokuUITests {
         XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
         XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
         app.buttons["backButton"].tap()
-        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+        restoreAppearance(original, in: app) // leave the app as found
     }
 
     /// Dark draws the Dark theme with the v3 focus tint; switching to Light from the game's moon
@@ -808,11 +821,11 @@ extension PureSudokuUITests {
         XCTAssertEqual(selected, peer, accuracy: 4, "the selected cell shares the tint; its ring marks it: \(brightness)")
         XCTAssertEqual(same, plain, accuracy: 4, "no fill for the same digit: \(brightness)")
 
-        _ = setAppearance("light", in: app)
+        setAppearance("light", in: app)
         let plainNow = highlightBrightness(in: app)[0]
         XCTAssertGreaterThan(plainNow, 600, "Light: \(plainNow)")
         app.buttons["backButton"].tap()
-        if let original { _ = setAppearance(original, in: app) } // leave the app as found
+        restoreAppearance(original, in: app) // leave the app as found
     }
 
     /// Selects a given whose digit appears again out of its sight, and returns the rendered fill brightness of

@@ -410,7 +410,7 @@ final class AppController: ObservableObject {
         (SystemAppearance.screen?.traitCollection ?? UITraitCollection.current).userInterfaceStyle == .dark
     }
 
-    /// The look is worked out on read, so After dark follows the clock and Match iPhone the system setting.
+    /// The look is worked out on read, so Night after dark follows the clock, and a fresh install the system style.
     var look: Look { afterDark.look(settings, systemIsDark: systemIsDark()) }
     /// Only Night brings the bedtime behaviour; Dark is an ordinary theme.
     var isNight: Bool { look == .night }
@@ -421,7 +421,7 @@ final class AppController: ObservableObject {
     var soundsActive: Bool { settings.soundsEnabled && !isNight }
     var hapticsActive: Bool { settings.hapticsEnabled && !isNight }
 
-    /// Picking After dark (or sunset and sunrise) is the only thing that asks for location.
+    /// Only turning Night after dark on (or "Use sunset and sunrise") asks for location.
     func setAppearance(_ appearance: Appearance) {
         updateSettings {
             $0.appearance = appearance

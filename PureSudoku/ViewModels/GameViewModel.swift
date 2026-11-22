@@ -716,7 +716,6 @@ final class GameViewModel: ObservableObject {
         }
     }
 
-    /// The Solved summary's technique counts (`LogicalSolver.techniquesNeeded`), off the main thread.
     /// The Solved screen's greeting: morning from 5, afternoon from 12, evening from 17, night from 21.
     static func greeting(at date: Date = Date(), calendar: Calendar = .current) -> String {
         switch calendar.component(.hour, from: date) {
@@ -727,6 +726,7 @@ final class GameViewModel: ObservableObject {
         }
     }
 
+    /// The Solved summary's technique counts (`LogicalSolver.techniquesNeeded`), off the main thread.
     func techniquesNeeded() async -> [(name: String, count: Int)] {
         let puzzle = state.puzzle
         return await Task.detached(priority: .userInitiated) { LogicalSolver.techniquesNeeded(for: puzzle) }.value

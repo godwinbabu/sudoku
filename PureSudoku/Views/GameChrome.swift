@@ -196,6 +196,31 @@ struct SolvedPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            ViewThatFits(in: .vertical) {
+                details
+                ScrollView(showsIndicators: false) { details }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+            PSButtonRow(trailing: false) {
+                Button(action: onAnother) { Text("Another").frame(maxWidth: .infinity) }
+                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 50))
+                    .accessibilityIdentifier("solved_another")
+                Button(action: onGoodnight) { Text("Goodnight").frame(maxWidth: .infinity) }
+                    .buttonStyle(PSButtonStyle(theme: theme, height: 50))
+                    .accessibilityIdentifier("solved_goodnight")
+            }
+            .padding(.bottom, bottomPadding)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 16)
+        .padding(.top, 22)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("solvedPanel")
+    }
+
+    /// Scrolls when it does not fit under the board (small phones, large text); the buttons stay put.
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 0) {
             Text("Solved")
                 .psFont(52, weight: .heavy, design: .serif)
                 .foregroundStyle(theme.ink)
@@ -225,22 +250,8 @@ struct SolvedPanel: View {
                 }
                 .accessibilityElement(children: .combine)
             }
-            Spacer(minLength: 16)
-            PSButtonRow(trailing: false) {
-                Button(action: onAnother) { Text("Another").frame(maxWidth: .infinity) }
-                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost, height: 50))
-                    .accessibilityIdentifier("solved_another")
-                Button(action: onGoodnight) { Text("Goodnight").frame(maxWidth: .infinity) }
-                    .buttonStyle(PSButtonStyle(theme: theme, height: 50))
-                    .accessibilityIdentifier("solved_goodnight")
-            }
-            .padding(.bottom, bottomPadding)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 16)
-        .padding(.top, 22)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("solvedPanel")
     }
 }
 
