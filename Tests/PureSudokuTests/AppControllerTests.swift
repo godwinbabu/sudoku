@@ -101,6 +101,16 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(controller.stats, Stats(), "revealed games do not count")
     }
 
+    /// Home's date line is the weekday, month and day, with no streak count (HANDOFF 6.1, 7).
+    func testHomeDateLine() throws {
+        let (controller, _) = makeTestController()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 21, hour: 22)))
+        let line = MainMenuViewModel(controller: controller).dateLine(at: date, calendar: calendar, locale: Locale(identifier: "en_US"))
+        XCTAssertEqual(line, "Saturday, November 21")
+    }
+
     /// A route whose game is gone resolves to no game, never to another level's game.
     func testMissingGamesResolveToNoGame() async {
         let (controller, _) = makeTestController()

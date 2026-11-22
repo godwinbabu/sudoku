@@ -191,8 +191,7 @@ extension PureSudokuUITests {
         var app = launchApp(Self.largeText + ["-uiTestNearlySolved"])
         let importButton = app.buttons["importPuzzleButton"]
         XCTAssertTrue(importButton.waitForExistence(timeout: 2))
-        scrollClearOfTabBar(importButton, in: app, swipes: 6)
-        importButton.tap()
+        importButton.tap() // beside the tab bar, never scrolled away
         XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["importTypeItIn"].isHittable)
         attachScreenshot(app, "import")

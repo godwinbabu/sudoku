@@ -220,17 +220,16 @@ Testing requirements:
 
 3.1 App structure and Home
 	•	MainMenuView holds three tabs: Play (HomeView), Learn (LearnView) and Journal (JournalView). Each tab has its own NavigationStack.
-	•	The tab bar is drawn by the app (PSTabBar), not the system, so it stays dark at night: bg fill, 1 pt hair top border, Play (square.grid.3x3), Learn (book), Journal (chart.bar). The active tab is accent with a semibold label; the others are ink3. The selected tab also carries the selected trait.
+	•	The tab bar is drawn by the app (PSTabBar), not the system, so it stays dark at night (HANDOFF 6.1): a floating glass capsule 62 pt tall, 21 pt from the left, right and bottom screen edges (above the build-number strip when it shows), with Play (square.grid.3x3), Learn (book) and Journal (chart.bar), each a symbol over an 11 pt label. Content scrolls under it. The active tab is accent with a bold label on a pill (clear at night); the others are ink. The selected tab also carries the selected trait. A separate 62 pt round glass button, 10 pt to its right, imports a puzzle from a photo (“Import a puzzle from a photo”); from Learn or Journal it switches to Play first.
 	•	The tab bar belongs to each tab’s root screen, so anything pushed (a game, a lesson, Import, Display & Night) covers it.
-	•	Each tab’s header has the serif title and the moon, which opens the Night sheet (Section 12.7). Import has the moon in its bar.
+	•	Each tab’s header (ScreenHead) is a 44 pt row with an optional line on the left and the moon on a 44 pt round glass button, which opens the Night sheet (Section 12.7), then the large title (Bricolage 33, 800). Import has the moon in its bar.
 	•	No system sheets, alerts, context menus or confirmation dialogs: Display & Night and lessons are pushed; confirmations are custom popovers. The camera and the Photos picker on Import are the only system screens left, and each opens only after an explicit tap (Section 3.4).
 	•	At night the status bar is hidden on every screen but the game, which follows Hide status bar in games (Section 3.2). Screens that scroll from the top (Home, Learn, Journal, Display & Night) draw a bg strip behind the status bar, so content never sits under the clock.
-	•	Home, top to bottom (Design/v2/README.md, “Play tab”):
-	•	“Pure Sudoku” and the moon; the sub-line “Saturday night · 6-night streak” (the part of the day; the streak only when it is above zero).
-	•	Continue card, only when an unfinished level game exists: a 112 pt mini board (lines and digits, no fills), “CONTINUE”, the level, “6:52 · 44 of 81” and a 3 pt progress bar. It resumes the game saved last (lastUpdated).
-	•	NEW PUZZLE: five 64 pt rows, one per level. Each has a tier glyph (five rising bars, the first N lit; the level name beside it carries the meaning), the level name over its hardest technique (“Singles only”, “Pointing & claiming”, “Pairs & triples”, “Wings & fish”, “Chains & beyond”), the best time when there is one, and a chevron.
-	•	“Import a puzzle from a photo” (44 pt).
-	•	Saved imports: unfinished imports, most recently played first. A trash button asks first, with a custom confirmation.
+	•	Home, top to bottom (HANDOFF 6.1, screens/home-*.png), 16 pt side padding:
+	•	The date line (“Saturday, November 21”, 15 pt, ink2) and the moon; then “Sudoku Masters”. No streak here.
+	•	Continue card, only when an unfinished level game exists: surface, 26 pt corners, 16 pt padding. A 72 pt progress ring (7 pt stroke, line track, accent progress = filled ÷ 81) with the filled count inside; “Continue”, the level (Bricolage 24, 800), “6:52 · 44 of 81”; and a primary Resume pill (44 pt). The whole card resumes the game saved last (lastUpdated).
+	•	“New puzzle” (15 pt, 600, ink2), then one grouped list (surface, 26 pt corners, line separators): five 60 pt rows with the level name (Bricolage 19, 800) over the techniques its puzzles need (“Singles”, “Pointing and claiming”, “Naked and hidden pairs”, “Skyscraper, XY-Wing, X-Wing”, “XY-Chain and beyond”, worded from what the generator's puzzles use) and a chevron. Best times are in Journal.
+	•	Saved imports: unfinished imports, most recently played first, in the same grouped style. A trash button asks first, with a custom confirmation.
 	•	Behavior:
 	•	Tapping a level always starts a new puzzle at that level. If an unfinished game with player entries (digits or notes) is saved at that level, a custom confirmation asks first: “Replace your unfinished Hard game?” with Continue (resume it) and New. Only one game per level is saved, so this is the player’s way back to older games too.
 	•	The Continue card opens the saved game as it was.
@@ -241,10 +240,12 @@ Testing requirements:
 	•	UI tests:
 	•	Launch shows the five level rows, each with its technique line; there is no Night bar.
 	•	The tabs switch, and each tab has the moon.
+	•	The import button opens Import from Play, and from Journal it opens Import on Play.
 	•	Home starts an Expert game; back on Home, the Continue card resumes it with its entry.
 	•	A level with an unfinished game asks first; Continue resumes it, New starts a different puzzle; a level with no entries does not ask.
 	•	Unit tests:
 	•	The Continue card picks the unfinished game played last, never a finished one; a level always starts a new puzzle.
+	•	Home's date line reads “Saturday, November 21” (en_US).
 
 3.2 Game Screen
 	•	SwiftUI view: GameView. Layout and sizes: design_handoff_v3/HANDOFF.md 6.2 and screens/game-*.png.

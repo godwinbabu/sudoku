@@ -40,8 +40,8 @@ final class PureSudokuUITests: XCTestCase {
             XCTAssertTrue(app.buttons["difficulty_\(level)"].exists, level)
         }
         // Each level names the hardest technique it needs (CODESPEC 1, 2.2).
-        XCTAssertTrue(app.buttons["difficulty_expert"].label.contains("Wings & fish"), app.buttons["difficulty_expert"].label)
-        XCTAssertTrue(app.buttons["difficulty_master"].label.contains("Chains & beyond"), app.buttons["difficulty_master"].label)
+        XCTAssertTrue(app.buttons["difficulty_expert"].label.contains("Skyscraper, XY-Wing, X-Wing"), app.buttons["difficulty_expert"].label)
+        XCTAssertTrue(app.buttons["difficulty_master"].label.contains("XY-Chain and beyond"), app.buttons["difficulty_master"].label)
         XCTAssertFalse(app.buttons["bedtimeToggle"].exists, "the Night bar is gone; the moon replaces it")
     }
 
@@ -709,14 +709,23 @@ extension PureSudokuUITests {
 
 /// Import (CODESPEC 3.4).
 extension PureSudokuUITests {
-    /// On short screens (iPhone Duo) the button sits under the tab bar until Home scrolls.
+    /// The round import button beside the tab bar (HANDOFF 6.1).
     private func tapImportButton(in app: XCUIApplication) {
         let button = app.buttons["importPuzzleButton"]
         XCTAssertTrue(button.waitForExistence(timeout: 2))
-        let tabTop = app.buttons["tab_play"].frame.minY
-        for _ in 0..<4 where button.frame.maxY > tabTop { app.swipeUp() }
-        XCTAssertLessThanOrEqual(button.frame.maxY, tabTop, "Import still under the tab bar")
+        XCTAssertTrue(button.isHittable)
         button.tap()
+    }
+
+    /// The import button also shows on Journal and Learn; it opens Import on the Play tab (HANDOFF 6.1).
+    func testImportFromAnotherTabOpensImportOnPlay() {
+        let app = launchApp()
+        app.buttons["tab_journal"].tap()
+        tapImportButton(in: app)
+        XCTAssertTrue(element("importSource", in: app).waitForExistence(timeout: 2))
+        app.buttons["importDiscard"].tap()
+        XCTAssertTrue(app.buttons["tab_play"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["tab_play"].isSelected, "back on Play")
     }
 
     func testImportButtonOpensImportScreen() {

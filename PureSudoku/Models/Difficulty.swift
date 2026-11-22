@@ -20,14 +20,15 @@ enum Difficulty: String, Codable, CaseIterable, Identifiable, Comparable {
         }
     }
 
-    /// The hardest technique a level needs (CODESPEC 1, 2.2), shown under its row on Home.
+    /// The hardest techniques a level's puzzles need (CODESPEC 1, 2.2), shown under its row on Home. Worded
+    /// from what the generator's puzzles actually use: Expert is mostly Skyscraper, XY-Wing and X-Wing.
     var techniqueSummary: String {
         switch self {
-        case .easy: return "Singles only"
-        case .medium: return "Pointing & claiming"
-        case .hard: return "Pairs & triples"
-        case .expert: return "Wings & fish"
-        case .master: return "Chains & beyond"
+        case .easy: return "Singles"
+        case .medium: return "Pointing and claiming"
+        case .hard: return "Naked and hidden pairs"
+        case .expert: return "Skyscraper, XY-Wing, X-Wing"
+        case .master: return "XY-Chain and beyond"
         }
     }
 
