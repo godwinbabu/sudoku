@@ -162,7 +162,8 @@ extension PSPalette {
             bg: hex(0x000000), surface: hex(0x151517), surface2: hex(0x2C2C2E),
             ink: hex(0xF2F2F7), ink2: ink2, ink3: ink2,
             accent: hex(0x5AD4E6), accentDim: hex(0x2D6A73),
-            line: strong ? hex(0x3A3A3C) : hex(0x2C2C2E), lineMajor: increaseContrast ? hex(0xA1A1AA) : hex(0x7C7C82),
+            // Lines stay lighter than every cell fill, the focus tint included (#1E2E32 over the board).
+            line: strong ? hex(0x545458) : hex(0x48484A), lineMajor: increaseContrast ? hex(0xA1A1AA) : hex(0x7C7C82),
             hair: increaseContrast ? hex(0x3A3A3C) : hex(0x2C2C2E),
             // Cell fills are the accent at 10 / 17 / 24% over black.
             sel: hex(0x163337), peer: hex(0x0A1719), same: hex(0x0F2427), err: hex(0xFF6B5E), status: hex(0xF2F2F7),
@@ -199,8 +200,8 @@ extension PSPalette {
             return Color(.sRGB, red: channel(c.r), green: channel(c.g), blue: channel(c.b), opacity: 1)
         }
         let errColor = RGB255(r: 255, g: 70, b: 64)
-        // v3 levels (HANDOFF 2), adjusted to keep contrast: ink2 0.85 (3:1 on the selected cell), line 0.20
-        // (above the peer fill) and lineMajor 0.60 (the table's 0.42 falls below 3:1 on black).
+        // v3 levels (HANDOFF 2), adjusted to keep contrast: ink2 0.85 (3:1 on the selected cell), line 0.30
+        // (v2's value: it shows against the kept v2 cell fills) and lineMajor 0.60 (the table's 0.42 falls below 3:1 on black).
         let edge = mul(base, s * 0.25)
         let accentDim = mul(acc, s * 0.65)
         return PSPalette(
@@ -208,7 +209,7 @@ extension PSPalette {
             bg: .black, surface: .black, surface2: .black,
             ink: mul(base, s), ink2: mul(base, s * 0.85), ink3: mul(base, s * 0.78),
             accent: mul(acc, s * 0.96), accentDim: accentDim,
-            line: mul(base, s * 0.20 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: edge,
+            line: mul(base, s * 0.30 * lift), lineMajor: mul(base, s * 0.60 * lift), hair: edge,
             // Fills step plain < peer < same < sel (all accent, so the steps hold at any warmth), peer stays below line, and every cell mark keeps 3:1 on its
             // fill at full strength (CODESPEC 7.2, issue #93).
             sel: mul(acc, s * 0.33), peer: mul(acc, s * 0.17), same: mul(acc, s * 0.25),

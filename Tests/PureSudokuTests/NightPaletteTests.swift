@@ -11,15 +11,15 @@ final class NightPaletteTests: XCTestCase {
     /// which were too dark to read.
     private let snapshots: [(NightPreset, [String: [Int]])] = [
         (.readingLamp, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [255, 146, 39], "ink2": [217, 124, 33],
-                        "ink3": [199, 114, 31], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [51, 29, 8],
+                        "ink3": [199, 114, 31], "accent": [245, 104, 0], "accentDim": [166, 70, 0], "line": [76, 44, 12],
                         "lineMajor": [153, 88, 23], "hair": [64, 37, 10], "sel": [84, 36, 0], "peer": [43, 18, 0],
                         "same": [64, 27, 0], "err": [242, 66, 61], "status": [112, 64, 17]]),
         (.lightsOut, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [255, 132, 0], "ink2": [217, 112, 0],
-                      "ink3": [199, 103, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [51, 26, 0],
+                      "ink3": [199, 103, 0], "accent": [245, 97, 0], "accentDim": [166, 66, 0], "line": [76, 40, 0],
                       "lineMajor": [153, 79, 0], "hair": [64, 33, 0], "sel": [84, 33, 0], "peer": [43, 17, 0],
                       "same": [64, 25, 0], "err": [242, 66, 61], "status": [112, 58, 0]]),
         (.redLight, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [208, 70, 0], "ink2": [177, 60, 0],
-                     "ink3": [163, 55, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [42, 14, 0],
+                     "ink3": [163, 55, 0], "accent": [200, 68, 0], "accentDim": [136, 46, 0], "line": [63, 21, 0],
                      "lineMajor": [125, 42, 0], "hair": [52, 18, 0], "sel": [69, 23, 0], "peer": [35, 12, 0],
                      "same": [52, 18, 0], "err": [198, 54, 50], "status": [92, 31, 0]])
     ]
@@ -489,6 +489,25 @@ extension NightPaletteTests {
             if !p.isNight {
                 XCTAssertGreaterThanOrEqual(contrast(luminance(p.btnInk), luminance(p.btnBg)), 4.5, "\(name) primary button")
             }
+        }
+    }
+
+    /// Cell lines stay visible inside the selected box: they differ from both the plain board and the
+    /// focus tint (Dark lines are lighter than every fill, Light lines darker).
+    func testGridLinesShowOnTintedCells() {
+        for (name, p) in [("light", PSPalette.day(clarity: .standard)), ("dark", PSPalette.dark(clarity: .standard)),
+                          ("dark contrast", PSPalette.dark(clarity: .standard, increaseContrast: true))] {
+            var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+            UIColor(p.focus).getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+            let tinted = luminance(p.focus, opacity: Double(alpha), over: p.surface)
+            for (fill, value) in [("board", luminance(p.surface)), ("tint", tinted)] {
+                XCTAssertGreaterThanOrEqual(contrast(luminance(p.line), value), 1.25, "\(name) line on \(fill)")
+            }
+        }
+        // Night keeps stepped fills: the lines show on the peer fill that covers the selected box.
+        for preset in NightPreset.allCases where preset != .redLight {
+            let p = PSPalette.night(glow: preset.glow, warmth: preset.warmth, clarity: .standard)
+            XCTAssertGreaterThanOrEqual(contrast(luminance(p.line), luminance(p.peer)), 1.25, "\(preset.title) line on peer")
         }
     }
 
