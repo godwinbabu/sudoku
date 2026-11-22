@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Glass 2 — Home · Light</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:inherit;text-decoration:none}a:hover{color:inherit}
+.r{font-family:"DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.r.light{--bg:#F2F2F7;--surface:#FFFFFF;--edge:transparent;--ink:#000000;--ink2:#63636A;--sep:#D9D9DE;--accent:#007580;--track:#E5E5EA;--btnBg:#007580;--btnInk:#FFFFFF;--btnEdge:transparent;--pill:rgba(0,0,0,.07);--glass:rgba(255,255,255,.62);--glassEdge:rgba(255,255,255,.9);--glassShadow:0 10px 30px rgba(0,0,0,.14)}
+.r.dark{--bg:#000000;--surface:#151517;--edge:transparent;--ink:#F2F2F7;--ink2:#A1A1AA;--sep:#2C2C2E;--accent:#5AD4E6;--track:#2C2C2E;--btnBg:#5AD4E6;--btnInk:#00262B;--btnEdge:transparent;--pill:rgba(255,255,255,.12);--glass:rgba(72,72,78,.5);--glassEdge:rgba(255,255,255,.16);--glassShadow:0 10px 30px rgba(0,0,0,.6)}
+.r.night{--bg:#000000;--surface:#000000;--edge:#3A2410;--ink:#D08A3C;--ink2:#A56A2E;--sep:#24160A;--accent:#D9602B;--track:#24160A;--btnBg:transparent;--btnInk:#D9602B;--btnEdge:#8A3F1C;--pill:transparent;--glass:transparent;--glassEdge:#3A2410;--glassShadow:none}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border:1px solid var(--glassEdge);box-shadow:var(--glassShadow)}
+.disp{font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-weight:800;letter-spacing:-.02em}
+.row{display:flex;align-items:center;gap:12px;min-height:60px;padding:0 16px;border-top:1px solid var(--sep)}
+.row:first-child{border-top:0}
+.row b{font-family:"Bricolage Grotesque","DM Sans",sans-serif;font-weight:800;font-size:19px;letter-spacing:-.01em;display:block}
+.row small{font-size:13px;color:var(--ink2);display:block}
+button{font:inherit;color:inherit}
+</style>
+</helmet>
+<div class="r {{mode}}" style="width: 390px; height: 844px; box-sizing: border-box; position: relative; overflow: hidden; background: var(--bg); color: var(--ink); padding: 54px 16px 0">
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 44px">
+    <span style="font-size: 15px; font-weight: 500; color: var(--ink2)">Saturday, November 21</span>
+    <button class="glass" aria-label="Night" style="width: 44px; height: 44px; border-radius: 22px; display: flex; align-items: center; justify-content: center; padding: 0">
+      <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+    </button>
+  </div>
+  <h1 class="disp" style="margin: 4px 0 16px; font-size: 33px; line-height: 38px">Sudoku Masters</h1>
+
+  <div style="background: var(--surface); border: 1px solid var(--edge); border-radius: 26px; padding: 16px; display: flex; align-items: center; gap: 14px">
+    <div style="position: relative; width: 72px; height: 72px; flex-shrink: 0">
+      <svg aria-hidden="true" width="72" height="72" viewBox="0 0 72 72" fill="none"><circle cx="36" cy="36" r="30" stroke="var(--track)" stroke-width="7"/><circle cx="36" cy="36" r="30" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="95.4 188.5" transform="rotate(-90 36 36)"/></svg>
+      <span class="disp" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 22px; font-variant-numeric: tabular-nums">41</span>
+    </div>
+    <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 1px">
+      <span style="font-size: 13px; font-weight: 500; color: var(--ink2)">Continue</span>
+      <span class="disp" style="font-size: 24px; line-height: 28px">Medium</span>
+      <span style="font-size: 15px; color: var(--ink2); font-variant-numeric: tabular-nums">12:40 · 41 of 81</span>
+    </div>
+    <a href="G2-Game-Light.dc.html" style="background: var(--btnBg); color: var(--btnInk); border: 1.5px solid var(--btnEdge); font-size: 16px; font-weight: 700; height: 44px; padding: 0 18px; border-radius: 22px; display: flex; align-items: center; box-sizing: border-box">Resume</a>
+  </div>
+
+  <h2 style="margin: 24px 4px 8px; font-size: 15px; font-weight: 600; color: var(--ink2)">New puzzle</h2>
+  <div style="background: var(--surface); border: 1px solid var(--edge); border-radius: 26px; overflow: hidden">
+    <div class="row"><div style="flex-grow: 1"><b>Easy</b><small>Singles</small></div><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></div>
+    <div class="row"><div style="flex-grow: 1"><b>Medium</b><small>Pointing and claiming</small></div><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></div>
+    <div class="row"><div style="flex-grow: 1"><b>Hard</b><small>Naked pairs and triples</small></div><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></div>
+    <div class="row"><div style="flex-grow: 1"><b>Expert</b><small>X-Wing, Y-Wing, Swordfish</small></div><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></div>
+    <div class="row"><div style="flex-grow: 1"><b>Master</b><small>XY-Chain and beyond</small></div><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink2)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></div>
+  </div>
+
+  <div style="position: absolute; left: 21px; right: 21px; bottom: 21px; display: flex; gap: 10px">
+    <nav class="glass" aria-label="Tabs" style="flex-grow: 1; height: 62px; border-radius: 31px; padding: 4px; box-sizing: border-box; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr))">
+      <button aria-current="page" style="border: 0; background: var(--pill); border-radius: 27px; color: var(--accent); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 700">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/></svg>Play
+      </button>
+      <button style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 500">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3V4z"/><path d="M5 17a3 3 0 0 1 3-3h10"/></svg>Learn
+      </button>
+      <button style="border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 500">
+        <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Journal
+      </button>
+    </nav>
+    <button class="glass" aria-label="Import a puzzle from a photo" style="width: 62px; height: 62px; border-radius: 31px; display: flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0">
+      <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.2"/></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["light","dark","night"],"default":"light"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() {
+return { mode: this.props.mode ?? 'light' };
+}
+}
+</script>
+</body>
+</html>
