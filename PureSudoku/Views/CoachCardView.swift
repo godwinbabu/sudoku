@@ -37,11 +37,9 @@ struct CoachCardView: View {
             footer
                 .dynamicTypeSize(...DynamicTypeSize.large)
         }
-        .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 14))
+        .padding(EdgeInsets(top: 12, leading: 16, bottom: 14, trailing: 16))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Night: no lit fill behind text, only the hairline (CODESPEC 7.2).
-        .background(RoundedRectangle(cornerRadius: 18).fill(theme.isNight ? Color.clear : theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(theme.hair, lineWidth: 1))
+        .psCard(theme)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("coachPanel")
     }

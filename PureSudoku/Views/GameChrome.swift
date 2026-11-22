@@ -68,71 +68,68 @@ extension View {
     }
 }
 
-/// One of the four tools under the board: a 23 pt symbol over an 11 pt label.
+/// One of the four tools in the game's tool bar (HANDOFF 6.2): a 22 pt symbol over a `caption` label.
+/// The active tool is `accent` with a heavier symbol and label; no chip behind it.
 struct ToolButton: View {
     let theme: PSPalette
     let symbol: String
     let label: String
     var isActive = false
-    var badge: String?
+    /// What VoiceOver reads when it differs from the label (Notes reads "Notes", with On/Off as its value).
+    var spokenLabel: String?
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 1) {
                 Image(systemName: symbol)
-                    .font(.system(size: 21, weight: .regular))
+                    .font(.system(size: 20, weight: isActive ? .semibold : .regular))
                     .frame(height: 24)
-                    .overlay(alignment: .topTrailing) {
-                        // Decorative: the caller gives the state as an accessibility value ("Notes, Off").
-                        if let badge { badgeView(badge).offset(x: 16, y: -6).accessibilityHidden(true) }
-                    }
-                Text(label).font(.system(size: 11, weight: .medium))
+                Text(label).font(PSFont.fixed(11, weight: isActive ? .bold : .medium, display: false))
             }
-            .foregroundStyle(isActive ? theme.accent : theme.ink2)
-            .frame(maxWidth: .infinity, minHeight: 54)
+            .foregroundStyle(isActive ? theme.accent : theme.ink)
+            .frame(maxWidth: .infinity, minHeight: 52)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressFillStyle(theme: theme))
-        .accessibilityLabel(label)
+        .accessibilityLabel(spokenLabel ?? label)
         .opacity(isEnabled ? 1 : 0.35)
         // Fixed size so the tool row fits; a long press shows it large (CODESPEC 9).
         .accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
     }
-
-    /// ON/OFF badge. Day ON is an `accent` fill; at night both are outlines.
-    private func badgeView(_ text: String) -> some View {
-        let filled = !theme.isNight
-        return Text(text)
-            .font(.system(size: 9, weight: .bold))
-            .padding(.horizontal, 4)
-            .padding(.vertical, 1)
-            .foregroundStyle(isActive ? (filled ? theme.bg : theme.accent) : theme.ink2)
-            .background(RoundedRectangle(cornerRadius: 6).fill(filled ? (isActive ? theme.accent : theme.surface2) : .clear))
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(filled ? .clear : (isActive ? theme.accent : theme.hair), lineWidth: 1))
-            .fixedSize()
-    }
 }
 
-/// A 44 pt header icon.
+/// A 44 pt header icon: plain, or on its own round glass (`round`) for navigation (HANDOFF 6.2).
 struct HeaderIconButton: View {
     let theme: PSPalette
     let symbol: String
     let label: String
+    var round = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 20, weight: .regular))
-                .foregroundStyle(theme.ink2)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+                .font(.system(size: 19, weight: round ? .semibold : .regular))
+                .foregroundStyle(round ? theme.ink : theme.ink2)
+                .frame(width: round ? 44 : 40, height: round ? 44 : 40)
+                .contentShape(Circle())
+                .modifier(RoundGlass(theme: theme, isOn: round))
+                .frame(minWidth: 44, minHeight: 44)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .accessibilityShowsLargeContentViewer { Label(label, systemImage: symbol) }
+    }
+}
+
+private struct RoundGlass: ViewModifier {
+    let theme: PSPalette
+    let isOn: Bool
+
+    func body(content: Content) -> some View {
+        if isOn { content.psGlass(theme, in: Circle()) } else { content }
     }
 }
 

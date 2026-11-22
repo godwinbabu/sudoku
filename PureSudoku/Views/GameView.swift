@@ -38,20 +38,27 @@ struct GameView: View {
         if controller.driftSteps != drift.steps { controller.driftSteps = drift.steps } // the backlight drifts too
     }
 
-    /// Header, board top gap, hint slot, tools and keypad (everything but the board).
-    private static let chromeHeight: CGFloat = 48 + 6 + 12 + 124 + 54 + 6 + 64 + 4
+    /// The hint card's reserved slot: room for a three-line body and its 44 pt buttons (HANDOFF 6.2).
+    static let hintSlotHeight: CGFloat = 170
+    /// Navigation row, gaps, hint slot, the bars and the gap above them (everything but the board).
+    private static let chromeHeight: CGFloat = 44 + 8 + 10 + hintSlotHeight + 8 + 52 + 8 + 64
 
     var body: some View {
         let theme = palette
         let isDone = viewModel.state.isCompleted
         GeometryReader { geometry in
-            let side = min(geometry.size.width - 24, geometry.size.height - Self.chromeHeight, 440)
+            // The bars sit 28 pt above the screen's bottom edge, inside the home-indicator area, but stay
+            // above the pinned build number's strip when it shows.
+            let barsBottom = controller.settings.showBuildNumber ? max(0, 28 - geometry.safeAreaInsets.bottom)
+                : 28 - geometry.safeAreaInsets.bottom
+            // Screen width − 12; only a short screen shrinks it (HANDOFF 5).
+            let side = min(geometry.size.width - 12, geometry.size.height - Self.chromeHeight - barsBottom)
             VStack(spacing: 0) {
                 // The header, board, tools and keypad must fit one screen (CODESPEC 9): the board,
                 // tools and keys keep a fixed size and show the Large Content Viewer instead.
                 header(theme: theme)
                 boardArea(theme: theme, side: max(side, 200))
-                    .padding(.top, 6)
+                    .padding(.top, 8)
                 // The hint card fills this slot; the tools and keypad below keep their place.
                 Group {
                     if let coach = viewModel.coach, !isDone {
@@ -63,24 +70,13 @@ struct GameView: View {
                     }
                 }
                 // At accessibility sizes the slot also takes the free room above the tools.
-                .frame(minHeight: 124, maxHeight: dynamicTypeSize.isAccessibilitySize ? .infinity : 124)
-                .padding([.top, .horizontal], 12)
-                Spacer(minLength: 0)
-                tools(theme: theme)
-                    .padding(.horizontal, 18)
-                    .opacity(isDone ? 0.3 : 1)
-                NumberPadView(theme: theme, remaining: viewModel.remaining,
-                              isNotesMode: viewModel.inputMode == .candidate) { digit in
-                    viewModel.setDigit(digit)
-                    if let message = viewModel.placedAnnouncement(digit) {
-                        UIAccessibility.post(notification: .announcement, argument: message)
-                    }
-                }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 6)
-                    .padding(.bottom, 4)
-                    .opacity(isDone || viewModel.isPaused ? 0.3 : 1) // disabled while paused, so it looks it
-                    .disabled(isDone || viewModel.isPaused)
+                .frame(minHeight: Self.hintSlotHeight, maxHeight: dynamicTypeSize.isAccessibilitySize ? .infinity : Self.hintSlotHeight)
+                .padding(.top, 10)
+                .padding(.horizontal, 16)
+                Spacer(minLength: 8)
+                bars(theme: theme)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, barsBottom)
             }
             .frame(width: geometry.size.width)
         }
@@ -151,22 +147,32 @@ struct GameView: View {
 
     // MARK: - Header
 
+    /// Round glass Back; the level and timer in the middle; a glass capsule with Night and More (HANDOFF 6.2).
     private func header(theme: PSPalette) -> some View {
-        HStack(spacing: 4) {
-            HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back") { dismiss() }
-                .accessibilityIdentifier("backButton")
+        ZStack {
             TimerButton(clock: viewModel.clock, title: difficulty.displayName, theme: theme, showsTimer: viewModel.showTimer,
                         isPaused: viewModel.isPaused, isCompleted: viewModel.state.isCompleted, action: togglePause)
-            HeaderIconButton(theme: theme, symbol: theme.isNight ? "moon.fill" : "moon", label: "Night") {
-                showsMenu = false
-                controller.showsNightSheet = true
+                .padding(.horizontal, 56)
+            HStack(spacing: 0) {
+                HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back", round: true) { dismiss() }
+                    .accessibilityIdentifier("backButton")
+                Spacer(minLength: 0)
+                HStack(spacing: 0) {
+                    HeaderIconButton(theme: theme, symbol: "moon", label: "Night") {
+                        showsMenu = false
+                        controller.showsNightSheet = true
+                    }
+                    .accessibilityIdentifier("nightButton")
+                    HeaderIconButton(theme: theme, symbol: "ellipsis", label: "More") { showsMenu.toggle() }
+                        .accessibilityIdentifier("moreButton")
+                }
+                .padding(.horizontal, 4)
+                .frame(height: 44)
+                .psGlass(theme, in: Capsule())
             }
-            .accessibilityIdentifier("nightButton")
-            HeaderIconButton(theme: theme, symbol: "ellipsis", label: "More") { showsMenu.toggle() }
-                .accessibilityIdentifier("moreButton")
         }
-        .padding(.horizontal, 10)
-        .frame(height: 48)
+        .padding(.horizontal, 16)
+        .frame(height: 44)
     }
 
     // MARK: - Board
@@ -184,7 +190,8 @@ struct GameView: View {
                         .buttonStyle(PSButtonStyle(theme: theme))
                 }
                 .frame(width: side, height: side)
-                .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(theme.hair, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 12).fill(theme.surface))
+                .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(theme.edge, lineWidth: 1))
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("pauseOverlay")
             } else {
@@ -192,7 +199,8 @@ struct GameView: View {
                     cells: viewModel.state.cells,
                     selectedCellID: viewModel.hint == nil ? viewModel.selectedCellID : nil,
                     theme: theme,
-                    highlight: viewModel.hintHighlight
+                    highlight: viewModel.hintHighlight,
+                    dimsOutsideFocus: false
                 ) { viewModel.select(cell: $0) }
                     .frame(width: side, height: side)
                     // Faint enough that the Solved summary on top reads cleanly, Day and Night (QA #45).
@@ -276,6 +284,32 @@ struct GameView: View {
         .multilineTextAlignment(.center)
     }
 
+    /// The tool bar over the keypad, both glass, 8 pt apart (HANDOFF 6.2). In Notes mode the keypad
+    /// gains a 1.5 pt accent outline.
+    private func bars(theme: PSPalette) -> some View {
+        let isDone = viewModel.state.isCompleted
+        let notesOn = viewModel.inputMode == .candidate
+        let bar = RoundedRectangle(cornerRadius: 26)
+        return VStack(spacing: 8) {
+            tools(theme: theme)
+                .frame(height: 52)
+                .psGlass(theme, in: bar)
+                .opacity(isDone ? 0.3 : 1)
+            NumberPadView(theme: theme, remaining: viewModel.remaining) { digit in
+                viewModel.setDigit(digit)
+                if let message = viewModel.placedAnnouncement(digit) {
+                    UIAccessibility.post(notification: .announcement, argument: message)
+                }
+            }
+            .frame(height: 64)
+            .psGlass(theme, in: bar)
+            .overlay(bar.strokeBorder(theme.accent, lineWidth: 1.5).opacity(notesOn ? 1 : 0))
+            .opacity(isDone || viewModel.isPaused ? 0.3 : 1) // disabled while paused, so it looks it
+            .disabled(isDone || viewModel.isPaused)
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: notesOn)
+    }
+
     private func tools(theme: PSPalette) -> some View {
         let notesOn = viewModel.inputMode == .candidate
         return HStack(spacing: 0) {
@@ -284,7 +318,8 @@ struct GameView: View {
                 .accessibilityIdentifier("tool_undo")
             ToolButton(theme: theme, symbol: "eraser", label: "Erase") { viewModel.clearSelectedCell() }
                 .accessibilityIdentifier("tool_erase")
-            ToolButton(theme: theme, symbol: "pencil", label: "Notes", isActive: notesOn, badge: notesOn ? "ON" : "OFF") {
+            ToolButton(theme: theme, symbol: "pencil", label: notesOn ? "Notes on" : "Notes off", isActive: notesOn,
+                       spokenLabel: "Notes") {
                 viewModel.inputMode = notesOn ? .normal : .candidate
             }
             .accessibilityIdentifier("tool_notes")
@@ -361,8 +396,8 @@ struct GameView: View {
                 }
                 .frame(width: dynamicTypeSize.isAccessibilitySize ? 300 : 230)
                 .accessibilityAction(.escape) { showsMenu = false }
-                .padding(.top, 50)
-                .padding(.trailing, 12)
+                .padding(.top, 52)
+                .padding(.trailing, 16)
             }
             .transition(.opacity)
         }
@@ -444,22 +479,23 @@ private struct TimerButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 1) {
-                Text(title.uppercased())
-                    .psFont(11, weight: .semibold)
-                    .tracking(0.9)
-                    .foregroundStyle(theme.ink3)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .psFont(21, weight: .heavy, design: .serif)
+                    .foregroundStyle(theme.ink)
+                    .lineLimit(1)
                 if showsTimer {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 4) {
                         Text(GameView.timeString(clock.seconds))
                             .accessibilityIdentifier("timerLabel")
-                        if isPaused { Image(systemName: "pause").psFont(11, weight: .semibold) }
+                        if isPaused { Image(systemName: "pause.fill").psFont(11, weight: .semibold) }
                     }
-                    .psFont(15, weight: .medium, monospacedDigit: true)
+                    .psFont(15, weight: .semibold, monospacedDigit: true)
                     .foregroundStyle(theme.ink2)
                 }
             }
-            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 48 pt tall
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge) // the header is 44 pt tall
+            .minimumScaleFactor(0.7)
             .frame(maxWidth: .infinity, minHeight: 44)
             .contentShape(Rectangle())
         }

@@ -70,7 +70,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(expert.waitForExistence(timeout: 2))
         startLevel("expert", in: app)
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["EXPERT"].exists, "the header names the level")
+        XCTAssertTrue(app.staticTexts["Expert"].exists, "the header names the level")
         XCTAssertFalse(app.buttons["tab_play"].exists, "the game covers the tab bar")
         let cell = firstEmptyCell(in: app)
         let id = cell.identifier
@@ -224,7 +224,8 @@ final class PureSudokuUITests: XCTestCase {
         let labels = ["Step 1 of 3", "Step 2 of 3", "Step 3 of 3"]
         for (index, label) in labels.enumerated() {
             XCTAssertTrue(stepLabel.label.hasPrefix(label), stepLabel.label)
-            if index == 1 { XCTAssertTrue(app.buttons["hint_lesson"].exists, "the lesson link shows from step 2") }
+            // v3: steps 1 and 2 have one Next button; Lesson joins the action at step 3 (HANDOFF 6.2).
+            XCTAssertEqual(app.buttons["hint_lesson"].exists, index == 2, "Lesson at step 3 only")
             if index < 2 {
                 XCTAssertFalse(app.buttons["hint_apply"].exists)
                 app.buttons["hint_next"].tap()
@@ -544,7 +545,16 @@ final class PureSudokuUITests: XCTestCase {
     func scrollClearOfTabBar(_ element: XCUIElement, in app: XCUIApplication, swipes: Int = 8) {
         let tab = app.buttons["tab_play"]
         let bottom = tab.exists ? tab.frame.minY : app.windows.firstMatch.frame.maxY
-        for _ in 0..<swipes where !element.exists || element.frame.maxY > bottom { app.swipeUp() }
+        let top: CGFloat = 60 // below the status bar
+        for _ in 0..<swipes {
+            guard element.exists else { app.swipeUp(); continue }
+            let frame = element.frame
+            if frame.maxY <= bottom && frame.minY >= top { return }
+            // Drag just far enough, without a fling: a swipe can carry a tall row past the top.
+            let distance = frame.maxY > bottom ? min(frame.maxY - bottom + 16, 300) : max(frame.minY - top - 16, -300)
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6))
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -distance)))
+        }
     }
 
     func waitForAbsence(_ element: XCUIElement, timeout: TimeInterval = 3) -> Bool {
@@ -615,9 +625,10 @@ extension PureSudokuUITests {
         app.buttons["tool_hint"].tap()
         XCTAssertTrue(app.buttons["hint_next"].waitForExistence(timeout: 2))
         app.buttons["hint_next"].tap()
+        app.buttons["hint_next"].tap()
         let lesson = app.buttons["hint_lesson"]
         XCTAssertTrue(lesson.waitForExistence(timeout: 2))
-        // "Step 2 of 3: Hidden Single" names the technique.
+        // "Step 3 of 3: Hidden Single" names the technique.
         let technique = try XCTUnwrap(element("hintStep", in: app).label.components(separatedBy: ": ").last)
         lesson.tap()
         XCTAssertTrue(element("lessonBoard", in: app).waitForExistence(timeout: 5), "the lesson is pushed")
@@ -764,8 +775,8 @@ extension PureSudokuUITests {
         if let original { _ = setAppearance(original, in: app) } // leave the app as found
     }
 
-    /// Match iPhone follows iOS: Dark mode draws the Dark theme (not Day's light ground),
-    /// with the same visible highlight ladder; Light mode goes back to Day (issue #94).
+    /// Match iPhone follows iOS: Dark mode draws the Dark theme (not Day's light ground) with the v3
+    /// focus tint; Light mode goes back to Day (issue #94).
     func testMatchIPhoneDarkShowsTheDarkTheme() throws {
         defer { XCUIDevice.shared.appearance = .light }
         XCUIDevice.shared.appearance = .dark
@@ -787,10 +798,13 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
 
         let brightness = highlightBrightness(in: app)
-        // v3 Dark's ground is black or the #151517 board surface (sum ≤ 65), far from Day's ~740.
-        XCTAssertTrue((0...120).contains(brightness[0]), "Dark ground: \(brightness)")
-        XCTAssertEqual(brightness, brightness.sorted(), "plain < peer < same < selected: \(brightness)")
-        XCTAssertEqual(Set(brightness).count, 4, "each highlight is visible: \(brightness)")
+        // v3 Dark: the board is #151517 (sum 65), far from Day's ~740. The selection's row, column and box
+        // carry the focus tint; the same digit elsewhere shows by weight, not a fill (HANDOFF 6.2).
+        let (plain, peer, same, selected) = (brightness[0], brightness[1], brightness[2], brightness[3])
+        XCTAssertTrue((40...120).contains(plain), "Dark board: \(brightness)")
+        XCTAssertGreaterThan(peer, plain + 5, "peers are tinted: \(brightness)")
+        XCTAssertEqual(selected, peer, accuracy: 4, "the selected cell shares the tint; its ring marks it: \(brightness)")
+        XCTAssertEqual(same, plain, accuracy: 4, "no fill for the same digit: \(brightness)")
 
         XCUIDevice.shared.appearance = .light
         RunLoop.current.run(until: Date().addingTimeInterval(1))
@@ -849,7 +863,8 @@ extension PureSudokuUITests {
     /// Red + green + blue (sRGB, 0...765) of one pixel near the cell's top-left corner: inside the fill, but
     /// outside the 2 pt selection ring and the same-digit ring inset 3 pt.
     private func fillBrightness(of frame: CGRect, in image: UIImage) -> Int {
-        let point = CGPoint(x: ((frame.minX + 2.5) * image.scale).rounded(.down), y: ((frame.minY + 2.5) * image.scale).rounded(.down))
+        // The top edge's middle: outside the 3 pt inset rings, and clear of the board's rounded corners.
+        let point = CGPoint(x: (frame.midX * image.scale).rounded(.down), y: ((frame.minY + 2.5) * image.scale).rounded(.down))
         guard let pixel = image.cgImage?.cropping(to: CGRect(origin: point, size: CGSize(width: 1, height: 1))) else { return -1 }
         var rgba = [UInt8](repeating: 0, count: 4)
         let drawn: Bool = rgba.withUnsafeMutableBytes { buffer in

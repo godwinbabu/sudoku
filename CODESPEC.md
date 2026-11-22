@@ -247,13 +247,14 @@ Testing requirements:
 	•	The Continue card picks the unfinished game played last, never a finished one; a level always starts a new puzzle.
 
 3.2 Game Screen
-	•	SwiftUI view: GameView. Layout and sizes: Design/v2/README.md, “Game”.
+	•	SwiftUI view: GameView. Layout and sizes: design_handoff_v3/HANDOFF.md 6.2 and screens/game-*.png.
 	•	From top to bottom:
-	•	Header (48 pt): Back; the level over the timer (tap to pause); the moon (opens the Night sheet, Section 12.2); More.
-	•	Board: 3×3 boxes on a lineMajor ground, each 3×3 cells on a line ground. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
-	•	Hint slot (124 pt): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1), or the coach card (Section 6.3.3). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never), and offers the coach once the player is stuck (Section 6.3.3).
-	•	Tools: Undo, Erase, Notes (with an ON / OFF badge) and Hint. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
-	•	Keypad: 1×9. Each key shows how many of its digit are left. A digit with none left fades to 28% and is disabled. In Notes mode each key shows its digit small, at its pencil-mark position.
+	•	Navigation row (44 pt, 16 pt side padding): a round glass Back; in the middle the level (Bricolage 21, 800) and the timer (15 pt, ink2; tap to pause); a glass capsule holding the moon (opens the Night sheet, Section 12.2) and More.
+	•	Board, 8 pt below: screen width − 12 (6 pt from each edge), smaller only on a screen too short for it. Cells on surface with 12 pt corners and a 1 pt edge outline; line between cells and lineMajor between boxes, no outer frame. Line widths follow Clarity (Section 12.3). Cell states are in Section 7.3.
+	•	Hint slot (170 pt, 10 pt below the board): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1), or the coach card (Section 6.3.3). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never), and offers the coach once the player is stuck (Section 6.3.3).
+	•	Tool bar and keypad: two glass bars (26 pt corners), 12 pt from the sides, 8 pt apart, the lower one 28 pt above the screen's bottom edge.
+	•	Tools (52 pt): Undo, Erase, Notes (“Notes on” / “Notes off”; VoiceOver reads “Notes” with the value On / Off) and Hint, each a symbol over an 11 pt label. The active tool is accent and heavier; no chip. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
+	•	Keypad (64 pt): 1×9, no key backgrounds. Each key is its digit (Bricolage 28, 800) over how many are left (11 pt, ink2). A digit with none left turns ink2, loses its count and is disabled. In Notes mode the keypad bar gains a 1.5 pt accent outline.
 	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen. Check puzzle is left out when mistakes are set to Never, since it would mark nothing.
 	•	Fill all notes writes, in every empty cell, the digits its row, column and box still allow. One Undo reverts it.
 	•	Restart puzzle asks first, with a custom confirmation styled like the menu. At night its backdrop is black at 92%, so the board and notes do not show around the card.
@@ -276,7 +277,7 @@ Testing requirements:
 	•	Start an Easy game, tap a cell, tap a number; verify the cell displays that number.
 	•	Toggle Notes mode, tap another cell, tap a number; verify smaller candidate text appears in that cell.
 	•	Restart the puzzle from the More menu and verify that user-entered values and candidates are cleared.
-	•	The Notes badge reads Off, then On, then Off.
+	•	The Notes tool reads Off, then On, then Off.
 	•	A two-finger tap shows Hush; a tap returns.
 	•	Unit tests:
 	•	A digit's keypad count drops as it is placed; at zero its key is disabled.
@@ -438,15 +439,16 @@ Hint and Reveal Cell are two separate actions. Hint teaches; Reveal Cell fills a
 	•	Mistake first (always checked, whatever Show mistakes is set to):
 	•	A wrong digit, or a cell whose notes leave out its correct digit. Cells with no notes are never a mistake. Notes that conflict with a placed digit (stale notes) are ignored.
 	•	Step 1 “Where to look”: “Something in box 4 doesn’t fit.” (the box is spotlit). Button: Show me.
-	•	Step 2 “Mistake”: when a peer already holds the digit, “The 7 in row 3, column 4 repeats the 7 in row 3, column 8.” (dashed ring on the cell, solid ring on the peer, their shared row, column or box spotlit). Otherwise “The 7 in row 3, column 4 can’t be right.” Button: Show me why.
+	•	Step 2 “Mistake”: when a peer already holds the digit, “The 7 in row 3, column 4 repeats the 7 in row 3, column 8.” (dashed ring on the cell, solid ring on the peer, their shared row, column or box spotlit). Otherwise “The 7 in row 3, column 4 can’t be right.” Button: Next.
 	•	Step 3 “Why”: with a peer, “Row 3 already has a 7 (column 8).” (in a column: “(row N)”; in a box: the full cell name) Otherwise “Nothing on the board clashes with it yet, but the puzzle has one solution, and it has a different digit here.” Button: Clear it. It clears the digit (or the notes) as one undoable edit and does not mark the solve assisted.
 	•	Imports whose entries fit no solution: one card, “Some of your entries don’t fit together. Try undoing recent moves.”, with Undo.
 	•	Technique steps (from the logical solver, Section 13.3: the simplest step on the player’s board, using their notes where they exist; the same board always gives the same hint):
-	•	Step 1 “Where to look”: the nudge, with a spotlight on the focus cells. “Look at box 4. Where can 5 go?”
-	•	Step 2 “Technique” · tier: the technique name (serif) and its one-line definition. The pattern cells are filled and, in cells without notes, the candidates it relies on are shown.
+	•	Card (HANDOFF 6.2): surface, 22 pt corners, 1 pt edge outline, padding 12 / 16 / 14. Top row: the heading (Bricolage 21, 800) — “Where to look”, then the technique name from step 2 — and “Hint · N of 3” (13 pt, ink2), then ×. Body 15 pt in ink (13 pt if it would not fit, then it scrolls). Steps 1 and 2 have one primary Next (with a secondary “All patterns” at step 1, opening the coach); step 3 has a secondary Lesson (104 pt) and the primary action. Buttons are 44 pt.
+	•	Step 1 “Where to look”: the nudge, with the unit tinted. “Look at box 4. Where can 5 go?”
+	•	Step 2 “Technique”: the technique name and its one-line definition. The pattern cells are filled and, in cells without notes, the candidates it relies on are shown.
 	•	Step 3 “Why”: evidence rings, the dashed target with its ghost digit, struck-through eliminations. “Every other empty cell in box 4 already sees a 5. So 5 can only go in row 5, column 2.” If the player’s notes, not placed digits, rule a cell out, it reads “sees or has ruled out”.
 	•	Step 3 button: “Place 5 · assisted”, or for eliminations “Remove 5 · assisted” (one digit) / “Apply · assisted”. It makes the change as one undoable edit (Section 6.7). An elimination in a cell without notes first writes that cell’s candidates as notes, so the deduction is kept and the next hint moves on.
-	•	“Lesson →” (from step 2) pushes the technique’s lesson (Section 13.5); Back returns to the game. The timer stops while the game is off screen, also across a trip to the background, and runs again when the game shows.
+	•	Lesson (step 3) pushes the technique’s lesson (Section 13.5); Back returns to the game. The timer stops while the game is off screen, also across a trip to the background, and runs again when the game shows.
 	•	Each hint carries: nudge, technique, tier, short (definition), why, focus, evidence, pattern, elim and target (TechniqueStep and HintSession).
 	•	If the solver finds no step it can explain, the card opens at step 3: “This step needs a technique beyond what hints explain yet. Placing 5 in row 5, column 2.” with “Place 5 · assisted”. It never returns nothing.
 	•	Every hint opens at step 1 (the earlier fading plan, which opened new techniques at the “why” rung, is dropped).
@@ -581,7 +583,7 @@ The resolved look (Look) is Day, Dark or Night; it is worked out on read and nev
 7.2 Visual Rules
 	•	v3 look (design_handoff_v3/HANDOFF.md): floating glass controls over a plain board, one accent colour. Type: Bricolage Grotesque for display text (`.serif` in psFont) and DM Sans for everything else, bundled in Resources/Fonts under the SIL Open Font License with their licence files. psFont keeps Dynamic Type scaling; Bricolage at 21 pt and above tracks −0.02 em.
 	•	Day palette (Light, fixed): bg #F2F2F7, surface #FFFFFF, surface2 #E5E5EA, ink #000000, ink2 and ink3 #63636A, accent #007580, accentDim #7FBAC0, line #D4D4DA (Clarity Large/Bold: #BCBCC2), lineMajor #3A3A3C, hair #D4D4DA, sel #CCE5E7, peer #E6F2F3, same #DBEDEF, err #C4281C. v3 roles: btnBg #007580, btnInk #FFFFFF, fill #767680 at 14%, focus #007C89 at 10%, glass white 62% with a white 90% edge, segment #FFFFFF, pill black 7%; edge, btnEdge and fillEdge are clear.
-	•	Dark palette (fixed; Match iPhone with iOS Dark mode): bg #000000, surface #151517, surface2 #2C2C2E, ink #F2F2F7, ink2 and ink3 #A1A1AA, accent #5AD4E6, accentDim #2D6A73, line #2C2C2E (Clarity Large/Bold or Increase Contrast: #3A3A3C), lineMajor #7C7C82, hair #2C2C2E, sel #163337, peer #0A1719, same #0F2427, err #FF6B5E, status #F2F2F7, focusDim 0.45. Increase Contrast also uses ink2 and ink3 #C7C7CC, lineMajor #A1A1AA, hair #3A3A3C. v3 roles: btnBg #5AD4E6, btnInk #00262B, fill #767680 at 30%, focus #5AD4E6 at 13%, glass #48484E at 50% with a white 16% edge, segment #636366, pill white 12%. Text (ink, ink2, ink3, accent, err) keeps 4.5:1 on bg, surface and surface2, and ink, accent and err keep 4.5:1 on every cell fill; notes, ghost digits, rings, the accent button and toggle (the off toggle outline is ink3 in Dark) keep 3:1 against what they sit on. Fills step plain < peer < same < sel by at least 5 L*, and peer stays darker than line. Dark follows the Day rules for fills (filled primary buttons, cards and selected segments), with the same-digit ring and the 75% ghost digit of Night.
+	•	Dark palette (fixed; Match iPhone with iOS Dark mode): bg #000000, surface #151517, surface2 #2C2C2E, ink #F2F2F7, ink2 and ink3 #A1A1AA, accent #5AD4E6, accentDim #2D6A73, line #2C2C2E (Clarity Large/Bold or Increase Contrast: #3A3A3C), lineMajor #7C7C82, hair #2C2C2E, sel #163337, peer #0A1719, same #0F2427, err #FF6B5E, status #F2F2F7, focusDim 0.45. Increase Contrast also uses ink2 and ink3 #C7C7CC, lineMajor #A1A1AA, hair #3A3A3C. v3 roles: btnBg #5AD4E6, btnInk #00262B, fill #767680 at 30%, focus #5AD4E6 at 13%, glass #48484E at 50% with a white 16% edge, segment #636366, pill white 12%. Text (ink, ink2, ink3, accent, err) keeps 4.5:1 on bg, surface and surface2, and ink, accent and err keep 4.5:1 on every cell fill; notes, ghost digits, rings, the accent button and toggle (the off toggle outline is ink3 in Dark) keep 3:1 against what they sit on. Fills step plain < peer < same < sel by at least 5 L*, and peer stays darker than line. Dark follows the Day rules for fills (filled primary buttons, cards and selected segments). Cell fills sel, peer and same are kept for Night; Light and Dark use the focus tint on the board.
 	•	Glass (floating controls only: tab bar, tool bar, keypad, round navigation buttons): system Liquid Glass on iOS 26 and later; before that .ultraThinMaterial with a 1 pt glassEdge stroke and a soft shadow; at night no material, only the 1 pt glassEdge outline; with Reduce Transparency, surface plus a hair stroke.
 	•	Controls: primary button = btnBg pill, btnInk bold 15 pt text, 44 pt tall (1.5 pt btnEdge outline at night); secondary = fill pill with accent text (fillEdge outline at night); segmented = fill pill track, selected segment pill in segment colour (btnEdge ring at night); switch 51 × 31, on = btnBg track with btnInk knob; slider = 4 pt line track, accent progress, 26 pt bg thumb with a 2 pt accent ring.
 	•	Night palette (computed from glow, warmth and Clarity; never hard-coded):
@@ -610,12 +612,12 @@ The resolved look (Look) is Day, Dark or Night; it is worked out on read and nev
 	•	Immediately mark conflicting cells as error (error marker, see 7.2).
 	•	When I check: only Check marks wrong digits. Never: nothing is marked, even after Check, and switching to Never clears existing marks. Check marks are saved with the game (GameState.checkedWrong), apart from duplicate marks: a Check mark stays until its cell is edited, in any mode, and a duplicate mark never becomes one.
 	•	Cell states (Design/v2/README.md, “Cell states”):
-	•	Given: ink, given weight. Entered: accent, entered weight. At night givens go one weight heavier (semibold → bold, bold → heavy, heavy → black), because at low glow ink and accent are close in colour.
-	•	Selected: sel fill and a 2 pt inset accent ring. Peers (row, column, box): peer fill. Same digit: same fill; in Night and Dark also a 1.5 pt accent ring, inset 3 pt with radius 4, so it shows by shape and never reads as the selection ring. The ring is skipped on the selected cell and on hint evidence and target cells (selection ring > hint rings > same-digit ring). It applies wherever the board is drawn (game, practice, import review).
+	•	Given: ink, Bricolage 800. Entered: accent, Bricolage 500 (the bundled font has no 600 / 700, so Clarity changes size only). Digits are 0.62 × the cell × Clarity. The weight gap keeps givens and entries apart at night, where ink and accent are close in colour.
+	•	Selected: a 2 pt solid accent ring inset 3 pt, radius 9. Light and Dark: the selected cell and its peers (row, column, box) get the focus tint; the same digit elsewhere goes to 800, as do matching notes; no other fill. Night keeps stepped fills (sel, peer, same) and a same-digit 1.5 pt accent ring, inset 3 pt with radius 4, so it shows by shape and never reads as the selection ring. The ring is skipped on the selected cell and on hint evidence and target cells (selection ring > hint rings > same-digit ring). It applies wherever the board is drawn (game, practice, import review).
 	•	Mistake: err digit plus a 3 pt bar under it (120% of its width): err by day, ink at night, where err and accent look alike. VoiceOver adds “mistake” (and “given” for givens) as the cell's value.
-	•	Notes: 3×3 at cell × 0.25; a note matching the selected digit is bold accent.
-	•	Hint marks: a spotlight (everything outside the hint’s cells at focusDim: 0.28 by day, 0.45 at night so the rest of the board stays readable), a 1.5 pt accent ring on evidence, a 1.5 pt dashed accent ring with a 55% ghost digit (75% at night) on the target (a mistake gets the dashed ring without a ghost), a same fill on pattern cells, and a 1 pt dotted ink3 ring on ruled-out cells.
-	•	By step: 1 spotlight; 2 adds the pattern fill; 3 adds evidence rings, the target and struck eliminations.
+	•	Notes: a 3×3 mini grid inset 3 pt top and bottom, 4 pt left and right, DM Sans 600 at cell × 0.24 in ink2; each digit in its fixed place. A note matching the selected digit is bold; a hint's key notes are bold accent.
+	•	Hint marks: the unit and pattern cells get the focus tint (at night pattern cells keep the same fill); proof cells a 2 pt solid accent ring and the target a 2 pt dashed one, both inset 3 pt with radius 9; at the Why step the answer shows in accent at 800 inside the dashed ring (a mistake gets the ring without it); ruled-out cells a 1 pt dotted ink3 ring. The game board does not dim other cells; lessons still fade them to focusDim. VoiceOver adds “proof” and “hint target” to those cells' values.
+	•	By step: 1 the unit; 2 adds the pattern; 3 adds proof rings, the target and struck eliminations.
 	•	Hint highlights:
 	•	Fade in (about 0.15 s). Never blink or pulse.
 	•	Stay until the player moves to another step or closes the card.
@@ -1026,7 +1028,7 @@ PureSudoku teaches the solving techniques from the Sudoku literature. A hint tea
 	•	The written lessons’ boards are real Sudoku: every note shown is a true candidate, every pattern is the digit’s full set of places, and the solver’s own detector finds the lesson’s step on that board (a unit test checks this).
 	•	Practise opens the first bundled practice puzzle that needs the technique (from the drill index; for the template, not the example puzzle).
 	•	Practice puzzles are not saved and do not count toward stats or the streak; they do count toward learning (mastery and strength).
-	•	Every hint card links to its technique’s lesson from step 2 (“Lesson →”), and shows the technique’s Learn tier.
+	•	Every technique hint links to its lesson at step 3 (Lesson).
 
 13.6 Build phases
 Each phase ships on its own and keeps the app working.
@@ -1046,5 +1048,5 @@ Testing requirements:
 	•	A board needing two techniques in a row (e.g. pointing, then a naked pair) yields both steps in order.
 	•	Unit tests (phase 5): strength decay.
 	•	Unit tests (redesign phase 6): mastered at 10 credits; old progress decodes (and keeps old mastery); a manual placement credits the technique the engine would use for it, once; hint card moves (placements and eliminations) and the cell a hint showed earn nothing; the four written lessons load with 5, 4, 4 and 4 steps and the expected marks; every technique sits in one of the five Learn tiers.
-	•	UI tests (redesign phase 6): Learn shows the five tiers; a lesson steps forward and back, and Practise on the last step opens a puzzle; “Lesson →” opens that technique’s lesson, and Back returns to the same game.
+	•	UI tests (redesign phase 6): Learn shows the five tiers; a lesson steps forward and back, and Practise on the last step opens a puzzle; the hint card's Lesson opens that technique’s lesson, and Back returns to the same game.
 	•	Unit tests (XY-Chain): a hand-made four-cell chain gives exactly the eliminations seen by both ends; the corpus oracle walks every XY-Chain step link by link.

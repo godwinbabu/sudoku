@@ -27,44 +27,35 @@ enum Clarity: Int, Codable, CaseIterable, Identifiable {
     var displayName: String { ["Standard", "Large", "Bold"][rawValue] }
 }
 
-/// Size and weight scale driven by Clarity. Applies in Day and Night.
+/// Size and weight scale driven by Clarity (HANDOFF 2, 4). Applies in every theme.
 struct PSType: Equatable {
-    /// × (cell side · 0.6)
+    /// × (cell side · 0.62)
     let digitScale: CGFloat
-    let givenWeight: Font.Weight
-    let userWeight: Font.Weight
-    /// × (cell side · 0.25)
+    /// Givens are 800 at every Clarity.
+    let givenWeight: Font.Weight = .heavy
+    /// shortcut: entries are 500 at every Clarity because the bundled Bricolage has only 500 and 800;
+    /// ship the variable font to get the spec's 600 / 700 for Large and Bold.
+    let userWeight: Font.Weight = .medium
+    /// × (cell side · 0.24)
     let candidateScale: CGFloat
     /// Minor line = max(1, round(1·s)) pt; box line = 1 + round(s) pt.
     let lineScale: CGFloat
-    /// Keypad digit = 30 pt × s.
+    /// Keypad digit = 28 pt × s.
     let uiScale: CGFloat
 
     init(_ clarity: Clarity) {
         switch clarity {
-        case .standard: self.init(1.0, .semibold, .regular, 1.0, 1.0, 1.0)
-        case .large: self.init(1.1, .bold, .medium, 1.12, 1.5, 1.06)
-        case .bold: self.init(1.2, .heavy, .semibold, 1.25, 2.0, 1.12)
+        case .standard: self.init(1.0, 1.0, 1.0, 1.0)
+        case .large: self.init(1.1, 1.12, 1.5, 1.06)
+        case .bold: self.init(1.2, 1.25, 2.0, 1.12)
         }
     }
 
-    private init(_ digit: CGFloat, _ given: Font.Weight, _ user: Font.Weight, _ candidate: CGFloat, _ line: CGFloat, _ ui: CGFloat) {
+    private init(_ digit: CGFloat, _ candidate: CGFloat, _ line: CGFloat, _ ui: CGFloat) {
         digitScale = digit
-        givenWeight = given
-        userWeight = user
         candidateScale = candidate
         lineScale = line
         uiScale = ui
-    }
-
-    /// At night givens go one weight heavier, so entered digits differ by shape, not only hue.
-    func givenWeight(night: Bool) -> Font.Weight {
-        guard night else { return givenWeight }
-        switch givenWeight {
-        case .semibold: return .bold
-        case .bold: return .heavy
-        default: return .black
-        }
     }
 
     var minorLine: CGFloat { max(1, lineScale.rounded()) }
@@ -93,8 +84,9 @@ struct PSPalette: Equatable {
     var glass = Color.clear, glassEdge = Color.clear
     var segment = Color.clear, pill = Color.clear
 
-    /// Same-digit cells are also ringed in Night and Dark, where fills alone are faint (CODESPEC 7.3).
-    var ringsSameDigit: Bool { isNight || isDark }
+    /// Same-digit cells are also ringed at Night, where fills alone are faint (CODESPEC 7.3). Light and
+    /// Dark show them by weight (800) instead (HANDOFF 6.2).
+    var ringsSameDigit: Bool { isNight }
 }
 
 /// sRGB with 0...255 channels.

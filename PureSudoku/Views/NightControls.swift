@@ -331,7 +331,7 @@ struct SamplePreview: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            cell { digit("5", color: theme.ink, weight: type.givenWeight(night: theme.isNight)) }
+            cell { digit("5", color: theme.ink, weight: type.givenWeight) }
             cell { digit("3", color: theme.accent, weight: type.userWeight) }
             cell(selected: true) { digit("7", color: theme.accent, weight: type.userWeight) }
             cell {

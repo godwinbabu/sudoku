@@ -252,7 +252,7 @@ final class NightPaletteTests: XCTestCase {
             let context = "variant \(n)"
             XCTAssertTrue(p.isDark)
             XCTAssertFalse(p.isNight)
-            XCTAssertTrue(p.ringsSameDigit)
+            XCTAssertFalse(p.ringsSameDigit, "Dark shows the same digit by weight")
             for (textName, text) in [("ink", p.ink), ("ink2", p.ink2), ("ink3", p.ink3), ("accent", p.accent), ("err", p.err)] {
                 for (ground, fill) in [("bg", p.bg), ("surface", p.surface), ("surface2", p.surface2)] {
                     XCTAssertGreaterThanOrEqual(contrast(luminance(text), luminance(fill)), 4.5, "\(textName) on \(ground), \(context)")
@@ -380,11 +380,13 @@ final class NightPaletteTests: XCTestCase {
     }
 
     /// At night givens are one weight heavier, so entered digits differ by shape as well as hue.
-    func testNightGivensAreHeavier() {
-        XCTAssertEqual(PSType(.standard).givenWeight(night: false), .semibold)
-        XCTAssertEqual(PSType(.standard).givenWeight(night: true), .bold)
-        XCTAssertEqual(PSType(.large).givenWeight(night: true), .heavy)
-        XCTAssertEqual(PSType(.bold).givenWeight(night: true), .black)
+    /// Givens are 800 at every Clarity and in every theme; entries stay lighter, so the two differ by
+    /// shape where Night's single hue can't tell them apart (HANDOFF 2).
+    func testGivensAreHeavierThanEntries() {
+        for clarity in Clarity.allCases {
+            XCTAssertEqual(PSType(clarity).givenWeight, .heavy)
+            XCTAssertEqual(PSType(clarity).userWeight, .medium)
+        }
     }
 
     func testPlayersOwnBrightnessWinsUntilGlowChanges() {

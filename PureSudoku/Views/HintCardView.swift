@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The hint card (CODESPEC 6.3.1). It fills the fixed 124 pt hint slot, so nothing under the board
-/// moves. Three free steps, then one action; nothing advances on its own (CODESPEC 12.4).
+/// The hint card (CODESPEC 6.3.1, HANDOFF 6.2). It fills the reserved hint slot, so nothing under the
+/// board moves. Three free steps — Where, Which, Why — then one action; nothing advances on its own
+/// (CODESPEC 12.4).
 struct HintCardView: View {
     let session: HintSession
     let names: CellNotation
@@ -16,12 +17,12 @@ struct HintCardView: View {
     let onClose: () -> Void
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    /// Text sizes and the room the text gets inside the 124 pt slot: 124 − 24 padding − 20 top row
-    /// − 34 footer − 2 × 4 spacing.
-    static let bodyHeight: CGFloat = 38
-    static let lineSpacing: CGFloat = 2
-    static let bodySize: CGFloat = 14
-    static let smallBodySize: CGFloat = 12
+    /// The room the text gets inside the slot: the slot − 26 padding − 26 top row − 44 footer − its 4 pt
+    /// gap − 2 × 4 spacing.
+    static let bodyHeight: CGFloat = GameView.hintSlotHeight - 108
+    static let lineSpacing: CGFloat = 1
+    static let bodySize: CGFloat = 15
+    static let smallBodySize: CGFloat = 13
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -32,10 +33,10 @@ struct HintCardView: View {
             // At accessibility sizes the slot is flexible, and ViewThatFits there can hang layout.
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
-                    ScrollView { bodyText(size: session.level == 1 ? 16 : Self.bodySize) }
+                    ScrollView { bodyText(size: Self.bodySize) }
                 } else {
                     ViewThatFits(in: .vertical) {
-                        bodyText(size: session.level == 1 ? 16 : Self.bodySize)
+                        bodyText(size: Self.bodySize)
                         bodyText(size: Self.smallBodySize)
                         ScrollView { bodyText(size: Self.smallBodySize) }
                     }
@@ -43,13 +44,12 @@ struct HintCardView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             footer
+                .padding(.top, 4)
                 .dynamicTypeSize(...DynamicTypeSize.large)
         }
-        .padding(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 14))
+        .padding(EdgeInsets(top: 12, leading: 16, bottom: 14, trailing: 16))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        // Night: no lit fill behind text, only the hairline (CODESPEC 7.2).
-        .background(RoundedRectangle(cornerRadius: 18).fill(theme.isNight ? Color.clear : theme.surface))
-        .overlay(RoundedRectangle(cornerRadius: 18).strokeBorder(theme.hair, lineWidth: 1))
+        .psCard(theme)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("hintPanel")
         // Each new step is read out, as lesson steps are.
@@ -62,81 +62,60 @@ struct HintCardView: View {
         Text(session.text(names))
             .psFont(size)
             .lineSpacing(Self.lineSpacing)
-            .foregroundStyle(session.level == 1 ? theme.ink : theme.ink2)
+            .foregroundStyle(theme.ink)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityLabel(session.accessibilityText(names))
             .accessibilityIdentifier("hintText")
     }
 
-    /// Pills, the step label, and the tier. At step 2 the technique name takes the label's place,
-    /// so the definition below gets two full lines.
+    /// The technique name (or the step, before it is named) and "Hint · N of 3".
     private var topRow: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 4) {
-                ForEach(1...HintSession.stepCount, id: \.self) { step in
-                    Capsule()
-                        .fill(step <= session.level ? theme.accent : theme.hair)
-                        .frame(width: step == session.level ? 14 : 5, height: 5)
-                }
-            }
-            .accessibilityHidden(true)
-            Group {
-                if let title = session.title {
-                    Text(title)
-                        .psFont(18, weight: .medium, design: .serif)
-                        .foregroundStyle(theme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                } else {
-                    Text(session.stepLabel.uppercased())
-                        .psFont(11, weight: .semibold)
-                        .tracking(0.9)
-                        .foregroundStyle(theme.ink2)
-                }
-            }
-            .accessibilityIdentifier("hintStep")
-            .accessibilityLabel("Step \(session.level) of \(HintSession.stepCount): \(session.title ?? session.stepLabel)")
-            if let tier = session.tierLabel {
-                Text("· \(tier)").psFont(11).foregroundStyle(theme.ink2).fixedSize()
-            }
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(session.title ?? session.stepLabel)
+                .psFont(21, weight: .heavy, design: .serif)
+                .foregroundStyle(theme.ink)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .accessibilityIdentifier("hintStep")
+                .accessibilityLabel("Step \(session.level) of \(HintSession.stepCount): \(session.title ?? session.stepLabel)")
             Spacer(minLength: 0)
+            Text("Hint · \(session.level) of \(HintSession.stepCount)")
+                .psFont(13, weight: .medium)
+                .foregroundStyle(theme.ink2)
+                .fixedSize()
+                .accessibilityHidden(true) // the step label above already says it
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .psFont(13, weight: .medium)
+                    .psFont(13, weight: .semibold)
                     .foregroundStyle(theme.ink2)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(-12) // a 44 pt target that takes no more room than the 20 pt row
+            .padding(.vertical, -12) // a 44 pt target that takes no more room than the row
+            .padding(.trailing, -12)
             .accessibilityLabel("Close hint")
             .accessibilityIdentifier("hint_close")
         }
-        .frame(height: 20)
+        .frame(minHeight: 26)
     }
 
+    /// Steps 1 and 2: one Next button (with All patterns at step 1). Step 3: Lesson and the action.
     private var footer: some View {
         HStack(spacing: 8) {
-            if let technique = session.lessonTechnique {
-                Button("Lesson →") { onLesson(technique) }
-                    .psFont(13)
-                    .foregroundStyle(theme.ink2)
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                    .buttonStyle(.plain)
+            if session.level == HintSession.stepCount, let technique = session.lessonTechnique {
+                Button("Lesson") { onLesson(technique) }
+                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
+                    .frame(width: 104)
                     .accessibilityShowsLargeContentViewer()
                     .accessibilityIdentifier("hint_lesson")
             } else if session.level == 1, session.step != nil, let onCoach {
-                Button("All patterns →", action: onCoach)
-                    .psFont(13)
-                    .foregroundStyle(theme.ink2)
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                    .buttonStyle(.plain)
+                Button("All patterns", action: onCoach)
+                    .buttonStyle(PSButtonStyle(theme: theme, kind: .ghost))
+                    .fixedSize()
                     .accessibilityIdentifier("hint_coach")
             }
-            Spacer(minLength: 0)
             if session.canGoNext, let label = session.actionLabel {
                 primary(label, id: "hint_next", action: onNext)
             } else if session.canApply, let label = session.actionLabel {
@@ -145,13 +124,24 @@ struct HintCardView: View {
                 primary("Undo", id: "hint_undo", action: onUndo)
             }
         }
-        .frame(height: 34)
+        .frame(height: 44)
     }
 
     private func primary(_ title: String, id: String, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .buttonStyle(PSButtonStyle(theme: theme, height: 34))
-            .accessibilityShowsLargeContentViewer()
-            .accessibilityIdentifier(id)
+        Button(action: action) {
+            Text(title).frame(maxWidth: .infinity)
+        }
+        .buttonStyle(PSButtonStyle(theme: theme))
+        .accessibilityShowsLargeContentViewer()
+        .accessibilityIdentifier(id)
+    }
+}
+
+/// Content cards (HANDOFF 2): `surface` with 22 pt corners and a 1 pt `edge` outline (black with only
+/// the outline at night).
+extension View {
+    func psCard(_ theme: PSPalette, radius: CGFloat = 22) -> some View {
+        background(RoundedRectangle(cornerRadius: radius).fill(theme.surface))
+            .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(theme.edge, lineWidth: 1))
     }
 }

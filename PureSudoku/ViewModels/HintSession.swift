@@ -83,8 +83,8 @@ struct HintSession: Equatable {
     /// "· Beginner", from step 2, for technique hints.
     var tierLabel: String? { level >= 2 ? step?.technique.learnTier.displayName : nil }
 
-    /// The technique name, shown in serif above the text at step 2.
-    var title: String? { level == 2 ? step?.technique.displayName : nil }
+    /// The technique name, the card's heading from step 2 (HANDOFF 6.2).
+    var title: String? { level >= 2 ? step?.technique.displayName : nil }
 
     /// The technique whose lesson "Lesson →" opens, from step 2.
     var lessonTechnique: Technique? { level >= 2 ? step?.technique : nil }
@@ -148,8 +148,7 @@ struct HintSession: Equatable {
         switch (content, level) {
         case (.mistake(cell: nil, kind: _), _): return nil
         case (.mistake, 1): return "Show me"
-        case (_, 1): return "Which technique?"
-        case (_, 2): return "Show me why"
+        case (_, 1), (_, 2): return "Next"
         case (.mistake, _): return "Clear it"
         case let (.noStep(_, digit?), _): return "Place \(digit) · assisted"
         case (.noStep, _): return nil
