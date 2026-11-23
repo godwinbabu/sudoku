@@ -342,43 +342,55 @@ struct GameView: View {
             ZStack(alignment: .topTrailing) {
                 Color.clear.contentShape(Rectangle()).ignoresSafeArea().onTapGesture { showsMenu = false }
                 PopoverCard(theme: theme) {
-                    // With mistakes set to Never, Check would mark nothing, so it is not offered.
-                    let offersCheck = controller.settings.mistakes != .never
-                    let busy = isDone || viewModel.isPaused
-                    if offersCheck {
-                        MenuRow(theme: theme, title: "Check cell", showsDivider: false) { closeMenu(viewModel.checkCell) }
-                            .disabled(busy || !viewModel.canCheckSelectedCell)
-                            .accessibilityIdentifier("menu_checkCell")
-                        MenuRow(theme: theme, title: "Check puzzle") { closeMenu(viewModel.checkPuzzle) }
-                            .disabled(busy)
-                            .accessibilityIdentifier("menu_check")
+                    // Scrolls when the rows do not fit (a short phone at the largest text sizes).
+                    ViewThatFits(in: .vertical) {
+                        menuRows(theme: theme, isDone: isDone)
+                        ScrollView { menuRows(theme: theme, isDone: isDone) }
                     }
-                    // Revealing marks the solve as not counted, so the row says so.
-                    MenuRow(theme: theme, title: "Reveal cell", detail: "Not counted", showsDivider: offersCheck) {
-                        closeMenu(viewModel.revealCell)
-                    }
-                    .disabled(busy || !viewModel.canRevealSelectedCell)
-                    .accessibilityIdentifier("menu_revealCell")
-                    MenuRow(theme: theme, title: "Fill all notes") { closeMenu(viewModel.fillAllNotes) }
-                        .disabled(busy)
-                        .accessibilityIdentifier("menu_fillNotes")
-                    if viewModel.hasGeneratedNotes {
-                        MenuRow(theme: theme, title: "Clear generated notes") { closeMenu(viewModel.clearGeneratedNotes) }
-                            .disabled(busy)
-                            .accessibilityIdentifier("menu_clearGeneratedNotes")
-                    }
-                    MenuRow(theme: theme, title: "Restart puzzle") { closeMenu { viewModel.pendingAction = .reset } }
-                        .disabled(viewModel.isPaused)
-                        .accessibilityIdentifier("menu_restart")
-                    MenuRow(theme: theme, title: "Hush screen", detail: "2-finger tap") { closeMenu(hush) }
-                        .accessibilityIdentifier("menu_hush")
                 }
                 .frame(width: dynamicTypeSize.isAccessibilitySize ? 300 : 230)
                 .accessibilityAction(.escape) { showsMenu = false }
                 .padding(.top, 52)
                 .padding(.trailing, 16)
+                .padding(.bottom, 16)
             }
             .transition(.opacity)
+        }
+    }
+
+    @ViewBuilder
+    private func menuRows(theme: PSPalette, isDone: Bool) -> some View {
+        VStack(spacing: 0) {
+            // With mistakes set to Never, Check would mark nothing, so it is not offered.
+            let offersCheck = controller.settings.mistakes != .never
+            let busy = isDone || viewModel.isPaused
+            if offersCheck {
+                MenuRow(theme: theme, title: "Check cell", showsDivider: false) { closeMenu(viewModel.checkCell) }
+                    .disabled(busy || !viewModel.canCheckSelectedCell)
+                    .accessibilityIdentifier("menu_checkCell")
+                MenuRow(theme: theme, title: "Check puzzle") { closeMenu(viewModel.checkPuzzle) }
+                    .disabled(busy)
+                    .accessibilityIdentifier("menu_check")
+            }
+            // Revealing marks the solve as not counted, so the row says so.
+            MenuRow(theme: theme, title: "Reveal cell", detail: "Not counted", showsDivider: offersCheck) {
+                closeMenu(viewModel.revealCell)
+            }
+            .disabled(busy || !viewModel.canRevealSelectedCell)
+            .accessibilityIdentifier("menu_revealCell")
+            MenuRow(theme: theme, title: "Fill all notes") { closeMenu(viewModel.fillAllNotes) }
+                .disabled(busy)
+                .accessibilityIdentifier("menu_fillNotes")
+            if viewModel.hasGeneratedNotes {
+                MenuRow(theme: theme, title: "Clear generated notes") { closeMenu(viewModel.clearGeneratedNotes) }
+                    .disabled(busy)
+                    .accessibilityIdentifier("menu_clearGeneratedNotes")
+            }
+            MenuRow(theme: theme, title: "Restart puzzle") { closeMenu { viewModel.pendingAction = .reset } }
+                .disabled(viewModel.isPaused)
+                .accessibilityIdentifier("menu_restart")
+            MenuRow(theme: theme, title: "Hush screen", detail: "2-finger tap") { closeMenu(hush) }
+                .accessibilityIdentifier("menu_hush")
         }
     }
 

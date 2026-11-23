@@ -75,6 +75,29 @@ extension PureSudokuUITests {
         XCTAssertTrue(button.isHittable, id)
     }
 
+    /// At the largest size the full More menu (7 rows, after Fill all notes) scrolls, so its last row can be
+    /// reached (PR 107 review).
+    func testLargestTextSizeMoreMenuScrolls() {
+        let app = launchApp(Self.largestText)
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        app.buttons["moreButton"].tap()
+        assertReachable(app.buttons["menu_fillNotes"], "menu_fillNotes", in: app)
+        app.buttons["menu_fillNotes"].tap()
+        app.buttons["moreButton"].tap()
+        XCTAssertTrue(app.buttons["menu_clearGeneratedNotes"].waitForExistence(timeout: 2))
+        attachScreenshot(app, "more-menu", size: "ax5")
+        // Drag inside the menu (it sits away from the screen edge), then the last row must be fully on screen.
+        let hush = app.buttons["menu_hush"]
+        let screen = app.windows.firstMatch.frame
+        for _ in 0..<4 where hush.frame.maxY > screen.maxY {
+            let start = app.buttons["menu_check"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -250)))
+        }
+        XCTAssertLessThanOrEqual(hush.frame.maxY, screen.maxY, "the last row can be scrolled on screen")
+        XCTAssertTrue(hush.isHittable)
+    }
+
     /// At the largest size, a clash warning and a Check result together scroll inside the hint slot
     /// instead of clipping or pushing the keypad off screen (PR 54 review).
     func testLargestTextSizeHintSlotMessagesStayReadable() {
