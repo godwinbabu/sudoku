@@ -70,6 +70,7 @@
 		0000000000000000000000C9 /* HintLadderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C8 /* HintLadderTests.swift */; };
 		000000000000000000000161 /* AccessibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000160 /* AccessibilityTests.swift */; };
 		000000000000000000000155 /* CoachTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000154 /* CoachTests.swift */; };
+		000000000000000000000721 /* GameV3Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000720 /* GameV3Tests.swift */; };
 		0000000000000000000000C3 /* PuzzleDataConsistencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */; };
 		0000000000000000000000BF /* LogicalSolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000BE /* LogicalSolverTests.swift */; };
 		0000000000000000000000AD /* AppControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0000000000000000000000AC /* AppControllerTests.swift */; };
@@ -193,6 +194,7 @@
 		0000000000000000000000C8 /* HintLadderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HintLadderTests.swift; sourceTree = "<group>"; };
 		000000000000000000000160 /* AccessibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccessibilityTests.swift; sourceTree = "<group>"; };
 		000000000000000000000154 /* CoachTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachTests.swift; sourceTree = "<group>"; };
+		000000000000000000000720 /* GameV3Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameV3Tests.swift; sourceTree = "<group>"; };
 		0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PuzzleDataConsistencyTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000BE /* LogicalSolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogicalSolverTests.swift; sourceTree = "<group>"; };
 		0000000000000000000000AC /* AppControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppControllerTests.swift; sourceTree = "<group>"; };
@@ -433,6 +435,7 @@
 				0000000000000000000000C8 /* HintLadderTests.swift */,
 				000000000000000000000160 /* AccessibilityTests.swift */,
 				000000000000000000000154 /* CoachTests.swift */,
+				000000000000000000000720 /* GameV3Tests.swift */,
 				0000000000000000000000C2 /* PuzzleDataConsistencyTests.swift */,
 				0000000000000000000000BE /* LogicalSolverTests.swift */,
 				0000000000000000000000AC /* AppControllerTests.swift */,
@@ -742,6 +745,7 @@
 				0000000000000000000000C9 /* HintLadderTests.swift in Sources */,
 				000000000000000000000161 /* AccessibilityTests.swift in Sources */,
 				000000000000000000000155 /* CoachTests.swift in Sources */,
+				000000000000000000000721 /* GameV3Tests.swift in Sources */,
 				0000000000000000000000FD /* NightScheduleTests.swift in Sources */,
 				0000000000000000000000C3 /* PuzzleDataConsistencyTests.swift in Sources */,
 				0000000000000000000000BF /* LogicalSolverTests.swift in Sources */,

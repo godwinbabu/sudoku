@@ -260,7 +260,9 @@ final class GameViewModel: ObservableObject {
             let seen = Set(Board.peers[newState.cells[idx].index].compactMap { valueAt[$0] ?? nil })
             let allowed = Set(1...9).subtracting(seen)
             let cell = newState.cells[idx]
-            let generated = allowed.subtracting(cell.candidates).union(cell.generatedCandidates.intersection(allowed))
+            // Earlier generated notes stay generated even when a peer now holds the digit, so Clear still
+            // removes them; only the player's own notes are never tagged.
+            let generated = cell.generatedCandidates.union(allowed.subtracting(cell.candidates))
             newState.cells[idx].candidates.formUnion(allowed)
             newState.cells[idx].generatedCandidates = generated
         }

@@ -224,8 +224,8 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["moreButton"].tap()
         XCTAssertTrue(waitUntilHittable(app.buttons["menu_clearGeneratedNotes"]))
         app.buttons["menu_clearGeneratedNotes"].tap()
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' candidates '")).count, 0,
-                       "every note was generated, so none are left")
+        let noted = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' candidates '"))
+        XCTAssertEqual(noted.count, 0, "every note was generated, so none are left")
     }
 
     /// Hint card end to end: where to look → technique → why → Place · assisted → Undo (CODESPEC 6.3.1).
