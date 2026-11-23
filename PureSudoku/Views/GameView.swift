@@ -344,14 +344,29 @@ struct GameView: View {
                 PopoverCard(theme: theme) {
                     // With mistakes set to Never, Check would mark nothing, so it is not offered.
                     let offersCheck = controller.settings.mistakes != .never
+                    let busy = isDone || viewModel.isPaused
                     if offersCheck {
-                        MenuRow(theme: theme, title: "Check puzzle", showsDivider: false) { closeMenu(viewModel.checkPuzzle) }
-                            .disabled(isDone || viewModel.isPaused)
+                        MenuRow(theme: theme, title: "Check cell", showsDivider: false) { closeMenu(viewModel.checkCell) }
+                            .disabled(busy || !viewModel.canCheckSelectedCell)
+                            .accessibilityIdentifier("menu_checkCell")
+                        MenuRow(theme: theme, title: "Check puzzle") { closeMenu(viewModel.checkPuzzle) }
+                            .disabled(busy)
                             .accessibilityIdentifier("menu_check")
                     }
-                    MenuRow(theme: theme, title: "Fill all notes", showsDivider: offersCheck) { closeMenu(viewModel.fillAllNotes) }
-                        .disabled(isDone || viewModel.isPaused)
+                    // Revealing marks the solve as not counted, so the row says so.
+                    MenuRow(theme: theme, title: "Reveal cell", detail: "Not counted", showsDivider: offersCheck) {
+                        closeMenu(viewModel.revealCell)
+                    }
+                    .disabled(busy || !viewModel.canRevealSelectedCell)
+                    .accessibilityIdentifier("menu_revealCell")
+                    MenuRow(theme: theme, title: "Fill all notes") { closeMenu(viewModel.fillAllNotes) }
+                        .disabled(busy)
                         .accessibilityIdentifier("menu_fillNotes")
+                    if viewModel.hasGeneratedNotes {
+                        MenuRow(theme: theme, title: "Clear generated notes") { closeMenu(viewModel.clearGeneratedNotes) }
+                            .disabled(busy)
+                            .accessibilityIdentifier("menu_clearGeneratedNotes")
+                    }
                     MenuRow(theme: theme, title: "Restart puzzle") { closeMenu { viewModel.pendingAction = .reset } }
                         .disabled(viewModel.isPaused)
                         .accessibilityIdentifier("menu_restart")
@@ -445,7 +460,7 @@ extension GameView {
                 .frame(height: 52)
                 .psGlass(theme, in: bar)
                 .opacity(isDone ? 0.3 : 1)
-            NumberPadView(theme: theme, remaining: viewModel.remaining) { digit in
+            NumberPadView(theme: theme, remaining: viewModel.remaining, isNotesMode: notesOn) { digit in
                 viewModel.setDigit(digit)
                 if let message = viewModel.placedAnnouncement(digit) {
                     UIAccessibility.post(notification: .announcement, argument: message)

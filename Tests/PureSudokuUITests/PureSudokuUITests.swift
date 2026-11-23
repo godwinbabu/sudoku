@@ -207,6 +207,27 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertEqual(notes.value as? String, "Off")
     }
 
+    /// More → Reveal cell fills the selected empty cell; Clear generated notes shows only after Fill all notes.
+    func testMoreMenuRevealsACellAndClearsGeneratedNotes() {
+        let app = launchApp()
+        startLevel("easy", in: app)
+        XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
+        let empty = firstEmptyCell(in: app)
+        let id = empty.identifier
+        empty.tap()
+        app.buttons["moreButton"].tap()
+        XCTAssertFalse(app.buttons["menu_clearGeneratedNotes"].exists, "nothing generated yet")
+        app.buttons["menu_revealCell"].tap()
+        XCTAssertTrue(app.buttons[id].label.contains(" value "), app.buttons[id].label)
+        app.buttons["moreButton"].tap()
+        app.buttons["menu_fillNotes"].tap()
+        app.buttons["moreButton"].tap()
+        XCTAssertTrue(waitUntilHittable(app.buttons["menu_clearGeneratedNotes"]))
+        app.buttons["menu_clearGeneratedNotes"].tap()
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'cell_' AND label CONTAINS ' candidates '")).count, 0,
+                       "every note was generated, so none are left")
+    }
+
     /// Hint card end to end: where to look → technique → why → Place · assisted → Undo (CODESPEC 6.3.1).
     /// The tools and keypad stay in place while the card is open.
     func testHintLadderAppliesAndUndoes() {

@@ -501,3 +501,72 @@ extension GameViewModelTests {
         XCTAssertEqual(GameView.boardSide(width: 390, height: 756, barsBottom: -6), 378, "full width on a 390 pt phone")
     }
 }
+
+// Generated notes and the More menu's cell actions (owner's request, PR 106).
+extension GameViewModelTests {
+    private func cellIndex(_ viewModel: GameViewModel, _ cell: SudokuCell) -> Int {
+        viewModel.state.cells.firstIndex { $0.id == cell.id }!
+    }
+
+    /// Fill all notes keeps the player's notes; Clear generated notes removes only what Fill added, and a
+    /// generated note the player removes and adds back is theirs. One Undo reverts the clear.
+    func testClearGeneratedNotesKeepsThePlayersOwn() throws {
+        let viewModel = makeViewModel()
+        let solution = Array(viewModel.state.puzzle.solutionGrid).map { Int(String($0)) ?? 0 }
+        let empties = viewModel.state.cells.filter { $0.value == nil }
+        let mine = try XCTUnwrap(empties.first), other = try XCTUnwrap(empties.dropFirst().first)
+        let answer = solution[mine.index]
+        viewModel.inputMode = .candidate
+        viewModel.select(cell: mine)
+        viewModel.setDigit(answer)
+        XCTAssertFalse(viewModel.hasGeneratedNotes)
+
+        viewModel.fillAllNotes()
+        let filled = viewModel.state.cells[cellIndex(viewModel, mine)]
+        XCTAssertTrue(filled.candidates.contains(answer))
+        XCTAssertFalse(filled.generatedCandidates.contains(answer), "the player's note is not generated")
+        XCTAssertTrue(viewModel.hasGeneratedNotes)
+
+        let touched = try XCTUnwrap(viewModel.state.cells[cellIndex(viewModel, other)].generatedCandidates.min())
+        viewModel.select(cell: other)
+        viewModel.setDigit(touched) // removes the generated note
+        viewModel.setDigit(touched) // adds it back by hand
+        viewModel.clearGeneratedNotes()
+        XCTAssertEqual(viewModel.state.cells[cellIndex(viewModel, mine)].candidates, [answer])
+        XCTAssertEqual(viewModel.state.cells[cellIndex(viewModel, other)].candidates, [touched])
+        XCTAssertFalse(viewModel.hasGeneratedNotes)
+        viewModel.undo()
+        XCTAssertTrue(viewModel.hasGeneratedNotes, "one Undo brings them back")
+    }
+
+    /// Saves from before generated notes treat every note as the player's own.
+    func testOldSavedCellsHaveNoGeneratedNotes() throws {
+        var cell = SudokuCell(row: 0, col: 0, given: false, value: nil, candidates: [2, 5])
+        cell.generatedCandidates = [5]
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(cell)) as? [String: Any])
+        XCTAssertNotNil(json["generatedCandidates"], "saved with the game")
+        json["generatedCandidates"] = nil
+        let old = try JSONDecoder().decode(SudokuCell.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(old.candidates, [2, 5])
+        XCTAssertTrue(old.generatedCandidates.isEmpty)
+    }
+
+    /// Check cell needs an entered digit; Reveal cell needs a cell the player can fill.
+    func testCellActionsFollowTheSelection() throws {
+        let viewModel = makeViewModel()
+        let given = try XCTUnwrap(viewModel.state.cells.first { $0.given })
+        let empty = try XCTUnwrap(viewModel.state.cells.first { $0.value == nil })
+        XCTAssertFalse(viewModel.canCheckSelectedCell, "nothing selected")
+        viewModel.select(cell: given)
+        XCTAssertFalse(viewModel.canCheckSelectedCell)
+        XCTAssertFalse(viewModel.canRevealSelectedCell)
+        viewModel.select(cell: empty)
+        XCTAssertFalse(viewModel.canCheckSelectedCell, "an empty cell has nothing to check")
+        XCTAssertTrue(viewModel.canRevealSelectedCell)
+        viewModel.setDigit(1)
+        XCTAssertTrue(viewModel.canCheckSelectedCell)
+        viewModel.revealCell()
+        XCTAssertFalse(viewModel.canRevealSelectedCell, "already revealed")
+        XCTAssertTrue(viewModel.state.usedReveal, "a revealed cell means the solve is not counted")
+    }
+}

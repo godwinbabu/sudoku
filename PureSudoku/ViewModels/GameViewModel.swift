@@ -249,7 +249,8 @@ final class GameViewModel: ObservableObject {
         return current
     }
 
-    /// Fills every empty cell's notes with the digits its row, column and box still allow. One Undo reverts it.
+    /// Adds to every empty cell's notes the digits its row, column and box still allow, keeping the
+    /// player's own notes; the added ones are marked generated. One Undo reverts it.
     func fillAllNotes() {
         guard !state.isCompleted else { return }
         recordUndoPoint()
@@ -257,12 +258,45 @@ final class GameViewModel: ObservableObject {
         let valueAt = Dictionary(uniqueKeysWithValues: newState.cells.map { ($0.index, $0.value) })
         for idx in newState.cells.indices where newState.cells[idx].value == nil {
             let seen = Set(Board.peers[newState.cells[idx].index].compactMap { valueAt[$0] ?? nil })
-            newState.cells[idx].candidates = Set(1...9).subtracting(seen)
+            let allowed = Set(1...9).subtracting(seen)
+            let cell = newState.cells[idx]
+            let generated = allowed.subtracting(cell.candidates).union(cell.generatedCandidates.intersection(allowed))
+            newState.cells[idx].candidates.formUnion(allowed)
+            newState.cells[idx].generatedCandidates = generated
         }
         state = newState
         endHint()
         updateCanUndo()
         scheduleSave()
+    }
+
+    /// True when any cell has notes Fill all notes added.
+    var hasGeneratedNotes: Bool { state.cells.contains { !$0.generatedCandidates.isEmpty } }
+
+    /// Removes the notes Fill all notes added and keeps the player's own. One Undo reverts it.
+    func clearGeneratedNotes() {
+        guard hasGeneratedNotes else { return }
+        recordUndoPoint()
+        var newState = state
+        for idx in newState.cells.indices {
+            newState.cells[idx].candidates.subtract(newState.cells[idx].generatedCandidates)
+        }
+        state = newState
+        endHint()
+        updateCanUndo()
+        scheduleSave()
+    }
+
+    /// The selected cell holds a digit the player entered, so Check cell has something to check.
+    var canCheckSelectedCell: Bool {
+        guard settings.mistakes != .never, let cell = state.cells.first(where: { $0.id == selectedCellID }) else { return false }
+        return !cell.given && !cell.isRevealed && cell.value != nil
+    }
+
+    /// The selected cell is the player's to fill, so Reveal cell can show its answer.
+    var canRevealSelectedCell: Bool {
+        guard let cell = state.cells.first(where: { $0.id == selectedCellID }) else { return false }
+        return !cell.given && !cell.isRevealed
     }
 
     /// Tapping a cell closes an open hint: the card hides the selection, so typing must not go
