@@ -193,8 +193,9 @@ struct SudokuCellView: View {
             .padding(3)
     }
 
-    /// Light and Dark mark the selection's row, column and box and a hint's unit with the `focus` tint
-    /// only (HANDOFF 6.2). Night keeps its stepped fills (sel > same > peer), which read where hue can't.
+    /// Light and Dark mark the selection's row, column and box and a hint's unit with the `focus` tint,
+    /// and the selected digit elsewhere with `same` (owner's choice, after v3). Night keeps its stepped
+    /// fills (sel > same > peer), which read where hue can't.
     private var fill: Color {
         if theme.isNight {
             if state.isPattern { return theme.same }
@@ -204,6 +205,7 @@ struct SudokuCellView: View {
             if state.isUnit { return theme.focus }
             return .clear
         }
+        if state.isSameDigit { return theme.same }
         return state.isPattern || state.isUnit || state.isSelected || state.isPeer ? theme.focus : .clear
     }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// The 1×9 keypad (HANDOFF 6.2). Each key is its digit (Bricolage 800, 28 pt × Clarity). A finished digit
-/// fades to `ink2` and is disabled. In Notes mode (owner's choice) the digits are a little smaller and each
+/// fades to `ink2` and is disabled, except in Notes mode, where every key stays on. In Notes mode (owner's choice) the digits are a little smaller and each
 /// shows how many are left (`caption`, `ink2`) under it; the game also outlines the row. Keys have no
 /// backgrounds of their own.
 struct NumberPadView: View {
@@ -19,11 +19,12 @@ struct NumberPadView: View {
             ForEach(1...9, id: \.self) { digit in
                 let left = remaining?[digit]
                 let isDone = left.map { $0 <= 0 } ?? false
+                let isOff = isDone && !isNotesMode
                 Button { onDigit(digit) } label: {
                     VStack(spacing: 0) {
                         Text("\(digit)")
                             .font(PSFont.fixed((isNotesMode ? 22 : 28) * type.uiScale, weight: .heavy).monospacedDigit())
-                            .foregroundStyle(isDone ? theme.ink2 : theme.ink)
+                            .foregroundStyle(isOff ? theme.ink2 : theme.ink)
                             .frame(height: 29)
                         if remaining != nil && isNotesMode {
                             Text(isDone ? " " : "\(left ?? 0)")
@@ -36,7 +37,7 @@ struct NumberPadView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(PressFillStyle(theme: theme))
-                .disabled(isDone)
+                .disabled(isOff)
                 .accessibilityShowsLargeContentViewer { Text("\(digit)") } // fixed size so the keypad fits (CODESPEC 9)
                 .accessibilityIdentifier("number_\(digit)")
                 .accessibilityLabel("\(digit)")

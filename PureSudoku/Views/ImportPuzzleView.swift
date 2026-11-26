@@ -111,6 +111,17 @@ struct ImportPuzzleView: View {
                     optionCard("pencil", "Type it in", "Enter the givens by hand", id: "importTypeItIn") {
                         viewModel.enterByHand()
                     }
+                    optionCard("doc.on.clipboard", "Paste a grid", "81 digits, 0 or . for blanks", id: "importPaste") {
+                        viewModel.pasteGrid(UIPasteboard.general.string)
+                    }
+                    if let message = viewModel.pasteMessage {
+                        Text(message)
+                            .psFont(13).foregroundStyle(theme.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 22)
+                            .accessibilityIdentifier("importPasteMessage")
+                    }
                 }
                 SectionLabel(theme: theme, title: "For a clean read") // pads itself to 22
                     .padding(.top, 26)

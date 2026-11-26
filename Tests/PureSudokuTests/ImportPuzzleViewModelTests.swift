@@ -177,6 +177,37 @@ final class ImportPuzzleViewModelTests: XCTestCase {
     }
 
     /// Start over drops the photo, the digits and Type it in, and goes back to Source.
+    /// A plain line, dots for blanks, and a text-drawn grid with | - + all read the same 81 cells.
+    func testParseGridAcceptsCommonFormats() throws {
+        let line = TestData.puzzle.initialGrid
+        let expected = line.map { Int(String($0)).flatMap { $0 == 0 ? nil : $0 } }
+        XCTAssertEqual(ImportPuzzleViewModel.parseGrid(line), expected)
+        XCTAssertEqual(ImportPuzzleViewModel.parseGrid(line.replacingOccurrences(of: "0", with: ".")), expected)
+        let rows = stride(from: 0, to: 81, by: 9).map { start -> String in
+            let row = Array(line)[start..<start + 9].map(String.init)
+            return "| " + row[0..<3].joined(separator: " ") + " | " + row[3..<6].joined(separator: " ")
+                + " | " + row[6..<9].joined(separator: " ") + " |"
+        }
+        let drawn = "+-------+-------+-------+\n" + rows.joined(separator: "\n") + "\n+-------+-------+-------+"
+        XCTAssertEqual(ImportPuzzleViewModel.parseGrid(drawn), expected)
+        XCTAssertNil(ImportPuzzleViewModel.parseGrid(String(line.dropLast())))
+        XCTAssertNil(ImportPuzzleViewModel.parseGrid("hello"))
+    }
+
+    func testPasteGridGoesToReviewOrExplains() {
+        let viewModel = makeViewModel()
+        viewModel.pasteGrid("not a grid")
+        XCTAssertEqual(viewModel.step, .source)
+        XCTAssertNotNil(viewModel.pasteMessage)
+        viewModel.pasteGrid(nil)
+        XCTAssertNotNil(viewModel.pasteMessage)
+
+        viewModel.pasteGrid(TestData.puzzle.initialGrid)
+        XCTAssertEqual(viewModel.step, .review)
+        XCTAssertNil(viewModel.pasteMessage)
+        XCTAssertEqual(viewModel.filledCount, TestData.puzzle.initialGrid.filter { $0 != "0" }.count)
+    }
+
     func testStartOverReturnsToSourceAndDeletesThePhoto() {
         var deleted: [String] = []
         let viewModel = ImportPuzzleViewModel(createGame: { _, _, _ in nil }, saveImage: { _ in "photo-1" },
