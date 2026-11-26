@@ -255,9 +255,9 @@ Testing requirements:
 	•	Hint slot (170 pt, 10 pt below the board): always reserved, so nothing moves. It holds the hint card while a hint is open (Section 6.3.1), or the coach card (Section 6.3.3). Otherwise it says “Notes on — digits go in as pencil marks” while Notes is on, and warns when two of the same digit share a house (not when mistakes are set to Never), and offers the coach once the player is stuck (Section 6.3.3).
 	•	Tool bar and keypad: two glass bars (26 pt corners), 12 pt from the sides, 8 pt apart, the lower one 28 pt above the screen's bottom edge.
 	•	Tools (52 pt): Undo, Erase, Notes (“Notes on” / “Notes off”; VoiceOver reads “Notes” with the value On / Off) and Hint, each a symbol over an 11 pt label. The active tool is accent and heavier; no chip. While a hint is open the Hint tool reads “Next step” and does what the card’s button does.
-	•	Keypad (64 pt): 1×9, no key backgrounds. Each key is its digit (Bricolage 28, 800) over how many are left (11 pt, ink2). A digit with none left turns ink2, loses its count and is disabled. In Notes mode the keypad bar gains a 1.5 pt accent outline.
-	•	More menu (a custom popover, never a system menu): Check puzzle, Fill all notes, Restart puzzle, Hush screen. Check puzzle is left out when mistakes are set to Never, since it would mark nothing.
-	•	Fill all notes writes, in every empty cell, the digits its row, column and box still allow. One Undo reverts it.
+	•	Keypad (64 pt): 1×9, no key backgrounds. Each key is its digit (Bricolage 28, 800). A digit with none left turns ink2 and is disabled. In Notes mode (owner's choice, after v3) the keypad bar gains a 1.5 pt accent outline, the digits shrink to 22 pt, and each key shows how many of its digit are left (11 pt, ink2) under it; outside Notes mode the counts are hidden. VoiceOver reads “N left” in both modes.
+	•	More menu (a custom popover, never a system menu): Check cell, Check puzzle, Reveal cell (“Not counted”), Fill all notes, Clear generated notes, Restart puzzle, Hush screen. Check cell and Check puzzle are left out when mistakes are set to Never, since they would mark nothing. Check cell needs a selected cell with an entered digit; Reveal cell a selected cell that is not a given or already revealed (it marks the solve not counted, Section 6.2). Clear generated notes shows only while some notes came from Fill all notes.
+	•	Generated notes: Fill all notes adds the digits each empty cell's row, column and box still allow, keeps the player's own notes, and records the added ones per cell (SudokuCell.generatedCandidates, saved with the game; older saves have none, so every old note is the player's). Clear generated notes removes only those, as one Undo. A generated note the player removes, or any edit takes away, stops being generated, so adding it back by hand makes it the player's.
 	•	Restart puzzle asks first, with a custom confirmation styled like the menu. At night its backdrop is black at 92%, so the board and notes do not show around the card.
 	•	Paused: the board is replaced by a box with “Paused” and Resume. The timer stops. The keypad dims to 30% and is disabled, like the tools.
 	•	Hush: a two-finger tap anywhere, or the More menu, pauses the game and shows pure black. “Tap anywhere to return” fades out after about 3.5 s. Any tap returns and resumes. The black fades out over 0.3 s but stops taking taps at once, so the next tap reaches the control under it (issue #67).
@@ -282,7 +282,8 @@ Testing requirements:
 	•	A two-finger tap shows Hush; a tap returns.
 	•	Unit tests:
 	•	A digit's keypad count drops as it is placed; at zero its key is disabled.
-	•	Fill all notes keeps each cell's answer, skips digits a peer holds, and is one Undo.
+	•	Fill all notes keeps each cell's answer, adds no digit a peer holds, and is one Undo.
+	•	Clear generated notes keeps the player's notes (also one they removed and added back), is one Undo, and old saved cells decode with no generated notes. Check cell and Reveal cell follow the selection.
 
 3.3 Journal (stats and settings)
 	•	SwiftUI view: JournalView (HANDOFF 6.4, screens/journal-*.png). It replaces the old SettingsView and StatsView. Header line “Nothing here leaves this iPhone”, title “Journal”. Groups are surface cards (26 pt corners) under 15 pt ink2 labels.
@@ -899,7 +900,7 @@ Design with thumb-only use in mind:
 	•	Sudoku grid centered, but main controls near the bottom of the screen:
 	•	Keypad at the bottom edge.
 	•	Tools (Undo, Erase, Notes, Hint) just above it.
-	•	Less common actions (Check puzzle, Fill all notes, Restart, Hush) in the More menu.
+	•	Less common actions (Check cell, Check puzzle, Reveal cell, Fill all notes, Clear generated notes, Restart, Hush) in the More menu.
 	•	The hint card sits just above the tools; its button (and the Hint tool, “Next step”) are in the thumb zone. Every card control has a 44 pt target.
 	•	Tap targets:
 	•	Minimum hit size ~44×44 points for all interactive elements (Apple HIG).

@@ -1,12 +1,14 @@
 import SwiftUI
 
-/// The 1×9 keypad (HANDOFF 6.2). Each key is its digit (Bricolage 800, 28 pt × Clarity) over how many are
-/// left (`caption`, `ink2`). A finished digit fades to `ink2`, loses its count and is disabled. Keys have no
-/// backgrounds of their own; the game puts the row on glass and outlines it in Notes mode.
+/// The 1×9 keypad (HANDOFF 6.2). Each key is its digit (Bricolage 800, 28 pt × Clarity). A finished digit
+/// fades to `ink2` and is disabled. In Notes mode (owner's choice) the digits are a little smaller and each
+/// shows how many are left (`caption`, `ink2`) under it; the game also outlines the row. Keys have no
+/// backgrounds of their own.
 struct NumberPadView: View {
     let theme: PSPalette
     /// Digits left to place; nil hides the counts and keeps every key on (import review).
     var remaining: [Int: Int]?
+    var isNotesMode = false
     var keyHeight: CGFloat = 64
     var onDigit: (Int) -> Void
 
@@ -20,10 +22,10 @@ struct NumberPadView: View {
                 Button { onDigit(digit) } label: {
                     VStack(spacing: 0) {
                         Text("\(digit)")
-                            .font(PSFont.fixed(28 * type.uiScale, weight: .heavy).monospacedDigit())
+                            .font(PSFont.fixed((isNotesMode ? 22 : 28) * type.uiScale, weight: .heavy).monospacedDigit())
                             .foregroundStyle(isDone ? theme.ink2 : theme.ink)
                             .frame(height: 29)
-                        if remaining != nil {
+                        if remaining != nil && isNotesMode {
                             Text(isDone ? " " : "\(left ?? 0)")
                                 .font(PSFont.fixed(11, weight: .semibold, display: false).monospacedDigit())
                                 .foregroundStyle(theme.ink2)

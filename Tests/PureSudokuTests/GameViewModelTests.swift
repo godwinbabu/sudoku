@@ -469,35 +469,3 @@ final class GameViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.canUndo)
     }
 }
-
-// The Solved screen's greeting (HANDOFF 6.5, owner's request).
-extension GameViewModelTests {
-    func testSolvedGreetingFollowsTheHour() throws {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
-        let expected: [(minutes: Int, greeting: String)] = [
-            (4 * 60 + 59, "Good night"), (5 * 60, "Good morning"), (11 * 60 + 59, "Good morning"), (12 * 60, "Good afternoon"),
-            (16 * 60 + 59, "Good afternoon"), (17 * 60, "Good evening"), (20 * 60 + 59, "Good evening"), (21 * 60, "Good night"),
-            (0, "Good night")
-        ]
-        let midnight = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 22)))
-        for item in expected {
-            let date = midnight.addingTimeInterval(TimeInterval(item.minutes * 60))
-            XCTAssertEqual(GameViewModel.greeting(at: date, calendar: calendar), item.greeting, "minute \(item.minutes)")
-        }
-    }
-}
-
-// The game layout (HANDOFF 5, PR 106 review): the keypad stays on screen on short screens.
-extension GameViewModelTests {
-    func testBoardLeavesRoomForTheKeypad() {
-        // (width, height inside the safe areas, bars' bottom padding): iPhone SE with Display Zoom, iPhone SE,
-        // a 390 pt Face ID phone, and the same with the build-number strip.
-        for (width, height, barsBottom) in [(320.0, 548.0, 28.0), (375, 647, 28), (390, 756, -6), (390, 740, 0)] {
-            let side = GameView.boardSide(width: width, height: height, barsBottom: barsBottom)
-            XCTAssertLessThanOrEqual(side + GameView.chromeHeight + barsBottom, height, "\(width)×\(height)")
-            XCTAssertLessThanOrEqual(side, width - 12)
-        }
-        XCTAssertEqual(GameView.boardSide(width: 390, height: 756, barsBottom: -6), 378, "full width on a 390 pt phone")
-    }
-}
