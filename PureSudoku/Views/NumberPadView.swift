@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The 1×9 keypad (HANDOFF 6.2). Each key is its digit (Bricolage 800, 28 pt × Clarity). A finished digit
-/// fades to `ink2` and is disabled, except in Notes mode, where every key stays on. In Notes mode (owner's choice) the digits are a little smaller and each
-/// shows how many are left (`caption`, `ink2`) under it; the game also outlines the row. Keys have no
-/// backgrounds of their own.
+/// fades to `ink2` and is disabled, except in Notes mode, where every key stays on. In Notes mode
+/// (owner's choice) the digits are a little smaller and each shows how many are left (`caption`, `ink2`)
+/// under it; the game also outlines the row. Keys have no backgrounds of their own.
 struct NumberPadView: View {
     let theme: PSPalette
     /// Digits left to place; nil hides the counts and keeps every key on (import review).

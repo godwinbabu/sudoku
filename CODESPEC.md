@@ -588,7 +588,7 @@ The resolved look (Look) is Day (Light), Dark or Night; it is worked out on read
 	•	The tab bar, tab headers, Home and Journal follow the same rules: hairlines, no fills behind text at night (Day keeps the surface fill on cards).
 	•	Every state must show by shape or weight, not hue alone (Day and Night):
 	•	Selection: a filled background plus a heavier outline.
-	•	Same digit: the same fill and weight 800, and at Night and in Dark a thinner, inset ring (Section 7.3).
+	•	Same digit: the same fill and weight 800, and at Night a thinner, inset ring (Section 7.3).
 	•	Error: an underline bar plus the err colour.
 	•	Hint roles: rings for evidence and targets, strike-through for eliminations.
 	•	Import: unsure cells are ringed, conflicts underlined, and each legend line has a matching ring or underline swatch (Section 3.4).

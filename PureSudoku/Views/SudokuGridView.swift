@@ -146,7 +146,7 @@ struct CellState: Equatable {
     var isTarget = false
     var isRuledOut = false
 
-    /// In Night and Dark a same-digit cell is also ringed, so it shows by shape; the selection and hint rings win.
+    /// At Night a same-digit cell is also ringed, so it shows by shape; the selection and hint rings win.
     func showsSameDigitRing(enabled: Bool) -> Bool {
         enabled && isSameDigit && !isSelected && !isEvidence && !isTarget
     }

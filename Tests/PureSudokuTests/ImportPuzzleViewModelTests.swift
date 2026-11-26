@@ -176,7 +176,6 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.unsureIndices.isEmpty)
     }
 
-    /// Start over drops the photo, the digits and Type it in, and goes back to Source.
     /// A plain line, dots for blanks, and a text-drawn grid with | - + all read the same 81 cells.
     func testParseGridAcceptsCommonFormats() throws {
         let line = TestData.puzzle.initialGrid
@@ -208,6 +207,17 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.filledCount, TestData.puzzle.initialGrid.filter { $0 != "0" }.count)
     }
 
+    /// A photo still loading when a grid is pasted is dropped, so it never replaces the pasted board.
+    func testPasteDropsAPendingPhoto() {
+        let viewModel = makeViewModel()
+        let token = viewModel.beginPhotoRequest()
+        viewModel.pasteGrid(TestData.puzzle.initialGrid)
+        viewModel.applyPhoto(UIImage(), token: token)
+        XCTAssertNil(viewModel.image)
+        XCTAssertEqual(viewModel.step, .review)
+    }
+
+    /// Start over drops the photo, the digits and Type it in, and goes back to Source.
     func testStartOverReturnsToSourceAndDeletesThePhoto() {
         var deleted: [String] = []
         let viewModel = ImportPuzzleViewModel(createGame: { _, _, _ in nil }, saveImage: { _ in "photo-1" },

@@ -147,6 +147,7 @@ final class ImportPuzzleViewModel: ObservableObject {
             pasteMessage = "No grid on the clipboard. Copy 81 digits, with 0 or . for blanks."
             return
         }
+        stopPendingDetection() // a photo still loading must not replace the pasted grid
         pasteMessage = nil
         isEnteringByHand = true
         loadGrid(values)
