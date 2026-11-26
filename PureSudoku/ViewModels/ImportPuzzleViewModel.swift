@@ -28,6 +28,8 @@ final class ImportPuzzleViewModel: ObservableObject {
     @Published private(set) var unsureIndices: Set<Int> = []
     @Published private(set) var readProgress: SudokuImageDetector.ReadProgress?
     @Published private(set) var isEnteringByHand = false
+    /// Why the last paste failed, shown on Source.
+    @Published private(set) var pasteMessage: String?
     /// True while Start builds the game off the main thread; Start stays disabled meanwhile.
     @Published private(set) var isStarting = false
 
@@ -139,6 +141,33 @@ final class ImportPuzzleViewModel: ObservableObject {
         isEnteringByHand = true
     }
 
+    /// "Paste a grid": loads copied text and goes to Check the grid, or explains why it could not.
+    func pasteGrid(_ text: String?) {
+        guard let values = text.flatMap(Self.parseGrid) else {
+            pasteMessage = "No grid on the clipboard. Copy 81 digits, with 0 or . for blanks."
+            return
+        }
+        stopPendingDetection() // a photo still loading must not replace the pasted grid
+        pasteMessage = nil
+        isEnteringByHand = true
+        loadGrid(values)
+    }
+
+    /// Reads digits 1–9 and blanks (0 or .) in order and skips everything else (spaces, |, -, +, line
+    /// breaks), so a plain line of 81 and most text-drawn grids both work. Nil unless exactly 81 cells.
+    /// shortcut: grids that use spaces for blanks are rejected, upgrade if players paste those.
+    nonisolated static func parseGrid(_ text: String) -> [Int?]? {
+        var cells: [Int?] = []
+        for char in text {
+            if char == "." || char == "0" {
+                cells.append(nil)
+            } else if char.isASCII, let digit = char.wholeNumberValue {
+                cells.append(digit)
+            }
+        }
+        return cells.count == 81 ? cells : nil
+    }
+
     /// "Start over": drops the photo and every digit and goes back to Source, for a bad or wrong read.
     func startOver() {
         updateImage(nil)
@@ -146,6 +175,7 @@ final class ImportPuzzleViewModel: ObservableObject {
         unsureIndices = []
         selectedIndex = nil
         isEnteringByHand = false
+        pasteMessage = nil
         validate()
     }
 

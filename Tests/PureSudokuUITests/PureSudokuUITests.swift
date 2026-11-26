@@ -775,6 +775,7 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("importSource", in: app).exists, "import starts on Source")
         XCTAssertTrue(app.buttons["importChoosePhoto"].exists)
         XCTAssertTrue(app.buttons["importTypeItIn"].exists)
+        XCTAssertTrue(app.buttons["importPaste"].exists)
     }
 
     /// Type it in → Check the grid: a repeated digit is named and blocks Start; clearing it lifts that.
@@ -835,12 +836,12 @@ extension PureSudokuUITests {
 
         let brightness = highlightBrightness(in: app)
         // v3 Dark: the board is #151517 (sum 65), far from Light's ~765. The selection's row, column and box
-        // carry the focus tint; the same digit elsewhere shows by weight, not a fill (HANDOFF 6.2).
+        // carry the focus tint; the same digit elsewhere gets the `same` fill (owner's choice, after v3).
         let (plain, peer, same, selected) = (brightness[0], brightness[1], brightness[2], brightness[3])
         XCTAssertTrue((40...120).contains(plain), "Dark board: \(brightness)")
         XCTAssertGreaterThan(peer, plain + 5, "peers are tinted: \(brightness)")
         XCTAssertEqual(selected, peer, accuracy: 4, "the selected cell shares the tint; its ring marks it: \(brightness)")
-        XCTAssertEqual(same, plain, accuracy: 4, "no fill for the same digit: \(brightness)")
+        XCTAssertGreaterThan(same, plain + 5, "the same digit is filled: \(brightness)")
 
         setAppearance("light", in: app)
         let plainNow = highlightBrightness(in: app)[0]
