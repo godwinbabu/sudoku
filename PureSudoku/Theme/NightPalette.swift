@@ -1,8 +1,8 @@
 import SwiftUI
 
-// The PureSudoku 2 colour model (CODESPEC 7.2, 12). Ported from Design/v2/ui_kits/puresudoku-2/night.js.
+// The PureSudoku 2 colour model (CODESPEC 7.2, 11). Ported from Design/v2/ui_kits/puresudoku-2/night.js.
 
-/// The player's choice (HANDOFF 6.3). Night after dark is a separate switch (`Settings.nightAfterDark`).
+/// The player's choice (CODESPEC 7.1). Night after dark is a separate switch (`Settings.nightAfterDark`).
 enum Appearance: String, Codable, CaseIterable, Identifiable {
     case light, dark, night
     var id: String { rawValue }
@@ -21,7 +21,7 @@ enum Clarity: Int, Codable, CaseIterable, Identifiable {
     var displayName: String { ["Standard", "Large", "Bold"][rawValue] }
 }
 
-/// Size and weight scale driven by Clarity (HANDOFF 2, 4). Applies in every theme.
+/// Size and weight scale driven by Clarity (CODESPEC 7.2). Applies in every theme.
 struct PSType: Equatable {
     /// × (cell side · 0.62)
     let digitScale: CGFloat
@@ -66,7 +66,7 @@ struct PSPalette: Equatable {
     var luminance: Double
     /// The neutral Dark theme for iPhone Dark mode (not Night). It follows the Day rules for fills.
     var isDark = false
-    /// v3 roles (HANDOFF 2). `edge` outlines every surface (clear in Light and Dark); `btn*` is the
+    /// v3 roles (CODESPEC 7.2). `edge` outlines every surface (clear in Light and Dark); `btn*` is the
     /// primary button; `fill` the secondary button and segmented track; `focus` the hint-unit tint;
     /// `glass` floating controls; `segment` the selected segment; `pill` the selected tab.
     var edge = Color.clear
@@ -77,7 +77,7 @@ struct PSPalette: Equatable {
     var segment = Color.clear, pill = Color.clear
 
     /// Same-digit cells are also ringed at Night, where fills alone are faint (CODESPEC 7.3). Light and
-    /// Dark show them by weight (800) instead (HANDOFF 6.2).
+    /// Dark show them by weight (800) instead (CODESPEC 3.2).
     var ringsSameDigit: Bool { isNight }
 }
 
@@ -126,7 +126,7 @@ extension PSPalette {
         hex(v).opacity(opacity)
     }
 
-    /// Light (HANDOFF 2): iOS grouped grey ground, white surfaces, black ink, one teal accent.
+    /// Light (CODESPEC 7.2): iOS grouped grey ground, white surfaces, black ink, one teal accent.
     static func day(clarity: Clarity) -> PSPalette {
         PSPalette(
             bg: hex(0xF2F2F7), surface: hex(0xFFFFFF), surface2: hex(0xE5E5EA),
@@ -144,7 +144,7 @@ extension PSPalette {
         )
     }
 
-    /// Dark (HANDOFF 2): black ground, near-black surfaces, light ink, a cyan accent. Text keeps 4.5:1 on
+    /// Dark (CODESPEC 7.2): black ground, near-black surfaces, light ink, a cyan accent. Text keeps 4.5:1 on
     /// the background, cards and every cell fill; marks and rings keep 3:1. Increase Contrast lifts lines
     /// and secondary text.
     static func dark(clarity: Clarity, increaseContrast: Bool = false) -> PSPalette {
@@ -169,7 +169,7 @@ extension PSPalette {
     }
 
     /// Glow at which the palette reaches full strength; above it, glow raises the screen backlight
-    /// (CODESPEC 12.3).
+    /// (CODESPEC 11.3).
     static let paletteGlowRange: Double = 40
 
     /// Screen brightness (0...1) for a Night glow: the hardware minimum up to `paletteGlowRange`,
@@ -192,7 +192,7 @@ extension PSPalette {
             return Color(.sRGB, red: channel(c.r), green: channel(c.g), blue: channel(c.b), opacity: 1)
         }
         let errColor = RGB255(r: 255, g: 70, b: 64)
-        // v3 levels (HANDOFF 2), adjusted to keep contrast: ink2 0.85 (3:1 on the selected cell), line 0.30
+        // v3 levels (CODESPEC 7.2), adjusted to keep contrast: ink2 0.85 (3:1 on the selected cell), line 0.30
         // (v2's value: it shows against the kept v2 cell fills) and lineMajor 0.60 (the table's 0.42 falls below 3:1 on black).
         let edge = mul(base, s * 0.25)
         let accentDim = mul(acc, s * 0.65)

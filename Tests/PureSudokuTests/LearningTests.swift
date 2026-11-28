@@ -1,7 +1,7 @@
 import XCTest
 @testable import PureSudoku
 
-/// Mastery, fading and lessons (CODESPEC 13.4, 13.5, 6.3.1).
+/// Mastery, fading and lessons (CODESPEC 12.4, 12.5, 6.3.1).
 @MainActor
 final class LearningTests: XCTestCase {
     private let day: TimeInterval = 86_400

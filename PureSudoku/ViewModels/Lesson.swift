@@ -1,6 +1,6 @@
 import Foundation
 
-/// The five Learn tiers (Design/v2/README.md "Learn"). Separate from `TechniqueTier`, which also
+/// The five Learn tiers (CODESPEC 12.5). Separate from `TechniqueTier`, which also
 /// sets puzzle levels: moving a technique between Learn tiers must not change grading.
 enum LearnTier: Int, CaseIterable, Identifiable {
     case beginner, intermediate, advanced, expert, esoteric
@@ -36,7 +36,7 @@ extension Technique {
     }
 }
 
-/// One lesson per technique (CODESPEC 13.5): a board you step through, then practice.
+/// One lesson per technique (CODESPEC 12.5): a board you step through, then practice.
 /// Four lessons are written by hand (`LessonScript`); the rest use the template, built from the
 /// solver's own step on a bundled puzzle.
 struct Lesson {

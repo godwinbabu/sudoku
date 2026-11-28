@@ -25,7 +25,7 @@ struct GameView: View {
         self.difficulty = difficulty
     }
 
-    /// The screen's palette, with this session's Drift offset at night (CODESPEC 12.3).
+    /// The screen's palette, with this session's Drift offset at night (CODESPEC 11.3).
     private var palette: PSPalette {
         guard drift.steps > 0 else { return basePalette }
         return DriftController.apply(steps: drift.steps, to: controller.settings).palette(isNight: true)
@@ -38,7 +38,7 @@ struct GameView: View {
         if controller.driftSteps != drift.steps { controller.driftSteps = drift.steps } // the backlight drifts too
     }
 
-    /// The hint card's reserved slot: room for a three-line body and its 44 pt buttons (HANDOFF 6.2).
+    /// The hint card's reserved slot: room for a three-line body and its 44 pt buttons (CODESPEC 3.2).
     static let hintSlotHeight: CGFloat = 170
     /// Navigation row, gaps, hint slot, the bars and the gap above them (everything but the board). Keep in
     /// step with the header (44), the tool bar (52, `bars`) and the keypad (64): the keypad leaves the screen
@@ -46,7 +46,7 @@ struct GameView: View {
     static let chromeHeight: CGFloat = 44 + 8 + 10 + hintSlotHeight + 8 + 52 + 8 + 64
 
     /// The board's side: screen width − 12, smaller only when the screen is too short for the board, the
-    /// hint slot and the bars together (HANDOFF 5), so the keypad always stays on screen.
+    /// hint slot and the bars together (CODESPEC 3.2), so the keypad always stays on screen.
     static func boardSide(width: CGFloat, height: CGFloat, barsBottom: CGFloat) -> CGFloat {
         max(120, min(width - 12, height - chromeHeight - barsBottom))
     }
@@ -152,7 +152,7 @@ struct GameView: View {
                 viewModel.pauseForBackground()
             }
         }
-        // Pushed, not a system sheet, so it can't render light at night (CODESPEC 12.7).
+        // Pushed, not a system sheet, so it can't render light at night (CODESPEC 11.7).
         .navigationDestination(isPresented: Binding(get: { lessonTechnique != nil }, set: { if !$0 { lessonTechnique = nil } })) {
             let technique = lessonTechnique ?? .fullHouse
             LessonView(technique: technique == .hiddenSingleLine ? .hiddenSingleBox : technique)
@@ -163,7 +163,7 @@ struct GameView: View {
 
     // MARK: - Header
 
-    /// Round glass Back; the level and timer in the middle; a glass capsule with Night and More (HANDOFF 6.2).
+    /// Round glass Back; the level and timer in the middle; a glass capsule with Night and More (CODESPEC 3.2).
     private func header(theme: PSPalette) -> some View {
         ZStack {
             TimerButton(clock: viewModel.clock, title: difficulty.displayName, theme: theme, showsTimer: viewModel.showTimer,
@@ -213,14 +213,14 @@ struct GameView: View {
             } else {
                 SudokuGridView(
                     cells: viewModel.state.cells,
-                    // The finished board shows no selection (HANDOFF 6.5).
+                    // The finished board shows no selection (CODESPEC 3.2).
                     selectedCellID: viewModel.hint == nil && !isDone ? viewModel.selectedCellID : nil,
                     theme: theme,
                     highlight: viewModel.hintHighlight,
                     dimsOutsideFocus: false
                 ) { viewModel.select(cell: $0) }
                     .frame(width: side, height: side)
-                    // The finished board fades to 30% over 600 ms (HANDOFF 6.5); 150 ms with Reduce Motion.
+                    // The finished board fades to 30% over 600 ms (CODESPEC 3.2); 150 ms with Reduce Motion.
                     .opacity(isDone ? 0.3 : 1)
                     .allowsHitTesting(!isDone)
             }
@@ -461,7 +461,7 @@ struct GameView: View {
 // MARK: - Tool bar and keypad
 
 extension GameView {
-    /// The tool bar over the keypad, both glass, 8 pt apart (HANDOFF 6.2). In Notes mode the keypad
+    /// The tool bar over the keypad, both glass, 8 pt apart (CODESPEC 3.2). In Notes mode the keypad
     /// gains a 1.5 pt accent outline.
     func bars(theme: PSPalette) -> some View {
         let isDone = viewModel.state.isCompleted

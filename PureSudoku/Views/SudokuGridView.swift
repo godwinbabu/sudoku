@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The board (HANDOFF 6.2): cells on `surface` with 12 pt corners and a 1 pt `edge` outline; `line`
+/// The board (CODESPEC 3.2): cells on `surface` with 12 pt corners and a 1 pt `edge` outline; `line`
 /// between cells and `lineMajor` between boxes, no outer frame. Line widths follow Clarity; every state
 /// shows by shape or weight, never hue alone.
 struct SudokuGridView: View {
@@ -167,7 +167,7 @@ struct SudokuCellView: View {
                 // Thinner and squarer, so it never reads as the selection ring (CODESPEC 7.3).
                 RoundedRectangle(cornerRadius: 4).strokeBorder(theme.accent, lineWidth: 1.5).padding(3)
             }
-            // Selection and proof: a 2 pt solid ring; the hint target: dashed (HANDOFF 6.2).
+            // Selection and proof: a 2 pt solid ring; the hint target: dashed (CODESPEC 3.2).
             if state.isSelected || state.isEvidence { ring(dashed: false) }
             if state.isTarget { ring(dashed: true) }
             if state.isRuledOut {
@@ -194,7 +194,7 @@ struct SudokuCellView: View {
     }
 
     /// Light and Dark mark the selection's row, column and box and a hint's unit with the `focus` tint,
-    /// and the selected digit elsewhere with `same` (owner's choice, after v3). Night keeps its stepped
+    /// and the selected digit elsewhere with `same`. Night keeps its stepped
     /// fills (sel > same > peer), which read where hue can't.
     private var fill: Color {
         if theme.isNight {
@@ -211,10 +211,10 @@ struct SudokuCellView: View {
 
     @ViewBuilder
     private var content: some View {
-        // Digit ≈ 0.62 × cell (HANDOFF 4); givens and the selected digit 800, entries 500.
+        // Digit ≈ 0.62 × cell (CODESPEC 7.2); givens and the selected digit 800, entries 500.
         let digitSize = side * 0.62 * type.digitScale
         if let value = cell.value {
-            // Outside a lesson's spotlight digits step back to ink2 at 500 (HANDOFF 6.6), never faded.
+            // Outside a lesson's spotlight digits step back to ink2 at 500 (CODESPEC 12.5), never faded.
             let heavy = state.inFocus && (cell.given || value == state.selectedDigit)
             Text("\(value)")
                 .font(PSFont.fixed(digitSize, weight: heavy ? .heavy : type.userWeight).monospacedDigit())

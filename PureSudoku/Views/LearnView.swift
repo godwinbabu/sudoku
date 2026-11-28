@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// The curriculum (CODESPEC 13.5, HANDOFF 6.6): the Up next card, then every technique in five tiers, each
+/// The curriculum (CODESPEC 12.5): the Up next card, then every technique in five tiers, each
 /// a grouped list. A plain stack, not a List: List rows add system chevrons, which stay grey at night.
 struct LearnView: View {
     @EnvironmentObject private var controller: AppController
@@ -49,7 +49,7 @@ struct LearnView: View {
         Lesson.techniques.first { controller.progress(for: $0).level != .mastered }
     }
 
-    /// Tier, name, its one-sentence definition and a primary Start lesson (HANDOFF 6.6).
+    /// Tier, name, its one-sentence definition and a primary Start lesson (CODESPEC 12.5).
     private func upNextCard(_ technique: Technique) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text("Up next · \(technique.learnTier.displayName)").psFont(13, weight: .medium).foregroundStyle(theme.ink2)
@@ -111,7 +111,7 @@ struct LearnView: View {
     }
 }
 
-/// One lesson (CODESPEC 13.5): a board you step through, then Practise. Pushed, never a sheet.
+/// One lesson (CODESPEC 12.5): a board you step through, then Practise. Pushed, never a sheet.
 struct LessonView: View {
     @EnvironmentObject private var controller: AppController
     @Environment(\.psPalette) private var theme
@@ -155,7 +155,7 @@ struct LessonView: View {
         }
     }
 
-    /// Round glass Back and "Tier · lesson N of M" (HANDOFF 6.6).
+    /// Round glass Back and "Tier · lesson N of M" (CODESPEC 12.5).
     private var header: some View {
         HStack(spacing: 0) {
             HeaderIconButton(theme: theme, symbol: "chevron.left", label: "Back", round: true) { dismiss() }
@@ -205,7 +205,7 @@ struct LessonView: View {
     }
 
     /// Back (secondary) and Next (primary), which becomes Practise on the last step; before that a text
-    /// button, "Practise on a real puzzle" (HANDOFF 6.6).
+    /// button, "Practise on a real puzzle" (CODESPEC 12.5).
     private func footer(_ lesson: Lesson) -> some View {
         let last = index == lesson.steps.count - 1
         return VStack(spacing: 4) {
@@ -244,7 +244,7 @@ struct LessonView: View {
         } label: { label() }
     }
 
-    /// Steps fade, never slide (CODESPEC 12.4).
+    /// Steps fade, never slide (CODESPEC 11.4).
     private func go(to step: Int) {
         guard let lesson, lesson.steps.indices.contains(step) else { return }
         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { index = step }

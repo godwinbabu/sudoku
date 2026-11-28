@@ -33,7 +33,7 @@ struct V3Palette {
         pill: Color(hex: 0xFFFFFF, opacity: 0.12))
 
     /// One snapshot of Night (the default preset). The shipping palette is
-    /// computed from glow, warmth and clarity; see HANDOFF.md section 2.
+    /// computed from glow, warmth and clarity; see CODESPEC 7.2.
     static let nightSnapshot = V3Palette(
         bg: Color(hex: 0x000000), surface: Color(hex: 0x000000), edge: Color(hex: 0x3A2410),
         ink: Color(hex: 0xD08A3C), ink2: Color(hex: 0xA56A2E), accent: Color(hex: 0xD9602B),

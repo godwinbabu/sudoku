@@ -258,50 +258,50 @@ final class ImportPuzzleViewModelTests: XCTestCase {
         try await assertFixture("printed-grid", reads: "530070000600195000098000060800060003400803001700020006060000280000419005000080079")
     }
 
-    /// NYT dark mode: white border on a near-black page, light digits on grey and amber fills, small
+    /// A dark-theme screenshot: white border on a near-black page, light digits on grey and amber fills, small
     /// pencil-mark notes that are not givens (issue 98).
-    private static let nytDarkGrid = "073050048000824007000713069800000000040000005700001090006190002300402001010000000"
+    private static let darkAmberGrid = "073050048000824007000713069800000000040000005700001090006190002300402001010000000"
 
     func testDarkScreenshotIsReadInFull() async throws {
-        try await assertFixture("nyt-dark-screenshot", reads: Self.nytDarkGrid)
+        try await assertFixture("dark-amber-screenshot", reads: Self.darkAmberGrid)
     }
 
     /// The same board cropped to the grid, its border touching the image edges (issue 98).
     func testDarkCropIsReadInFull() async throws {
-        try await assertFixture("nyt-dark-crop", reads: Self.nytDarkGrid)
+        try await assertFixture("dark-amber-crop", reads: Self.darkAmberGrid)
     }
 
-    /// NYT dark mode with a selected cell: olive row, column and box highlights, an orange same-digit
+    /// A dark-theme screenshot with a selected cell: olive row, column and box highlights, an orange same-digit
     /// fill with dark ink, and a thick white frame. The edge rows and columns must be read too (issue 103).
-    private static let nytSelectedGrid = "801000900000000487000800003308000000500237000090008300782000005005710000003086700"
+    private static let darkSelectedGrid = "801000900000000487000800003308000000500237000090008300782000005005710000003086700"
 
     func testSelectedDarkScreenshotIsReadInFull() async throws {
-        try await assertFixture("nyt-dark-selected", reads: Self.nytSelectedGrid)
+        try await assertFixture("dark-amber-selected", reads: Self.darkSelectedGrid)
     }
 
     /// The same board cropped to its white frame (issue 103).
     func testSelectedDarkCropIsReadInFull() async throws {
-        try await assertFixture("nyt-dark-selected-crop", reads: Self.nytSelectedGrid)
+        try await assertFixture("dark-amber-selected-crop", reads: Self.darkSelectedGrid)
     }
 
     /// Wherever the found rectangle lands around the white frame (outside it, on it, or just inside it,
     /// so the outer lines are lost), the edge rows and columns are still read (issue 103).
     func testSelectedDarkGridIsReadWhereverTheRectangleLands() async throws {
-        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "nyt-dark-selected", withExtension: "png"))
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "dark-amber-selected", withExtension: "png"))
         let image = try XCTUnwrap(UIImage(contentsOfFile: url.path)?.cgImage)
         let frame = CGRect(x: 28, y: 435, width: 863, height: 863) // the white frame's outer edge, in pixels
         for (outer, inner) in [(-12, -12), (-12, 14), (0, 0), (14, -12), (14, 14), (12, 12), (8, 8)] {
             let rect = CGRect(x: frame.minX + CGFloat(outer), y: frame.minY + CGFloat(outer),
                               width: frame.width - CGFloat(outer + inner), height: frame.height - CGFloat(outer + inner))
             let grid = try await SudokuImageDetector().readGrid(try XCTUnwrap(image.cropping(to: rect)))
-            XCTAssertEqual(grid.values.map { String($0 ?? 0) }.joined(), Self.nytSelectedGrid, "rectangle \(rect)")
+            XCTAssertEqual(grid.values.map { String($0 ?? 0) }.joined(), Self.darkSelectedGrid, "rectangle \(rect)")
             XCTAssertEqual(grid.unsure, [], "rectangle \(rect)")
         }
     }
 
-    /// A light sudoku.com screenshot with blue highlights, which already imported correctly (issue 103).
+    /// A light-theme screenshot with blue highlights, which already imported correctly (issue 103).
     func testLightWebScreenshotIsReadInFull() async throws {
-        try await assertFixture("sudokucom-light",
+        try await assertFixture("light-blue",
                                 reads: "900508007080302905054000080070680032100004008500219060000906001726001040001470056")
     }
 

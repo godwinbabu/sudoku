@@ -2,9 +2,9 @@
 import Foundation
 
 /// Pre-graded puzzles, used when generation cannot find a puzzle of the requested level in time
-/// (CODESPEC 2.2: no silent fallback) and as practice drills by technique (CODESPEC 13.5).
+/// (CODESPEC 2.2: no silent fallback) and as practice drills by technique (CODESPEC 12.5).
 /// Generated offline with this app's generator and LogicalSolver, so no licence applies, by
-/// docs/audit/bundled-generate.swift (seed 20261114): 120 per level, each inside its level's
+/// tools/bundled-generate.swift (seed 20261114): 120 per level, each inside its level's
 /// targets. Then practice-only lines: every board of the earlier sets (seeds 20261101, 20261103,
 /// 20261113), so no drill is lost.
 /// Each line: level|initial grid|solution|score|techniques|steps per tier|opening singles[|drill].

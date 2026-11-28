@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Draws the navigation title in `ink`; UIKit bars created earlier would otherwise keep the
-/// system title colour (CODESPEC 12.4).
+/// system title colour (CODESPEC 11.4).
 struct ThemedTitle: ViewModifier {
     let title: String
     @Environment(\.psPalette) private var palette

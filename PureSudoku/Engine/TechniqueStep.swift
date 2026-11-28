@@ -120,7 +120,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Step score for grading (HoDoKu defaults, HINT_STRATEGIES.md).
+    /// Step score for grading (HINT_STRATEGIES.md).
     var score: Int {
         switch self {
         case .fullHouse, .nakedSingle: return 4
@@ -153,7 +153,7 @@ struct CellDigit: Hashable, Codable, Comparable {
     static func < (lhs: CellDigit, rhs: CellDigit) -> Bool { (lhs.cell, lhs.digit) < (rhs.cell, rhs.digit) }
 }
 
-/// One solving step as data (CODESPEC 13.3): what it changes and the pattern that justifies it.
+/// One solving step as data (CODESPEC 12.3): what it changes and the pattern that justifies it.
 /// The hint card draws from this (see the graduated hint fields below); one text template per technique.
 struct TechniqueStep: Equatable, Codable {
     enum HouseRole: String, Codable { case base, cover }

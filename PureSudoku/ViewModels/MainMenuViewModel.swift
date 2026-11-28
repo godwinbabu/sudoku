@@ -40,7 +40,7 @@ final class MainMenuViewModel: ObservableObject {
         return game.cells.contains { !$0.given && ($0.value != nil || !$0.candidates.isEmpty) }
     }
 
-    /// A level always starts a new puzzle (Design/v2/README.md, Home).
+    /// A level always starts a new puzzle (CODESPEC 3.1).
     func startNewGame(for difficulty: Difficulty) async -> GameViewModel? {
         await controller.startNewGame(for: difficulty)
         return controller.makeGameViewModel(for: difficulty)
@@ -57,7 +57,7 @@ final class MainMenuViewModel: ObservableObject {
     }
 
     /// "Saturday night · 6-night streak".
-    /// Home's date line, "Saturday, November 21" (HANDOFF 6.1). No streak here: no streak pressure (HANDOFF 7).
+    /// Home's date line, "Saturday, November 21" . No streak here: no streak pressure (CODESPEC 3.1).
     func dateLine(at date: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> String {
         let formatter = DateFormatter()
         formatter.calendar = calendar

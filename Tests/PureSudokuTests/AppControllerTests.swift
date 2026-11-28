@@ -102,7 +102,7 @@ final class AppControllerTests: XCTestCase {
         XCTAssertEqual(controller.stats, Stats(), "revealed games do not count")
     }
 
-    /// Home's date line is the weekday, month and day, with no streak count (HANDOFF 6.1, 7).
+    /// Home's date line is the weekday, month and day, with no streak count (CODESPEC 3.1).
     func testHomeDateLine() throws {
         let (controller, _) = makeTestController()
         var calendar = Calendar(identifier: .gregorian)

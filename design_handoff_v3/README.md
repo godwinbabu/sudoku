@@ -1,13 +1,11 @@
-# design_handoff_v3
+# Design assets
 
-Design handoff for the v3 redesign of the app, renamed Sudoku Masters.
+These are the design assets for Sudoku Masters. `CODESPEC.md` holds the behaviour. Use these files for the look: tokens, renders and component rules.
 
-- `PROMPT.md` — paste-ready kickoff for Claude Code
-- `HANDOFF.md` — the spec
-- `screens/` — 21 reference renders (7 screens × light, dark, night)
-- `tokens.json` — design tokens
-- `reference/V3Palette.swift` — the same values in Swift
-- `design-system/` — brand book and component guidelines
-- `source/` — design source for each screen (exact CSS)
-- `icon/` — app icon, default and tinted
-- `fonts/` — Bricolage Grotesque and DM Sans
+- `screens/`: 21 reference renders. Seven screens, each in Light, Dark and Night.
+- `tokens.json`: the design tokens: colors, sizes and type.
+- `reference/V3Palette.swift`: the same token values in Swift.
+- `design-system/`: the brand book and one short guide for each component (board, hint card, keypad, tab bar, app icon).
+- `source/`: the design source of each screen, as HTML and CSS.
+- `icon/`: the app icon, default and tinted, as SVG and 1024 px PNG.
+- `fonts/`: Bricolage Grotesque and DM Sans, under the SIL Open Font License 1.1.

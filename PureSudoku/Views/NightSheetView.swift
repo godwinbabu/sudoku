@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Display sheet (CODESPEC 12.2, HANDOFF 6.3), opened by the moon anywhere. A custom panel over
+/// The Display sheet (CODESPEC 11.7), opened by the moon anywhere. A custom panel over
 /// the app, not a system sheet, so it never renders light at night. Changing Appearance re-themes it
 /// at once, and the screen behind repaints live.
 struct NightSheetView: View {
@@ -149,7 +149,7 @@ struct NightSheetView: View {
         .frame(minHeight: 44)
     }
 
-    /// Two givens and two entries in the current settings (HANDOFF 6.3).
+    /// Two givens and two entries in the current settings (CODESPEC 11.7).
     private var preview: some View {
         HStack(spacing: 26) {
             ForEach(Array([("2", true), ("6", false), ("9", true), ("8", false)].enumerated()), id: \.offset) { _, item in
@@ -215,7 +215,7 @@ struct NightSheetView: View {
 }
 
 /// Night after dark's hours: tonight's sun times, or the fixed hours with − / + (15 min steps), and the
-/// switch between the two. Location is used only from here, and only when chosen (HANDOFF 6.3).
+/// switch between the two. Location is used only from here, and only when chosen (CODESPEC 7.1).
 private struct AfterDarkHours: View {
     @EnvironmentObject private var controller: AppController
     let theme: PSPalette

@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Colours the UIKit parts SwiftUI themes can't reach (slider and switch knobs, navigation titles),
-/// so nothing stays system white at night (CODESPEC 12.4). Applies to views created after the call.
+/// so nothing stays system white at night (CODESPEC 11.4). Applies to views created after the call.
 enum SystemAppearance {
     @MainActor
     static func apply(_ palette: PSPalette) {

@@ -6,7 +6,7 @@
 //    and regraded, so no drill is lost.
 // Input: data lines (only the level, grid and solution fields are read). Run from the repo root:
 //   sed -n '/data = """/,/^"""/p' PureSudoku/Engine/BundledPuzzles.swift | sed '1d;$d' > /tmp/old.txt
-//   cp docs/audit/bundled-generate.swift /tmp/main.swift
+//   cp tools/bundled-generate.swift /tmp/main.swift
 //   swiftc -O -o /tmp/gen $(ls PureSudoku/Engine/*.swift | grep -v ImageDetector) \
 //     PureSudoku/Models/{Difficulty,SudokuCell,SudokuPuzzle,GameSource}.swift /tmp/main.swift
 //   /tmp/gen /tmp/old.txt > /tmp/lines.txt   # then paste the lines into BundledPuzzles.data

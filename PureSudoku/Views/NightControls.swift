@@ -1,9 +1,9 @@
 import SwiftUI
 
-// Controls shared by the Night sheet, Display & Night and the first-night flow (Design/v2/README.md).
-// All are drawn from the palette, so nothing renders system white at night (CODESPEC 12.4).
+// Controls shared by the Night sheet, Display & Night and the first-night flow (CODESPEC 7.2, 11.7).
+// All are drawn from the palette, so nothing renders system white at night (CODESPEC 11.4).
 
-/// Segmented control (HANDOFF 6.3): a `fill` pill track with a `fillEdge` outline. Light and Dark mark
+/// Segmented control (CODESPEC 7.2, 11.7): a `fill` pill track with a `fillEdge` outline. Light and Dark mark
 /// the choice with a `segment` pill; Night with a `btnEdge` ring, because nothing lit may sit behind text. At accessibility
 /// text sizes the options stack, full width, and each shape grows with its text (CODESPEC 9).
 struct PSSegmented<Value: Hashable>: View {
@@ -54,7 +54,7 @@ struct PSSegmented<Value: Hashable>: View {
     }
 }
 
-/// A 51 × 31 switch with a 44 pt target (HANDOFF 6.3). On is a `btnBg` track with a `btnInk` knob; at
+/// A 51 × 31 switch with a 44 pt target (CODESPEC 7.2, 11.7). On is a `btnBg` track with a `btnInk` knob; at
 /// night a `btnEdge` outline with an accent knob. Off is an outline with an ink3 knob.
 struct PSToggle: View {
     let theme: PSPalette
@@ -94,7 +94,7 @@ private struct ToggleTrait: ViewModifier {
 }
 
 /// A 4 pt `line` track with `accent` progress and a 26 pt `bg` thumb in a 2 pt `accent` ring
-/// (HANDOFF 6.3), so the knob is never the brightest shape at night. Steps by whole numbers.
+/// (CODESPEC 7.2, 11.7), so the knob is never the brightest shape at night. Steps by whole numbers.
 struct PSSlider: View {
     let theme: PSPalette
     let value: Double
@@ -306,7 +306,7 @@ struct CalibrateView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("calibrateView")
-        // The tiles show the palette layer only, so judge them at the minimum backlight (CODESPEC 12.3).
+        // The tiles show the palette layer only, so judge them at the minimum backlight (CODESPEC 11.3).
         .onAppear { controller.isCalibrating = true }
         .onDisappear { controller.isCalibrating = false }
     }

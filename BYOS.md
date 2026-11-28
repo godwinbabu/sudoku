@@ -1,177 +1,68 @@
-# BYOS (Bring Your Own Sudoku) – Design Doc
+# BYOS: Bring Your Own Sudoku
+
+BYOS lets a player import a printed or on-screen puzzle as a photo, a screenshot or pasted text. The app reads the grid on the device, the player checks it, and a normal game starts. The screens, strings and tests are in CODESPEC 3.4. This file holds the goals, the reading pipeline, validation, data and photo storage.
 
 ## Goals
-- Let users import Sudoku puzzles from photos or screenshots, review/edit detection, validate, and start a normal game.
-- Remain offline-only and privacy-first (no server uploads).
-- Preserve calm, minimal UX and Bedtime-friendly visuals.
 
-## Decisions (Confirmed)
-- Imported puzzles **do** contribute to stats/streaks.
-- Validation requires **solvable** (not necessarily unique).
-- A puzzle with more than one solution is allowed, but hints that assume a unique solution are turned off for it (CODESPEC 2.1).
-- Keep images locally but prevent storage bloat.
-- Imported games should be labeled in Stats UI.
-- Unsolved imported puzzles are persisted separately (not just as active games).
+- Import a puzzle from a photo or screenshot, check the read, and start a normal game.
+- Stay offline. The photo is read on the iPhone and never uploaded.
+- Keep the visuals calm and the Night appearance intact.
+- Count imported games in stats and streaks.
+- Keep photos on the device without letting storage grow without limit.
 
----
+## Reading pipeline
 
-## User Flow
+`SudokuImageDetector` runs on the device with Apple's Vision framework. Reading runs off the main thread and can be cancelled.
 
-1) **Main Menu**
-- Add a new CTA: **“Import Puzzle”** (camera or photo library).
+1. Orient the image. A camera photo is stored sideways with a rotation flag, so the detector redraws it upright first.
+2. Find the grid. `VNDetectRectanglesRequest` looks for one near-square rectangle (aspect ratio 0.8–1.2, confidence at least 0.6). A perspective correction then flattens it into a square.
+3. Fallback for a cropped screenshot. If no rectangle is found, the detector looks for the box around everything that differs from the page colour. The box must be roughly square (ratio 0.8–1.25). Otherwise the read fails with "grid not found".
+4. Fit the grid lines. The detector fits ten evenly spaced lines on each axis to the dark pixel profile. Box lines are thicker, which tells the right fit from one shifted by a cell. A frame or margin around the grid does not move the edge cells.
+5. Cut 81 cells. Each cell is cut twice: a first crop with 8% trimmed from each side, and an inner crop with 18% trimmed from each side. Both drop the lines.
+6. Normalise each cell to grey. Light digits on a dark fill are inverted, so every cell looks like dark ink on paper.
+7. Read each cell with Vision text recognition, in fast mode first. A read counts as a digit only when it is one character, 1–9, and the text:
+   - is at least 36% of the cell's height, which drops pencil-mark notes;
+   - covers at least 6% of the cell's area;
+   - sits near the cell's centre.
+8. Read again when unsure. A cell with an unsure digit, with text seen but not read, or with ink but no read is read again from its inner area on a plain white margin, fast then accurate.
+9. Settle the result. A sure read wins. Unsure reads that agree, with none that differ, count as sure. A lone "I", "l" or "|" reads as 1. One central character that is not a digit leaves the cell blank and ringed as unsure. Longer text or text near the edge counts as grid lines.
 
-2) **Import Source Screen**
-- Options: **Camera** or **Photo Library**.
-- Tip text: “Center the grid, avoid notes, good lighting helps.”
-- Cancel exits without changes.
+A read digit is unsure when its own Vision confidence (`VNRecognizedText.confidence`, not the observation's) is below 0.6.
 
-3) **Processing Screen**
-- Status: “Detecting grid… Reading digits…”
-- If detection fails: show error + retry + manual grid entry option.
+If the read is partial or fails, the player still gets the grid to correct by hand. The 0.6 limit comes from simulator screenshots only. Tune it with real photos of printed puzzles.
 
-4) **Review & Edit Screen (Pre-Game)**
-- Shows detected 9×9 grid; user can tap cells to correct values.
-- Clear/reset tools and a numeric keypad.
-- Inline validation:
-  - Conflicts (row/col/box) are highlighted.
-  - “Solvable” status shown (non-blocking until Start).
-  - More than one solution: a note, “This grid has more than one solution. Check the digits against your photo.” It does not block Start.
-  - Text seen in a cell but not read as a digit: the cell is ringed as unsure and left blank.
-- **Discard** button to exit without saving.
-- **Start Puzzle** enabled only when:
-  - No conflicts, and
-  - Solver confirms solvable.
+## Validation
 
-5) **Game Start**
-- Creates `GameState` and enters GameView.
-- Grid becomes non-editable.
-- Hints work as normal, with one exception: if the puzzle has more than one solution, the uniqueness techniques (Unique Rectangle, BUG+1, Hidden/Avoidable Rectangle) are not used (CODESPEC 2.1, HINT_STRATEGIES.md).
+- Conflicts: a repeated digit in a row, column or box blocks Start.
+- Clues: Start needs at least 10 digits.
+- Solvable: the existing solver must find at least one solution. An unsolvable grid blocks Start.
+- Solution count: the app counts solutions, stopping at 2, off the main thread. `hasUniqueSolution` is true only when the count is exactly 1. More than one solution does not block Start. The player sees a note.
+- When `hasUniqueSolution` is false, hints skip the techniques that assume one solution: Unique Rectangle, BUG+1, Hidden and Avoidable Rectangle. Check and Reveal compare against a solution that fits the player's entries. See CODESPEC 2.1 and HINT_STRATEGIES.md.
+- Grading: an import gets a level from the techniques it needs. A grid the solver cannot finish is Master (CODESPEC 2.2).
 
----
+## Data model and persistence
 
-## Detection & Reconstruction (Offline Only)
+- `SudokuPuzzle` carries `source` (`generated` or `imported`), `importedAt`, `importImageID` and `hasUniqueSolution`.
+- An imported game is an `ImportedGame`: its `GameState`, `createdAt` and `lastOpened`. The list is saved in `imported_games.json`, apart from the games for each level.
+- The app keeps every unfinished import and the 20 most recently played solved ones (CODESPEC 8).
+- Imported puzzles count in stats and streaks. Stats keep a separate total of imported puzzles solved.
+- If `imported_games.json` fails to load, the app skips photo cleanup for that session, because the photos may still belong to games in a saved copy.
 
-### Preferred Pipeline (On-device)
-1) **Grid detection**
-   - Use `VNDetectRectanglesRequest` to find Sudoku boundary.
-   - Perspective-correct the grid into a square.
+## Photo storage
 
-2) **Cell extraction**
-   - Split corrected grid into 81 equal cells.
+`ImportedImageStore` keeps photos in `Application Support/PureSudoku/ImportedImages`, one JPEG per photo, named by its ID.
 
-3) **Digit recognition**
-   - Option A (phase 2): Vision text recognition.
-   - Option B (phase 3): Small CoreML digit classifier for higher accuracy.
+- Longest side at most 2048 px, JPEG quality 0.7.
+- The folder is excluded from backups. Photos stay on the iPhone.
+- After a new photo is saved, the store deletes the oldest photos beyond 50. It never deletes a photo an import still shows, so the folder can hold more than 50.
+- The app removes photos that no import uses. It scans only when the set of photos in use changes.
+- If the list of imports is unknown (it failed to load), nothing is deleted.
+- A photo that is never used is deleted when the player leaves Import.
+- Journal has "Keep import photos" (default on) and "Imported photos: Clear". See CODESPEC 3.3.
+- An old import can lose its photo. The puzzle stays playable.
 
-4) **Ignore candidates/notes**
-   - Reject small glyphs by bounding box area threshold.
-   - Prefer centered glyphs (candidate notes are often cornered).
-   - Use confidence threshold to keep uncertain cells empty.
+## Open items
 
-If detection is partial or uncertain, still present the grid for manual correction.
-
----
-
-## Validation Rules
-- **Conflict check**: row/column/box duplicates.
-- **Solvable check**: reuse existing solver to ensure at least one solution.
-- **Solution count** (CODESPEC 13.6, phase 4): on Start, count solutions, stopping at 2. Store `hasUniqueSolution` on the puzzle (true only if the count is exactly 1). This does not block Start.
-- Block “Start Puzzle” if invalid or unsolvable; allow edits until valid.
-
----
-
-## Data Model & Persistence
-
-### New Metadata
-```swift
-enum GameSource: String, Codable {
-    case generated
-    case imported
-}
-```
-
-Extend `SudokuPuzzle` with:
-- `source: GameSource`
-- `importedAt: Date?`
-- `importImageID: String?`
-
-### Stats
-- Imported puzzles **count** toward stats and streaks.
-- Add a Stats UI label for imported totals (e.g., “Imported: 12”).
-
-### Imported Puzzle Storage
-- Persist imported puzzles separately from active games so users can return to them later.
-- Track the imported puzzle list in local storage (e.g., `imported_puzzles.json`).
-
----
-
-## Image Storage Policy (Prevent Bloat)
-
-**Goal:** keep the “wow” factor (image preview/edit) without unbounded storage.
-
-### Policy
-- **Default limit:** keep the most recent **50 images**.
-- **Size cap:** downscale to max **2048 px** on the longest side.
-- **Compression:** JPEG at ~0.7 quality.
-- **Cleanup:** on each new import:
-  - delete oldest images beyond the limit, but never one an import still uses (the folder can then hold more than the limit).
-  - remove any orphaned images not referenced by active/imported puzzles.
-
-### User Control (Settings)
-- “Keep import images” toggle (default: ON).
-- “Clear imported images” action to delete all cached images.
-- Optional: “Image cache size” indicator (MB).
-
-### Tradeoffs
-Pros:
-- Keeps storage bounded and predictable.
-- Still allows review and corrections.
-Cons:
-- Old imports may lose their original image (puzzle itself remains playable).
-
----
-
-## UX Principles
-- Clean, calm visuals; no flashing overlays.
-- Sleep theme respected in all screens.
-- Clear, actionable error messages.
-- “Discard” always available before puzzle creation.
-
----
-
-## Testing Plan (High-Level)
-
-**Unit Tests**
-- Import validation: conflicts and solvability.
-- Persistence: imported puzzle metadata round-trip.
-- Image cache cleanup policy.
-
-**UI Tests**
-- Import flow: select image -> review -> edit -> start -> play.
-- Invalid puzzle blocks start.
-- Discard exits without starting a game.
-
----
-
-## Implementation Phases
-
-**Phase 1: Manual BYOS (no OCR)**
-- Add Import flow and Review/Edit grid screen.
-- Validation + solvability checks.
-
-**Phase 2: Basic OCR (Vision)**
-- Rectangle detection + cell splitting.
-- Vision text recognition.
-
-**Phase 3: Custom Digit OCR**
-- CoreML digit classifier.
-- Better candidate/notes suppression.
-
-**Phase 4: Heuristics & Polish**
-- Confidence indicators.
-- Better grid detection fallback.
-
----
-
-## Open Items
-- None. Ready for implementation.
+- Tune the unsure limit with real photos of printed puzzles.
+- No on-device digit classifier exists. Vision text recognition reads every digit. A trained classifier could read thin 1s and faint print better.
+- Journal does not show the size of the photo store.

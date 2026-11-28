@@ -2,7 +2,7 @@ import UIKit
 import XCTest
 @testable import PureSudoku
 
-/// After dark, Drift and the first-night flow (CODESPEC 7.1, 12.3).
+/// After dark, Drift and the first-night flow (CODESPEC 7.1, 11.3).
 @MainActor
 final class NightScheduleTests: XCTestCase {
     private let london = Coordinate(latitude: 51.5074, longitude: -0.1278)
@@ -484,8 +484,8 @@ extension NightScheduleTests {
         XCTAssertFalse(controller.palette.isDark)
     }
 
-    /// A fresh install (or a v2 Match iPhone setting) follows iOS until the scene appears, then keeps
-    /// the style it found (HANDOFF 6.3).
+    /// A fresh install (or an older Match iPhone setting) follows iOS until the scene appears, then keeps
+    /// the style it found (CODESPEC 7.1).
     func testFreshInstallAdoptsTheSystemStyleOnce() {
         let (controller, _) = makeTestController()
         controller.updateSettings { $0.appearance = .light; $0.nightAfterDark = false; $0.adoptsSystemStyle = true }
