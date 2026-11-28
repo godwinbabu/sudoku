@@ -88,7 +88,7 @@ enum Difficulty: String, Codable, CaseIterable {
     case medium
     case hard
     case expert
-    case master   // swiftlint:disable:next inclusive_language on the declaration
+    case master
 }
 ```
 
@@ -142,8 +142,8 @@ The hardest technique sets the level. The targets shape how the puzzle plays ins
 | Expert | 24–27 | at most 5 | at least 4, and at least 1 Advanced+ (the level requires it) |
 | Master | 22–26 | at most 7 | at least 6, and at least 2 Advanced+ (one a chain, which the level requires) |
 
-- Medium allows 5–14 opening singles. A narrower range of 6–12 reached only 73% live success on the simulator sample.
-- Master allows at most 7 opening singles. At most 4 reached only 45% live success. The value 7 is the smallest that clears the 75% gate (at most 5: 63%, at most 6: 74%, at most 7: 77%). Master still has the most walls.
+- Medium allows 5–14 opening singles.
+- Master allows at most 7 opening singles. Master still has the most walls.
 
 #### Generation
 
@@ -154,20 +154,16 @@ The hardest technique sets the level. The targets shape how the puzzle plays ins
 5. The first board that meets all targets is the puzzle.
 6. If no board meets them, the attempt is a miss and the next try starts. After 30 tries, use a bundled puzzle.
 
-- Generation runs off the main thread. It makes up to 30 tries. One try takes about 13 ms on a Mac, for generating and grading. Add-back to the targets adds more.
+- Generation runs off the main thread. It makes up to 30 tries.
 - The stored grade (score, techniques, `stepsPerTier`, `openingSingles`) is the grade of the final board.
 - Saved games keep their own boards. Nothing migrates.
-- Before targets, 400 seeded puzzles on five levels gave: 43% Easy, 15% Medium, 5% Hard, 14% Expert, 8.5% Master, and 14.5% that need a technique beyond XY-Chain (discarded).
 
 #### Feasibility gate
 
 - For each level, live generation (not the fallback) must succeed at least 75% of the time within 30 tries. The sample is at least 200 seeded runs.
 - If a level misses the gate, loosen that level's targets and say so in this section. Do not add tries.
-- Measured on two seeded samples of 200 runs per level: a Mac release build (seeds 50001–50200) and an iPhone 18 Pro Max simulator debug build (seeds 90001–90200).
-  - Live success: Easy 100% / 100%, Medium 81% / 76.5%, Hard 77% / 82%, Expert 89% / 85%, Master 77% / 75.5%.
-  - Simulator time per request, with failed tries and fallback included: mean 30 / 233 / 213 / 191 / 240 ms. The 95th percentile is 80 / 437 / 402 / 439 / 438 ms.
-  - The rest falls back to a bundled puzzle, which also meets the targets.
-- The mean must stay under 0.4 s per level.
+- The rest falls back to a bundled puzzle, which also meets the targets.
+- The mean time per request must stay under 0.4 s per level, with failed tries and fallback included.
 
 #### Bundled puzzles
 
@@ -235,7 +231,7 @@ Teaching fields:
   - `hints: Int`: the hints opened in this puzzle (`hintLog.count`), for the Solved summary.
   - `assisted: Bool`: true once a hint placed a digit or removed candidates (Section 6.3.1). Saves that hold the old `usedHint` key decode it into this field.
 - `SudokuCell.generatedCandidates`: the notes that Fill all notes added (Section 3.2).
-- `TechniqueProgress`, one per technique: `foundUnaidedCount: Int`, `foundUnaidedDays: Set<day>`, `lastSeen: Date?` and `strength: Double` (0–1, decays over time).
+- `TechniqueProgress`, one per technique: `credits: Int` (Section 12.4), `foundUnaided` (the puzzle id and day of each puzzle where the player found it unaided), `hintsSeen: Int`, `lastSeen: Date?`, `strength: Double` (0–1, decays over time) and `strengthDate: Date?` (when `strength` was set).
 - Every persisted model decodes new fields with defaults (`decodeIfPresent`): `SudokuPuzzle`, `GameState`, `Settings`, `Stats` and `TechniqueProgress`. A strict decode of a new field makes the old file fail to load. The app then moves the file aside and the player loses their settings.
 
 Tests:
@@ -264,7 +260,7 @@ Headers and system UI:
 - Each tab's header (`ScreenHead`) is a 44 pt row. It has an optional line on the left and the moon on a 44 pt round glass button, which opens the Night sheet (Section 11.7). The large title follows (Bricolage 33, 800). Import has the moon in its bar.
 - The app uses no system sheets, alerts, context menus or confirmation dialogs. The Display sheet is drawn by the app. Lessons are pushed. Confirmations are custom popovers.
 - The camera and the Photos picker on Import are the only system screens. Each opens only after an explicit tap (Section 3.4).
-- At night the status bar is hidden on every screen except the game. The game follows "Hide status bar in games" (Section 3.2).
+- Status bar and home indicator: see Section 11.7.
 - Screens that scroll from the top (Home, Learn, Journal, Licences) draw a bg strip behind the status bar, so content never sits under the clock.
 
 Layout sizes:
@@ -346,17 +342,14 @@ Other game states:
   - The board fades to 30% over 600 ms (150 ms with Reduce Motion) and shows no selection.
   - The hint slot, tool bar and keypad give way to a summary below the board:
     - "Solved" (Bricolage 52, 800).
-    - A greeting for the time of day (`GameViewModel.greeting`): "Good morning" 5:00–11:59, "Good afternoon" 12:00–16:59, "Good evening" 17:00–20:59, "Good night" 21:00–4:59.
+    - A greeting for the time of day (`GameViewModel.greeting`): "Good morning" 5:00–11:59, "Good afternoon" 12:00–16:59, "Good evening" 17:00–20:59, "Good night" 21:00–4:59. The first-night greeting (Section 11.3) is separate and has its own hours.
     - The level, the time and the hint count.
     - A note on what the solve counts for: Practice "not counted"; Revealed "not counted"; Assisted "Assisted · counts for your streak, not best times".
     - "This grid needed" with one outlined chip per technique. The techniques come from `LogicalSolver.techniquesNeeded(for:)`, which replays the hint engine from the givens once, off the main thread.
   - At the bottom, 50 pt tall: Another (secondary) and Goodnight (primary). Another starts a new puzzle at this level. For imports and practice it goes back.
   - There is no confetti, sound or haptic.
 - Goodnight: pure black with "Sleep well." fading out. A tap returns to Home.
-- Status bar and home indicator:
-  - In a Night game the status bar is hidden (`hideStatusBarInGames`) and the home indicator auto-hides.
-  - Hush, Goodnight and the first-night screen hide both, in Day as well.
-  - The game reports this to `AppController` (`hidesHomeIndicator`). The root view applies it.
+- Status bar and home indicator: see Section 11.7.
 - Drift (Section 11.3) applies to the game's palette while Night and the Drift setting are on.
 
 Interaction:
@@ -456,7 +449,7 @@ Source:
 - Paste reads the clipboard text. iOS may ask to allow it. The app keeps digits 1–9 and blanks (0 or `.`) in order and ignores everything else, so text-drawn grids with `|`, `-` and `+` work.
   - Exactly 81 cells go to Check the grid.
   - Anything else stays on Source with "No grid on the clipboard. Copy 81 digits, with 0 or . for blanks." (ink2, under the cards).
-- Then "FOR A CLEAN READ" and the tips line.
+- Then "FOR A CLEAN READ" and the tips line: "Fill the frame with the grid · Good light, no glare · Pencil marks are ignored".
 - Cards have the surface fill in Day and only a hairline at night.
 - Take a photo opens the camera (`UIImagePickerController` in a sheet). Choose from Photos opens `.photosPicker(isPresented:selection:matching:)`. Both close when the first-night screen appears, because that screen is drawn at the app root and a system screen would sit above it.
 
@@ -506,9 +499,13 @@ Tests:
   - Text seen but not read rings a blank cell.
   - Two solutions show the note without blocking Start.
   - A stale solve or Start result is dropped.
+  - An imported puzzle's metadata survives a save and load.
+  - The image cache cleanup removes photos that no saved import uses and keeps the rest.
 - UI:
   - Import opens on Source with its options.
   - Type it in goes to Check the grid. Two 4s in a row show the conflict line and keep Start disabled. Clear cell removes the conflict. Start over returns to Source.
+  - A photo goes through Check the grid, an edit and Start puzzle into play.
+  - Discard exits Import and creates no game.
 
 ## 4. Timer behaviour
 
@@ -898,7 +895,8 @@ The app computes the Night palette from glow, warmth and Clarity. Never hard-cod
 - Every other token is base or accent times a fixed share of s:
   - ink 1, ink2 0.85, ink3 0.78.
   - accent 0.96, accentDim 0.65.
-  - line 0.30, so lines show on the stepped cell fills. lineMajor 0.60.
+  - line 0.30, so lines show on the stepped cell fills. lineMajor 0.60. Both are multiplied by a Clarity lift: 1 (Standard), 1.25 (Large) and 1.5 (Bold).
+  - err is #FF4640 × s × 0.95. status is base × s × 0.44.
   - hair and edge 0.25. focus 0.08.
 - btnInk is accent. btnEdge is accentDim. fillEdge and glassEdge are edge. btnBg, fill, glass, segment and pill are clear.
 - The cell fills are sel 0.33, same 0.25 and peer 0.17, all of accent, so the steps hold at any warmth.
@@ -926,7 +924,7 @@ Every state shows by shape or weight, not by hue alone, in Day and at Night:
 - Error: an underline bar plus the err colour.
 - Hint roles: rings for evidence and targets, strike-through for eliminations.
 - Import: the app rings unsure cells and underlines conflicts. Each legend line has a matching ring or underline swatch (Section 3.4).
-- Learn mastery dots: mastered is a filled dot, learning is a half-filled ring, and new is an empty ink3 ring. VoiceOver reads the level.
+- Learn status: each row shows its status as text, Mastered (with an accent check), Learning, Up next or New. VoiceOver reads the status.
 
 ### 7.3 Grid interaction visuals
 
@@ -1144,8 +1142,8 @@ Source is in `PureSudoku/`. Tests are in `Tests/`. The Xcode project uses classi
 - `ViewModels/`: `AppController`, `GameViewModel`, `HintSession`, `CoachSession`, `ImportPuzzleViewModel`, `Lesson` (`Lesson`, `LearnTier`, `LessonScript`: the four written lessons), `MainMenuViewModel`, `SettingsViewModel`, `StatsViewModel` (the Journal's numbers).
 - `Views/`:
   - `MainMenuView` (the three tabs, `PSTabBar`, `ScreenHead`, `NightButton`).
-  - `HomeView` (Continue card, `MiniBoard`, level rows, saved imports).
-  - `JournalView` (streak, week, solved table, Assists, Imports, Privacy).
+  - `HomeView` (Continue card, level rows, saved imports).
+  - `JournalView` (streak, week, solved table, Assists, More, About).
   - `GameView`, `SudokuGridView`, `NumberPadView`.
   - `GameChrome` (glass, tools, More menu, Solved panel, Hush and Goodnight).
   - `HintCardView`, `CoachCardView`.
@@ -1230,12 +1228,15 @@ Find my lowest glow:
 - It shows six 76 pt tiles drawn in the night ink at glow 0, 4, 8, 14, 22 and 32. All sit inside the palette layer.
 - "Use this" sets `glowFloor` = the pick, glow = max(Lights out, pick + 4) and `calibrated` = true.
 - The slider and presets never set glow below `glowFloor`.
+- The heading reads "Which is the faintest you can read?" Under it: "Give your eyes a moment in the dark first. Tap the dimmest digit you can read without effort."
 - At night its heading is ink3, as dim as the body, so the words do not outshine the tiles. On the first-night screen it is centred vertically.
 
 First night (`FirstNightView`):
 
 - It shows the first time Night is active while `calibrated` is false. It is a full black screen.
-- Steps: a welcome ("Good morning." 5:00–11:59, "Good afternoon." 12:00–17:59, else "Good evening."), then Find my lowest glow (no Cancel), then a result ("Glow set to N%.", the Kelvin, a sample strip, Start playing).
+- Steps: a welcome, then Find my lowest glow (no Cancel), then a result.
+- Welcome: a greeting, "Good morning." 5:00–11:59, "Good afternoon." 12:00–17:59, else "Good evening." It is separate from the Solved greeting (Section 3.2) and has its own hours. The body reads "Before your first puzzle, let’s set the screen for your eyes and this room. It takes twenty seconds, and nothing will flash."
+- Result: "Glow set to N%.", a sample strip and Start playing. The body reads "Warmth is <Kelvin>. You can change both any time from the moon at the top of every screen."
 - "Skip for now — use Lights out" applies Lights out and sets `calibrated`.
 - It appears once. `calibrated` is saved before the result screen.
 - It is drawn above everything. The camera picker closes first, the More menu closes, and a running game timer pauses until the flow ends.
@@ -1376,13 +1377,14 @@ Night drawing rules for the sheet:
 - The selected segment is a btnEdge ring, not a fill.
 - The slider knob is a 2 pt accent ring on black.
 - The on switch is an outline with an accent knob.
-- So no fill is brighter than ink.
+- These follow the Night fill rules (Section 7.2).
 
 Status bar and home indicator:
 
-- The Display sheet, the first-night screen and every screen but the game hide the white system status bar at night.
-- The game follows Hide status bar in games.
-- In a night game, the home indicator auto-hides.
+- At night the Display sheet, the first-night screen and every screen but the game hide the white system status bar.
+- The game follows Hide status bar in games (`hideStatusBarInGames`). In a Night game the home indicator auto-hides.
+- Hush, Goodnight and the first-night screen hide both, in Day as well.
+- The game reports this to `AppController` (`hidesHomeIndicator`). The root view applies it.
 
 System alerts:
 
@@ -1480,7 +1482,6 @@ Testing requirements:
   - Correctness oracle: over a seeded corpus of generated puzzles (400, plus the bundled pre-graded puzzles), every step agrees with the known solution. The test re-checks each step's pattern against the board.
   - Same board, same step, every run.
   - A board that needs two techniques in a row (for example pointing, then a naked pair) yields both steps in order.
-  - Strength decay.
   - XY-Chain: a hand-made four-cell chain gives exactly the eliminations seen by both ends. The corpus oracle walks every XY-Chain step link by link.
 
 ### 12.4 Mastery
@@ -1529,6 +1530,7 @@ Testing requirements:
   - Mastered at 10 credits.
   - Old progress decodes and keeps its old mastery.
   - A manual placement credits the technique the engine would use for it, once.
+  - Strength decays over time.
   - Hint card moves (placements and eliminations), and the cell a hint showed, earn nothing.
 
 ### 12.5 Learn screen

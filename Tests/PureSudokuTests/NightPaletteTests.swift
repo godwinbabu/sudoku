@@ -246,7 +246,7 @@ final class NightPaletteTests: XCTestCase {
     }
 
     /// v2 appearances migrate once: Day → Light, Night → Night, After dark → Light with Night after dark,
-    /// Match iPhone → the system style (CODESPEC 11.3).
+    /// Match iPhone → the system style (CODESPEC 7.1).
     func testV2AppearanceMigrates() throws {
         func decode(_ appearance: String) throws -> Settings {
             try JSONDecoder().decode(Settings.self, from: JSONSerialization.data(withJSONObject: ["appearance": appearance]))

@@ -200,7 +200,7 @@ struct Settings: Codable, Equatable {
         }
 
         // v2 stored "day", "night", "afterDark" or "matchSystem"; v1 a `theme`. All map onto v3's
-        // appearance + nightAfterDark + adoptsSystemStyle (CODESPEC 11.3).
+        // appearance + nightAfterDark + adoptsSystemStyle (CODESPEC 7.1).
         var appearance = "light"
         var warmth = defaults.warmth
         // v1: theme light → Light, dark → Night, system → the system style, sleep or Bedtime Mode → Night with Lights out.

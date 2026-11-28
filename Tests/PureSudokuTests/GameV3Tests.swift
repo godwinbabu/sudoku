@@ -46,7 +46,7 @@ extension GameV3Tests {
     }
 }
 
-// Generated notes and the More menu's cell actions (owner's request, PR 106).
+// Generated notes and the More menu's cell actions.
 extension GameV3Tests {
     /// Fill all notes keeps the player's notes; Clear generated notes removes only what Fill added, and a
     /// generated note the player removes and adds back is theirs. One Undo reverts the clear.

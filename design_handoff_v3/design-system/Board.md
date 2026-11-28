@@ -11,4 +11,4 @@ The 9×9 grid. Cell states, notes, and hint and import marks are in CODESPEC 7.3
 - During a hint, tint the unit with `focus`. Give each proof cell a solid 2 px `accent` ring and the target a dashed one. Inset both 3 px with `r-ring` corners.
 - A mistake is the digit in `err` with a 3 px bar under it.
 - Do not fill a selected or highlighted cell with a strong color. Rings and the `focus` tint are the only marks.
-- Do not scale the board down to fit other content.
+- Do not scale the board down to fit other content. The one exception is a screen too short to show the keypad: the game then shrinks the board (CODESPEC 3.2).

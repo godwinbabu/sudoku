@@ -484,8 +484,8 @@ extension NightScheduleTests {
         XCTAssertFalse(controller.palette.isDark)
     }
 
-    /// A fresh install (or a v2 Match iPhone setting) follows iOS until the scene appears, then keeps
-    /// the style it found (CODESPEC 11.3).
+    /// A fresh install (or an older Match iPhone setting) follows iOS until the scene appears, then keeps
+    /// the style it found (CODESPEC 7.1).
     func testFreshInstallAdoptsTheSystemStyleOnce() {
         let (controller, _) = makeTestController()
         controller.updateSettings { $0.appearance = .light; $0.nightAfterDark = false; $0.adoptsSystemStyle = true }

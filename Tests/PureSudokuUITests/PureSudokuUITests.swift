@@ -424,7 +424,7 @@ final class PureSudokuUITests: XCTestCase {
         setAppearance(state.appearance, nightAfterDark: state.nightAfterDark, in: app)
     }
 
-    /// The moon opens the Night sheet on the main menu and in a game; the backdrop and × close it (CODESPEC 11.2).
+    /// The moon opens the Night sheet on the main menu and in a game; the backdrop and × close it (CODESPEC 11.7).
     func testMoonOpensTheNightSheet() {
         let app = launchApp()
         let moon = app.buttons["nightButton"]
@@ -826,7 +826,7 @@ extension PureSudokuUITests {
     }
 
     /// Dark draws the Dark theme with the v3 focus tint; switching to Light from the game's moon
-    /// repaints the board at once (CODESPEC 11.3).
+    /// repaints the board at once (CODESPEC 11.7).
     func testDarkShowsTheDarkTheme() {
         let app = launchApp()
         let original = setAppearance("dark", in: app)
@@ -835,8 +835,8 @@ extension PureSudokuUITests {
         XCTAssertTrue(element("gameView", in: app).waitForExistence(timeout: 5))
 
         let brightness = highlightBrightness(in: app)
-        // v3 Dark: the board is #151517 (sum 65), far from Light's ~765. The selection's row, column and box
-        // carry the focus tint; the same digit elsewhere gets the `same` fill (owner's choice, after v3).
+        // Dark: the board is #151517 (sum 65), far from Light's ~765. The selection's row, column and box
+        // carry the focus tint; the same digit elsewhere gets the `same` fill.
         let (plain, peer, same, selected) = (brightness[0], brightness[1], brightness[2], brightness[3])
         XCTAssertTrue((40...120).contains(plain), "Dark board: \(brightness)")
         XCTAssertGreaterThan(peer, plain + 5, "peers are tinted: \(brightness)")

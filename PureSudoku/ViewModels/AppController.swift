@@ -23,7 +23,7 @@ final class AppController: ObservableObject {
     /// Set-aside copies (`name.corrupt-<time>.json`) the player has not yet acknowledged on Home
     /// (CODESPEC 8). Only acknowledged copy names are saved, in reset_notice.json.
     @Published private(set) var resetCopies: [String] = []
-    /// The Night sheet, opened from the moon on any screen (CODESPEC 11.2).
+    /// The Night sheet, opened from the moon on any screen (CODESPEC 11.7).
     @Published var showsNightSheet = false
     /// Set by a game during Night, Hush and Goodnight. The root hides the home indicator for it, so
     /// the setting reaches the window from inside a pushed game.
@@ -429,7 +429,7 @@ final class AppController: ObservableObject {
         }
     }
 
-    /// Night after dark: location is asked for only when the switch is turned on (CODESPEC 11.3).
+    /// Night after dark: location is asked for only when the switch is turned on (CODESPEC 7.1).
     func setNightAfterDark(_ isOn: Bool) {
         updateSettings { $0.nightAfterDark = isOn }
         if isOn && settings.useLocationForAfterDark { afterDark.requestLocation() }

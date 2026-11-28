@@ -18,7 +18,7 @@ BYOS lets a player import a printed or on-screen puzzle as a photo, a screenshot
 2. Find the grid. `VNDetectRectanglesRequest` looks for one near-square rectangle (aspect ratio 0.8–1.2, confidence at least 0.6). A perspective correction then flattens it into a square.
 3. Fallback for a cropped screenshot. If no rectangle is found, the detector looks for the box around everything that differs from the page colour. The box must be roughly square (ratio 0.8–1.25). Otherwise the read fails with "grid not found".
 4. Fit the grid lines. The detector fits ten evenly spaced lines on each axis to the dark pixel profile. Box lines are thicker, which tells the right fit from one shifted by a cell. A frame or margin around the grid does not move the edge cells.
-5. Cut 81 cells. Each cell is cut twice: the whole cell, and an inner area with 18% trimmed from each side to drop the lines.
+5. Cut 81 cells. Each cell is cut twice: a first crop with 8% trimmed from each side, and an inner crop with 18% trimmed from each side. Both drop the lines.
 6. Normalise each cell to grey. Light digits on a dark fill are inverted, so every cell looks like dark ink on paper.
 7. Read each cell with Vision text recognition, in fast mode first. A read counts as a digit only when it is one character, 1–9, and the text:
    - is at least 36% of the cell's height, which drops pencil-mark notes;

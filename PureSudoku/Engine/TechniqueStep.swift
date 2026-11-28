@@ -120,7 +120,7 @@ enum Technique: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Step score for grading (HoDoKu defaults, HINT_STRATEGIES.md).
+    /// Step score for grading (HINT_STRATEGIES.md).
     var score: Int {
         switch self {
         case .fullHouse, .nakedSingle: return 4

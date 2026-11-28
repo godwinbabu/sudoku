@@ -168,7 +168,7 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertEqual(SolverBoard(cells: state.cells), SolverBoard(grid: TestData.puzzle.initialGrid))
     }
 
-    // MARK: - Hand-made boards: exact eliminations per technique (CODESPEC 11.3)
+    // MARK: - Hand-made boards: exact eliminations per technique (CODESPEC 12.3)
 
     /// Empty board: every cell allows 1...9 except the listed cells, which allow only their digits.
     private func board(_ masks: [Int: [Int]]) -> SolverBoard {

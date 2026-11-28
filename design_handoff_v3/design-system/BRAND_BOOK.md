@@ -43,7 +43,7 @@ To show a theme inside an element, put `data-theme="dark"` or `data-theme="night
 ## Layout
 
 - Design at 390 × 844. The top safe area is 54 pt. Bottom controls sit 28 pt above the bottom edge.
-- The board is `board-w` wide: 6 pt from each screen edge, so a cell is 42 pt. To make room for other things, shrink the hint card, not the board.
+- The board is `board-w` wide: 6 pt from each screen edge, so a cell is 42 pt. To make room for other things, shrink the hint card, not the board. The one exception is a screen too short to show the keypad: the game then shrinks the board (CODESPEC 3.2).
 - Game screen, top to bottom: navigation row (44 pt), board, hint card, tool bar, keypad. The tool bar and keypad are pinned to the bottom.
 - Notes sit in a 3×3 mini grid inside the cell. Each digit keeps its fixed place: 1 top-left, 5 centre, 9 bottom-right.
 - Hit targets are at least `hit-min`.
