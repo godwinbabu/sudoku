@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The 1×9 keypad (HANDOFF 6.2). Each key is its digit (Bricolage 800, 28 pt × Clarity). A finished digit
+/// The 1×9 keypad (CODESPEC 3.2). Each key is its digit (Bricolage 800, 28 pt × Clarity). A finished digit
 /// fades to `ink2` and is disabled, except in Notes mode, where every key stays on. In Notes mode
-/// (owner's choice) the digits are a little smaller and each shows how many are left (`caption`, `ink2`)
+/// the digits are a little smaller and each shows how many are left (`caption`, `ink2`)
 /// under it; the game also outlines the row. Keys have no backgrounds of their own.
 struct NumberPadView: View {
     let theme: PSPalette
@@ -48,7 +48,7 @@ struct NumberPadView: View {
     }
 }
 
-/// Pressed keys and tools fade briefly; nothing lights up, at night or by day (HANDOFF 6.2).
+/// Pressed keys and tools fade briefly; nothing lights up, at night or by day (CODESPEC 3.2).
 struct PressFillStyle: ButtonStyle {
     let theme: PSPalette
 

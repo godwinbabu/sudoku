@@ -1,8 +1,8 @@
 import Foundation
 
-/// What the player knows about one technique (CODESPEC 13.4).
+/// What the player knows about one technique (CODESPEC 12.4).
 struct TechniqueProgress: Codable, Equatable {
-    /// Unaided moves this technique explains: one per correct placement or note removal (CODESPEC 13.4).
+    /// Unaided moves this technique explains: one per correct placement or note removal (CODESPEC 12.4).
     var credits = 0
     /// Puzzles where the player found the technique without a hint, with the day it happened.
     var foundUnaided: [Found] = []
@@ -95,7 +95,7 @@ struct TechniqueProgress: Codable, Equatable {
     }
 }
 
-/// Which technique, if any, a player's move shows they found (CODESPEC 13.4). Credit goes to the
+/// Which technique, if any, a player's move shows they found (CODESPEC 12.4). Credit goes to the
 /// simplest technique that has a step making exactly this change on the board before the move.
 enum MasteryJudge {
     enum Move: Hashable {
@@ -138,7 +138,7 @@ enum MasteryJudge {
     }
 }
 
-/// Which moves may still earn learning credit (CODESPEC 13.4). One store, owned by AppController and
+/// Which moves may still earn learning credit (CODESPEC 12.4). One store, owned by AppController and
 /// saved in the same file as the technique progress (`LearningFile`), so Undo, Restart, Continue and reopening a practice puzzle
 /// can't lose a hint or replay a credit. Keys start with the puzzle id; ids never contain "|".
 struct LearningLedger: Codable, Equatable {
@@ -188,7 +188,7 @@ struct LearningLedger: Codable, Equatable {
 }
 
 /// technique_progress.json: progress and the ledger in one atomic file, so they are kept or lost
-/// together and a lost ledger can never let a credited move earn again (CODESPEC 13.4).
+/// together and a lost ledger can never let a credited move earn again (CODESPEC 12.4).
 struct LearningFile: Codable {
     var progress: [String: TechniqueProgress] = [:]
     var ledger = LearningLedger()

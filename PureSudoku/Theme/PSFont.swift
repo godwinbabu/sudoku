@@ -55,7 +55,7 @@ private struct PSFontModifier: ViewModifier {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     func body(content: Content) -> some View {
-        // `.serif` was the v2 display face; v3 draws display text in Bricolage Grotesque (HANDOFF 4).
+        // `.serif` was the v2 display face; v3 draws display text in Bricolage Grotesque (CODESPEC 7.2).
         let display = design == .serif
         let font = Font.custom(PSFont.faceName(weight: weight, display: display),
                                fixedSize: PSFont.scaledSize(size, at: dynamicTypeSize))

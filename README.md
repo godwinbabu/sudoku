@@ -1,45 +1,63 @@
-# PureSudoku
+# Sudoku Masters
 
-PureSudoku is a no-frills, offline iPhone Sudoku app modeled after the NYT experience and tuned for bedtime use.
+Sudoku Masters is an offline Sudoku app for iPhone. It teaches solving techniques, and it is comfortable to use in bed, in the dark, without waking someone nearby. The code name is PureSudoku.
 
-## Highlights
-- 9×9 puzzles with Easy/Medium/Hard difficulties; tap a difficulty to resume or start instantly.
-- Normal and Notes input modes with optional auto-remove-candidates and auto-check-mistakes settings.
-- Checks and reveals: Check Cell/Puzzle, Hint (Reveal Cell), Reveal Puzzle, Reset, and New Puzzle.
-- Sleep theme + Bedtime Mode: warm, extra-dim, silent (sounds/haptics off by default), one-handed layout.
-- Offline-only with local autosave per difficulty and persistent settings/stats.
-- Stats tracking: streaks, best time per difficulty, puzzles solved, and total time played.
+## Features
 
-## Architecture
-- SwiftUI + MVVM targeting iOS 16+.
-- Engine: Sudoku validator, puzzle repository/loader, game state logic.
-- View models: main menu, game, settings, stats, and timer management.
-- Views: MainMenu, Game, Settings/Stats with a thumb-friendly grid and number pad.
-- Persistence: Codable models stored locally (UserDefaults/FileManager); no backend or analytics.
+- Five levels, from Easy to Master. Each level is graded by the techniques a puzzle needs.
+- Night appearance: black screen, dim warm digits, separate Glow and Warmth controls. Night turns sound and vibration off.
+- Graduated hints. A hint card first says where to look, then names the technique, then shows why it works on your own board.
+- A Learn tab with a lesson for each technique, and practice puzzles for each one.
+- Photo import. Take a photo of a printed puzzle, pick one from Photos, type it in, or paste it. The app reads the photo on the iPhone and never uploads it.
+- Notes, undo, mistake checking, and a Journal with streaks, best times and settings.
+- No account, no network, no analytics. Everything stays on the iPhone.
 
-## Project Structure
-- `Models/` core types (Difficulty, SudokuCell, SudokuPuzzle, GameState, Stats, AppTheme).
-- `Engine/` validator, puzzle repository (and optional generator stub).
-- `ViewModels/` state managers for menu, game, settings, stats, and timer handling.
-- `Views/` SwiftUI screens and shared components.
-- `PureSudokuTests/`, `PureSudokuUITests/` for unit and UI coverage.
+## Requirements
 
-## Run the App
-1. Open `PureSudoku.xcodeproj` in Xcode 15+.
-2. Select the `PureSudoku` scheme and an iOS 16+ simulator or device.
-3. Build & run (`⌘R`).
+- iOS 16 or later.
+- Full Xcode. The Command Line Tools alone cannot build the app.
 
-## Testing
-- Unit tests: `PureSudokuTests` cover engine, game state, stats, persistence, and settings.
-- UI tests: `PureSudokuUITests` cover launching, starting a game, input modes, resets, and bedtime/sleep visuals.
-- CLI: `xcodebuild -project PureSudoku.xcodeproj -scheme PureSudoku -destination 'platform=iOS Simulator,name=<iPhone>' test` (pick a name from `xcrun simctl list devices available`)
+## Build and test
+
+1. Open `PureSudoku.xcodeproj` in Xcode.
+2. Pick a simulator: run `xcrun simctl list devices available` and use any name from the list.
+3. Build and test from the command line, or press ⌘R and ⌘U in Xcode.
+
+```sh
+xcodebuild -project PureSudoku.xcodeproj -scheme PureSudoku -destination 'platform=iOS Simulator,name=<simulator name>' build
+xcodebuild -project PureSudoku.xcodeproj -scheme PureSudoku -destination 'platform=iOS Simulator,name=<simulator name>' test -only-testing:PureSudokuTests
+xcodebuild -project PureSudoku.xcodeproj -scheme PureSudoku -destination 'platform=iOS Simulator,name=<simulator name>' test -only-testing:PureSudokuTests/StatsTests/testName
+```
+
+Lint the files you change with `swiftlint lint --quiet`.
+
+## Project layout
+
+- `PureSudoku/Models`: core types such as puzzles, game state, settings and stats.
+- `PureSudoku/Engine`: puzzle generation and validation, the technique solver, and the photo reader.
+- `PureSudoku/ViewModels`: the state behind each screen.
+- `PureSudoku/Views` and `PureSudoku/Theme`: SwiftUI screens, palettes and fonts.
+- `PureSudoku/Persistence`: local JSON storage and the imported photo store.
+- `Tests/PureSudokuTests` and `Tests/PureSudokuUITests`: unit and UI tests.
+
+The Xcode project lists source files by hand. Add each new `.swift` file to `project.pbxproj`, or it is not compiled.
+
+## Documents
+
+- `CODESPEC.md`: how the app behaves. It is the source of truth.
+- `BYOS.md`: how photo import works.
+- `HINT_STRATEGIES.md`: the solving techniques, in teaching order.
+- `AGENTS.md`: rules for coding agents.
+- `design_handoff_v3/`: design assets and tokens.
 
 ## Release
-- `Info.plist` reads the version from the `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` build settings.
-- The build number is the commit count on HEAD, and the short commit SHA (with `+dirty` when tracked files have changes) is stored as `PSGitCommit`. The "Stamp build number" phase writes both into the built Info.plist only. Commit before each App Store Connect upload: it rejects a reused build number. Without git the build keeps `CURRENT_PROJECT_VERSION` and the SHA reads `unknown`.
-- `ITSAppUsesNonExemptEncryption` is `NO` because the app makes no network calls and links no crypto libraries. Check it again if that changes.
 
-## Development Notes
-- `CODESPEC.md` is the source of truth; keep behavior in sync with it.
-- Preserve offline/local-only behavior; do not add network calls, backend, analytics, or cloud sync.
-- Respect bedtime/partner-friendly constraints: Sleep theme defaults when Bedtime Mode is on; sounds/haptics are off by default; avoid bright flashes.
+- The version comes from the `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` build settings.
+- A build phase, "Stamp build number", sets the build number to the commit count on HEAD. It stores the short commit SHA as `PSGitCommit`, with `+dirty` when tracked files have changes. It writes both into the built `Info.plist` only.
+- Commit before each App Store Connect upload. It rejects a reused build number.
+- Without git, the build keeps `CURRENT_PROJECT_VERSION` and the SHA reads `unknown`.
+- `ITSAppUsesNonExemptEncryption` is `NO`, because the app makes no network calls and links no crypto libraries. Check it again if that changes.
+
+## Licences
+
+The code uses the Apache License 2.0 (see `LICENSE`). The app bundles two fonts, Bricolage Grotesque and DM Sans. Both use the SIL Open Font License 1.1. The licence texts are in `PureSudoku/Resources/Fonts`.

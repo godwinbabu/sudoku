@@ -14,7 +14,7 @@ final class LogicalSolverTests: XCTestCase {
         }
     }()
 
-    // MARK: - Correctness oracle (CODESPEC 9, 13.6)
+    // MARK: - Correctness oracle (CODESPEC 9, 12.3)
 
     func testEveryStepAgreesWithTheSolutionAndItsPattern() {
         var used: [Technique: Int] = [:]
@@ -168,7 +168,7 @@ final class LogicalSolverTests: XCTestCase {
         XCTAssertEqual(SolverBoard(cells: state.cells), SolverBoard(grid: TestData.puzzle.initialGrid))
     }
 
-    // MARK: - Hand-made boards: exact eliminations per technique (CODESPEC 13.6)
+    // MARK: - Hand-made boards: exact eliminations per technique (CODESPEC 11.3)
 
     /// Empty board: every cell allows 1...9 except the listed cells, which allow only their digits.
     private func board(_ masks: [Int: [Int]]) -> SolverBoard {

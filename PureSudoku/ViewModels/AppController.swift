@@ -8,12 +8,12 @@ final class AppController: ObservableObject {
     @Published private(set) var stats: Stats
     @Published private(set) var activeGames: [Difficulty: GameState]
     @Published private(set) var importedGames: [ImportedGame]
-    /// Per-technique learning progress (CODESPEC 13.4), keyed by `Technique.rawValue`.
+    /// Per-technique learning progress (CODESPEC 12.4), keyed by `Technique.rawValue`.
     @Published private(set) var techniqueProgress: [String: TechniqueProgress]
     /// True when technique_progress.json could not be loaded: never overwrite it this session, and
     /// credit nothing (hints are still noted in memory).
     private var techniqueProgressLoadFailed = false
-    /// Which moves may still earn credit (CODESPEC 13.4), saved with the progress (`LearningFile`).
+    /// Which moves may still earn credit (CODESPEC 12.4), saved with the progress (`LearningFile`).
     private(set) var learningLedger = LearningLedger()
     /// Files whose last save failed. An entry clears only when that same file saves again; while any
     /// is left, Home shows `saveFailureNotice` (CODESPEC 8).
@@ -23,19 +23,19 @@ final class AppController: ObservableObject {
     /// Set-aside copies (`name.corrupt-<time>.json`) the player has not yet acknowledged on Home
     /// (CODESPEC 8). Only acknowledged copy names are saved, in reset_notice.json.
     @Published private(set) var resetCopies: [String] = []
-    /// The Night sheet, opened from the moon on any screen (CODESPEC 12.2).
+    /// The Night sheet, opened from the moon on any screen (CODESPEC 11.2).
     @Published var showsNightSheet = false
     /// Set by a game during Night, Hush and Goodnight. The root hides the home indicator for it, so
     /// the setting reaches the window from inside a pushed game.
     @Published var hidesHomeIndicator = false
     /// Set by a game while Hush or Goodnight shows pure black; the root hides the build label for it.
     @Published var showsBlackout = false
-    /// The first-night welcome → calibrate → result flow (CODESPEC 12.3).
+    /// The first-night welcome → calibrate → result flow (CODESPEC 11.3).
     @Published private(set) var showsFirstNight = false
     /// This game's Drift steps, set by the game screen: the backlight follows the drifted glow.
     @Published var driftSteps = 0
     /// Find my lowest glow is on screen: the backlight sits at its minimum so the tiles show the
-    /// palette layer alone (CODESPEC 12.3).
+    /// palette layer alone (CODESPEC 11.3).
     @Published var isCalibrating = false
 
     /// The screen backlight Night wants now.
@@ -243,7 +243,7 @@ final class AppController: ObservableObject {
     }
 
     /// A practice game from a lesson: not saved and not counted in stats, but it does count
-    /// toward learning (CODESPEC 13.5).
+    /// toward learning (CODESPEC 12.5).
     func makePracticeGameViewModel(_ entry: BundledPuzzles.Entry, number: Int) -> GameViewModel {
         let puzzle = SudokuPuzzle(
             // The whole grid: bundled puzzles can share a long prefix, and the id keys learning credit.
@@ -402,7 +402,7 @@ final class AppController: ObservableObject {
         )
     }
 
-    // MARK: Display (CODESPEC 12)
+    // MARK: Display (CODESPEC 11)
 
     /// iOS Light or Dark mode. The screen's traits ignore the app's own override, so they give the
     /// iOS setting and a pinned colour scheme cannot feed back. Tests replace it.
@@ -429,7 +429,7 @@ final class AppController: ObservableObject {
         }
     }
 
-    /// Night after dark: location is asked for only when the switch is turned on (HANDOFF 6.3).
+    /// Night after dark: location is asked for only when the switch is turned on (CODESPEC 11.3).
     func setNightAfterDark(_ isOn: Bool) {
         updateSettings { $0.nightAfterDark = isOn }
         if isOn && settings.useLocationForAfterDark { afterDark.requestLocation() }
@@ -456,7 +456,7 @@ final class AppController: ObservableObject {
         updateFirstNight()
     }
 
-    // MARK: First night (CODESPEC 12.3)
+    // MARK: First night (CODESPEC 11.3)
 
     /// Shows the first-night flow the first time Night is active, until it is finished or skipped.
     func updateFirstNight() {

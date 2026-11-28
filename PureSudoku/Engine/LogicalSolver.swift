@@ -1,6 +1,6 @@
 import Foundation
 
-/// Solves like a person, one step at a time (CODESPEC 13.3). Tries techniques in curriculum order
+/// Solves like a person, one step at a time (CODESPEC 12.3). Tries techniques in curriculum order
 /// (`Technique.allCases`) and returns the simplest step that changes the board. The same loop
 /// drives hints, grading and drills.
 struct LogicalSolver {

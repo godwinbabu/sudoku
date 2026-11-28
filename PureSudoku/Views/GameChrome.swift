@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// Primary and secondary buttons (HANDOFF 3, 6). Primary is a `btnBg` pill with `btnInk` text; at night
+/// Primary and secondary buttons (CODESPEC 7.2). Primary is a `btnBg` pill with `btnInk` text; at night
 /// a 1.5 pt `btnEdge` outline, because nothing lit may sit behind text. Secondary (`.ghost`) is a `fill`
 /// pill with `accent` text, outlined by `fillEdge` at night.
 struct PSButtonStyle: ButtonStyle {
@@ -36,7 +36,7 @@ struct PSButtonStyle: ButtonStyle {
     }
 }
 
-/// Glass for controls that float over content (HANDOFF 3): system Liquid Glass on iOS 26 and later,
+/// Glass for controls that float over content (CODESPEC 7.2): system Liquid Glass on iOS 26 and later,
 /// a thin material with a `glassEdge` stroke and soft shadow before that. Night has no material at all:
 /// black with the 1 pt outline; Reduce Transparency gives `surface` plus a stroke.
 struct PSGlass<S: InsettableShape>: ViewModifier {
@@ -46,7 +46,7 @@ struct PSGlass<S: InsettableShape>: ViewModifier {
 
     func body(content: Content) -> some View {
         if theme.isNight {
-            // Black, not clear: content scrolls under the tab bar. Black is no lit fill (HANDOFF 2).
+            // Black, not clear: content scrolls under the tab bar. Black is no lit fill (CODESPEC 7.2).
             content.background(shape.fill(theme.bg)).overlay(shape.strokeBorder(theme.glassEdge, lineWidth: 1))
         } else if reduceTransparency {
             content
@@ -69,7 +69,7 @@ extension View {
     }
 }
 
-/// One of the four tools in the game's tool bar (HANDOFF 6.2): a 22 pt symbol over a `caption` label.
+/// One of the four tools in the game's tool bar (CODESPEC 3.2): a 22 pt symbol over a `caption` label.
 /// The active tool is `accent` with a heavier symbol and label; no chip behind it.
 struct ToolButton: View {
     let theme: PSPalette
@@ -101,7 +101,7 @@ struct ToolButton: View {
     }
 }
 
-/// A 44 pt header icon: plain, or on its own round glass (`round`) for navigation (HANDOFF 6.2).
+/// A 44 pt header icon: plain, or on its own round glass (`round`) for navigation (CODESPEC 3.2).
 struct HeaderIconButton: View {
     let theme: PSPalette
     let symbol: String
@@ -136,7 +136,7 @@ private struct RoundGlass: ViewModifier {
 
 /// A custom popover card (the More menu and confirmations): surface2 in Day, black with a hair
 /// border at night. Never a system menu or dialog, which
-/// could render light at night (CODESPEC 12).
+/// could render light at night (CODESPEC 11).
 struct PopoverCard<Content: View>: View {
     let theme: PSPalette
     @ViewBuilder let content: Content
@@ -181,7 +181,7 @@ struct MenuRow: View {
     }
 }
 
-/// The Solved screen under the faded board (HANDOFF 6.5): "Solved", a greeting for the time of day,
+/// The Solved screen under the faded board (CODESPEC 3.2): "Solved", a greeting for the time of day,
 /// the level and time, what the solve counts for, one outlined chip per technique the grid needed, and
 /// Another (secondary) and Goodnight (primary) at the bottom. No confetti, sound or haptic.
 struct SolvedPanel: View {

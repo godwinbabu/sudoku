@@ -21,7 +21,7 @@ struct ClockTime: Codable, Equatable {
 }
 
 struct Settings: Codable, Equatable {
-    // Display & Night (CODESPEC 12, HANDOFF 6.3)
+    // Display & Night (CODESPEC 11, 11.3)
     var appearance: Appearance
     /// Night from sunset to sunrise (or the fixed hours), whatever `appearance` says by day.
     var nightAfterDark: Bool
@@ -153,7 +153,7 @@ struct Settings: Codable, Equatable {
         return [start..<end]
     }
 
-    /// 2: glow 0–40 scales the palette and 40–100 the backlight (CODESPEC 12.3).
+    /// 2: glow 0–40 scales the palette and 40–100 the backlight (CODESPEC 11.3).
     static let glowScale = 2
 
     /// 2: Lights out moved from glow 45 / warmth 65 to 55 / 55 (issue #93).
@@ -200,7 +200,7 @@ struct Settings: Codable, Equatable {
         }
 
         // v2 stored "day", "night", "afterDark" or "matchSystem"; v1 a `theme`. All map onto v3's
-        // appearance + nightAfterDark + adoptsSystemStyle (HANDOFF 6.3).
+        // appearance + nightAfterDark + adoptsSystemStyle (CODESPEC 11.3).
         var appearance = "light"
         var warmth = defaults.warmth
         // v1: theme light → Light, dark → Night, system → the system style, sleep or Bedtime Mode → Night with Lights out.

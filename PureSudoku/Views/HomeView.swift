@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Play tab (CODESPEC 3.1, HANDOFF 6.1): the date and the moon, the title, the Continue card, the
+/// The Play tab (CODESPEC 3.1): the date and the moon, the title, the Continue card, the
 /// five levels and saved imports. Import is the round button beside the tab bar.
 struct HomeView: View {
     @EnvironmentObject private var controller: AppController
@@ -40,7 +40,7 @@ struct HomeView: View {
         .accessibilityIdentifier("homeView")
     }
 
-    /// A group's label: 15 pt, 600, ink2, 24 pt above and 8 below (HANDOFF 6.1).
+    /// A group's label: 15 pt, 600, ink2, 24 pt above and 8 below (CODESPEC 3.1).
     private func groupLabel(_ title: String) -> some View {
         Text(title)
             .psFont(15, weight: .semibold)
@@ -85,7 +85,7 @@ struct HomeView: View {
 
     // MARK: Continue
 
-    /// A 72 pt progress ring with the filled count, the level and time, and a Resume pill (HANDOFF 6.1).
+    /// A 72 pt progress ring with the filled count, the level and time, and a Resume pill (CODESPEC 3.1).
     /// The whole card resumes the game.
     private func continueCard(_ game: GameState) -> some View {
         let filled = game.cells.filter { $0.value != nil }.count
@@ -226,7 +226,7 @@ struct HomeView: View {
 }
 
 /// A custom confirmation over a dimmed screen, never a system alert, which could render light at
-/// night (CODESPEC 12.4). Tapping the backdrop dismisses it.
+/// night (CODESPEC 11.4). Tapping the backdrop dismisses it.
 struct ConfirmPanel: View {
     let theme: PSPalette
     let title: String

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// First night (CODESPEC 12.3): welcome → Find my lowest glow → result. Shown once, the first time
+/// First night (CODESPEC 11.3): welcome → Find my lowest glow → result. Shown once, the first time
 /// Night is active while `calibrated` is false. Skip applies Lights out.
 struct FirstNightView: View {
     @EnvironmentObject private var controller: AppController

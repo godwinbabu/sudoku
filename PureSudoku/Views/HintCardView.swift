@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The hint card (CODESPEC 6.3.1, HANDOFF 6.2). It fills the reserved hint slot, so nothing under the
+/// The hint card (CODESPEC 6.3.1, 3.2). It fills the reserved hint slot, so nothing under the
 /// board moves. Three free steps — Where, Which, Why — then one action; nothing advances on its own
-/// (CODESPEC 12.4).
+/// (CODESPEC 11.4).
 struct HintCardView: View {
     let session: HintSession
     let names: CellNotation
@@ -137,7 +137,7 @@ struct HintCardView: View {
     }
 }
 
-/// Content cards (HANDOFF 2): `surface` with 22 pt corners and a 1 pt `edge` outline (black with only
+/// Content cards (CODESPEC 7.2): `surface` with 22 pt corners and a 1 pt `edge` outline (black with only
 /// the outline at night).
 extension View {
     func psCard(_ theme: PSPalette, radius: CGFloat = 22) -> some View {

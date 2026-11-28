@@ -7,7 +7,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// Launches past the first-night flow, which would otherwise cover the app whenever the
-    /// simulator clock is after dark (CODESPEC 12.3).
+    /// simulator clock is after dark (CODESPEC 11.3).
     func launchApp(_ arguments: [String] = [], skipFirstNight: Bool = true) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = (skipFirstNight ? ["-uiTestSkipFirstNight"] : []) + arguments
@@ -124,7 +124,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(element("pauseOverlay", in: app).waitForExistence(timeout: 2))
     }
 
-    /// A two-finger tap anywhere in a game hushes the screen; a tap brings it back (CODESPEC 12.7).
+    /// A two-finger tap anywhere in a game hushes the screen; a tap brings it back (CODESPEC 11.7).
     /// Over the Night sheet it does nothing.
     func testTwoFingerTapShowsHush() {
         let app = launchApp()
@@ -246,7 +246,7 @@ final class PureSudokuUITests: XCTestCase {
         let labels = ["Step 1 of 3", "Step 2 of 3", "Step 3 of 3"]
         for (index, label) in labels.enumerated() {
             XCTAssertTrue(stepLabel.label.hasPrefix(label), stepLabel.label)
-            // v3: steps 1 and 2 have one Next button; Lesson joins the action at step 3 (HANDOFF 6.2).
+            // v3: steps 1 and 2 have one Next button; Lesson joins the action at step 3 (CODESPEC 3.2).
             XCTAssertEqual(app.buttons["hint_lesson"].exists, index == 2, "Lesson at step 3 only")
             if index < 2 {
                 XCTAssertFalse(app.buttons["hint_apply"].exists)
@@ -361,7 +361,7 @@ final class PureSudokuUITests: XCTestCase {
         (0..<9).flatMap { row in (0..<9).map { app.buttons["cell_\(row)_\($0)"].label } }
     }
 
-    /// Journal → Licences, then Night from the moon and a game in Night (CODESPEC 3.3, 12).
+    /// Journal → Licences, then Night from the moon and a game in Night (CODESPEC 3.3, 11).
     func testJournalLicencesAndANightGame() {
         let app = launchApp()
         app.buttons["tab_journal"].tap()
@@ -424,7 +424,7 @@ final class PureSudokuUITests: XCTestCase {
         setAppearance(state.appearance, nightAfterDark: state.nightAfterDark, in: app)
     }
 
-    /// The moon opens the Night sheet on the main menu and in a game; the backdrop and × close it (CODESPEC 12.2).
+    /// The moon opens the Night sheet on the main menu and in a game; the backdrop and × close it (CODESPEC 11.2).
     func testMoonOpensTheNightSheet() {
         let app = launchApp()
         let moon = app.buttons["nightButton"]
@@ -479,7 +479,7 @@ final class PureSudokuUITests: XCTestCase {
     }
 
     /// First night, without the skip argument: picking Night in the Display sheet shows the flow on
-    /// top; it runs to the end and returns to the sheet (CODESPEC 12.3).
+    /// top; it runs to the end and returns to the sheet (CODESPEC 11.3).
     func testFirstNightShowsAboveSettingsAndCompletes() {
         let app = launchApp(["-uiTestFirstNight"], skipFirstNight: false)
         XCTAssertFalse(element("firstNight", in: app).exists, "Day: no first night yet")
@@ -508,7 +508,7 @@ final class PureSudokuUITests: XCTestCase {
         app.buttons["night_close"].tap()
     }
 
-    /// Learn: Up next, then five tiers of techniques (CODESPEC 13.5).
+    /// Learn: Up next, then five tiers of techniques (CODESPEC 12.5).
     func testLearnShowsTheTiers() {
         let app = launchApp()
         app.buttons["tab_learn"].tap()
@@ -522,7 +522,7 @@ final class PureSudokuUITests: XCTestCase {
         XCTAssertTrue(app.buttons["learn_bugPlusOne"].exists, "the last tier has its techniques")
     }
 
-    /// Learn → a scripted lesson → step through it → Practise (CODESPEC 13.5).
+    /// Learn → a scripted lesson → step through it → Practise (CODESPEC 12.5).
     func testLearnShowsALessonWithPractice() {
         let app = launchApp()
         openPointingLesson(in: app)
@@ -749,7 +749,7 @@ extension PureSudokuUITests {
 
 /// Import (CODESPEC 3.4).
 extension PureSudokuUITests {
-    /// The round import button beside the tab bar (HANDOFF 6.1).
+    /// The round import button beside the tab bar (CODESPEC 3.1).
     private func tapImportButton(in app: XCUIApplication) {
         let button = app.buttons["importPuzzleButton"]
         XCTAssertTrue(button.waitForExistence(timeout: 2))
@@ -757,7 +757,7 @@ extension PureSudokuUITests {
         button.tap()
     }
 
-    /// The import button also shows on Journal and Learn; it opens Import on the Play tab (HANDOFF 6.1).
+    /// The import button also shows on Journal and Learn; it opens Import on the Play tab (CODESPEC 3.1).
     func testImportFromAnotherTabOpensImportOnPlay() {
         let app = launchApp()
         app.buttons["tab_journal"].tap()
@@ -826,7 +826,7 @@ extension PureSudokuUITests {
     }
 
     /// Dark draws the Dark theme with the v3 focus tint; switching to Light from the game's moon
-    /// repaints the board at once (issue #94, HANDOFF 6.3).
+    /// repaints the board at once (CODESPEC 11.3).
     func testDarkShowsTheDarkTheme() {
         let app = launchApp()
         let original = setAppearance("dark", in: app)

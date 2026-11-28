@@ -2,7 +2,7 @@ import XCTest
 @testable import PureSudoku
 
 /// v3 game behaviour: the Solved greeting, the board layout, generated notes and the More menu's cell
-/// actions (HANDOFF 5, 6.2, 6.5; owner's requests after v3).
+/// actions (CODESPEC 3.2).
 @MainActor
 final class GameV3Tests: XCTestCase {
     private func makeViewModel(settings: Settings = Settings()) -> GameViewModel {
@@ -14,7 +14,7 @@ final class GameV3Tests: XCTestCase {
     }
 }
 
-// The Solved screen's greeting (HANDOFF 6.5, owner's request).
+// The Solved screen's greeting (CODESPEC 3.2).
 extension GameV3Tests {
     func testSolvedGreetingFollowsTheHour() throws {
         var calendar = Calendar(identifier: .gregorian)
@@ -32,7 +32,7 @@ extension GameV3Tests {
     }
 }
 
-// The game layout (HANDOFF 5, PR 106 review): the keypad stays on screen on short screens.
+// The game layout (CODESPEC 3.2): the keypad stays on screen on short screens.
 extension GameV3Tests {
     func testBoardLeavesRoomForTheKeypad() {
         // (width, height inside the safe areas, bars' bottom padding): iPhone SE with Display Zoom, iPhone SE,

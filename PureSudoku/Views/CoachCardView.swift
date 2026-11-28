@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The coach card (CODESPEC 6.3.3). Like the hint card it fills the fixed 124 pt slot, so nothing
+/// The coach card (CODESPEC 6.3.3). Like the hint card it fills the fixed hint slot, so nothing
 /// under the board moves. One pattern at a time: its name and level, what it says about this board,
 /// and a question; ‹ › walk through the others, "Show me" reveals the move.
 struct CoachCardView: View {

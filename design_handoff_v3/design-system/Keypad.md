@@ -1,18 +1,12 @@
-The two glass bars pinned to the bottom of the game: four tools above a single row of nine digit keys.
+# Keypad and tool bar
 
-## What you provide
-
-For each digit, how many are still to place. Which tool, if any, is active, and whether Notes is on.
+The two glass bars pinned to the bottom of the game: four tools above a row of nine digit keys. Behaviour, sizes and strings are in CODESPEC 3.2.
 
 ## Rules
 
-- Both bars are glass with `r-group` corners, `space-3` from the screen's left and right edges, `space-2` apart, 28pt above the bottom edge.
-- Tool bar: `tools-h` tall, four equal columns — Undo, Erase, Notes, Hint. Icon over a `caption` label. The Notes label reads "Notes on" or "Notes off".
-- The active tool is `accent` with a 700 label and a 2.2 stroke icon. Nothing else changes; no filled chip behind it.
-- Keypad: `key-h` tall, nine equal columns. Each key is the digit in `key` with the remaining count under it in `caption`, `ink2`.
-- Keys have no individual backgrounds or borders. A digit with none left fades to `ink2` and its count is removed.
-
-## Don't
-
-- Don't split the keys over two rows.
-- Don't tint the bars with `accent`.
+- Both bars are glass with `r-group` corners, `space-3` from the left and right screen edges, `space-2` apart, and 28 pt above the bottom edge.
+- Tool bar: `tools-h` tall, four equal columns: Undo, Erase, Notes, Hint. Each is an icon over a `caption` label. The Notes label reads "Notes on" or "Notes off".
+- The active tool is `accent`, with a 700 label and a 2.2 stroke icon. Nothing else changes. Add no filled chip.
+- Keypad: `key-h` tall, nine equal columns, in one row. Each key is the digit in `key`. The count of digits left sits under it in `caption`, `ink2`.
+- Keys have no individual backgrounds or borders. A digit with none left fades to `ink2`.
+- Do not tint the bars with `accent`.

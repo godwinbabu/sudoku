@@ -114,7 +114,7 @@ private struct PlayTab: View {
         }
     }
 
-    /// Tapping a level always starts a new puzzle at that level (Design/v2/README.md, Home).
+    /// Tapping a level always starts a new puzzle at that level (CODESPEC 3.1).
     private func startGame(_ difficulty: Difficulty) {
         open(difficulty) { await viewModel.startNewGame(for: difficulty) }
     }
@@ -176,7 +176,7 @@ private struct ImportRoute: Hashable, Identifiable {
 
 // MARK: - Shared chrome for the tab screens
 
-/// The tab bar (HANDOFF 6.1): a floating glass capsule with Play, Learn and Journal, and a round glass
+/// The tab bar (CODESPEC 3.1): a floating glass capsule with Play, Learn and Journal, and a round glass
 /// import button beside it. The selected tab is `accent` and heavier on a `pill` (clear at night).
 struct PSTabBar: View {
     @Environment(\.psPalette) private var theme
@@ -226,7 +226,7 @@ struct PSTabBar: View {
     }
 }
 
-/// A tab screen's header (HANDOFF 6.1): a 44 pt row with an optional line on the left and the round glass
+/// A tab screen's header (CODESPEC 3.1): a 44 pt row with an optional line on the left and the round glass
 /// moon (opens the Night sheet) on the right, then the large title.
 struct ScreenHead: View {
     @Environment(\.psPalette) private var theme
@@ -287,7 +287,7 @@ private struct TabBarModifier: ViewModifier {
         }
         .background(theme.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        // The system status bar is white in dark mode, brighter than any ink (CODESPEC 12.7).
+        // The system status bar is white in dark mode, brighter than any ink (CODESPEC 11.7).
         .statusBarHidden(controller.isNight)
     }
 }

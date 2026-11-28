@@ -2,12 +2,12 @@ import XCTest
 import SwiftUI
 @testable import PureSudoku
 
-/// PureSudoku 2 colour model and Display & Night settings (CODESPEC 7.2, 12).
+/// PureSudoku 2 colour model and Display & Night settings (CODESPEC 7.2, 11).
 @MainActor
 final class NightPaletteTests: XCTestCase {
     // MARK: Palette
 
-    /// Preset snapshots on glow scale 2 (CODESPEC 7.2, 12.3). They replace the styles.css snapshots,
+    /// Preset snapshots on glow scale 2 (CODESPEC 7.2, 11.3). They replace the styles.css snapshots,
     /// which were too dark to read.
     private let snapshots: [(NightPreset, [String: [Int]])] = [
         (.readingLamp, ["surface": [0, 0, 0], "surface2": [0, 0, 0], "ink": [255, 146, 39], "ink2": [217, 124, 33],
@@ -246,7 +246,7 @@ final class NightPaletteTests: XCTestCase {
     }
 
     /// v2 appearances migrate once: Day → Light, Night → Night, After dark → Light with Night after dark,
-    /// Match iPhone → the system style (HANDOFF 6.3).
+    /// Match iPhone → the system style (CODESPEC 11.3).
     func testV2AppearanceMigrates() throws {
         func decode(_ appearance: String) throws -> Settings {
             try JSONDecoder().decode(Settings.self, from: JSONSerialization.data(withJSONObject: ["appearance": appearance]))
@@ -391,7 +391,7 @@ final class NightPaletteTests: XCTestCase {
     /// Above 95% the Warmth note stops quoting a number; Red light is above it.
     /// At night givens are one weight heavier, so entered digits differ by shape as well as hue.
     /// Givens are 800 at every Clarity and in every theme; entries stay lighter, so the two differ by
-    /// shape where Night's single hue can't tell them apart (HANDOFF 2).
+    /// shape where Night's single hue can't tell them apart (CODESPEC 7.2).
     func testGivensAreHeavierThanEntries() {
         for clarity in Clarity.allCases {
             XCTAssertEqual(PSType(clarity).givenWeight, .heavy)
@@ -478,10 +478,10 @@ final class PSFontTests: XCTestCase {
     }
 }
 
-// MARK: v3 (HANDOFF 2, 4, 8)
+// MARK: v3 (CODESPEC 7.2, 9)
 
 extension NightPaletteTests {
-    /// v3 contrast rules in every theme (HANDOFF 8): text tokens keep 4.5:1 on the background and on
+    /// v3 contrast rules in every theme (CODESPEC 9): text tokens keep 4.5:1 on the background and on
     /// surfaces, and the box lines keep 3:1.
     func testEveryThemeKeepsTextContrast() {
         var themes: [(String, PSPalette)] = [("light", .day(clarity: .standard)), ("dark", .dark(clarity: .standard))]

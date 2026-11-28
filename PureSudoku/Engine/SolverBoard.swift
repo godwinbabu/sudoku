@@ -22,7 +22,7 @@ struct House: Hashable, Codable, Comparable {
     static let rows: [House] = all.filter { $0.kind == .row }
 }
 
-/// Board for the logical solver (CODESPEC 13.3): a value per cell and a 9-bit candidate mask.
+/// Board for the logical solver (CODESPEC 12.3): a value per cell and a 9-bit candidate mask.
 /// Cells are 0...80 in reading order. Digits are 1...9; bit (d - 1) set means d is still possible.
 /// Filled cells have an empty mask.
 struct SolverBoard: Equatable {

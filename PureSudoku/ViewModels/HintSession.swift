@@ -83,7 +83,7 @@ struct HintSession: Equatable {
     /// "· Beginner", from step 2, for technique hints.
     var tierLabel: String? { level >= 2 ? step?.technique.learnTier.displayName : nil }
 
-    /// The technique name, the card's heading from step 2 (HANDOFF 6.2).
+    /// The technique name, the card's heading from step 2 (CODESPEC 3.2).
     var title: String? { level >= 2 ? step?.technique.displayName : nil }
 
     /// The technique whose lesson "Lesson →" opens, from step 2.

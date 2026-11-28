@@ -34,13 +34,13 @@ final class GameViewModel: ObservableObject {
     var onSave: ((GameState) -> Void)?
     /// Restart threw away this many seconds of an unfinished game; the played total keeps them.
     var onTimeDiscarded: ((Int) -> Void)?
-    /// Learning (CODESPEC 13.4): the player found a technique without a hint (technique, puzzle id).
+    /// Learning (CODESPEC 12.4): the player found a technique without a hint (technique, puzzle id).
     /// The move comes along so progress can credit each move of each puzzle once, across sessions.
     var onTechniqueFound: (@MainActor (Technique, String, MasteryJudge.Move) -> Void)?
     /// A hint opened (technique if it shows one, the cells and digits it shows, puzzle id). The
-    /// learning ledger records it at once, so no later edit can take it back (CODESPEC 13.4).
+    /// learning ledger records it at once, so no later edit can take it back (CODESPEC 12.4).
     var onHintShown: ((Technique?, [CellDigit], String) -> Void)?
-    /// Practice game from a lesson: not saved, no stats, no New Puzzle (CODESPEC 13.5).
+    /// Practice game from a lesson: not saved, no stats, no New Puzzle (CODESPEC 12.5).
     var isPractice = false
 
     @Published var pendingAction: PendingAction?
@@ -189,7 +189,7 @@ final class GameViewModel: ObservableObject {
     }
 
     /// Pauses quietly when the app leaves the foreground. Unlike a manual pause, no overlay is shown
-    /// and the timer resumes on its own when the app is active again (CODESPEC 4, 12).
+    /// and the timer resumes on its own when the app is active again (CODESPEC 4, 11).
     func pauseForBackground() {
         guard !state.isCompleted, !isPaused, !isBackgroundPaused else { return }
         isBackgroundPaused = true
@@ -892,7 +892,7 @@ extension GameViewModel {
         state.checkedWrong.remove(state.cells[index].id)
     }
 
-    /// Reports the technique a correct manual move shows (CODESPEC 13.4). Runs the detectors off the
+    /// Reports the technique a correct manual move shows (CODESPEC 12.4). Runs the detectors off the
     /// main thread. Moves from the hint card never get here (`applyHint`). The learning ledger then
     /// drops hinted and already-credited moves.
     private func judgeMove(_ move: MasteryJudge.Move, before board: SolverBoard) {

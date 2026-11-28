@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The Journal tab (CODESPEC 3.3, HANDOFF 6.4): the streak and week, the Solved table, Assists, More
+/// The Journal tab (CODESPEC 3.3): the streak and week, the Solved table, Assists, More
 /// (the settings the design does not place) and About. Every control is drawn from the palette.
 struct JournalView: View {
     @EnvironmentObject private var controller: AppController
@@ -191,7 +191,7 @@ struct JournalView: View {
         .overlay(alignment: .top) { if divider { theme.line.frame(height: 1) } }
     }
 
-    /// Show mistakes, Tidy notes, Show timer, Cell names in hints (HANDOFF 6.4).
+    /// Show mistakes, Tidy notes, Show timer, Cell names in hints (CODESPEC 3.3).
     private func assists(_ settings: Settings) -> some View {
         VStack(spacing: 0) {
             choice("Show mistakes", options: MistakeMode.allCases.map { ($0, $0.displayName) }, selection: settings.mistakes,
@@ -210,7 +210,7 @@ struct JournalView: View {
         .psCard(theme, radius: 26)
     }
 
-    /// Settings v3 does not place (owner's choice): the coach, quiet and status bar, imports, build number.
+    /// Settings with no other home: the coach, quiet and status bar, imports, build number.
     private func more(_ settings: Settings) -> some View {
         VStack(spacing: 0) {
             row("Coach when I'm stuck", sub: "After two minutes without a new digit, Hint walks you through the patterns on your board.",
@@ -326,7 +326,7 @@ struct LicencesView: View {
         .statusBackdrop(theme.bg)
         .background(theme.bg.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        // The system status bar is white in dark mode, brighter than any ink (CODESPEC 12.7).
+        // The system status bar is white in dark mode, brighter than any ink (CODESPEC 11.7).
         .statusBarHidden(controller.isNight)
         .accessibilityIdentifier("licencesView")
     }

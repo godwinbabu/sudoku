@@ -1,6 +1,6 @@
 import Foundation
 
-/// Drift (CODESPEC 12.3): during a night game, glow eases down and warmth eases up, one point each
+/// Drift (CODESPEC 11.3): during a night game, glow eases down and warmth eases up, one point each
 /// every 90 s, up to 20. A session offset only; it is never written to settings.
 @MainActor
 final class DriftController: ObservableObject {

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Sets the screen backlight in Night from Glow (CODESPEC 12.3): the hardware minimum up to glow 40,
+/// Sets the screen backlight in Night from Glow (CODESPEC 11.3): the hardware minimum up to glow 40,
 /// then brighter. Find my lowest glow holds the minimum while it is open, by day too. Puts the
 /// player's brightness back when the app leaves the foreground or neither applies. If the player
 /// changes brightness themselves (Control Center), that wins until Glow changes or they calibrate.
