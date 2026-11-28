@@ -2,7 +2,7 @@ import SwiftUI
 
 // The PureSudoku 2 colour model (CODESPEC 7.2, 11). Ported from Design/v2/ui_kits/puresudoku-2/night.js.
 
-/// The player's choice (CODESPEC 11.3). Night after dark is a separate switch (`Settings.nightAfterDark`).
+/// The player's choice (CODESPEC 7.1). Night after dark is a separate switch (`Settings.nightAfterDark`).
 enum Appearance: String, Codable, CaseIterable, Identifiable {
     case light, dark, night
     var id: String { rawValue }

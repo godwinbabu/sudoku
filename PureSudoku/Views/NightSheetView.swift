@@ -149,7 +149,7 @@ struct NightSheetView: View {
         .frame(minHeight: 44)
     }
 
-    /// Two givens and two entries in the current settings (CODESPEC 11.3).
+    /// Two givens and two entries in the current settings (CODESPEC 11.7).
     private var preview: some View {
         HStack(spacing: 26) {
             ForEach(Array([("2", true), ("6", false), ("9", true), ("8", false)].enumerated()), id: \.offset) { _, item in
