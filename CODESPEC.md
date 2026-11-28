@@ -499,12 +499,12 @@ Tests:
   - Text seen but not read rings a blank cell.
   - Two solutions show the note without blocking Start.
   - A stale solve or Start result is dropped.
+  - The image cache cleanup removes photos that no saved import uses and keeps the rest.
 - UI:
   - Import opens on Source with its options.
   - Type it in goes to Check the grid. Two 4s in a row show the conflict line and keep Start disabled. Clear cell removes the conflict. Start over returns to Source.
 - Not yet covered (add these):
   - Unit: an imported puzzle's metadata survives a save and load.
-  - Unit: the image cache cleanup removes photos that no saved import uses and keeps the rest.
   - UI: a photo goes through Check the grid, an edit and Start puzzle into play.
   - UI: Discard exits Import and creates no game (today the tests check only that Home shows).
 

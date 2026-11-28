@@ -1,6 +1,6 @@
 import SwiftUI
 
-// Controls shared by the Night sheet, Display & Night and the first-night flow (CODESPEC 11.3, 11.7).
+// Controls shared by the Night sheet, Display & Night and the first-night flow (CODESPEC 7.2, 11.7).
 // All are drawn from the palette, so nothing renders system white at night (CODESPEC 11.4).
 
 /// Segmented control (CODESPEC 7.2, 11.7): a `fill` pill track with a `fillEdge` outline. Light and Dark mark
